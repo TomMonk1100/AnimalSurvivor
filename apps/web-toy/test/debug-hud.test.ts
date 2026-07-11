@@ -47,4 +47,19 @@ describe('debug HUD player-facing status', () => {
       'GREG  HP 76/100  LV 3  XP 22/30\nMove: WASD / Arrow Keys • auto-fire',
     );
   });
+
+  it('explains the first visible XP mote until Greg collects one', () => {
+    expect(formatHud(stats({ playerXp: 0, pickupsLive: 1 }), false)).toContain(
+      'Green motes = XP — collect them to level up.',
+    );
+    expect(formatHud(stats({ playerXp: 0, pickupsLive: 0 }), false)).not.toContain('Green motes');
+    expect(formatHud(stats({ playerXp: 1, pickupsLive: 1 }), false)).not.toContain('Green motes');
+  });
+
+  it('leaves the diagnostic variant focused on engineering data', () => {
+    const output = formatHud(stats({ playerXp: 0, pickupsLive: 1 }));
+
+    expect(output).not.toContain('Green motes');
+    expect(output).toContain('enemies: 4/5  proj: 6/8  pickups: 1/3');
+  });
 });

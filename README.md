@@ -21,9 +21,14 @@ npm run dev
 Open the local Vite URL printed in the terminal (normally
 `http://localhost:5173`).
 
+- A normal manual run waits at tick 0 behind **Start run**, so you can read the
+  core loop before anything moves. The deterministic autopilot and stress URLs
+  bypass that first-run gate.
 - Move Greg with **WASD** or the **arrow keys**. On touch devices, use the
   bottom-left virtual joystick.
 - Greg automatically attacks nearby enemies; there is no aiming control.
+- Before Greg earns the first XP, the HUD labels visible green motes as XP so
+  it is clear that collecting them creates levels and upgrade choices.
 - When Greg levels up, the game pauses at an upgrade choice. Click a card to
   continue the run. The first card receives keyboard focus; press **1**, **2**,
   or **3**, or use **Tab** then **Enter**, to choose without a mouse.

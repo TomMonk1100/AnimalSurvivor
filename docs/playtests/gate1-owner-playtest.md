@@ -15,13 +15,17 @@ npm run dev
 Open the local address Vite prints in the terminal. The normal page is the
 playtest build; the `autopilot`, `stress`, and `fullrun` query options are
 engineering checks, not the recommended way to play. The normal UI is compact
-and player-facing; `?debug=1` exposes diagnostics and engineering controls.
+and player-facing; `?debug=1` exposes diagnostics and engineering controls. A
+normal manual run waits at tick 0 on a **Start run** card; the automated URLs
+skip it so their deterministic checks begin immediately.
 
 ## Controls
 
 - Move with **WASD** or the **arrow keys** on desktop.
 - On touch devices, use the lower-left virtual joystick.
 - Greg attacks automatically; movement is the only required combat control.
+- Until Greg gains the first XP, the player HUD identifies visible green motes
+  as XP to collect for levels and upgrade choices.
 - Choose one animal adaptation whenever the upgrade card pauses the run. The
   first card receives keyboard focus; press **1**, **2**, or **3**, or use
   **Tab** then **Enter**, to select an offer.
@@ -33,19 +37,22 @@ and player-facing; `?debug=1` exposes diagnostics and engineering controls.
 
 ## Five-minute test
 
-1. Move in every direction for 20 seconds. Does screen-up match pressing Up?
+1. On the opening **Start run** card, can you explain the core loop before
+   starting? After starting, does the green-mote XP hint make it clear what to
+   collect?
+2. Move in every direction for 20 seconds. Does screen-up match pressing Up?
    Does Greg's movement feel smooth enough to understand?
-2. Take each of the two first upgrades at least once.
+3. Take each of the two first upgrades at least once.
    - **Porcupine Quills:** automatic bursts at nearby enemies.
    - **Puffer Pouch:** a pull pulse first, then a push pulse when Adapted.
-3. Keep an eye on the **Active Adaptations** panel at lower right. After an
+4. Keep an eye on the **Active Adaptations** panel at lower right. After an
    upgrade card closes, can you still explain what that build does and when it
    triggers?
-4. Watch the short callout near the top when Puffer or Thornstorm activates.
+5. Watch the short callout near the top when Puffer or Thornstorm activates.
    Do "Inhale", "Gather", and "Quill storm" match what you see on screen?
-5. If offered both Adapted traits, take them to form **Thornstorm Mantle**.
+6. If offered both Adapted traits, take them to form **Thornstorm Mantle**.
    Does its sequence read as: telegraph, pull enemies in, then radial quills?
-6. At an upgrade choice, try keyboard selection: does the first card already
+7. At an upgrade choice, try keyboard selection: does the first card already
    have focus, do **1**/**2**/**3** match the visible offers, and does
    **Tab** + **Enter** work as expected? On a touch emulation/device, does the
    joystick thumb follow the drag and disappear on release?
@@ -63,6 +70,8 @@ does not validate normal difficulty or replace the hands-on test above.
 Short answers are enough:
 
 - Movement: smooth / delayed / backwards / confusing, plus one example.
+- Onboarding: did the **Start run** card and first green-mote XP hint explain
+  what to do without outside help?
 - Upgrade clarity: which card or active effect was unclear?
 - Interaction: did keyboard upgrade selection, the joystick thumb, or the
   44px Pause/Restart/Play again controls feel unclear or awkward?

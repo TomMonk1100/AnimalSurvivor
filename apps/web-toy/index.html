@@ -155,6 +155,59 @@
         transition: opacity 90ms ease;
       }
       #joystick[data-active="true"] #joystick-thumb { opacity: 1; }
+      #run-intro {
+        position: fixed;
+        z-index: 6;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        box-sizing: border-box;
+        padding: 16px;
+        background: rgba(5, 9, 14, 0.8);
+        backdrop-filter: blur(3px);
+      }
+      #run-intro[hidden] { display: none; }
+      #run-intro .run-intro-card {
+        width: min(450px, calc(100vw - 32px));
+        box-sizing: border-box;
+        padding: 22px;
+        color: #edf7ff;
+        text-align: center;
+        background: rgba(16, 27, 42, 0.97);
+        border: 1px solid #6c9ac2;
+        border-radius: 14px;
+        box-shadow: 0 18px 56px rgba(0, 0, 0, 0.58);
+        font: 14px/1.45 system-ui, sans-serif;
+      }
+      #run-intro .run-intro-eyebrow {
+        margin: 0 0 5px;
+        color: #86cfee;
+        font: 700 11px/1.2 system-ui, sans-serif;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      #run-intro h1 {
+        margin: 0;
+        font: 700 25px/1.15 system-ui, sans-serif;
+      }
+      #run-intro p:not(.run-intro-eyebrow) { margin: 12px 0 0; }
+      #run-intro #run-intro-controls { color: #b6d1e5; }
+      #run-intro button {
+        min-height: 44px;
+        margin-top: 18px;
+        padding: 10px 18px;
+        color: #effaff;
+        background: #28634d;
+        border: 1px solid #a5e9c6;
+        border-radius: 7px;
+        font: 700 14px/1 system-ui, sans-serif;
+        cursor: pointer;
+      }
+      #run-intro button:focus-visible {
+        outline: 3px solid #ffffff;
+        outline-offset: 3px;
+        background: #397b61;
+      }
       .banner {
         position: absolute;
         left: 50%;
@@ -397,12 +450,14 @@
           width: 42vw;
           height: 42vw;
         }
+        #run-intro .run-intro-card { padding: 18px; }
+        #run-intro h1 { font-size: 23px; }
       }
     </style>
   </head>
   <body>
     <div id="app">
-      <div id="game-surface">
+      <div id="game-surface" tabindex="-1" aria-label="Game arena">
         <canvas id="game-canvas"></canvas>
         <div id="joystick"><span id="joystick-thumb" aria-hidden="true"></span></div>
       </div>
@@ -421,6 +476,15 @@
       <div id="run-outcome" class="banner" role="status" hidden></div>
       <div id="ctx-banner" class="banner">WebGL context lost — simulation paused, restoring…</div>
     </div>
+    <section id="run-intro" role="dialog" aria-modal="true" aria-labelledby="run-intro-heading" aria-describedby="run-intro-objective run-intro-controls" hidden>
+      <div class="run-intro-card">
+        <p id="run-intro-eyebrow" class="run-intro-eyebrow"></p>
+        <h1 id="run-intro-heading"></h1>
+        <p id="run-intro-objective"></p>
+        <p id="run-intro-controls"></p>
+        <button id="run-intro-start" type="button"></button>
+      </div>
+    </section>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

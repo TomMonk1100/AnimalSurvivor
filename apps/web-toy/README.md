@@ -28,10 +28,13 @@ their source is not copied into the app.
     # Vite dev server, normally http://localhost:5173
     npm run dev
 
-Move with **WASD / arrow keys** on desktop or the **bottom-left virtual
-joystick** on touch. Greg auto-attacks nearby enemies; movement is the only
-combat input. When an upgrade card pauses the run, choose an adaptation to
-resume it.
+A normal manual run opens at tick 0 behind **Start run**, giving a new player
+time to read the core loop before anything moves. Autopilot and stress URLs
+skip that first-run gate. Move with **WASD / arrow keys** on desktop or the
+**bottom-left virtual joystick** on touch. Greg auto-attacks nearby enemies;
+movement is the only combat input. Before the first XP gain, a contextual HUD
+line labels visible green motes as XP. When an upgrade card pauses the run,
+choose an adaptation to resume it.
 
 For the recommended hands-on check, use the
 [Gate 1 owner playtest guide](../../docs/playtests/gate1-owner-playtest.md).
@@ -45,7 +48,8 @@ driver hash, tick, controls, and stop method.
 | --- | --- |
 | ?seed=&lt;number or text&gt; | Start with an explicit seed; text is hashed to a 32-bit seed. The default is 0x1234abcd. |
 | ?debug=1 | Shows the diagnostic HUD and engineering controls. The default presentation keeps those details out of the player-facing view. |
-| ?autopilot=1 | Boot directly into deterministic autopilot. |
+| **Start run** | Normal manual runs remain at tick 0 until this first-run button is chosen; it starts without a catch-up burst. |
+| ?autopilot=1 | Boot directly into deterministic autopilot and bypass the first-run gate. |
 | ?autopilot=1&stress=1 | Step up to five simulation ticks per rendered frame and auto-pause at tick 18,000. Stress mode selects the first pending upgrade deterministically so it does not stall. |
 | ?autopilot=1&stress=1&fullrun=1 | Keep the same accelerated, first-offer stress path through the 43,200-tick authored boundary instead of stopping at 18,000. It can exercise boss and terminal UI if Greg survives; it is not a normal-balance result. |
 | ?autopilot=1&stress=1&renderstress=1 | Also feed a renderer-only fixture of 1,000 enemies, 500 projectiles, and 200 pickups to the GPU; it does not alter simulation state or hash. |
@@ -75,7 +79,8 @@ select matching offers, while **Tab** + **Enter** follows ordinary button
 navigation. After a choice, the **Active Adaptations** panel remains visible and
 describes the build's effect and cadence. The player-facing HUD leads with
 Greg's health, level, XP, and the movement/auto-fire reminder before diagnostic
-values.
+values. Until Greg receives the first XP, it also explains that the green motes
+on screen are XP to collect.
 
 The simulation emits executed trait commands into a presentation-only stream.
 The renderer turns supported commands into short-lived, fixed-pool ground
@@ -186,7 +191,7 @@ Run from apps/web-toy:
 | npm ci | Installs the locked browser-tooling dependency set. |
 | npm run typecheck | Strict TypeScript, including noUncheckedIndexedAccess. |
 | npm run lint | ESLint with --max-warnings 0; app-source Math.random is banned. |
-| npm test | The current suite contains **159 tests** across the driver, input, snapshots, presentation, real integrated run replay, and renderer-facing helpers. |
+| npm test | The current suite contains **163 tests** across the driver, input, snapshots, presentation, real integrated run replay, and renderer-facing helpers. |
 | npm run build | Strict typecheck plus a Vite production build. |
 
 The suite covers accumulator exactness, catch-up and hidden-tab behavior,
@@ -218,8 +223,10 @@ To repeat useful checks locally:
 
 1. **Hands-on feel and clarity:** follow the
    [Gate 1 owner playtest guide](../../docs/playtests/gate1-owner-playtest.md).
-   In particular, check vertical controls, upgrade comprehension, Puffer and
-   Thornstorm sequence readability, HUD clutter, and elite/boss recognition.
+   In particular, check whether the initial **Start run** card explains the
+   core loop, then check vertical controls, green-mote XP clarity, upgrade
+   comprehension, Puffer and Thornstorm sequence readability, HUD clutter, and
+   elite/boss recognition.
 2. **Deterministic stress:** open
    /?autopilot=1&stress=1&renderstress=1&debug=1&seed=305441741. It accelerates to and
    auto-pauses at tick 18,000; compare the displayed hash with the five-minute

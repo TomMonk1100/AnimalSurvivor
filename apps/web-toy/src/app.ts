@@ -30,6 +30,7 @@ import { presentBossHealth } from './presentation/boss-health';
 import { presentRunSummary } from './presentation/run-summary';
 import { presentUpgrade } from './presentation/upgrade-copy';
 import { upgradeShortcutIndex } from './presentation/upgrade-shortcuts';
+import { presentRunIntro } from './presentation/run-intro';
 
 /** Deterministic 32-bit seed from a string (djb2). Used only for UI convenience. */
 function seedFromString(s: string): number {
@@ -75,6 +76,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     : 0x1234abcd;
 
   const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
+  const appRoot = document.getElementById('app') as HTMLElement;
   const surface = document.getElementById('game-surface') as HTMLElement;
   const joystickZone = document.getElementById('joystick') as HTMLElement;
   const hudRoot = document.getElementById('hud') as HTMLElement;
@@ -90,6 +92,12 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const bossHealthText = document.getElementById('boss-health-text') as HTMLElement;
   const bossHealthBar = document.getElementById('boss-health-bar') as HTMLElement;
   const bossHealthFill = document.getElementById('boss-health-fill') as HTMLElement;
+  const introRoot = document.getElementById('run-intro') as HTMLElement;
+  const introEyebrow = document.getElementById('run-intro-eyebrow') as HTMLElement;
+  const introTitle = document.getElementById('run-intro-heading') as HTMLElement;
+  const introObjective = document.getElementById('run-intro-objective') as HTMLElement;
+  const introControls = document.getElementById('run-intro-controls') as HTMLElement;
+  const introStartButton = document.getElementById('run-intro-start') as HTMLButtonElement;
 
   const driver: SimDriver = createSimDriver(config, initialSeed, {
     traitRuntimeFactory,
@@ -108,6 +116,10 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     autopilotOn: params.get('autopilot') === '1',
     renderEnabled: true,
   };
+  const intro = presentRunIntro({
+    autoStart: controls.autopilotOn || stressMode || renderStressMode,
+  });
+  let runStarted = !intro.holdAtStart;
   let currentSeed = initialSeed;
   let syntheticDriverNow = performance.now();
   let renderedOfferKey = '';
@@ -368,6 +380,33 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     button('Restart run', restartRun);
   }
 
+  function renderRunIntro(): void {
+    introRoot.hidden = runStarted;
+    // The full-screen dialog visually blocks the game, while inert prevents
+    // hidden background controls from being reached by keyboard navigation.
+    appRoot.toggleAttribute('inert', !runStarted);
+    if (!runStarted) introStartButton.focus({ preventScroll: true });
+  }
+
+  function beginRun(): void {
+    if (runStarted) return;
+    runStarted = true;
+    keyboardInput.clear();
+    // The paused driver already refreshes its timestamp each frame, but this
+    // makes the no-catch-up guarantee explicit at the player-controlled gate.
+    driver.noteVisible(stressMode ? syntheticDriverNow : performance.now());
+    renderRunIntro();
+    surface.focus({ preventScroll: true });
+  }
+
+  introEyebrow.textContent = intro.eyebrow;
+  introTitle.textContent = intro.title;
+  introObjective.textContent = intro.objective;
+  introControls.textContent = intro.controls;
+  introStartButton.textContent = intro.cta;
+  introStartButton.addEventListener('click', beginRun);
+  renderRunIntro();
+
   function setPaused(p: boolean): void {
     controls.paused = p;
     pauseBtn.textContent = p ? 'Resume' : 'Pause';
@@ -418,7 +457,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     // While the GPU context is lost we visibly halt gameplay so the loss can
     // never silently desync or corrupt sim state; sim resumes on restore.
     const runEnded = driver.runOutcome !== null && driver.runOutcome !== 'running';
-    const effectivePaused = controls.paused || rendererLost || driver.upgradeSelectionPending || runEnded;
+    const effectivePaused = !runStarted || controls.paused || rendererLost || driver.upgradeSelectionPending || runEnded;
 
     // Stress mode deliberately advances five fixed ticks per rendered frame so
     // high-load browser evidence can be gathered in roughly one fifth of real
@@ -502,6 +541,9 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     window.removeEventListener('keydown', onUpgradeShortcut);
     window.removeEventListener('blur', onBlur);
     document.removeEventListener('visibilitychange', onVisibility);
+    introStartButton.removeEventListener('click', beginRun);
+    introRoot.hidden = true;
+    appRoot.toggleAttribute('inert', false);
     keyboardInput.dispose();
     autopilot.dispose();
     renderer.dispose();
