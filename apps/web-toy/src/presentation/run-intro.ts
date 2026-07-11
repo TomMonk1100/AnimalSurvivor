@@ -22,7 +22,7 @@ const PLAYER_COPY = {
   eyebrow: 'Animal Survivor',
   title: 'Greg is ready.',
   objective: 'Stay moving, collect green XP motes, and choose animal adaptations.',
-  controls: 'Move with WASD or Arrow Keys — or drag the lower-left circle on touch. Greg auto-fires at nearby threats.',
+  controls: 'Move with WASD or Arrow Keys — or drag the lower-left circle on touch. Greg auto-fires at nearby threats. Press Esc to pause.',
   cta: 'Start run',
 } as const;
 

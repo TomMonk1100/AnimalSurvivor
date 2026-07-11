@@ -29,7 +29,7 @@ import { projectTraitCueCallout, type TraitCueCallout } from './presentation/tra
 import { presentBossHealth } from './presentation/boss-health';
 import { presentRunSummary } from './presentation/run-summary';
 import { presentUpgrade } from './presentation/upgrade-copy';
-import { upgradeShortcutIndex } from './presentation/upgrade-shortcuts';
+import { isPauseShortcut, upgradeShortcutIndex } from './presentation/upgrade-shortcuts';
 import { presentRunIntro } from './presentation/run-intro';
 import { presentRunProgress } from './presentation/run-progress';
 import { createAudioCueRouter } from './audio/audio-cue-router';
@@ -246,6 +246,16 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     if (offer === undefined) return;
     event.preventDefault();
     chooseUpgrade(offer.traitId);
+  }
+
+  function onKeyboardShortcut(event: KeyboardEvent): void {
+    const runEnded = driver.runOutcome === 'victory' || driver.runOutcome === 'defeat';
+    if (isPauseShortcut(event) && runStarted && !driver.upgradeSelectionPending && !runEnded) {
+      event.preventDefault();
+      setPaused(!controls.paused);
+      return;
+    }
+    onUpgradeShortcut(event);
   }
 
   /** Rebuild only when a deterministic upgrade changes the active build. */
@@ -490,7 +500,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   // ---- lifecycle listeners -------------------------------------------------
   const onResize = (): void => renderer.resize();
   window.addEventListener('resize', onResize);
-  window.addEventListener('keydown', onUpgradeShortcut);
+  window.addEventListener('keydown', onKeyboardShortcut);
 
   const onBlur = (): void => {
     keyboardInput.clear();
@@ -613,7 +623,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     running = false;
     cancelAnimationFrame(raf);
     window.removeEventListener('resize', onResize);
-    window.removeEventListener('keydown', onUpgradeShortcut);
+    window.removeEventListener('keydown', onKeyboardShortcut);
     window.removeEventListener('blur', onBlur);
     document.removeEventListener('visibilitychange', onVisibility);
     introSoundToggle.removeEventListener('change', onIntroSoundToggle);

@@ -35,7 +35,7 @@ describe('debug HUD player-facing status', () => {
     const lines = formatHud(stats()).split('\n');
 
     expect(lines[0]).toBe('GREG  HP 76/100  LV 3  XP 22/30');
-    expect(lines[1]).toBe('Move: WASD / Arrow Keys • auto-fire');
+    expect(lines[1]).toBe('Move: WASD / Arrow Keys • auto-fire • Esc pause');
   });
 
   it('reports max level without inventing another XP threshold', () => {
@@ -44,7 +44,7 @@ describe('debug HUD player-facing status', () => {
 
   it('can keep diagnostics out of the player-facing default', () => {
     expect(formatHud(stats(), false)).toBe(
-      'GREG  HP 76/100  LV 3  XP 22/30\nMove: WASD / Arrow Keys • auto-fire',
+      'GREG  HP 76/100  LV 3  XP 22/30\nMove: WASD / Arrow Keys • auto-fire • Esc pause',
     );
   });
 

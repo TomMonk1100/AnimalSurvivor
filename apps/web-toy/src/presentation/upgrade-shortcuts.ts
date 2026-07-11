@@ -1,4 +1,4 @@
-/** The keyboard fields needed to safely classify an upgrade-choice shortcut. */
+/** The keyboard fields needed to safely classify a player-facing shortcut. */
 export interface UpgradeShortcutKeyEvent {
   readonly key: string;
   readonly repeat: boolean;
@@ -7,6 +7,14 @@ export interface UpgradeShortcutKeyEvent {
   readonly metaKey: boolean;
   readonly shiftKey: boolean;
   readonly isComposing: boolean;
+}
+
+/**
+ * Escape is a deliberate toggle rather than a held control. Ignore repeated
+ * and composing key events so one press can never pause and immediately resume.
+ */
+export function isPauseShortcut(event: UpgradeShortcutKeyEvent): boolean {
+  return event.key === 'Escape' && !event.repeat && !event.isComposing;
 }
 
 /**

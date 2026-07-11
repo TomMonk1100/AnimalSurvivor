@@ -46,8 +46,9 @@ Open the local Vite URL printed in the terminal (normally
   in, then upgrades into a wider knockback pulse. Adapt both paths to evolve
   them into **Thornstorm Mantle**, which gathers enemies before a radial quill
   storm.
-- The normal interface stays compact and player-facing. Append `?debug=1` to
-  expose the diagnostic HUD and engineering controls for repeatable checks.
+- The normal interface stays compact and player-facing. Press **Esc** to pause
+  or resume a live desktop run; append `?debug=1` to expose the diagnostic HUD
+  and engineering controls for repeatable checks.
 - On touch, the floating joystick thumb follows each drag. The persistent
   **Active Adaptations** cards stay above the lower-left joystick in portrait
   and clear to its right in landscape. **Pause**, **Restart run**, and terminal

@@ -38,6 +38,8 @@ ask the owner to enable Pages first.
 - Move with **WASD** or the **arrow keys** on desktop.
 - On touch devices, use the lower-left virtual joystick.
 - Greg attacks automatically; movement is the only required combat control.
+- On desktop, press **Esc** to pause or resume a live run. The button remains
+  available for touch and mouse play.
 - **Sound effects** are optional and initially **Off**. Enable them from the
   Start run card or later with **Sound: Off/On**. They only provide quiet cues
   for start/restart, rate-limited XP pickups, upgrade openings, victory, and

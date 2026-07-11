@@ -40,7 +40,7 @@ export function formatHud(stats: HudStats, diagnostics = true, progress: RunProg
     : `XP ${whole(stats.playerXp)}/${whole(stats.playerNextXp)}`;
   const playerLines = [
     `GREG  HP ${whole(stats.playerHp)}/${whole(stats.playerMaxHp)}  LV ${whole(stats.playerLevel)}  ${xp}`,
-    'Move: WASD / Arrow Keys • auto-fire',
+    'Move: WASD / Arrow Keys • auto-fire • Esc pause',
   ];
   if (!diagnostics && stats.playerXp === 0 && stats.pickupsLive > 0) {
     playerLines.push('Green motes = XP — collect them to level up.');

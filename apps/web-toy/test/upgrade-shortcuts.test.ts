@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isPauseShortcut,
   upgradeShortcutIndex,
   type UpgradeShortcutKeyEvent,
 } from '../src/presentation/upgrade-shortcuts';
@@ -18,6 +19,13 @@ function keyEvent(key: string, overrides: Partial<UpgradeShortcutKeyEvent> = {})
 }
 
 describe('upgrade keyboard shortcuts', () => {
+  it('accepts one non-composing Escape press as the pause shortcut', () => {
+    expect(isPauseShortcut(keyEvent('Escape'))).toBe(true);
+    expect(isPauseShortcut(keyEvent('Escape', { repeat: true }))).toBe(false);
+    expect(isPauseShortcut(keyEvent('Escape', { isComposing: true }))).toBe(false);
+    expect(isPauseShortcut(keyEvent('p'))).toBe(false);
+  });
+
   it('maps the visible 1/2/3 choices to zero-based offer indexes', () => {
     expect(upgradeShortcutIndex(keyEvent('1'), 3)).toBe(0);
     expect(upgradeShortcutIndex(keyEvent('2'), 3)).toBe(1);

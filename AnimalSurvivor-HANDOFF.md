@@ -149,6 +149,8 @@ Path: `apps/web-toy/`
   **Play again** for a same-seed restart.
 - The normal web-toy HUD and controls are compact and player-facing;
   `?debug=1` restores diagnostics and engineering controls for local checks.
+- A live desktop run supports **Esc** as a repeat-safe pause/resume toggle; it
+  ignores upgrade-prompt and terminal states so it cannot strand the run.
 - A normal manual run remains at tick 0 behind a presentation-only **Start run**
   gate; autopilot and stress URLs bypass it. Until the first XP gain, the HUD
   also identifies visible green motes as XP to collect.
@@ -180,8 +182,8 @@ All checks below ran successfully from
 - Headless simulation: 161/161 tests passed; typecheck and lint passed.
 - Trait runtime: 58/58 tests passed; typecheck and lint passed.
 - Run director: 61/61 tests passed; typecheck and lint passed.
-- Web toy: 176/176 tests passed; typecheck, lint, and production build passed.
-- Total: 456 passing automated tests.
+- Web toy: 177/177 tests passed; typecheck, lint, and production build passed.
+- Total: 457 passing automated tests.
 - Web production build passed: 1,234 modules transformed. The current main
   JavaScript bundle is about 2.03 MB minified (523 kB gzip); Vite reports the
   expected chunk-size warning.
