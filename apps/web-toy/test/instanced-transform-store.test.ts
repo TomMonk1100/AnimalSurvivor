@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RUN_ENEMY_ROLE } from '@sim';
+import { makeId, RUN_ENEMY_ROLE } from '@sim';
 import type { CategorySnapshot, ViewCategory } from '../src/contracts';
 import {
   DEFAULT_INSTANCE_CAPACITY,
@@ -15,10 +15,6 @@ interface Entry {
   maxHp?: number;
   archetype?: number;
   role?: number;
-}
-
-function makeId(slot: number, generation: number): number {
-  return ((generation & 0xffff) << 16) | (slot & 0xffff);
 }
 
 function snapshot(entries: readonly Entry[], category: ViewCategory = 'enemy'): CategorySnapshot {

@@ -69,6 +69,10 @@ intents and owns all world mutation.
 `phaseStarted`, `spawnRequested`, `eliteWarning`, `eliteRequested`,
 `bossWarning`, `bossRequested`, `overtimeStarted`, `victory`, `defeat`.
 
+`overtimeStarted` is part of the generic director vocabulary for an explicitly
+authored endless definition. The default Greg normal definition never emits it:
+it ends in victory or defeat at the 12:00 boundary.
+
 Every event carries an absolute fixed `tick`, a monotonic `seq`, its source
 `phase`, and all numeric parameters the simulation needs — no renderer object,
 callback, promise, or wall-clock timestamp.
@@ -108,18 +112,23 @@ callback, promise, or wall-clock timestamp.
 
 ## Authored first-run phases
 
-| Phase ID     | Tick range       | Purpose                                                   |
-| ------------ | ---------------: | --------------------------------------------------------- |
-| `opening`    | 0 – 7,199        | Off-screen fodder approaches at the readable opening cadence. |
-| `pressure`   | 7,200 – 17,999   | Faster pressure, runners, and the first Spitters.         |
-| `adaptation` | 18,000 – 28,799  | Higher density, brutes, Spitters, and two elite beats.    |
-| `mutation`   | 28,800 – 35,999  | Sustained mixed pressure and three elite beats.            |
-| `boss`       | 36,000 – 43,199  | Boss spawned once; normal mode ends at 12:00.              |
+| Phase ID     | Tick range       | Cadence | Soft/hard cap | Purpose |
+| ------------ | ---------------: | ------: | ------------: | ------- |
+| `opening`    | 0 – 7,199        | 75 ticks | 10 / 18 | Off-screen fodder approaches at the readable opening cadence. |
+| `pressure`   | 7,200 – 17,999   | 60 ticks | 18 / 30 | Faster pressure, runners, and the first Spitters. |
+| `adaptation` | 18,000 – 28,799  | 45 ticks | 30 / 48 | Higher density, brutes, Spitters, and two elite beats. |
+| `mutation`   | 28,800 – 35,999  | 30 ticks | 46 / 72 | Sustained mixed pressure and three elite beats. |
+| `boss`       | 36,000 – 43,199  | 36 ticks | 36 / 56 | Boss spawned once; normal mode ends at 12:00. |
 
-Phase cadence is 75 / 60 / 45 / 30 / 36 ticks; phase soft/hard caps rise from
-10/18 to 36/56. Elite beats occur at 12,000; 20,400; 25,200; 29,400; 32,400;
-and 34,200 (each warned 300 ticks earlier). Boss request is 36,000 (warn
-34,800). Generic archetype ids: `enemy:fodder`, `enemy:runner`,
+At player levels **4, 6, and 8**, bounded level pressure adds +1 soft / +2 hard
+capacity and subtracts four ticks from the active phase cadence per earned step.
+Elite beats occur at 12,000; 20,400; 25,200; 29,400; 32,400; and 34,200 (each
+warned 300 ticks earlier). Boss request is 36,000 (warn 34,800). Fodder,
+runners, and Spitters author 38–46 distance units; brutes and elites author
+40–48; the boss deliberately authors 20–24 so the 10:00 encounter reaches Greg
+promptly. The simulation adapter applies its documented distance scale and
+keeps a formation at that authored radius or rejects it at a world edge rather
+than clamping it nearby. Generic archetype ids: `enemy:fodder`, `enemy:runner`,
 `enemy:brute`, `enemy:spitter`, `enemy:elite`, `enemy:boss`.
 
 ## Package layout

@@ -1,14 +1,11 @@
 import type { CategorySnapshot } from '../contracts';
+import { idSlot } from '@sim';
 
 /** Default renderer budget for one instanced category. */
 export const DEFAULT_INSTANCE_CAPACITY = 1200;
 
 const ENTITY_SLOT_COUNT = 0x1_0000;
 const MATRIX_STRIDE = 16;
-
-function idSlot(id: number): number {
-  return id & 0xffff;
-}
 
 function clampAlpha(alpha: number): number {
   return alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;

@@ -21,7 +21,7 @@
 - Browser technical toy audited, hardened, and accepted for Gate 1 under
   [`ADR 0005`](../decisions/0005-accept-browser-technical-toy.md).
 - Browser/headless parity confirmed at tick 18,000 with hash
-  `9e436ff6bc30d8a5`; live WebGL reached 1,000 enemies at 60 FPS on the tested M4.
+  `1e4715bcc24cc0ee`; live WebGL reached 1,000 enemies at 60 FPS on the tested M4.
 - Hardware-instanced swarm renderer accepted under
   [`ADR 0006`](../decisions/0006-gpu-instanced-swarm-renderer.md): the 1,700-object
   stress fixture renders in four draw calls.

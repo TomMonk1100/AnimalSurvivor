@@ -265,6 +265,9 @@ export function collectPickups(
   if (!Number.isFinite(xpMultiplier) || xpMultiplier <= 0) {
     throw new RangeError('pickup XP multiplier must be finite and positive');
   }
+  // A corpse is not a valid pickup target. Keeping this guard in the helper
+  // protects direct headless consumers as well as the main simulation loop.
+  if (!player.alive) return;
   const data = pickups.data;
   // Linear scan: pickup cap is small in this spike, so a spatial grid for
   // pickups is not worth the complexity/allocation tradeoff.
@@ -299,7 +302,7 @@ export function attractPickups(
   if (!Number.isFinite(attractionSpeed) || attractionSpeed < 0) {
     throw new RangeError('pickup attraction speed must be finite and non-negative');
   }
-  if (dt === 0 || attractionRadius === 0 || attractionSpeed === 0) return;
+  if (!player.alive || dt === 0 || attractionRadius === 0 || attractionSpeed === 0) return;
 
   const data = pickups.data;
   const maxStep = attractionSpeed * dt;
@@ -350,6 +353,7 @@ export function xpRequiredForNextLevel(
 }
 
 export function applyXpThresholds(player: PlayerState, xpThresholds: readonly number[], events: SimEvents): void {
+  if (!player.alive) return;
   let nextThreshold = xpRequiredForNextLevel(xpThresholds, player.level);
   while (nextThreshold !== null && player.xp >= nextThreshold) {
     player.level++;

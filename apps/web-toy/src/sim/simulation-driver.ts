@@ -146,6 +146,10 @@ export function createSimDriver(
   let ticksLastFrame = 0;
   let droppedAccumSec = 0;
   const frameDirectorEvents: RunDirectorEventView[] = [];
+  // Construction-time director events (notably opening phaseStarted at tick
+  // zero) occur before the first rendered frame. Hold them until that frame
+  // so the presentation layer receives them exactly once.
+  const pendingDirectorEvents: RunDirectorEventView[] = [];
   // The simulation's per-step event records are deliberately reused on its
   // next step. Keep an app-owned frame copy so a catch-up frame retains every
   // command rather than five aliases of the final tick's mutable records.
@@ -163,6 +167,18 @@ export function createSimDriver(
     captureSnapshot(prevBuf, sim);
   }
   primeSnapshots();
+
+  function queueConstructionDirectorEvents(): void {
+    pendingDirectorEvents.length = 0;
+    for (const event of sim.directorEvents) pendingDirectorEvents.push(event);
+  }
+
+  function flushConstructionDirectorEvents(): void {
+    for (const event of pendingDirectorEvents) frameDirectorEvents.push(event);
+    pendingDirectorEvents.length = 0;
+  }
+
+  queueConstructionDirectorEvents();
 
   function captureTraitPresentationEvents(events: readonly TraitPresentationEventView[]): void {
     for (const event of events) {
@@ -227,6 +243,7 @@ export function createSimDriver(
       droppedAccumSec = 0;
       frameDirectorEvents.length = 0;
       frameTraitPresentationEvents.length = 0;
+      flushConstructionDirectorEvents();
 
       const terminalBeforeFrame = sim.runOutcome !== null && sim.runOutcome !== 'running';
       if (paused || sim.upgradeSelectionPending || terminalBeforeFrame) {
@@ -315,6 +332,7 @@ export function createSimDriver(
     ticksLastFrame = 0;
     droppedAccumSec = 0;
     frameDirectorEvents.length = 0;
+    queueConstructionDirectorEvents();
     frameTraitPresentationEvents.length = 0;
     combatFeedbackPool.reset();
     primeSnapshots();

@@ -24,7 +24,7 @@ and one mesh instance per category.
 - Four measured draw calls: player plus three populated category batches.
 - 60 FPS, rolling frame-time p95 17.6 ms and p99 17.7 ms on the tested M4.
 - Browser and headless control both end tick 18,000 at hash
-  `9e436ff6bc30d8a5`; no dropped simulation time or console errors.
+  `1e4715bcc24cc0ee`; no dropped simulation time or console errors.
 
 ## Consequences
 

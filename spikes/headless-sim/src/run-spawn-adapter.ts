@@ -42,6 +42,8 @@ export interface RunSpawnAdapterOptions {
 const TAU = Math.PI * 2;
 const GOLDEN_ANGLE = 2.399963229728653;
 const PLACEMENT_ATTEMPTS = 32;
+/** Authored cluster radial separation, expressed in intent-distance units. */
+const CLUSTER_DISTANCE_STEP = 0.4;
 
 function mixAngle(tick: number, seq: number): number {
   let word = (Math.imul(tick | 0, 0x9e3779b1) ^ Math.imul(seq | 0, 0x85ebca6b)) >>> 0;
@@ -58,6 +60,7 @@ function placement(
   baseAngle: number,
   minimum: number,
   maximum: number,
+  clusterDistanceStep: number,
 ): readonly [number, number] {
   const middle = (minimum + maximum) * 0.5;
   switch (formation) {
@@ -68,7 +71,7 @@ function placement(
     case 'lane':
       return [baseAngle + (index - (count - 1) * 0.5) * 0.035, minimum + (maximum - minimum) * (index + 1) / (count + 1)];
     case 'cluster':
-      return [baseAngle + index * GOLDEN_ANGLE, Math.min(maximum, Math.max(minimum, minimum + index * 8))];
+      return [baseAngle + index * GOLDEN_ANGLE, Math.min(maximum, Math.max(minimum, minimum + index * clusterDistanceStep))];
   }
 }
 
@@ -122,12 +125,13 @@ function placementBaseAngle(
   playerY: number,
   worldWidth: number,
   worldHeight: number,
+  clusterDistanceStep: number,
 ): number | null {
   for (let attempt = 0; attempt < PLACEMENT_ATTEMPTS; attempt++) {
     const candidate = initialAngle + attempt * GOLDEN_ANGLE;
     let fits = true;
     for (let index = 0; index < count; index++) {
-      const [angle, distance] = placement(formation, index, count, candidate, minimum, maximum);
+      const [angle, distance] = placement(formation, index, count, candidate, minimum, maximum, clusterDistanceStep);
       const [x, y] = coordinates(playerX, playerY, angle, distance);
       if (!isInsideWorld(x, y, worldWidth, worldHeight)) {
         fits = false;
@@ -141,6 +145,7 @@ function placementBaseAngle(
 
 export function createRunSpawnAdapter(options: RunSpawnAdapterOptions = {}) {
   const distanceScale = options.distanceScale ?? 20;
+  const clusterDistanceStep = CLUSTER_DISTANCE_STEP * distanceScale;
   const eliteMultiplier = options.eliteHpMultiplier ?? 5;
   const eliteXpMultiplier = options.eliteXpMultiplier ?? 6;
   // The first playable Greg boss needs a real response period before the
@@ -191,6 +196,7 @@ export function createRunSpawnAdapter(options: RunSpawnAdapterOptions = {}) {
           playerY,
           worldWidth,
           worldHeight,
+          clusterDistanceStep,
         );
         if (baseAngle === null) {
           // A tiny world or a formation that cannot fit at its authored radius
@@ -200,7 +206,15 @@ export function createRunSpawnAdapter(options: RunSpawnAdapterOptions = {}) {
           continue;
         }
         for (let index = 0; index < intent.count; index++) {
-          const [angle, distance] = placement(intent.formation, index, intent.count, baseAngle, minimum, maximum);
+          const [angle, distance] = placement(
+            intent.formation,
+            index,
+            intent.count,
+            baseAngle,
+            minimum,
+            maximum,
+            clusterDistanceStep,
+          );
           const [x, y] = coordinates(playerX, playerY, angle, distance);
           const request: DirectedEnemySpawn = {
             ...mapped,

@@ -47,10 +47,14 @@ Open the local Vite URL printed in the terminal (normally
   defeat it to finish the run.
 - Normal mode has a hard **12:00** end. **The Final Threat** enters at **10:00**;
   defeat it before 12:00 to win. Normal mode does not enter hidden overtime.
-- Ordinary waves now enter from beyond the camera rather than materializing
-  beside Greg, then ramp through 75 / 60 / 45 / 30 tick phase cadence. Levels
-  **4**, **6**, and **8** add a bounded **+1 soft / +2 hard** enemy capacity
-  and remove four cadence ticks per step; no same-tick burst is allowed.
+- Ordinary fodder, runners, and Spitters enter from beyond the camera rather
+  than materializing beside Greg (760–920 world units in the current adapter).
+  Brutes and elites enter at 800–960, while the 10:00 boss deliberately starts
+  nearer at 400–480 so its fight begins within seconds. Phase cadence ramps
+  through **75 / 60 / 45 / 30 / 36** ticks (opening through boss), with base
+  soft/hard caps of **10/18, 18/30, 30/48, 46/72, and 36/56**. Levels **4**,
+  **6**, and **8** add a bounded **+1 soft / +2 hard** enemy capacity and remove
+  four cadence ticks per step; no same-tick burst is allowed.
 - Runners weave while approaching. The cobalt **Spitter** is a normal-plus
   ranged enemy that arrives after the opening, holds distance, and fires slow,
   dodgeable orange shots; elites are tougher ranged skirmishers with 24-XP

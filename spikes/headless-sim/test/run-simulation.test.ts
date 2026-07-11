@@ -134,6 +134,30 @@ function quietConfig(): SimConfig {
   return { ...DEFAULT_CONFIG, waves: [] };
 }
 
+function tickZeroSpawnFactory(): RunDirectorFactory {
+  return () => {
+    let tick = -1;
+    return {
+      outcome: 'running' as const,
+      get tick() { return tick; },
+      phase: 'opening' as const,
+      step(metrics: RunMetricsView): readonly RunDirectorEventView[] {
+        tick = metrics.tick;
+        if (metrics.tick !== 0) return [];
+        return [{
+          kind: 'spawnRequested', tick: 0, seq: 1, phase: 'opening',
+          intent: {
+            archetypeId: 'enemy:fodder', count: 1, formation: 'ring',
+            minDistance: 5, maxDistance: 5, elite: false, boss: false,
+          },
+        }];
+      },
+      stateHash: () => Math.max(0, tick).toString(16).padStart(8, '0'),
+      contentFingerprint: () => '10293847',
+    };
+  };
+}
+
 test('primes tick zero, replaces legacy waves, and executes authored boss placement', () => {
   const log: FakeRunDirector[] = [];
   const sim = createSimulation(quietConfig(), 12, { runDirectorFactory: factory(log) });
@@ -153,6 +177,17 @@ test('primes tick zero, replaces legacy waves, and executes authored boss placem
   assert.equal(sim.enemyPresentationRole(bossId), RUN_ENEMY_ROLE.boss);
   assert.equal(sim.enemyPresentationRole(-1), RUN_ENEMY_ROLE.regular);
   assert.equal(sim.hash(), hashBeforePresentationRead, 'presentation reads must not affect canonical state');
+});
+
+test('executes a directed spawn emitted while priming tick zero', () => {
+  const sim = createSimulation(quietConfig(), 14, { runDirectorFactory: tickZeroSpawnFactory() });
+
+  assert.equal(sim.tick, 0);
+  assert.equal(sim.directorEvents[0]?.kind, 'spawnRequested');
+  assert.equal(sim.enemies.data.count, 1);
+  const slot = sim.enemies.data.alive.indexOf(1);
+  assert.notEqual(slot, -1);
+  assert.equal(sim.enemies.data.archetype[slot], 0);
 });
 
 test('tracks boss identity and reports a same-tick boss kill to the director', () => {

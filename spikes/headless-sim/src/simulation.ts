@@ -30,7 +30,7 @@
  *     and, inside spawnFn, a single rng.float() draw for the spawn angle —
  *     always in that order, and only when a spawn is actually attempted.
  *  7. stepEnemies(...) — enemy movement, grid.update, contact damage.
- *  8. Weapon: decrement weaponCooldown unconditionally; when <= 0 AND
+ *  8. Weapon: decrement weaponCooldown down to zero; when it is ready AND
  *     player.alive, query the nearest live target in range and, if found,
  *     attempt to fire a projectile at it. The cooldown is reset to
  *     config.weapon.cooldownTicks ONLY on a successful fire (found a target
@@ -42,7 +42,7 @@
  *     attempts to spawn a pickup at that position; a full pickup pool
  *     silently drops the xp (counted in a diagnostic-only counter, excluded
  *     from the state hash).
- * 10. collectPickups(...) then applyXpThresholds(...).
+ * 10. While alive, collectPickups(...) then applyXpThresholds(...).
  * 11. Return the (already-populated) events object.
  *
  * RNG CONSUMERS (only these two, always in this relative order per tick):
@@ -575,6 +575,18 @@ export function createSimulation(
       bossAlive: false,
       bossDefeatedThisTick: false,
     });
+    // Tick-zero events are authoritative just like events from later fixed
+    // ticks. Execute any authored spawn intents now so custom content cannot
+    // silently lose its opening formation before the first input arrives.
+    if (runSpawnAdapter !== null && runDirector.outcome === 'running') {
+      runSpawnAdapter.execute(lastDirectorEvents, {
+        playerX: player.x,
+        playerY: player.y,
+        worldWidth,
+        worldHeight,
+        spawn: spawnDirected,
+      });
+    }
   }
 
   function step(input: TickInput): SimEvents {
@@ -655,8 +667,8 @@ export function createSimulation(
       },
     );
 
-    weaponCooldown--;
-    if (weaponCooldown <= 0 && player.alive) {
+    if (weaponCooldown > 0) weaponCooldown--;
+    if (weaponCooldown === 0 && player.alive) {
       const ctx = {
         originX: player.x,
         originY: player.y,
@@ -733,9 +745,11 @@ export function createSimulation(
       config.player.invulnTicksOnHit,
     );
 
-    attractPickups(pickups, player, dt, pickupAttractionRadius, pickupAttractionSpeed);
-    collectPickups(pickups, player, events, xpGainMultiplier);
-    applyXpThresholds(player, config.xpThresholds, events);
+    if (player.alive) {
+      attractPickups(pickups, player, dt, pickupAttractionRadius, pickupAttractionSpeed);
+      collectPickups(pickups, player, events, xpGainMultiplier);
+      applyXpThresholds(player, config.xpThresholds, events);
+    }
 
     if (runDirector !== null && runSpawnAdapter !== null) {
       const bossAlive = bossEntityId !== NO_ENTITY && enemies.isLive(bossEntityId);

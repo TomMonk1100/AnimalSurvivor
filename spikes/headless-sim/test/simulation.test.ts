@@ -4,6 +4,7 @@ import type { EnemyArchetype, TickInput, WaveSegment } from '../src/types.js';
 import type { SimConfig } from '../src/config.js';
 import { DEFAULT_CONFIG } from '../src/config.js';
 import { createSimulation } from '../src/simulation.js';
+import { UNIVERSAL_UPGRADE_CATALOG } from '../src/universal-upgrades.js';
 
 function circleInput(t: number): TickInput {
   return { moveX: Math.cos(t * 0.05), moveY: Math.sin(t * 0.05), paused: false };
@@ -77,6 +78,29 @@ test('xp thresholds: forced pickups fire levelUps in order with the right count'
   assert.deepEqual(events.levelUps, [2, 3, 4]);
   assert.equal(sim.player.level, 4);
   assert.equal(sim.player.xp, 6);
+});
+
+test('a dead player cannot collect XP or create an upgrade choice', () => {
+  const config: SimConfig = { ...DEFAULT_CONFIG, waves: [], xpThresholds: [1] };
+  const sim = createSimulation(config, 2, { universalUpgradeCatalog: UNIVERSAL_UPGRADE_CATALOG });
+  sim.player.hp = 0;
+  sim.player.alive = false;
+
+  const slot = sim.pickups.spawn();
+  assert.ok(slot >= 0);
+  sim.pickups.data.posX[slot] = sim.player.x;
+  sim.pickups.data.posY[slot] = sim.player.y;
+  sim.pickups.data.xp[slot] = 1;
+  sim.pickups.data.radius[slot] = 1;
+
+  const events = sim.step({ moveX: 0, moveY: 0, paused: false });
+  assert.equal(events.pickupsCollected, 0);
+  assert.deepEqual(events.levelUps, []);
+  assert.equal(sim.pickups.data.count, 1, 'the corpse leaves the XP mote untouched');
+  assert.equal(sim.player.xp, 0);
+  assert.equal(sim.player.level, 1);
+  assert.equal(sim.upgradeSelectionPending, false);
+  assert.doesNotThrow(() => sim.step({ moveX: 0, moveY: 0, paused: false }));
 });
 
 test('pause: paused ticks never change the hash or tick; resume matches a control run with no pauses', () => {

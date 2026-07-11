@@ -44,8 +44,8 @@ five-minute deterministic stress harness.
 | Signal at auto-pause | Result |
 |---|---:|
 | Simulation tick | 18,000 |
-| Browser final hash | `9e436ff6bc30d8a5` |
-| Headless-control hash | `9e436ff6bc30d8a5` |
+| Browser final hash | `1e4715bcc24cc0ee` |
+| Headless-control hash | `1e4715bcc24cc0ee` |
 | Live/high-water enemies | 1,000 / 1,000 |
 | Draw calls | 1,038 |
 | FPS | 60.0 |
@@ -91,7 +91,7 @@ zero draws; renderer-on restored the scene.
 
 ADR 0006 replaces the original one-view/one-draw renderer. The accepted live
 fixture now submits 1,000 enemies, 500 projectiles, and 200 pickups in four total
-draw calls while preserving the tick-18,000 hash `9e436ff6bc30d8a5`. Automated
+draw calls while preserving the tick-18,000 hash `1e4715bcc24cc0ee`. Automated
 coverage increased to 64 tests across 10 files. On the same 390 × 844 M4 test
 surface, the saturated instanced run held 60 FPS with rolling p95 17.6 ms and
 p99 17.7 ms and no console errors.

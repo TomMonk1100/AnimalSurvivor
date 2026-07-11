@@ -2,6 +2,7 @@
  * Public API surface for the headless-sim spike.
  */
 export type * from './types.js';
+export { makeId, idSlot, idGeneration, NO_ENTITY } from './types.js';
 
 export * from './config.js';
 export { createRng } from './rng.js';

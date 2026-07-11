@@ -532,6 +532,26 @@ test('collectPickups: applies a truthful positive XP gain multiplier at collecti
   assert.throws(() => collectPickups(pickups, player, events, 0), /multiplier/);
 });
 
+test('dead players cannot attract or collect pickups, and cannot level from stored XP', () => {
+  const pickups = createPickupPool(2);
+  const slot = pickups.spawn();
+  pickups.data.posX[slot] = 20;
+  pickups.data.posY[slot] = 0;
+  pickups.data.xp[slot] = 3;
+  pickups.data.radius[slot] = 1;
+  const player = makePlayer({ alive: false, xp: 3, pickupRadius: 100 });
+  const events = makeEvents();
+
+  attractPickups(pickups, player, 1, 100, 100);
+  collectPickups(pickups, player, events);
+  applyXpThresholds(player, [1, 2, 3], events);
+
+  assert.equal(pickups.data.posX[slot], 20, 'dead players do not pull nearby XP motes');
+  assert.equal(pickups.data.count, 1, 'dead players do not consume XP motes');
+  assert.equal(player.level, 1, 'stored XP cannot level a dead player');
+  assert.deepEqual(events.levelUps, []);
+});
+
 test('attractPickups: pulls only in-range pickups by a bounded deterministic step', () => {
   const pickups = createPickupPool(4);
   const player = makePlayer({ x: 0, y: 0, pickupRadius: 10 });

@@ -15,6 +15,7 @@ import { createSimDriver } from '../src/sim/simulation-driver';
 const HZ = DEFAULT_CONFIG.hz;
 const DT_MS = 1000 / HZ;
 const FIVE_MIN_TICKS = HZ * 60 * 5; // 18000 ticks @ 60hz
+const EXPECTED_FIVE_MINUTE_HASH = '1e4715bcc24cc0ee';
 
 /** Headless control: step a bare simulation with autopilot inputs keyed on pre-step tick. */
 function headlessControl(seed: number, ticks: number): string {
@@ -52,10 +53,11 @@ describe('five-minute autopilot determinism & headless parity', () => {
   it('driver renderer-off hash equals headless control over 5 simulated minutes', () => {
     const control = headlessControl(SEED, FIVE_MIN_TICKS);
     const driven = driverRun(SEED, FIVE_MIN_TICKS);
+    expect(control).toBe(EXPECTED_FIVE_MINUTE_HASH);
     expect(driven).toBe(control);
     // Canonical hash for the browser acceptance harness to match at tick 18000.
     console.info(`[stress] seed=0x${SEED.toString(16)} ticks=${FIVE_MIN_TICKS} hash=${control}`);
-  });
+  }, 15_000);
 
   it('is reproducible run-to-run (same seed → same hash)', () => {
     expect(headlessControl(SEED, 6000)).toBe(headlessControl(SEED, 6000));

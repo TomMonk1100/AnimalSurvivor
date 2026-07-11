@@ -5,9 +5,10 @@
 import type { EnemyArchetype, WaveSegment } from './types.js';
 import { createHashWriter } from './state-hash.js';
 
-// Version 6 adds the directed normal-plus spitter archetype and its hostile
-// projectile cadence. Old records must reject rather than silently diverge.
-export const CONFIG_VERSION = 6;
+// Version 7 changes authoritative run behavior: tick-zero director spawns
+// execute immediately, dead players cannot acquire XP, and idle cooldowns
+// clamp at zero. Old records must reject rather than silently diverge.
+export const CONFIG_VERSION = 7;
 
 export interface WeaponConfig {
   /** Ticks between automatic shots. */

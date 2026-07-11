@@ -1,20 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { makeId } from '@sim';
 import { createEntityViewPool } from '../src/render/entity-view-pool';
 import type { EntityFrame, ViewFactory } from '../src/render/entity-view-pool';
-
-/**
- * `@sim`'s `index.ts` re-exports `./types.js` via `export type * from './types.js'`,
- * which is a TYPE-ONLY re-export — `makeId` (a runtime function documented in
- * `types.ts`) is therefore not actually reachable as a value through the `@sim`
- * barrel as currently frozen (verified: `Object.keys(await import('@sim'))`
- * does not include it). Rather than touch lead-owned sim source to fix the
- * barrel, this test reimplements the exact, documented packing formula from
- * `spikes/headless-sim/src/types.ts` (`(generation << 16) | slotIndex`, 16-bit
- * masked) locally. This is pure id arithmetic, not sim behavior under test.
- */
-function makeId(slotIndex: number, generation: number): number {
-  return ((generation & 0xffff) << 16) | (slotIndex & 0xffff);
-}
 
 interface MockView {
   readonly tag: number;

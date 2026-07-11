@@ -168,6 +168,40 @@ describe('createSimDriver: fixed-tick accumulator', () => {
     expect(driver.directorEvents[0]?.tick).toBe(2);
   });
 
+  it('presents tick-zero director events on the first frame and after restart', () => {
+    const runDirectorFactory: RunDirectorFactory = (): RunDirectorPort => {
+      let tick = -1;
+      return {
+        outcome: 'running',
+        get tick() { return tick; },
+        phase: 'opening',
+        step(metrics: RunMetricsView) {
+          tick = metrics.tick;
+          return metrics.tick === 0
+            ? [{ kind: 'phaseStarted', tick: 0, seq: 1, phase: 'opening', phaseId: 'opening' }]
+            : [];
+        },
+        stateHash: () => Math.max(0, tick).toString(16).padStart(8, '0'),
+        contentFingerprint: () => '0badf00d',
+      };
+    };
+    const driver = createSimDriver(DEFAULT_CONFIG, SEED, { runDirectorFactory });
+    const input = new ConstantInput();
+
+    driver.frame(0, input, false);
+    expect(driver.directorEvents).toEqual([
+      { kind: 'phaseStarted', tick: 0, seq: 1, phase: 'opening', phaseId: 'opening' },
+    ]);
+    driver.frame(DT_MS, input, false);
+    expect(driver.directorEvents).toEqual([]);
+
+    driver.restart(SEED + 1);
+    driver.frame(0, input, false);
+    expect(driver.directorEvents).toEqual([
+      { kind: 'phaseStarted', tick: 0, seq: 1, phase: 'opening', phaseId: 'opening' },
+    ]);
+  });
+
   it('stops a catch-up frame on its terminal tick', () => {
     const runDirectorFactory: RunDirectorFactory = (): RunDirectorPort => {
       let tick = -1;

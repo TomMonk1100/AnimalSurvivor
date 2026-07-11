@@ -117,6 +117,9 @@ reads it to give elites amber cylinder treatments, bosses violet cone
 treatments, and normal-plus Spitters cobalt capsule treatments, without
 per-enemy material or entity allocation. Orange hostile projectiles carry their
 enemy faction through snapshots and never trigger Greg's player-attack cue.
+Ordinary waves approach from beyond the current camera, density ramps through
+75 / 60 / 45 / 30 / 36-tick phase cadence, and the Spitter joins pressure,
+adaptation, and mutation—not opening or boss—waves.
 App-owned enemy snapshots also copy current and maximum health, so a live boss
 gets a persistent, accessible **The Final Threat** bar without exposing
 writable gameplay state. When the authoritative run ends, its outcome card
@@ -191,11 +194,13 @@ health, timers, RNG, entity lifetimes, trait state, or director state.
   camera-following view a minor/major grid. They are built once, use shared
   materials, and never update or allocate during the render loop.
 - **Instanced swarms:** regular enemies, elite enemies, bosses, Spitters,
-  player projectiles, hostile projectiles, and pickups use fixed
-  hardware-instanced category batches. A normal enemy is a red sphere, an
-  elite is an amber cylinder, a boss is a violet cone, and a Spitter is a cobalt
+  player projectiles, hostile projectiles, and pickups use **seven** fixed
+  hardware-instanced category batches. A normal enemy is a red sphere, an elite
+  is an amber cylinder, a boss is a violet cone, and a Spitter is a cobalt
   capsule. The role treatment adds bounded fixed batches, not one mesh or
-  material per enemy.
+  material per enemy. Greg, the arena grid, and bounded feedback pools are
+  separate presentation draws, so debug draw-call readings are measured per
+  frame rather than assumed to match an obsolete four-draw swarm model.
 - **Greg:** an audited local Quaternius fox glTF replaces a resilient cyan
   fallback after loading. A fixed-tick presentation reducer drives Idle, Walk,
   Attack, Hit, and Death behavior; a 45-degree-per-tick visual turn cap and
@@ -241,7 +246,7 @@ Two intentionally different deterministic checks are useful:
 
 - The five-minute fixed-driver autopilot parity test compares the baseline
   browser driver with an identically fed bare headless simulation at 18,000
-  ticks. Its current canonical seed/hash is 0x1234abcd / 9e436ff6bc30d8a5.
+  ticks. Its current canonical seed/hash is 0x1234abcd / 1e4715bcc24cc0ee.
 - full-run-replay.test.ts runs the real trait runtime and run director until a
   terminal outcome no later than 43,200 ticks (12 minutes), makes deterministic
   choices, reaches the boss phase, and reproduces the exact replay hash. Its
@@ -339,9 +344,9 @@ Development-only (not shipped in the browser bundle):
 - PlayCanvas worker-path build warnings and physical WebGL-context recovery
   still need release-oriented browser validation, even though the normal build
   and local smoke path work.
-- @sim re-exports packed-ID helpers as types only. Browser code that needs the
-  packed-ID math implements the documented formula locally; it must not assume
-  those helpers are runtime imports.
+- @sim exposes the canonical packed-ID runtime helpers (`makeId`, `idSlot`,
+  `idGeneration`, and `NO_ENTITY`); browser code imports them instead of
+  maintaining a second copy of the bit-packing rules.
 
 The next meaningful milestone is a hands-on desktop playtest focused on
 movement feel, adaptation clarity, trait feedback, and elite/boss readability;

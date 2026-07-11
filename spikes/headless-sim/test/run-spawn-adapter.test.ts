@@ -93,6 +93,17 @@ test('keeps off-screen approach formations at their authored radius near a world
   }
 });
 
+test('scales cluster separation with the configured distance scale', () => {
+  const out: DirectedEnemySpawn[] = [];
+  createRunSpawnAdapter({ distanceScale: 10 }).execute([spawnEvent('enemy:fodder', 'cluster')], {
+    playerX: 500, playerY: 500, worldWidth: 2_000, worldHeight: 2_000,
+    spawn: (request) => { out.push(request); return true; },
+  });
+
+  const distances = out.map((request) => Math.hypot(request.x - 500, request.y - 500));
+  assert.deepEqual(distances.map((distance) => Number(distance.toFixed(6))), [50, 54, 58]);
+});
+
 test('rejects an unplaceable far formation instead of clamping it beside an edge-bound player', () => {
   const stats = createRunSpawnAdapter().execute([spawnEvent('enemy:fodder', 'ring')], {
     playerX: 0, playerY: 0, worldWidth: 200, worldHeight: 200,

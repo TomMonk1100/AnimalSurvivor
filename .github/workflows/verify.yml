@@ -1,0 +1,61 @@
+name: Verify
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Headless simulation
+            directory: spikes/headless-sim
+            lockfile: spikes/headless-sim/package-lock.json
+          - name: Run director
+            directory: packages/run-director
+            lockfile: packages/run-director/package-lock.json
+          - name: Trait runtime
+            directory: packages/trait-runtime
+            lockfile: packages/trait-runtime/package-lock.json
+          - name: Web toy
+            directory: apps/web-toy
+            lockfile: apps/web-toy/package-lock.json
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ${{ matrix.lockfile }}
+
+      - name: Install locked dependencies
+        run: npm ci
+        working-directory: ${{ matrix.directory }}
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: ${{ matrix.directory }}
+
+      - name: Lint
+        run: npm run lint
+        working-directory: ${{ matrix.directory }}
+
+      - name: Test
+        run: npm test
+        working-directory: ${{ matrix.directory }}
+
+      - name: Build web toy
+        if: matrix.directory == 'apps/web-toy'
+        run: npm run build
+        working-directory: ${{ matrix.directory }}
