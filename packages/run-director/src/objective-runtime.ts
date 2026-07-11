@@ -21,7 +21,11 @@ import type { DirectorState, OutcomeEvaluation, RunMetrics } from './contracts.j
  *    bossDefeatedThisTick signal without boss.requested is invalid and
  *    ignored (treated as still running).
  */
-export function evaluateOutcome(state: DirectorState, metrics: RunMetrics): OutcomeEvaluation {
+export function evaluateOutcome(
+  state: DirectorState,
+  metrics: RunMetrics,
+  normalDeadlineTick: number | null = null,
+): OutcomeEvaluation {
   if (state.outcome !== 'running') {
     return { outcome: state.outcome, terminalKind: null };
   }
@@ -30,8 +34,16 @@ export function evaluateOutcome(state: DirectorState, metrics: RunMetrics): Outc
     return { outcome: 'defeat', terminalKind: 'defeat' };
   }
 
-  if (state.boss.requested === true && metrics.bossDefeatedThisTick === true) {
+  if (
+    state.boss.requested === true
+    && metrics.bossDefeatedThisTick === true
+    && (normalDeadlineTick === null || metrics.tick <= normalDeadlineTick)
+  ) {
     return { outcome: 'victory', terminalKind: 'victory' };
+  }
+
+  if (normalDeadlineTick !== null && metrics.tick >= normalDeadlineTick) {
+    return { outcome: 'defeat', terminalKind: 'defeat' };
   }
 
   return { outcome: 'running', terminalKind: null };

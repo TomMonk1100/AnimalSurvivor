@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CONFIG } from '@sim';
+import { DEFAULT_CONFIG, UNIVERSAL_UPGRADE_CATALOG } from '@sim';
 import type {
   SimConfig,
   TraitRuntimeFactory,
@@ -168,6 +168,55 @@ describe('createSimDriver: fixed-tick accumulator', () => {
     expect(driver.directorEvents[0]?.tick).toBe(2);
   });
 
+  it('stops a catch-up frame on its terminal tick', () => {
+    const runDirectorFactory: RunDirectorFactory = (): RunDirectorPort => {
+      let tick = -1;
+      let outcome: 'running' | 'defeat' = 'running';
+      return {
+        get outcome() { return outcome; },
+        get tick() { return tick; },
+        phase: 'opening',
+        step(metrics: RunMetricsView) {
+          tick = metrics.tick;
+          if (tick === 1) {
+            outcome = 'defeat';
+            return [{ kind: 'defeat', tick, seq: 1, phase: 'opening' }];
+          }
+          return [];
+        },
+        stateHash: () => '00000001',
+        contentFingerprint: () => 'abcdef12',
+      };
+    };
+    const driver = createSimDriver(DEFAULT_CONFIG, SEED, { runDirectorFactory });
+    const input = new ConstantInput();
+
+    driver.frame(0, input, false);
+    driver.frame(DT_MS * MAX_CATCHUP_TICKS, input, false);
+
+    expect(driver.tick).toBe(1);
+    expect(driver.ticksLastFrame).toBe(1);
+    expect(driver.runOutcome).toBe('defeat');
+    driver.frame(DT_MS * (MAX_CATCHUP_TICKS + 1), input, false);
+    expect(driver.tick).toBe(1);
+    expect(driver.ticksLastFrame).toBe(0);
+  });
+
+  it('refreshes snapshots immediately after a universal upgrade selection', () => {
+    const config = { ...DEFAULT_CONFIG, waves: [], xpThresholds: [0] };
+    const driver = createSimDriver(config, SEED, { universalUpgradeCatalog: UNIVERSAL_UPGRADE_CATALOG });
+    const input = new ConstantInput();
+
+    driver.frame(0, input, false);
+    driver.frame(DT_MS, input, false);
+    expect(driver.upgradeSelectionPending).toBe(true);
+
+    driver.selectUpgrade('universal:sturdy-hide');
+    expect(driver.curr.playerMaxHp).toBe(DEFAULT_CONFIG.player.maxHp + 15);
+    expect(driver.prev.playerMaxHp).toBe(DEFAULT_CONFIG.player.maxHp + 15);
+    expect(driver.alpha).toBe(0);
+  });
+
   it('advances the exact expected tick count, including a fractional-remainder case', () => {
     const driver = createSimDriver(DEFAULT_CONFIG, SEED);
     const input = new ConstantInput(0, 0);
@@ -324,7 +373,9 @@ describe('createSimDriver: fixed-tick accumulator', () => {
     expect(driver.droppedAccumSec).toBe(0);
     expect(driver.alpha).toBe(0);
     expect(driver.upgradeSelectionPending).toBe(true);
-    expect(driver.pendingUpgradeOffers).toEqual([{ traitId: 'fox-tail', resultStage: 'bud' }]);
+    expect(driver.pendingUpgradeOffers).toEqual([{
+      kind: 'trait', id: 'trait:fox-tail', traitId: 'fox-tail', resultStage: 'bud',
+    }]);
 
     // Prompt dwell time is neither accumulated nor allowed to erase the
     // roughly-three-tick remainder retained from the interrupted catch-up.
@@ -333,7 +384,7 @@ describe('createSimDriver: fixed-tick accumulator', () => {
     expect(driver.ticksLastFrame).toBe(0);
     expect(driver.droppedAccumSec).toBe(0);
 
-    expect(driver.selectUpgrade('fox-tail')).toEqual({ tick: 1, traitId: 'fox-tail' });
+    expect(driver.selectUpgrade('trait:fox-tail')).toEqual({ tick: 1, kind: 'trait', id: 'trait:fox-tail' });
     expect(driver.upgradeSelectionPending).toBe(false);
     expect(driver.traitVisualState()).toEqual([
       {

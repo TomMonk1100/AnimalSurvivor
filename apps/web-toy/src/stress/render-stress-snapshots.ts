@@ -55,7 +55,9 @@ function fillSnapshot(
   out.playerX = config.player.startX;
   out.playerY = config.player.startY;
   out.playerRadius = config.player.radius;
+  out.playerPickupRadius = config.player.pickupRadius;
   out.playerHp = config.player.maxHp;
+  out.playerMaxHp = config.player.maxHp;
   out.playerXp = 0;
   out.playerLevel = 1;
   out.playerAlive = true;

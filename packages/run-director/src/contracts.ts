@@ -18,6 +18,7 @@ import type {
   ArchetypeId,
   EventKind,
   Formation,
+  RunMode,
   RunOutcome,
   RunPhaseId,
 } from './ids.js';
@@ -29,13 +30,13 @@ import type {
 /**
  * One authored phase. Tick range is INCLUSIVE on both ends. Ranges must be
  * contiguous, ordered, and non-overlapping across the run (validation enforces).
- * `overtime` is open-ended: its endTick is the sentinel {@link OPEN_END}.
+ * Only an explicit endless definition may include open-ended `overtime`.
  */
 export interface PhaseDefinition {
   readonly id: RunPhaseId;
   /** First tick (inclusive) this phase is active. */
   readonly startTick: number;
-  /** Last tick (inclusive) this phase is active, or OPEN_END for overtime. */
+  /** Last tick (inclusive) this phase is active, or OPEN_END for endless overtime. */
   readonly endTick: number;
   /**
    * Soft cap on live enemies for this phase. When liveEnemies >= softCap the
@@ -116,12 +117,31 @@ export interface ThreatConfig {
   readonly maxBudget: number;
 }
 
+/**
+ * Small, deterministic density response to a player's earned level. This only
+ * adjusts scheduler capacity and cadence; it never creates a same-tick burst.
+ */
+export interface LevelPressureConfig {
+  /** First player level that earns one pressure step. */
+  readonly startLevel: number;
+  /** Additional levels required for each subsequent step. */
+  readonly levelsPerStep: number;
+  /** Hard bound on the number of earned steps. */
+  readonly maxSteps: number;
+  /** Added to a phase soft cap per earned step. */
+  readonly softCapPerStep: number;
+  /** Added to a phase hard cap per earned step. */
+  readonly hardCapPerStep: number;
+  /** Removed from discretionary-wave interval per earned step. */
+  readonly intervalTicksReductionPerStep: number;
+}
+
 /** Discretionary wave sizing per phase (data-defined, integer-only). */
 export interface WaveConfig {
   /** Minimum ticks between discretionary spawn attempts. Positive int. */
   readonly intervalTicks: number;
   /** Archetype ids eligible for discretionary picks in each phase. */
-  readonly phaseArchetypes: Readonly<Record<RunPhaseId, readonly ArchetypeId[]>>;
+  readonly phaseArchetypes: Readonly<Partial<Record<RunPhaseId, readonly ArchetypeId[]>>>;
 }
 
 /** Overtime bounded-support config. Support pressure is capped + periodic. */
@@ -146,6 +166,8 @@ export interface OvertimeConfig {
 export interface RunDefinition {
   /** Content schema version (CONTENT_VERSION). */
   readonly contentVersion: number;
+  /** Normal content ends at durationTicks; endless content opts into overtime. */
+  readonly mode: RunMode;
   /** Total authored duration boundary in ticks (RUN_DURATION_TICKS). */
   readonly durationTicks: number;
   readonly phases: readonly PhaseDefinition[];
@@ -153,8 +175,11 @@ export interface RunDefinition {
   readonly eliteBeats: readonly EliteBeatDefinition[];
   readonly boss: BossDefinition;
   readonly threat: ThreatConfig;
+  /** Optional for bespoke content; the default normal run supplies one. */
+  readonly levelPressure?: LevelPressureConfig;
   readonly waves: WaveConfig;
-  readonly overtime: OvertimeConfig;
+  /** Required for endless mode and forbidden for finite normal mode. */
+  readonly overtime?: OvertimeConfig;
   /** Fixed capacity of the event buffer. Must satisfy critical-event guarantees. */
   readonly eventBufferCapacity: number;
   /** Seed used for discretionary RNG unless overridden at construction. */

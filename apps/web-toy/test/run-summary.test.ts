@@ -13,4 +13,10 @@ describe('run summary', () => {
       headline: 'Greg was overwhelmed', detail: 'Run ended after 1:05 during pressure.', tone: 'defeat',
     });
   });
+
+  it('states the normal time expiry truthfully instead of calling it an overwhelm', () => {
+    expect(presentRunSummary('defeat', 43_200, 60, 'boss')).toEqual({
+      headline: 'Time ran out', detail: 'The boss was still standing at 12:00.', tone: 'defeat',
+    });
+  });
 });

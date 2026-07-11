@@ -80,7 +80,9 @@ test('runReplay throws on configVersion mismatch', () => {
     configVersion: -1,
     configFingerprint: fingerprintConfig(config),
     traitCatalogFingerprint: null,
+    universalUpgradeCatalogFingerprint: null,
     runContentFingerprint: null,
+    runStartLoadoutFingerprint: '0000000000000000',
     inputs: [{ moveX: 0, moveY: 0, paused: false }],
     upgradeSelections: [],
   };

@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { DEFAULT_CONFIG, type SimConfig } from '../src/config.js';
 import { createSimulation, runReplay } from '../src/simulation.js';
 import { RUN_ENEMY_ROLE } from '../src/run-spawn-adapter.js';
+import { UNIVERSAL_UPGRADE_CATALOG } from '../src/universal-upgrades.js';
 import type {
   RunDirectorEventView,
   RunDirectorFactory,
@@ -59,6 +60,28 @@ function factory(log: FakeRunDirector[] = []): RunDirectorFactory {
   };
 }
 
+function terminalFactory(): RunDirectorFactory {
+  return () => {
+    let tick = -1;
+    let outcome: RunOutcomeView = 'running';
+    return {
+      get outcome() { return outcome; },
+      get tick() { return tick; },
+      phase: 'opening',
+      step(metrics) {
+        tick = metrics.tick;
+        if (metrics.tick === 1) {
+          outcome = 'defeat';
+          return [{ kind: 'defeat', tick: 1, seq: 1, phase: 'opening' }];
+        }
+        return [];
+      },
+      stateHash: () => (outcome === 'defeat' ? '00000002' : '00000001'),
+      contentFingerprint: () => '76543210',
+    };
+  };
+}
+
 function quietConfig(): SimConfig {
   return { ...DEFAULT_CONFIG, waves: [] };
 }
@@ -104,6 +127,26 @@ test('tracks boss identity and reports a same-tick boss kill to the director', (
   assert.equal(sim.totalKills, 1);
   assert.equal(sim.runOutcome, 'victory');
   assert.equal(sim.directorEvents[0]!.kind, 'victory');
+});
+
+test('a terminal tick cannot leave an upgrade pending or mutate on a later input', () => {
+  const config: SimConfig = { ...quietConfig(), xpThresholds: [0] };
+  const sim = createSimulation(config, 45, {
+    runDirectorFactory: terminalFactory(),
+    universalUpgradeCatalog: UNIVERSAL_UPGRADE_CATALOG,
+  });
+
+  const events = sim.step({ moveX: 0, moveY: 0, paused: false });
+  assert.equal(events.levelUps.length, 1, 'the same-tick XP event remains truthful');
+  assert.equal(sim.runOutcome, 'defeat');
+  assert.equal(sim.upgradeSelectionPending, false, 'terminal rewards cannot be followed by an upgrade choice');
+  assert.throws(() => sim.selectUpgrade('universal:swift-paws'), /run has ended/);
+
+  const terminalTick = sim.tick;
+  const terminalHash = sim.hash();
+  sim.step({ moveX: 1, moveY: 1, paused: false });
+  assert.equal(sim.tick, terminalTick);
+  assert.equal(sim.hash(), terminalHash);
 });
 
 test('run content and state participate in deterministic replay and hash', () => {

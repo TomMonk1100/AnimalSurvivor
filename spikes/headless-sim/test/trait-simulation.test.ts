@@ -236,18 +236,22 @@ test('blocks advancement for queued upgrades and applies multiple gained levels 
   const events = sim.step({ moveX: 0, moveY: 0, paused: false });
   assert.deepEqual(events.levelUps, [2, 3]);
   assert.equal(sim.upgradeSelectionPending, true);
-  assert.deepEqual(sim.pendingUpgradeOffers, [{ traitId: 'test-quills', resultStage: 'bud' }]);
+  assert.deepEqual(sim.pendingUpgradeOffers, [{
+    kind: 'trait', id: 'trait:test-quills', traitId: 'test-quills', resultStage: 'bud',
+  }]);
   assert.throws(() => sim.step({ moveX: 0, moveY: 0, paused: false }), /selection is pending/);
-  assert.throws(() => sim.selectUpgrade('not-offered'), /not a pending upgrade offer/);
+  assert.throws(() => sim.selectUpgrade('trait:not-offered'), /not a pending upgrade offer/);
 
-  assert.deepEqual(sim.selectUpgrade('test-quills'), { tick: 1, traitId: 'test-quills' });
-  assert.deepEqual(sim.pendingUpgradeOffers, [{ traitId: 'test-quills', resultStage: 'adapted' }]);
-  assert.deepEqual(sim.selectUpgrade('test-quills'), { tick: 1, traitId: 'test-quills' });
+  assert.deepEqual(sim.selectUpgrade('trait:test-quills'), { tick: 1, kind: 'trait', id: 'trait:test-quills' });
+  assert.deepEqual(sim.pendingUpgradeOffers, [{
+    kind: 'trait', id: 'trait:test-quills', traitId: 'test-quills', resultStage: 'adapted',
+  }]);
+  assert.deepEqual(sim.selectUpgrade('trait:test-quills'), { tick: 1, kind: 'trait', id: 'trait:test-quills' });
   assert.equal(sim.upgradeSelectionPending, false);
   assert.equal(sim.traitVisualState()[0]!.stage, 'adapted');
   assert.deepEqual(sim.getReplay().upgradeSelections, [
-    { tick: 1, traitId: 'test-quills' },
-    { tick: 1, traitId: 'test-quills' },
+    { tick: 1, kind: 'trait', id: 'trait:test-quills' },
+    { tick: 1, kind: 'trait', id: 'trait:test-quills' },
   ]);
 });
 
@@ -255,7 +259,7 @@ test('trait state and selections round-trip through deterministic replay', () =>
   const config = quietConfig([0]);
   const sim = createSimulation(config, 101, { traitRuntimeFactory: makeFactory() });
   sim.step({ moveX: 0.25, moveY: -0.5, paused: false });
-  sim.selectUpgrade('test-quills');
+  sim.selectUpgrade('trait:test-quills');
   sim.step({ moveX: 0, moveY: 0, paused: false });
 
   const replay = sim.getReplay();

@@ -223,7 +223,7 @@ function expectStringArray(v: unknown, label: string): string[] {
   return v as string[];
 }
 
-function parseDelayedWave(raw: unknown, index: number): DelayedWave {
+function parseDelayedWave(raw: unknown, index: number, def: RunDefinition): DelayedWave {
   const w = expectPlainObject(raw, `spawn.delayed[${index}]`);
   const archetypeId = expectArchetypeId(w.archetypeId, `spawn.delayed[${index}].archetypeId`);
   const count = expectFiniteInt(w.count, `spawn.delayed[${index}].count`, 1);
@@ -239,6 +239,9 @@ function parseDelayedWave(raw: unknown, index: number): DelayedWave {
   const cost = expectFiniteInt(w.cost, `spawn.delayed[${index}].cost`, 0);
   const enqueuedTick = expectFiniteInt(w.enqueuedTick, `spawn.delayed[${index}].enqueuedTick`, 0);
   const phase = expectRunPhaseId(w.phase, `spawn.delayed[${index}].phase`);
+  if (def.mode === 'normal' && phase === 'overtime') {
+    fail(`spawn.delayed[${index}].phase cannot be overtime in normal mode`);
+  }
   return {
     archetypeId,
     count,
@@ -311,7 +314,7 @@ export function deserializeState(json: string, def: RunDefinition): DirectorStat
   if (spawnRaw.delayed.length > maxDelayed) {
     fail('spawn.delayed length exceeds spawn.maxDelayed');
   }
-  const delayed = spawnRaw.delayed.map((raw, i) => parseDelayedWave(raw, i));
+  const delayed = spawnRaw.delayed.map((raw, i) => parseDelayedWave(raw, i, def));
 
   const bossRaw = expectPlainObject(root.boss, 'boss');
   const bossWarned = expectBoolean(bossRaw.warned, 'boss.warned');
@@ -354,10 +357,20 @@ export function deserializeState(json: string, def: RunDefinition): DirectorStat
       ? null
       : expectRunPhaseId(root.lastPhaseAnnounced, 'lastPhaseAnnounced');
 
+  if (def.mode === 'normal' && (phase === 'overtime' || lastPhaseAnnounced === 'overtime')) {
+    fail('normal mode cannot serialize an overtime phase');
+  }
+
   /* ---- semantic / forged-state checks --------------------------------- */
 
   if (tick >= 0) {
-    const expectedPhase = phaseAt(def, tick).id;
+    if (def.mode === 'normal' && tick >= def.durationTicks && outcome === 'running') {
+      fail('normal mode cannot remain running at or after durationTicks');
+    }
+    const phaseTick = def.mode === 'normal' && tick >= def.durationTicks
+      ? def.durationTicks - 1
+      : tick;
+    const expectedPhase = phaseAt(def, phaseTick).id;
     if (phase !== expectedPhase) {
       fail(
         `phase/tick mismatch: serialized phase '${phase}' does not match phaseAt(def, ${tick}) = '${expectedPhase}'`,
@@ -378,6 +391,9 @@ export function deserializeState(json: string, def: RunDefinition): DirectorStat
   }
   if (overtimeActive === true && overtimeStartedTick < 0) {
     fail('forged state: overtime.active is true but overtime.startedTick < 0');
+  }
+  if (def.mode === 'normal' && overtimeActive === true) {
+    fail('normal mode cannot activate overtime');
   }
 
   return {

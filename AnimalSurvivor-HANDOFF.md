@@ -55,10 +55,19 @@ Path: `spikes/headless-sim/`
 - TypeScript ESM, fixed 60 Hz simulation, renderer-independent.
 - Seeded RNG, typed-array entity pools, generation-safe entity IDs.
 - Uniform spatial grid and deterministic target selection.
-- Combat, projectiles, pickups, XP, replay recording, canonical state hashing.
+- Combat, projectiles, pickups, unbounded XP progression, replay recording,
+  and canonical state hashing.
+- A unified deterministic run-upgrade queue presents typed animal, universal,
+  and Essence fallback choices. The six universal cards are each rank-capped:
+  Swift Paws, XP Magnet, Sturdy Hide, Sharpened Instinct, Rapid Instinct, and
+  Growth.
+- A normalized run-start loadout carries permanent Starting Vitality into a run
+  without letting browser storage enter deterministic gameplay.
 - Structural injection ports keep the package free of runtime dependencies on
   the trait and run-director packages.
-- Replay schema version is 3.
+- Config/replay compatibility is version 4. Typed upgrade selections, the
+  universal catalog fingerprint, and the run-start-loadout fingerprint are
+  recorded so old content cannot silently replay against this alpha state.
 
 Important integration files:
 
@@ -66,6 +75,9 @@ Important integration files:
 - `src/trait-runtime-port.ts`
 - `src/trait-command-executor.ts`
 - `src/trait-upgrade-queue.ts`
+- `src/run-upgrade-queue.ts`
+- `src/universal-upgrades.ts`
+- `src/run-start-loadout.ts`
 - `src/run-director-port.ts`
 - `src/run-spawn-adapter.ts`
 
@@ -85,9 +97,15 @@ Path: `packages/trait-runtime/`
 
 Path: `packages/run-director/`
 
-- Deterministic 12-minute Greg run.
-- Opening, pressure, adaptation, mutation, boss, and overtime phases.
-- Three authored elite beats, boss entrance, victory, defeat, and overtime.
+- Deterministic finite 12-minute Greg normal run; the boss enters at 10:00.
+  The boss must fall by 12:00 or normal mode ends in defeat, with no hidden
+  overtime.
+- Opening, pressure, adaptation, mutation, and boss phases. Overtime belongs
+  only to a future explicit endless definition.
+- Three authored elite beats, boss entrance, victory, defeat, and bounded
+  content-owned level pressure (levels 4 then 7 add capped live-enemy capacity
+  and shorten ordinary-wave cadence from 120 to 108 to 96 ticks; it never
+  creates a spawn burst).
 - Emits pure intents; never owns simulation pools or renderer state.
 - Imported swarm work was hardened so `RunDirector` saves include and verify
   the exact authored content fingerprint.
@@ -98,7 +116,7 @@ Temporary simulation mappings:
 - runner -> runner prototype;
 - brute -> brute prototype;
 - elite -> brute prototype with 5x HP;
-- boss -> brute prototype with 30x HP.
+- boss -> brute prototype with 18x HP (1,440 HP in the current temporary tune).
 
 Formation placement is deterministic arithmetic derived from director event
 tick and sequence and consumes no simulation RNG.
@@ -109,9 +127,14 @@ Path: `apps/web-toy/`
 
 - Vite + PlayCanvas web application.
 - Fixed-tick simulation driver with interpolation and capped catch-up.
-- Real `TraitRuntime` and `RunDirector` factories are injected.
+- Real `TraitRuntime` and `RunDirector` factories, the universal catalog, and a
+  normalized profile-derived run-start loadout are injected.
 - Upgrade prompts pause exactly at a tick boundary and resume without time
   bursts or lost accumulated time.
+- The unified chooser presents mixed animal-adaptation and neutral cards, with
+  a reserved neutral slot when animal offers would otherwise fill the row. The
+  XP tail has no player-visible level cap; after all finite cards are ranked,
+  **Essence Cache** remains a legal fallback.
 - Stress mode deterministically selects the first offer.
 - Greg uses an audited low-poly fox glTF with deterministic animation and stable
   attachment sockets.
@@ -125,12 +148,13 @@ Path: `apps/web-toy/`
 - Executed trait commands cross a read-only presentation stream through the
   fixed-tick driver, so Puffer Pouch and Thornstorm retain ordered telegraph,
   gather, knockback, and burst effects across catch-up frames.
-- The HUD and persistent Active Adaptations panel explain selected effects and
-  cadence. The centered pause panel repeats the owned build details without
+- The HUD and persistent Active Adaptations panel explain selected animal effects
+  and cadence. The centered pause panel is the full build reference: it shows
+  both owned animal adaptations and neutral run-upgrade ranks/effects without
   cycling per-action text over active combat.
 - The player-facing HUD persistently projects authoritative elapsed time,
   phase, and the current objective. It names survival until **The Final
-  Threat** before the boss and defeating that threat during boss/overtime.
+  Threat** before the boss and defeating that threat during the boss phase.
 - Greg has renderer-only locomotion with a 45-degree-per-tick visual turn cap
   and hysteresis. Sharp reversals resolve across four bounded visual turns while
   position, input, simulation, and replay remain unchanged; repeat auto-attacks
@@ -147,34 +171,40 @@ Path: `apps/web-toy/`
   arc at 200–320 world units rather than a close surround. The boss owns its
   entrance tick, and its temporary adapter multiplier is 18× (1,440 HP) while
   the broader progression/boss balance work is built.
-- Director events present phase, elite, boss, overtime, victory, and defeat
-  notices. Elites and bosses have distinct bounded instanced primitive roles.
+- Director events present phase, elite, boss, victory, and defeat notices in
+  normal mode. Elites and bosses have distinct bounded instanced primitive roles.
 - App-owned enemy snapshots copy current and maximum health, so a persistent,
   accessible boss-health bar appears only while the authoritative boss is live.
-- Terminal outcome UI is wired to the simulation-owned run outcome and includes
-  **Play again** for a same-seed restart.
+- Terminal outcome UI is wired to the simulation-owned run outcome, settles
+  earned Essence exactly once per app-owned run id, and includes **Play again**
+  for a same-seed restart.
+- A versioned local browser profile holds Essence and the first capped permanent
+  purchase, **Starting Vitality** (three +10 maximum-health ranks). Its
+  normalized result applies only when the next deterministic run is created.
 - The normal web-toy HUD and controls are compact and player-facing;
   `?debug=1` restores diagnostics and engineering controls for local checks.
 - A live desktop run supports **Esc** as a repeat-safe pause/resume toggle; it
   ignores upgrade-prompt and terminal states so it cannot strand the run. A
-  centered **Paused** notice tells the player how to resume instead of making
-  the game appear frozen.
+  centered **Paused** notice tells the player how to resume and lists both
+  animal and neutral owned upgrades instead of making the game appear frozen.
 - A normal manual run remains at tick 0 behind a presentation-only **Start run**
   gate; autopilot and stress URLs bypass it. Until the first XP gain, the HUD
   also identifies visible green motes as XP to collect.
 - Upgrade prompts focus the first offer, allow **1**/**2**/**3** direct picks,
-  and preserve **Tab** + **Enter** navigation. The touch joystick has a
-  floating drag thumb; persistent Active Adaptations cards stay above that
-  lower-left control in portrait and to its right in landscape. Pause, Restart
-  run, and terminal Play again use 44px touch targets.
+  and preserve **Tab** + **Enter** navigation for mixed trait/universal/Essence
+  choices. The touch joystick has a floating drag thumb; persistent Active
+  Adaptations cards stay above that lower-left control in portrait and to its
+  right in landscape. Pause, Restart run, and terminal Play again use 44px
+  touch targets.
 - Sparse procedural sound feedback is opt-in and **Off** by default. Players
   can enable it on the Start run card or with the in-run **Sound: Off/On**
-  control; it synthesizes only start/restart, rate-limited pickup, upgrade-open,
-  victory, and defeat cues. It never changes gameplay or replay, and unavailable
-  browser audio is a nonfatal silent fallback.
+  control; its stronger start/restart and upgrade confirmations remain sparse,
+  alongside rate-limited pickup, a quiet auto-attack texture, player-hit
+  warnings, and victory/defeat. It never changes gameplay or replay, and
+  unavailable browser audio is a nonfatal silent fallback.
 - `?autopilot=1&stress=1&fullrun=1` extends the deterministic first-offer stress
-  harness from 18,000 to the 43,200-tick authored boundary for boss/run-flow UI
-  checks; it is not normal-balance evidence.
+  harness from 18,000 to a terminal outcome no later than the 43,200-tick
+  normal boundary for boss/run-flow UI checks; it is not normal-balance evidence.
 - `Publish web-toy preview` is a constrained workflow for relevant `main`
   pushes: it tests, lints, and builds the browser slice, then publishes only
   `apps/web-toy/dist` through GitHub Pages Actions. Before a deployment URL can
@@ -184,24 +214,23 @@ Path: `apps/web-toy/`
 
 ## Current verification snapshot
 
-All checks below ran successfully from
-`/Users/adammuncie/GameDev/AnimalSurvivor` on 2026-07-11:
+All package gates below completed successfully on 2026-07-11 from
+`/Users/adammuncie/GameDev/AnimalSurvivor`:
 
-- Headless simulation: 162/162 tests passed; typecheck and lint passed.
-- Trait runtime: 58/58 tests passed; typecheck and lint passed.
-- Run director: 62/62 tests passed; typecheck and lint passed.
-- Web toy: 177/177 tests passed; typecheck, lint, and production build passed.
-- Total: 459 passing automated tests.
-- Web production build passed: 1,235 modules transformed. The current main
-  JavaScript bundle is about 2.03 MB minified (523 kB gzip); Vite reports the
-  expected chunk-size warning.
-- Concrete simulation + real TraitRuntime + real RunDirector replay reproduced
-  the exact final hash with a recorded trait selection.
-- A real 43,200-tick Greg autoplay using the real trait runtime and director
-  reaches the boss and reproduces its exact replay hash. Its endurance setup
-  validates infrastructure, not normal difficulty balance.
-- A short local browser smoke pass advanced gameplay and showed no console
-  errors, but it is not a human end-to-end playtest.
+- Headless simulation: **186/186** tests, typecheck, and lint passed.
+- Trait runtime: **58/58** tests, typecheck, and lint passed.
+- Run director: **68/68** tests, typecheck, and lint passed.
+- Web toy: **194/194** tests, typecheck, lint, and production build passed.
+- Total: **506** automated tests passed.
+- The integrated real-trait/real-director replay reaches a terminal outcome no
+  later than the 12:00 normal cap and reproduces its exact final hash.
+- A local browser smoke verified the mixed chooser (two animal cards plus a
+  reserved neutral Swift Paws card), selected that card, and showed its exact
+  rank/effect in the pause panel. It was not a human balance playtest or a
+  terminal-profile-flow test.
+- The current production build transformed 1,242 modules; Vite reports its
+  expected chunk-size warning for the roughly 2.06 MB minified main bundle
+  (about 530 kB gzip).
 
 Useful gate commands:
 
@@ -239,8 +268,14 @@ human playtesting.
 ## Known limitations
 
 - Gate 0 still lacks its ten external human concept interviews.
-- No human has played a complete normal-balance 12-minute browser run. Automated
-  replay and short smoke coverage do not validate pacing, clarity, or balance.
+- No human has played a complete normal-balance 12-minute browser run with the
+  10:00 boss, mixed upgrades, or Starting Vitality. Automated replay and short
+  smoke coverage do not validate pacing, clarity, or balance.
+- Only two animal paths and six neutral run upgrades are implemented. **Luck**,
+  more animal traits, player-selectable difficulties, and Hardcore Endless are
+  explicitly deferred, not hidden or partially shipped.
+- Essence and Starting Vitality are a local-browser first pass, not cloud saves,
+  cross-device progression, a full menu, or a finished meta economy.
 - Trait-command timing, lifetimes, sizes, and colours need hands-on feedback;
   the current effects are deliberately bounded primitive cues, not final art.
 - Zone, mark, chain, melee, and shield command kinds remain explicitly rejected
@@ -250,8 +285,9 @@ human playtesting.
   authored meshes, animation, and richer entrance behavior.
 - The full-run browser stress option is an engineering UI check, not a
   normal-balance browser run or human-playtest result.
-- The optional sound layer is sparse procedural feedback, not a final audio mix
-  or authored foley; it needs hands-on volume and timing feedback.
+- The optional sound layer now includes stronger start/upgrade confirmations,
+  a quiet auto-attack texture, and a rate-limited player-hit warning, but
+  remains procedural feedback rather than a final audio mix or authored foley.
 - Low-end physical devices, touch hardware, and forced WebGL context loss still
   require testing.
 - GitHub Pages availability is pending the owner's one-time **Settings → Pages
@@ -262,34 +298,21 @@ human playtesting.
 
 ## Recommended next task
 
-If a hosted tester link is needed, first enable **Settings → Pages → Build and
-deployment → Source: GitHub Actions**, then use the GitHub-assigned URL from a
-green `Publish web-toy preview` deployment on `main`. Run a second hands-on
-desktop playtest after that, then make one evidence-led presentation tuning
-pass. Do not reopen completed trait-socket, command-stream, or director-notice
-integration without a reproducible regression.
+Use the validated progression alpha for one complete human normal-mode playtest
+before expanding its catalog.
 
-Scope:
+1. Run a complete human normal-mode playtest: reach the 10:00 boss or die,
+   observe the hard 12:00 ending, inspect both pause summaries, bank Essence,
+   buy Starting Vitality, then confirm its effect on the next run.
+2. Use that evidence to tune only authored, replay-safe pressure values:
+   placement, the bounded level-pressure steps, and temporary boss health.
+   Record exact observations instead of inferring balance from autoplay.
+3. Only after that loop is enjoyable should the owner enable GitHub Pages for a
+   hosted test link and broaden external playtesting.
 
-1. Test corrected vertical movement, locomotion smoothness, upgrade-card and
-   Active Adaptations/pause-summary comprehension, optional sound feedback,
-   combat feedback and elite/boss readability, boss-health progress, terminal **Play
-   again** flow, keyboard upgrade selection, and touch joystick feedback plus
-   joystick-safe adaptation-card placement on desktop/mobile.
-2. Record concrete observations at the relevant trait or director event rather
-   than inferring balance from the autoplay fixture.
-3. Tune only the bounded renderer-facing cue lifetimes, sizes, colours, and
-   messaging indicated by that feedback; preserve simulation and replay hashes.
-4. Re-run the affected automated gates and retain the distinction between a
-   successful smoke test and a normal-balance human run.
-
-After that:
-
-1. decide whether each remaining unsupported trait command kind gets persistent
-   state or remains excluded from all player-facing catalogs;
-2. run physical-touch, low-end-device, and forced-WebGL-context-loss checks;
-3. begin broader external human play checks once the normal-balance loop is
-   enjoyable.
+Do not add Luck, player-selectable difficulty, Hardcore Endless, or more animal
+traits as the next task. Each needs a separate truthful gameplay contract and
+should follow—not preempt—evidence that this compact loop works.
 
 ## Non-negotiable technical rules
 

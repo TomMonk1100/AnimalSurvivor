@@ -112,6 +112,7 @@ import { selectTarget } from './targeting.js';
 import { createWaveDirector } from './wave-director.js';
 import {
   applyXpThresholds,
+  attractPickups,
   collectPickups,
   spawnProjectile,
   stepEnemies,
@@ -123,10 +124,18 @@ import {
   type TraitRuntimeCommandSource,
   type TraitRuntimeCommandView,
   type TraitRuntimeFactory,
-  type TraitUpgradeOfferView,
   type TraitVisualAttachmentView,
 } from './trait-runtime-port.js';
-import { createTraitUpgradeQueue } from './trait-upgrade-queue.js';
+import {
+  createRunUpgradeQueue,
+  type RunUpgradeOfferView,
+} from './run-upgrade-queue.js';
+import type { UniversalUpgradeCatalog } from './universal-upgrades.js';
+import {
+  fingerprintRunStartLoadout,
+  normalizeRunStartLoadout,
+  type RunStartLoadout,
+} from './run-start-loadout.js';
 import {
   createRunDirectorPort,
   type RunDirectorEventView,
@@ -145,12 +154,17 @@ import {
 export interface SimulationOptions {
   readonly traitRuntimeFactory?: TraitRuntimeFactory;
   readonly traitOfferCount?: number;
+  /** Optional neutral per-run catalog; omitted keeps legacy trait-only runs. */
+  readonly universalUpgradeCatalog?: UniversalUpgradeCatalog;
+  /** App-resolved permanent effects, detached before simulation startup. */
+  readonly runStartLoadout?: RunStartLoadout;
   readonly runDirectorFactory?: RunDirectorFactory;
   readonly runSpawnAdapterOptions?: RunSpawnAdapterOptions;
 }
 
-const EMPTY_TRAIT_OFFERS: readonly TraitUpgradeOfferView[] = Object.freeze([]);
+const EMPTY_RUN_OFFERS: readonly RunUpgradeOfferView[] = Object.freeze([]);
 const EMPTY_TRAIT_VISUALS: readonly TraitVisualAttachmentView[] = Object.freeze([]);
+const EMPTY_UNIVERSAL_RANKS: readonly number[] = Object.freeze([]);
 
 /**
  * A renderer-facing copy of a trait command that was handed to the combat
@@ -198,12 +212,18 @@ export interface Simulation {
   /** XP silently dropped because the pickup pool was full at kill time. Diagnostic only. */
   readonly xpLostToFullPickupPool: number;
   readonly traitCatalogFingerprint: string | null;
+  readonly universalUpgradeCatalogFingerprint: string | null;
+  readonly runStartLoadoutFingerprint: string;
   readonly runContentFingerprint: string | null;
   readonly runOutcome: RunOutcomeView | null;
   readonly runPhase: RunPhaseView | null;
   readonly directorEvents: readonly RunDirectorEventView[];
   readonly totalKills: number;
-  readonly pendingUpgradeOffers: readonly TraitUpgradeOfferView[];
+  /** Essence earned from fallback cards during this run, before terminal settlement. */
+  readonly runEssenceEarned: number;
+  /** Immutable universal ranks in the active catalog's canonical order. */
+  readonly universalUpgradeRanks: readonly number[];
+  readonly pendingUpgradeOffers: readonly RunUpgradeOfferView[];
   readonly upgradeSelectionPending: boolean;
   /**
    * Renderer-only copies of commands executed during the most recent advancing
@@ -220,7 +240,7 @@ export interface Simulation {
    */
   enemyPresentationRole(id: EntityId): RunEnemyRole;
   step(input: TickInput): SimEvents;
-  selectUpgrade(traitId: string): UpgradeSelection;
+  selectUpgrade(id: string): UpgradeSelection;
   traitVisualState(): readonly TraitVisualAttachmentView[];
   hash(): string;
   getReplay(): ReplayRecord;
@@ -258,9 +278,23 @@ export function createSimulation(
     throw new Error('trait runtime fingerprint must be 16 lowercase hexadecimal characters');
   }
   const traitExecutor = traitRuntime === null ? null : createTraitCommandExecutor();
-  const traitUpgradeQueue = traitRuntime === null
+  const runUpgradeQueue = traitRuntime === null && options.universalUpgradeCatalog === undefined
     ? null
-    : createTraitUpgradeQueue(traitRuntime, { offerCount: options.traitOfferCount ?? 3 });
+    : options.universalUpgradeCatalog === undefined
+      ? createRunUpgradeQueue(traitRuntime, { offerCount: options.traitOfferCount ?? 3 })
+      : createRunUpgradeQueue(traitRuntime, {
+        offerCount: options.traitOfferCount ?? 3,
+        universalCatalog: options.universalUpgradeCatalog,
+      });
+  const universalUpgradeCatalogFingerprint = runUpgradeQueue?.universalCatalogFingerprint ?? null;
+  if (
+    universalUpgradeCatalogFingerprint !== null &&
+    !/^[0-9a-f]{16}$/.test(universalUpgradeCatalogFingerprint)
+  ) {
+    throw new Error('universal upgrade catalog fingerprint must be 16 lowercase hexadecimal characters');
+  }
+  const runStartLoadout = normalizeRunStartLoadout(options.runStartLoadout);
+  const runStartLoadoutFingerprint = fingerprintRunStartLoadout(runStartLoadout);
   const runDirector = options.runDirectorFactory === undefined
     ? null
     : createRunDirectorPort(options.runDirectorFactory, { seed });
@@ -276,14 +310,17 @@ export function createSimulation(
     CONFIG_VERSION,
     configFingerprint,
     traitCatalogFingerprint,
+    universalUpgradeCatalogFingerprint,
     runContentFingerprint,
+    runStartLoadoutFingerprint,
   );
 
+  const basePlayerMaxHp = config.player.maxHp + runStartLoadout.maxHpBonus;
   const player: PlayerState = {
     x: config.player.startX,
     y: config.player.startY,
-    hp: config.player.maxHp,
-    maxHp: config.player.maxHp,
+    hp: basePlayerMaxHp,
+    maxHp: basePlayerMaxHp,
     speed: config.player.speed,
     radius: config.player.radius,
     pickupRadius: config.player.pickupRadius,
@@ -298,6 +335,9 @@ export function createSimulation(
   const pickups = createPickupPool(config.pickupCap);
   const grid = createSpatialGrid(config.worldWidth, config.worldHeight, config.gridCellSize, config.enemyCap);
   const waveDirector = createWaveDirector(config.waves);
+  // The config is immutable content. A local copy lets an actual run upgrade
+  // change projectile damage without mutating caller-owned config state.
+  const weapon = { ...config.weapon };
   if (runDirector !== null && config.archetypes.length < 3) {
     throw new Error('run director integration requires at least three simulation archetypes');
   }
@@ -392,6 +432,28 @@ export function createSimulation(
 
   const worldWidth = config.worldWidth;
   const worldHeight = config.worldHeight;
+  let pickupAttractionRadius = 0;
+  let pickupAttractionSpeed = 0;
+  let xpGainMultiplier = 1;
+
+  /** Synchronize concrete authoritative stats after a universal card selection. */
+  function applyUniversalStats(): void {
+    const stats = runUpgradeQueue?.universalStats;
+    if (stats === null || stats === undefined) return;
+
+    player.speed = config.player.speed * stats.speedMultiplier;
+    player.pickupRadius = config.player.pickupRadius + stats.pickupRadiusBonus;
+    pickupAttractionRadius = stats.pickupAttractionRadius;
+    pickupAttractionSpeed = stats.pickupAttractionSpeed;
+    weapon.damage = config.weapon.damage * stats.weaponDamageMultiplier;
+    weapon.cooldownTicks = Math.max(1, Math.round(config.weapon.cooldownTicks * stats.weaponCooldownMultiplier));
+    xpGainMultiplier = stats.xpMultiplier;
+
+    const nextMaxHp = basePlayerMaxHp + stats.maxHpBonus;
+    if (nextMaxHp > player.maxHp) player.hp += nextMaxHp - player.maxHp;
+    player.maxHp = nextMaxHp;
+    if (player.hp > player.maxHp) player.hp = player.maxHp;
+  }
 
   /**
    * Places one enemy of `archetype` (hp scaled by hpMultiplier) at a
@@ -434,7 +496,7 @@ export function createSimulation(
   }
 
   function spawnFn(archetype: number, hpMultiplier: number): boolean {
-    const spawnRadius = config.weapon.range + 100;
+    const spawnRadius = weapon.range + 100;
     const angle = rng.float() * 2 * Math.PI;
     const x = clamp(player.x + Math.cos(angle) * spawnRadius, 0, worldWidth);
     const y = clamp(player.y + Math.sin(angle) * spawnRadius, 0, worldHeight);
@@ -495,11 +557,20 @@ export function createSimulation(
   }
 
   function step(input: TickInput): SimEvents {
-    if (traitUpgradeQueue?.blocked) {
+    if (runUpgradeQueue?.blocked) {
       throw new Error('Simulation.step: an upgrade selection is pending');
     }
     if (!Number.isFinite(input.moveX) || !Number.isFinite(input.moveY) || typeof input.paused !== 'boolean') {
       throw new TypeError('Simulation.step: input must contain finite moveX/moveY numbers and a boolean paused');
+    }
+    if (runDirector !== null && runDirector.outcome !== 'running') {
+      // A terminal run is frozen at its final authoritative boundary. This is
+      // deliberately a no-op rather than a new replay input: callers that
+      // sample once more after a terminal frame cannot add kills, XP, or a
+      // post-run upgrade choice.
+      resetEvents(events);
+      resetTraitPresentationEvents();
+      return events;
     }
     // Canonicalize before both recording and simulation so a serialize/deserialize
     // round-trip cannot alter out-of-range controller input.
@@ -561,20 +632,20 @@ export function createSimulation(
       const ctx = {
         originX: player.x,
         originY: player.y,
-        range: config.weapon.range,
+        range: weapon.range,
         moveDirX: lastMoveDirX,
         moveDirY: lastMoveDirY,
       };
-      const target: EntityId = selectTarget('nearest', ctx, enemies, grid, config.weapon.clusterRadius);
+      const target: EntityId = selectTarget('nearest', ctx, enemies, grid, weapon.clusterRadius);
       if (target !== NO_ENTITY) {
         const tSlot = enemies.slotOf(target);
         if (tSlot >= 0) {
           const dirX = enemies.data.posX[tSlot]! - player.x;
           const dirY = enemies.data.posY[tSlot]! - player.y;
-          const fired = spawnProjectile(projectiles, player.x, player.y, dirX, dirY, config.weapon, 0);
+          const fired = spawnProjectile(projectiles, player.x, player.y, dirX, dirY, weapon, 0);
           if (fired) {
             events.projectilesFired++;
-            weaponCooldown = config.weapon.cooldownTicks;
+            weaponCooldown = weapon.cooldownTicks;
           }
           // no target found or pool full: do NOT reset cooldown, retry next tick
         }
@@ -622,9 +693,9 @@ export function createSimulation(
 
     stepProjectiles(projectiles, enemies, grid, dt, worldWidth, worldHeight, maxEnemyRadius, events, killEnemy);
 
-    collectPickups(pickups, player, events);
+    attractPickups(pickups, player, dt, pickupAttractionRadius, pickupAttractionSpeed);
+    collectPickups(pickups, player, events, xpGainMultiplier);
     applyXpThresholds(player, config.xpThresholds, events);
-    traitUpgradeQueue?.enqueueLevels(events.levelUps.length);
 
     if (runDirector !== null && runSpawnAdapter !== null) {
       const bossAlive = bossEntityId !== NO_ENTITY && enemies.isLive(bossEntityId);
@@ -652,14 +723,25 @@ export function createSimulation(
       }
     }
 
+    // A same-tick terminal outcome settles the run before any unresolved XP
+    // can become a player choice. This prevents an upgrade (including Essence
+    // Cache) from appearing after the terminal reward has already been paid.
+    if (runDirector === null || runDirector.outcome === 'running') {
+      runUpgradeQueue?.enqueueLevels(events.levelUps.length);
+    }
+
     return events;
   }
 
-  function selectUpgrade(traitId: string): UpgradeSelection {
-    if (traitUpgradeQueue === null) {
-      throw new Error('Simulation.selectUpgrade: traits are not enabled');
+  function selectUpgrade(id: string): UpgradeSelection {
+    if (runUpgradeQueue === null) {
+      throw new Error('Simulation.selectUpgrade: run upgrades are not enabled');
     }
-    const selection = traitUpgradeQueue.select(traitId, clock.tick);
+    if (runDirector !== null && runDirector.outcome !== 'running') {
+      throw new Error('Simulation.selectUpgrade: run has ended');
+    }
+    const selection = runUpgradeQueue.select(id, clock.tick);
+    applyUniversalStats();
     replayRecorder.recordUpgrade(selection);
     return selection;
   }
@@ -679,6 +761,7 @@ export function createSimulation(
     const writer = createHashWriter();
     writer.u32(CONFIG_VERSION);
     writer.str(configFingerprint);
+    writer.str(runStartLoadoutFingerprint);
     writer.u32(clock.tick);
 
     const rngState = rng.getState();
@@ -700,6 +783,11 @@ export function createSimulation(
     writer.u8(player.alive ? 1 : 0);
 
     writer.u32(weaponCooldown);
+    writer.f32(weapon.damage);
+    writer.u32(weapon.cooldownTicks);
+    writer.f32(pickupAttractionRadius);
+    writer.f32(pickupAttractionSpeed);
+    writer.f64(xpGainMultiplier);
     writer.f32(lastMoveDirX);
     writer.f32(lastMoveDirY);
 
@@ -765,16 +853,45 @@ export function createSimulation(
       }
     }
 
-    if (traitRuntime !== null && traitUpgradeQueue !== null) {
+    if (traitRuntime !== null) {
       writer.str(traitCatalogFingerprint!);
       writer.str(traitRuntime.hash());
-      writer.f64(traitUpgradeQueue.queuedLevels);
-      writer.f64(traitUpgradeQueue.drainedLevels);
-      writer.f64(traitUpgradeQueue.selectionCount);
-      writer.u32(traitUpgradeQueue.pendingOfferCount);
-      for (const offer of traitUpgradeQueue.pendingOffers) {
-        writer.str(offer.traitId);
-        writer.str(offer.resultStage);
+    }
+
+    if (runUpgradeQueue !== null) {
+      writer.f64(runUpgradeQueue.queuedLevels);
+      writer.f64(runUpgradeQueue.drainedLevels);
+      writer.f64(runUpgradeQueue.selectionCount);
+      writer.f64(runUpgradeQueue.essenceEarned);
+      writer.f64(runUpgradeQueue.universalOfferCursor);
+      writer.u32(runUpgradeQueue.pendingOfferCount);
+      for (const offer of runUpgradeQueue.pendingOffers) {
+        writer.str(offer.kind);
+        writer.str(offer.id);
+        switch (offer.kind) {
+          case 'trait':
+            writer.str(offer.traitId);
+            writer.str(offer.resultStage);
+            break;
+          case 'universal':
+            writer.str(offer.upgradeId);
+            writer.f64(offer.currentRank);
+            writer.f64(offer.nextRank);
+            writer.f64(offer.maxRank);
+            break;
+          case 'essence':
+            writer.f64(offer.amount);
+            break;
+        }
+      }
+      const universalState = runUpgradeQueue.universalState;
+      if (universalState === null) {
+        writer.u8(0);
+      } else {
+        writer.u8(1);
+        writer.str(universalState.catalogFingerprint);
+        writer.u32(universalState.ranks.length);
+        for (const rank of universalState.ranks) writer.f64(rank);
       }
     }
 
@@ -810,6 +927,8 @@ export function createSimulation(
     grid,
     waveDirector,
     traitCatalogFingerprint,
+    universalUpgradeCatalogFingerprint,
+    runStartLoadoutFingerprint,
     runContentFingerprint,
     get runOutcome() {
       return runDirector?.outcome ?? null;
@@ -823,11 +942,17 @@ export function createSimulation(
     get totalKills() {
       return totalKills;
     },
+    get runEssenceEarned() {
+      return runUpgradeQueue?.essenceEarned ?? 0;
+    },
+    get universalUpgradeRanks() {
+      return runUpgradeQueue?.universalState?.ranks ?? EMPTY_UNIVERSAL_RANKS;
+    },
     get pendingUpgradeOffers() {
-      return traitUpgradeQueue?.pendingOffers ?? EMPTY_TRAIT_OFFERS;
+      return runUpgradeQueue?.pendingOffers ?? EMPTY_RUN_OFFERS;
     },
     get upgradeSelectionPending() {
-      return traitUpgradeQueue?.blocked ?? false;
+      return runUpgradeQueue?.blocked ?? false;
     },
     get traitPresentationEvents() {
       return traitPresentationEvents;
@@ -871,8 +996,14 @@ export function runReplay(
   if (record.traitCatalogFingerprint !== sim.traitCatalogFingerprint) {
     throw new Error('runReplay: trait catalog fingerprint mismatch');
   }
+  if (record.universalUpgradeCatalogFingerprint !== sim.universalUpgradeCatalogFingerprint) {
+    throw new Error('runReplay: universal upgrade catalog fingerprint mismatch');
+  }
   if (record.runContentFingerprint !== sim.runContentFingerprint) {
     throw new Error('runReplay: run content fingerprint mismatch');
+  }
+  if (record.runStartLoadoutFingerprint !== sim.runStartLoadoutFingerprint) {
+    throw new Error('runReplay: run start loadout fingerprint mismatch');
   }
   let selectionIndex = 0;
   for (const input of record.inputs) {
@@ -881,7 +1012,14 @@ export function runReplay(
       selectionIndex < record.upgradeSelections.length &&
       record.upgradeSelections[selectionIndex]!.tick === sim.tick
     ) {
-      sim.selectUpgrade(record.upgradeSelections[selectionIndex]!.traitId);
+      const expectedSelection = record.upgradeSelections[selectionIndex]!;
+      const appliedSelection = sim.selectUpgrade(expectedSelection.id);
+      if (
+        appliedSelection.kind !== expectedSelection.kind ||
+        appliedSelection.id !== expectedSelection.id
+      ) {
+        throw new Error('runReplay: upgrade selection no longer matches the pending typed offer');
+      }
       selectionIndex++;
     }
     if (

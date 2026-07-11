@@ -15,6 +15,7 @@ import type {
 import { OPEN_END } from './contracts.js';
 import {
   BOSS_ENTRANCE_TICK,
+  NORMAL_RUN_PHASE_ORDER,
   RUN_DURATION_TICKS,
   RUN_PHASE_ORDER,
   type ArchetypeId,
@@ -38,15 +39,27 @@ function isNonNegInt(value: number): boolean {
  * ==========================================================================*/
 
 export function validateDefinition(def: RunDefinition): void {
+  validateMode(def);
   validateDuration(def);
   const phaseById = validatePhases(def);
   const archetypeIds = validateArchetypes(def);
   validateEliteBeats(def, phaseById, archetypeIds);
-  validateBoss(def, archetypeIds);
+  validateBoss(def, phaseById, archetypeIds);
   validateThreat(def);
+  validateLevelPressure(def);
   validateWaves(def, archetypeIds);
   validateOvertime(def, archetypeIds);
   validateEventBuffer(def);
+}
+
+function validateMode(def: RunDefinition): void {
+  if (def.mode !== 'normal' && def.mode !== 'endless') {
+    throw new Error(`validateDefinition: mode must be 'normal' or 'endless', got ${String(def.mode)}`);
+  }
+}
+
+function phaseOrderFor(def: RunDefinition): readonly RunPhaseId[] {
+  return def.mode === 'normal' ? NORMAL_RUN_PHASE_ORDER : RUN_PHASE_ORDER;
 }
 
 /* ============================================================================
@@ -66,9 +79,10 @@ function validateDuration(def: RunDefinition): void {
  * ==========================================================================*/
 
 function validatePhases(def: RunDefinition): ReadonlyMap<RunPhaseId, PhaseDefinition> {
-  if (def.phases.length !== RUN_PHASE_ORDER.length) {
+  const phaseOrder = phaseOrderFor(def);
+  if (def.phases.length !== phaseOrder.length) {
     throw new Error(
-      `validateDefinition: expected exactly ${RUN_PHASE_ORDER.length} phases (one per RUN_PHASE_ORDER entry), got ${def.phases.length}`,
+      `validateDefinition: expected exactly ${phaseOrder.length} phases for ${def.mode} mode, got ${def.phases.length}`,
     );
   }
 
@@ -80,14 +94,14 @@ function validatePhases(def: RunDefinition): ReadonlyMap<RunPhaseId, PhaseDefini
     byId.set(phase.id, phase);
   }
 
-  for (const id of RUN_PHASE_ORDER) {
+  for (const id of phaseOrder) {
     if (!byId.has(id)) {
       throw new Error(`validateDefinition: missing required phase "${id}"`);
     }
   }
 
   let previous: PhaseDefinition | null = null;
-  for (const id of RUN_PHASE_ORDER) {
+  for (const id of phaseOrder) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const phase = byId.get(id)!;
 
@@ -129,9 +143,16 @@ function validatePhases(def: RunDefinition): ReadonlyMap<RunPhaseId, PhaseDefini
     previous = phase;
   }
 
-  const overtime = byId.get('overtime');
-  if (!overtime || overtime.endTick !== OPEN_END) {
-    throw new Error('validateDefinition: overtime phase endTick must equal OPEN_END');
+  if (def.mode === 'normal') {
+    const boss = byId.get('boss');
+    if (!boss || boss.endTick !== def.durationTicks - 1) {
+      throw new Error('validateDefinition: normal boss phase must end at durationTicks - 1');
+    }
+  } else {
+    const overtime = byId.get('overtime');
+    if (!overtime || overtime.endTick !== OPEN_END) {
+      throw new Error('validateDefinition: endless overtime phase endTick must equal OPEN_END');
+    }
   }
 
   return byId;
@@ -269,7 +290,11 @@ function validateEliteBeatFields(
  * Boss
  * ==========================================================================*/
 
-function validateBoss(def: RunDefinition, archetypeIds: ReadonlySet<ArchetypeId>): void {
+function validateBoss(
+  def: RunDefinition,
+  phaseById: ReadonlyMap<RunPhaseId, PhaseDefinition>,
+  archetypeIds: ReadonlySet<ArchetypeId>,
+): void {
   const boss = def.boss;
   if (!Number.isFinite(boss.warningTick) || !Number.isInteger(boss.warningTick)) {
     throw new Error('validateDefinition: boss warningTick must be an integer');
@@ -287,6 +312,10 @@ function validateBoss(def: RunDefinition, archetypeIds: ReadonlySet<ArchetypeId>
   }
   if (boss.warningTick < 0) {
     throw new Error('validateDefinition: boss warningTick must be >= 0');
+  }
+  const bossPhase = phaseById.get('boss');
+  if (!bossPhase || boss.requestTick < bossPhase.startTick || boss.requestTick > bossPhase.endTick) {
+    throw new Error('validateDefinition: boss requestTick must lie inside the boss phase');
   }
   if (!archetypeIds.has(boss.archetypeId)) {
     throw new Error(`validateDefinition: boss references unknown archetype "${boss.archetypeId}"`);
@@ -319,6 +348,46 @@ function validateThreat(def: RunDefinition): void {
   }
 }
 
+function validateLevelPressure(def: RunDefinition): void {
+  const levelPressure = def.levelPressure;
+  if (levelPressure === undefined) return;
+  if (!isPosInt(levelPressure.startLevel)) {
+    throw new Error('validateDefinition: levelPressure.startLevel must be a positive integer');
+  }
+  if (!isPosInt(levelPressure.levelsPerStep)) {
+    throw new Error('validateDefinition: levelPressure.levelsPerStep must be a positive integer');
+  }
+  if (!isPosInt(levelPressure.maxSteps) || levelPressure.maxSteps > 3) {
+    throw new Error('validateDefinition: levelPressure.maxSteps must be an integer in [1, 3]');
+  }
+  if (!isPosInt(levelPressure.softCapPerStep) || levelPressure.softCapPerStep > 1) {
+    throw new Error('validateDefinition: levelPressure.softCapPerStep must be 1');
+  }
+  if (!isPosInt(levelPressure.hardCapPerStep) || levelPressure.hardCapPerStep > 2) {
+    throw new Error('validateDefinition: levelPressure.hardCapPerStep must be in [1, 2]');
+  }
+  if (levelPressure.hardCapPerStep < levelPressure.softCapPerStep) {
+    throw new Error('validateDefinition: levelPressure.hardCapPerStep must be >= softCapPerStep');
+  }
+  if (!isPosInt(levelPressure.intervalTicksReductionPerStep)) {
+    throw new Error('validateDefinition: levelPressure.intervalTicksReductionPerStep must be a positive integer');
+  }
+  if (
+    def.waves.intervalTicks
+      - levelPressure.maxSteps * levelPressure.intervalTicksReductionPerStep
+      < 1
+  ) {
+    throw new Error('validateDefinition: levelPressure reduces wave interval below 1 tick');
+  }
+  for (const phase of def.phases) {
+    const maxSoftCap = phase.softCap + levelPressure.maxSteps * levelPressure.softCapPerStep;
+    const maxHardCap = phase.hardCap + levelPressure.maxSteps * levelPressure.hardCapPerStep;
+    if (maxSoftCap >= maxHardCap) {
+      throw new Error(`validateDefinition: levelPressure collapses the cap gap in phase "${phase.id}"`);
+    }
+  }
+}
+
 /* ============================================================================
  * Waves
  * ==========================================================================*/
@@ -328,7 +397,7 @@ function validateWaves(def: RunDefinition, archetypeIds: ReadonlySet<ArchetypeId
   if (!isPosInt(waves.intervalTicks)) {
     throw new Error('validateDefinition: waves.intervalTicks must be a positive integer');
   }
-  for (const id of RUN_PHASE_ORDER) {
+  for (const id of phaseOrderFor(def)) {
     const eligible = waves.phaseArchetypes[id];
     if (!eligible || eligible.length === 0) {
       throw new Error(`validateDefinition: waves.phaseArchetypes["${id}"] must be a non-empty array`);
@@ -348,7 +417,19 @@ function validateWaves(def: RunDefinition, archetypeIds: ReadonlySet<ArchetypeId
  * ==========================================================================*/
 
 function validateOvertime(def: RunDefinition, archetypeIds: ReadonlySet<ArchetypeId>): void {
+  if (def.mode === 'normal') {
+    if (def.overtime !== undefined) {
+      throw new Error('validateDefinition: normal mode must not define overtime');
+    }
+    if (def.waves.phaseArchetypes.overtime !== undefined) {
+      throw new Error('validateDefinition: normal mode must not define overtime waves');
+    }
+    return;
+  }
   const overtime = def.overtime;
+  if (overtime === undefined) {
+    throw new Error('validateDefinition: endless mode requires overtime config');
+  }
   if (!isPosInt(overtime.supportIntervalTicks)) {
     throw new Error('validateDefinition: overtime.supportIntervalTicks must be a positive integer');
   }

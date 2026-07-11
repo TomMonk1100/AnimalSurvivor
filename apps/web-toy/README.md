@@ -65,10 +65,10 @@ driver hash, tick, controls, and stop method.
 | ?seed=&lt;number or text&gt; | Start with an explicit seed; text is hashed to a 32-bit seed. The default is 0x1234abcd. |
 | ?debug=1 | Shows the diagnostic HUD and engineering controls. The default presentation keeps those details out of the player-facing view. |
 | **Start run** | Normal manual runs remain at tick 0 until this first-run button is chosen; it starts without a catch-up burst. |
-| **Sound effects** / **Sound: Off/On** | Optional, initially Off sound feedback. Enable it from the Start run card or later from the normal controls. It synthesizes only start/restart, rate-limited pickup, upgrade-open, victory, and defeat cues; unavailable browser audio leaves play unaffected. |
+| **Sound effects** / **Sound: Off/On** | Optional, initially Off sound feedback. Enable it from the Start run card or later from the normal controls. It synthesizes stronger start/restart and upgrade cues, rate-limited pickup, player-hit, and quiet auto-attack texture cues, plus victory/defeat; unavailable browser audio leaves play unaffected. |
 | ?autopilot=1 | Boot directly into deterministic autopilot and bypass the first-run gate. |
 | ?autopilot=1&stress=1 | Step up to five simulation ticks per rendered frame and auto-pause at tick 18,000. Stress mode selects the first pending upgrade deterministically so it does not stall. |
-| ?autopilot=1&stress=1&fullrun=1 | Keep the same accelerated, first-offer stress path through the 43,200-tick authored boundary instead of stopping at 18,000. It can exercise boss and terminal UI if Greg survives; it is not a normal-balance result. |
+| ?autopilot=1&stress=1&fullrun=1 | Keep the same accelerated, first-offer stress path until terminal, no later than the 43,200-tick normal boundary instead of stopping at 18,000. It can exercise boss and terminal UI; it is not a normal-balance result. |
 | ?autopilot=1&stress=1&renderstress=1 | Also feed a renderer-only fixture of 1,000 enemies, 500 projectiles, and 200 pickups to the GPU; it does not alter simulation state or hash. |
 | **Upgrade choices** | The first card receives focus when the run pauses. Press **1**, **2**, or **3** for the matching offered card, or use normal **Tab** + **Enter** button navigation. |
 | **Virtual joystick** | Drag inside the lower-left zone to move. A floating thumb follows the clamped drag and disappears on release, cancel, or focus loss. On narrow screens, persistent adaptation cards stay above it in portrait and to its right in landscape. |
@@ -91,15 +91,18 @@ combined Mythic. They are real runtime content rather than display-only cards.
 | **Thornstorm Mantle** | Mythic mantle that replaces its ingredients | Telegraphs, gathers enemies, then emits a radial quill storm. |
 
 The upgrade cards name the socket, stage, practical effect, and Mythic pairing.
-When they appear, the first card takes keyboard focus: **1**, **2**, and **3**
-select matching offers, while **Tab** + **Enter** follows ordinary button
-navigation. After a choice, the **Active Adaptations** panel remains visible and
-describes the build's effect and cadence. The player-facing HUD leads with
+They also mix in six rank-capped neutral choices—Swift Paws, XP Magnet, Sturdy
+Hide, Sharpened Instinct, Rapid Instinct, and Growth—with a reserved neutral
+slot and an Essence Cache fallback after finite cards are complete. When cards
+appear, the first takes keyboard focus: **1**, **2**, and **3** select matching
+offers, while **Tab** + **Enter** follows ordinary button navigation. After a
+choice, the **Active Adaptations** panel remains visible and the pause panel
+lists both animal and neutral build effects. The player-facing HUD leads with
 Greg's health, level, XP, and the movement/auto-fire reminder before diagnostic
-values. It also retains the elapsed run time, authoritative phase, and a
-phase-appropriate objective—survive until **The Final Threat**, then defeat it
-to finish the run. Until Greg receives the first XP, it explains that the green
-motes on screen are XP to collect.
+values. It also retains elapsed time, authoritative phase, and a phase-appropriate
+objective—survive until **The Final Threat**, then defeat it by the 12:00 normal
+cap. Until Greg receives the first XP, it explains that the green motes on
+screen are XP to collect.
 
 The simulation emits executed trait commands into a presentation-only stream.
 The renderer turns supported commands into short-lived, fixed-pool ground
@@ -108,7 +111,7 @@ panel—explain the selected build and cadence without repeatedly covering play
 with per-action text. These cues are copied across fixed-tick catch-up before
 rendering and never feed back into gameplay, hashing, or replay state.
 
-The authored run director drives phase, elite, boss, overtime, victory, and
+The authored normal-mode run director drives phase, elite, boss, victory, and
 defeat notices. Enemy role remains authoritative in simulation; the renderer
 reads it to give elites amber cylinder treatments and bosses violet cone
 treatments, without per-enemy material or entity allocation. App-owned enemy
@@ -234,11 +237,11 @@ Two intentionally different deterministic checks are useful:
 - The five-minute fixed-driver autopilot parity test compares the baseline
   browser driver with an identically fed bare headless simulation at 18,000
   ticks. Its current canonical seed/hash is 0x1234abcd / 9e436ff6bc30d8a5.
-- full-run-replay.test.ts runs the real trait runtime and run director for
-  43,200 ticks (12 minutes), makes deterministic choices, reaches the boss
-  phase, and reproduces the exact replay hash. Its enlarged player-health
-  configuration validates integration and replay infrastructure; it is not
-  evidence of normal difficulty balance.
+- full-run-replay.test.ts runs the real trait runtime and run director until a
+  terminal outcome no later than 43,200 ticks (12 minutes), makes deterministic
+  choices, reaches the boss phase, and reproduces the exact replay hash. Its
+  enlarged player-health configuration validates integration and replay
+  infrastructure; it is not evidence of normal difficulty balance.
 
 ## Local browser checks and playtesting
 
@@ -260,11 +263,11 @@ To repeat useful checks locally:
    auto-pauses at tick 18,000; compare the displayed hash with the five-minute
    automated-check value above.
 3. **Accelerated boss/run flow:** open
-   /?autopilot=1&stress=1&fullrun=1. It raises the stress cap to 43,200 ticks
-   and makes deterministic upgrade choices. If the normal-health run reaches a
-   live boss, verify the **The Final Threat** health bar appears and the terminal
-   card offers **Play again**. This is an engineering UI check, not evidence of
-   normal-balance survival.
+   /?autopilot=1&stress=1&fullrun=1. It raises the stress cap to the 43,200-tick
+   normal boundary and makes deterministic upgrade choices until terminal. If
+   the normal-health run reaches a live boss, verify the **The Final Threat**
+   health bar appears and the terminal card offers **Play again**. This is an
+   engineering UI check, not evidence of normal-balance survival.
 4. **Read-only rendering A/B:** add `?debug=1`, then toggle **Renderer: OFF/ON**
    while autopilot runs. The simulation/hash should continue identically with
    draw calls shown as zero while rendering is detached.

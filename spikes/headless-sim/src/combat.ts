@@ -154,7 +154,15 @@ export function stepProjectiles(
 // projectile on a later tick since we keep no per-projectile hit list in
 // this spike. Acceptable for a headless simulation prototype.
 
-export function collectPickups(pickups: Pool<PickupPool>, player: PlayerState, events: SimEvents): void {
+export function collectPickups(
+  pickups: Pool<PickupPool>,
+  player: PlayerState,
+  events: SimEvents,
+  xpMultiplier = 1,
+): void {
+  if (!Number.isFinite(xpMultiplier) || xpMultiplier <= 0) {
+    throw new RangeError('pickup XP multiplier must be finite and positive');
+  }
   const data = pickups.data;
   // Linear scan: pickup cap is small in this spike, so a spatial grid for
   // pickups is not worth the complexity/allocation tradeoff.
@@ -162,17 +170,89 @@ export function collectPickups(pickups: Pool<PickupPool>, player: PlayerState, e
     if (data.alive[slot] === 0) continue;
     const maxDist = player.pickupRadius + data.radius[slot]!;
     if (distSq(player.x, player.y, data.posX[slot]!, data.posY[slot]!) <= maxDist * maxDist) {
-      player.xp += data.xp[slot]!;
+      player.xp += data.xp[slot]! * xpMultiplier;
       pickups.despawn(slot);
       events.pickupsCollected++;
     }
   }
 }
 
+/**
+ * Moves XP pickups toward the player without consuming them. Attraction is
+ * deliberately a separate deterministic pass from collection: callers can
+ * give a build a real magnet effect while the existing pickup-radius rule
+ * remains the single authority for awarding XP.
+ */
+export function attractPickups(
+  pickups: Pool<PickupPool>,
+  player: PlayerState,
+  dt: number,
+  attractionRadius: number,
+  attractionSpeed: number,
+): void {
+  if (!Number.isFinite(dt) || dt < 0) throw new RangeError('pickup attraction dt must be finite and non-negative');
+  if (!Number.isFinite(attractionRadius) || attractionRadius < 0) {
+    throw new RangeError('pickup attraction radius must be finite and non-negative');
+  }
+  if (!Number.isFinite(attractionSpeed) || attractionSpeed < 0) {
+    throw new RangeError('pickup attraction speed must be finite and non-negative');
+  }
+  if (dt === 0 || attractionRadius === 0 || attractionSpeed === 0) return;
+
+  const data = pickups.data;
+  const maxStep = attractionSpeed * dt;
+  for (let slot = 0; slot < data.capacity; slot++) {
+    if (data.alive[slot] === 0) continue;
+
+    const dx = player.x - data.posX[slot]!;
+    const dy = player.y - data.posY[slot]!;
+    const distanceSq = dx * dx + dy * dy;
+    if (distanceSq === 0 || distanceSq > attractionRadius * attractionRadius) continue;
+
+    const distance = Math.sqrt(distanceSq);
+    const step = Math.min(maxStep, distance);
+    data.posX[slot] = data.posX[slot]! + (dx / distance) * step;
+    data.posY[slot] = data.posY[slot]! + (dy / distance) * step;
+  }
+}
+
+/**
+ * Cumulative XP needed to advance from `currentLevel` to the next level.
+ * Authored thresholds preserve the hand-tuned early run. Once those are
+ * consumed, a quadratic-tail curve continues forever instead of exposing a
+ * player-visible level cap. An empty table intentionally disables leveling
+ * for small deterministic test configurations.
+ */
+export function xpRequiredForNextLevel(
+  xpThresholds: readonly number[],
+  currentLevel: number,
+): number | null {
+  if (!Number.isSafeInteger(currentLevel) || currentLevel < 1) {
+    throw new RangeError('current level must be a positive safe integer');
+  }
+  if (xpThresholds.length === 0) return null;
+  if (currentLevel <= xpThresholds.length) return xpThresholds[currentLevel - 1]!;
+
+  const authoredCount = xpThresholds.length;
+  const finalThreshold = xpThresholds[authoredCount - 1]!;
+  const lastIncrement = authoredCount === 1
+    ? finalThreshold
+    : finalThreshold - xpThresholds[authoredCount - 2]!;
+  // `tailLevel` starts at 1 for the first threshold after the authored table.
+  // The 8-XP triangular increase keeps later levels meaningful without the
+  // sudden wall that a pure exponential curve creates in a twelve-minute run.
+  const tailLevel = currentLevel - authoredCount;
+  return finalThreshold
+    + tailLevel * lastIncrement
+    + (8 * tailLevel * (tailLevel + 1)) / 2;
+}
+
 export function applyXpThresholds(player: PlayerState, xpThresholds: readonly number[], events: SimEvents): void {
-  while (player.level - 1 < xpThresholds.length && player.xp >= xpThresholds[player.level - 1]!) {
+  let nextThreshold = xpRequiredForNextLevel(xpThresholds, player.level);
+  while (nextThreshold !== null && player.xp >= nextThreshold) {
     player.level++;
     events.levelUps.push(player.level);
+    nextThreshold = xpRequiredForNextLevel(xpThresholds, player.level);
   }
 }
 

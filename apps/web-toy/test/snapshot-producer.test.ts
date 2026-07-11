@@ -77,12 +77,12 @@ describe('snapshot producer enemy presentation roles', () => {
     expect(Array.from(snapshot.enemies.hp.slice(0, snapshot.enemies.count))).toEqual([
       bruteHp,
       bruteHp * 5,
-      bruteHp * 30,
+      bruteHp * 18,
     ]);
     expect(Array.from(snapshot.enemies.maxHp.slice(0, snapshot.enemies.count))).toEqual([
       bruteHp,
       bruteHp * 5,
-      bruteHp * 30,
+      bruteHp * 18,
     ]);
     expect(sim.hash()).toBe(hashBeforeCapture);
     const bossIndex = Array.from(snapshot.enemies.role.slice(0, snapshot.enemies.count))
@@ -90,7 +90,7 @@ describe('snapshot producer enemy presentation roles', () => {
     const bossSlot = sim.enemies.slotOf(snapshot.enemies.id[bossIndex]!);
     expect(bossSlot).toBeGreaterThanOrEqual(0);
     sim.enemies.data.hp[bossSlot] = 1;
-    expect(snapshot.enemies.hp[bossIndex]).toBe(bruteHp * 30);
+    expect(snapshot.enemies.hp[bossIndex]).toBe(bruteHp * 18);
   });
 
   it('keeps health fields zero for non-enemy categories', () => {
@@ -123,15 +123,19 @@ describe('snapshot producer player progression', () => {
     const snapshot = createSnapshot(QUIET_CONFIG);
     sim.player.xp = 47;
     sim.player.level = 3;
+    sim.player.maxHp = 145;
 
     captureSnapshot(snapshot, sim);
 
     expect(snapshot.playerXp).toBe(47);
     expect(snapshot.playerLevel).toBe(3);
+    expect(snapshot.playerMaxHp).toBe(145);
 
     sim.player.xp = 99;
     sim.player.level = 4;
+    sim.player.maxHp = 200;
     expect(snapshot.playerXp).toBe(47);
     expect(snapshot.playerLevel).toBe(3);
+    expect(snapshot.playerMaxHp).toBe(145);
   });
 });

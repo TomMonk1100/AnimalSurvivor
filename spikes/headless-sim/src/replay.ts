@@ -11,7 +11,9 @@ export function createReplayRecorder(
   configVersion: number,
   configFingerprint: string,
   traitCatalogFingerprint: string | null,
+  universalUpgradeCatalogFingerprint: string | null,
   runContentFingerprint: string | null,
+  runStartLoadoutFingerprint: string,
 ): {
   record(input: TickInput): void;
   recordUpgrade(selection: UpgradeSelection): void;
@@ -26,7 +28,7 @@ export function createReplayRecorder(
       inputs.push({ moveX: input.moveX, moveY: input.moveY, paused: input.paused });
     },
     recordUpgrade(selection: UpgradeSelection): void {
-      upgradeSelections.push({ tick: selection.tick, traitId: selection.traitId });
+      upgradeSelections.push({ tick: selection.tick, kind: selection.kind, id: selection.id });
     },
     finish(): ReplayRecord {
       return {
@@ -34,7 +36,9 @@ export function createReplayRecorder(
         configVersion,
         configFingerprint,
         traitCatalogFingerprint,
+        universalUpgradeCatalogFingerprint,
         runContentFingerprint,
+        runStartLoadoutFingerprint,
         inputs: inputs.slice(),
         upgradeSelections: upgradeSelections.slice(),
       };
@@ -63,9 +67,9 @@ export function serializeReplay(r: ReplayRecord): string {
     )
     .join(',');
   const upgradesJson = r.upgradeSelections
-    .map((selection) => `{"tick":${jsonNumber(selection.tick)},"traitId":${JSON.stringify(selection.traitId)}}`)
+    .map((selection) => `{"tick":${jsonNumber(selection.tick)},"kind":${JSON.stringify(selection.kind)},"id":${JSON.stringify(selection.id)}}`)
     .join(',');
-  return `{"seed":${jsonNumber(r.seed)},"configVersion":${jsonNumber(r.configVersion)},"configFingerprint":${JSON.stringify(r.configFingerprint)},"traitCatalogFingerprint":${JSON.stringify(r.traitCatalogFingerprint)},"runContentFingerprint":${JSON.stringify(r.runContentFingerprint)},"inputs":[${inputsJson}],"upgradeSelections":[${upgradesJson}]}`;
+  return `{"seed":${jsonNumber(r.seed)},"configVersion":${jsonNumber(r.configVersion)},"configFingerprint":${JSON.stringify(r.configFingerprint)},"traitCatalogFingerprint":${JSON.stringify(r.traitCatalogFingerprint)},"universalUpgradeCatalogFingerprint":${JSON.stringify(r.universalUpgradeCatalogFingerprint)},"runContentFingerprint":${JSON.stringify(r.runContentFingerprint)},"runStartLoadoutFingerprint":${JSON.stringify(r.runStartLoadoutFingerprint)},"inputs":[${inputsJson}],"upgradeSelections":[${upgradesJson}]}`;
 }
 
 function clampUnit(v: number): number {
@@ -124,6 +128,19 @@ export function deserializeReplay(s: string): ReplayRecord {
     throw new Error('deserializeReplay: missing or invalid "runContentFingerprint"');
   }
 
+  const universalUpgradeCatalogFingerprint = obj.universalUpgradeCatalogFingerprint;
+  if (
+    universalUpgradeCatalogFingerprint !== null &&
+    (typeof universalUpgradeCatalogFingerprint !== 'string' || !/^[0-9a-f]{16}$/.test(universalUpgradeCatalogFingerprint))
+  ) {
+    throw new Error('deserializeReplay: missing or invalid "universalUpgradeCatalogFingerprint"');
+  }
+
+  const runStartLoadoutFingerprint = obj.runStartLoadoutFingerprint;
+  if (typeof runStartLoadoutFingerprint !== 'string' || !/^[0-9a-f]{16}$/.test(runStartLoadoutFingerprint)) {
+    throw new Error('deserializeReplay: missing or invalid "runStartLoadoutFingerprint"');
+  }
+
   const rawInputs = obj.inputs;
   if (!Array.isArray(rawInputs)) {
     throw new Error('deserializeReplay: "inputs" is not an array');
@@ -168,19 +185,23 @@ export function deserializeReplay(s: string): ReplayRecord {
     }
     const selection = entry as Record<string, unknown>;
     const tick = selection.tick;
-    const traitId = selection.traitId;
+    const kind = selection.kind;
+    const id = selection.id;
 
     if (typeof tick !== 'number' || !Number.isSafeInteger(tick) || tick < 0) {
       throw new Error(`deserializeReplay: upgradeSelections[${index}].tick is invalid`);
     }
-    if (typeof traitId !== 'string' || traitId.length === 0) {
-      throw new Error(`deserializeReplay: upgradeSelections[${index}].traitId is empty or invalid`);
+    if (kind !== 'trait' && kind !== 'universal' && kind !== 'essence') {
+      throw new Error(`deserializeReplay: upgradeSelections[${index}].kind is invalid`);
+    }
+    if (typeof id !== 'string' || id.length === 0) {
+      throw new Error(`deserializeReplay: upgradeSelections[${index}].id is empty or invalid`);
     }
     if (tick < previousTick) {
       throw new Error('deserializeReplay: upgradeSelections ticks are not nondecreasing');
     }
     previousTick = tick;
-    return { tick, traitId };
+    return { tick, kind, id };
   });
 
   return {
@@ -188,7 +209,9 @@ export function deserializeReplay(s: string): ReplayRecord {
     configVersion,
     configFingerprint,
     traitCatalogFingerprint,
+    universalUpgradeCatalogFingerprint,
     runContentFingerprint,
+    runStartLoadoutFingerprint,
     inputs,
     upgradeSelections,
   };

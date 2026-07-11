@@ -5,7 +5,9 @@
 import type { EnemyArchetype, WaveSegment } from './types.js';
 import { createHashWriter } from './state-hash.js';
 
-export const CONFIG_VERSION = 3;
+// Version 4 adds endless XP, typed run-upgrade replays, and permanent-loadout
+// replay identity. Old records must reject rather than silently diverge.
+export const CONFIG_VERSION = 4;
 
 export interface WeaponConfig {
   /** Ticks between automatic shots. */
@@ -39,7 +41,7 @@ export interface SimConfig {
   enemyCap: number;
   projectileCap: number;
   pickupCap: number;
-  /** Cumulative XP required to reach level index+2 (level starts at 1). */
+  /** Authored opening cumulative XP thresholds; simulation continues with a deterministic tail. */
   xpThresholds: readonly number[];
   /** Ticks an enemy must wait between contact-damage applications. */
   enemyContactCooldownTicks: number;

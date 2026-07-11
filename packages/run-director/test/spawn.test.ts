@@ -201,6 +201,7 @@ const EMPTY_PHASE_ARCHETYPES: Record<RunPhaseId, readonly []> = {
 function makeDef(intervalTicks: number): RunDefinition {
   return {
     contentVersion: 1,
+    mode: 'normal',
     durationTicks: 43_200,
     phases: [makePhase()],
     archetypes: [FODDER, RUNNER],

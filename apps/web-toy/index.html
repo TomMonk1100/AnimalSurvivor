@@ -121,6 +121,33 @@
         font: 600 11px/1.3 system-ui, sans-serif;
         text-align: right;
       }
+      #controls .profile-summary {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 3px;
+        flex-basis: 100%;
+        max-width: 280px;
+        padding: 7px 8px;
+        color: #dceefd;
+        background: rgba(17, 35, 51, 0.88);
+        border: 1px solid #3f6786;
+        border-radius: 6px;
+        font: 11px/1.3 system-ui, sans-serif;
+        text-align: right;
+      }
+      #controls .profile-summary strong { color: #a8d9f3; }
+      #controls .profile-summary span { color: #c8d9e7; }
+      #controls .profile-summary button {
+        min-height: 34px;
+        margin-top: 3px;
+        padding: 5px 8px;
+        color: #e9f7ff;
+        background: #254967;
+      }
+      #controls .profile-summary button:disabled {
+        cursor: not-allowed;
+        opacity: 0.56;
+      }
       #joystick {
         position: absolute;
         left: 16px;
@@ -332,6 +359,10 @@
       #pause-notice .pause-upgrade-card strong { color: #edf7ff; font-size: 13px; }
       #pause-notice .pause-upgrade-card span { color: #c5d6e6; }
       #pause-notice .pause-upgrade-card small { margin-top: 3px; color: #83b8df; font-weight: 600; }
+      #pause-notice .pause-upgrade-card[data-kind="universal"] {
+        border-left-color: #95d98a;
+        background: rgba(29, 61, 47, 0.7);
+      }
       #upgrade-choices h2 {
         margin: 0 0 12px;
         text-align: center;
@@ -405,6 +436,7 @@
       }
       #run-outcome strong, #run-outcome span { display: block; }
       #run-outcome span { margin-top: 3px; font-size: 13px; font-weight: 500; }
+      #run-outcome .outcome-essence { color: #f7dc82; font-weight: 700; }
       #run-outcome button {
         min-height: 44px;
         margin-top: 12px;

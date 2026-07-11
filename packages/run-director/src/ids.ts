@@ -15,6 +15,21 @@ export type RunPhaseId =
   | 'boss'
   | 'overtime';
 
+/**
+ * Normal runs have a hard terminal at durationTicks. Endless content is a
+ * separate authored definition; it alone may include the overtime phase.
+ */
+export type RunMode = 'normal' | 'endless';
+
+/** Ordered phases for the default finite normal-mode run. */
+export const NORMAL_RUN_PHASE_ORDER: readonly RunPhaseId[] = [
+  'opening',
+  'pressure',
+  'adaptation',
+  'mutation',
+  'boss',
+] as const;
+
 /** Ordered list of the phase ids, chronological. Frozen. */
 export const RUN_PHASE_ORDER: readonly RunPhaseId[] = [
   'opening',
@@ -71,11 +86,11 @@ export const STATE_VERSION = 1 as const;
  * Frozen content-schema version, independent of runtime state version. Included
  * in the content fingerprint.
  */
-export const CONTENT_VERSION = 1 as const;
+export const CONTENT_VERSION = 2 as const;
 
 /** Frozen run timing constants. Tests lock these exactly. */
 export const TICKS_PER_SECOND = 60 as const;
 /** 12 minutes @ 60Hz. Authored run duration boundary. */
 export const RUN_DURATION_TICKS = 43_200 as const;
-/** 11 minutes @ 60Hz. Boss entrance tick. */
-export const BOSS_ENTRANCE_TICK = 39_600 as const;
+/** 10 minutes @ 60Hz. Gives normal mode a two-minute boss-fight runway. */
+export const BOSS_ENTRANCE_TICK = 36_000 as const;

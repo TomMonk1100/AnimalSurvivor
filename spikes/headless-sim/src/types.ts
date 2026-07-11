@@ -280,9 +280,11 @@ export interface TickInput {
 // ---------------------------------------------------------------------------
 
 export interface UpgradeSelection {
-  /** Simulation tick at which the trait upgrade was selected. */
+  /** Simulation tick at which this typed run upgrade was selected. */
   tick: number;
-  traitId: string;
+  kind: 'trait' | 'universal' | 'essence';
+  /** Stable prefixed key, for example `trait:porcupine-quills`. */
+  id: string;
 }
 
 export interface ReplayRecord {
@@ -292,10 +294,14 @@ export interface ReplayRecord {
   configFingerprint: string;
   /** Canonical trait-catalog fingerprint, or null when traits are disabled. */
   traitCatalogFingerprint: string | null;
+  /** Canonical universal-upgrade catalog fingerprint, or null when disabled. */
+  universalUpgradeCatalogFingerprint: string | null;
   /** Canonical authored run fingerprint, or null when the run director is disabled. */
   runContentFingerprint: string | null;
+  /** Canonical permanent loadout fingerprint used to start this run. */
+  runStartLoadoutFingerprint: string;
   inputs: TickInput[];
-  /** Trait choices in selection order; ticks must be nondecreasing. */
+  /** Typed choices in selection order; ticks must be nondecreasing. */
   upgradeSelections: UpgradeSelection[];
 }
 

@@ -44,12 +44,12 @@ const PHASES: readonly PhaseDefinition[] = [
   {
     id: 'mutation',
     startTick: 28_800,
-    endTick: 39_599,
+    endTick: 35_999,
     softCap: 10,
     hardCap: 16,
     threatPerTick: 8,
   },
-  { id: 'boss', startTick: 39_600, endTick: 43_199, softCap: 6, hardCap: 10, threatPerTick: 3 },
+  { id: 'boss', startTick: 36_000, endTick: 43_199, softCap: 6, hardCap: 10, threatPerTick: 3 },
   {
     id: 'overtime',
     startTick: 43_200,
@@ -111,8 +111,8 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
 ];
 
 const BOSS: BossDefinition = {
-  warningTick: 38_400,
-  requestTick: 39_600,
+  warningTick: 34_800,
+  requestTick: 36_000,
   archetypeId: 'enemy:boss',
   formation: 'ring',
   minDistance: 15,
@@ -144,8 +144,9 @@ const OVERTIME: OvertimeConfig = {
 };
 
 function makeDefinition(overrides?: Partial<RunDefinition>): RunDefinition {
-  return {
+  const base: RunDefinition = {
     contentVersion: CONTENT_VERSION,
+    mode: 'endless',
     durationTicks: 43_200,
     phases: PHASES,
     archetypes: ARCHETYPES,
@@ -156,8 +157,8 @@ function makeDefinition(overrides?: Partial<RunDefinition>): RunDefinition {
     overtime: OVERTIME,
     eventBufferCapacity: 256,
     defaultSeed: 0x5eed,
-    ...overrides,
   };
+  return { ...base, ...overrides } as RunDefinition;
 }
 
 const DEF = makeDefinition();
@@ -217,8 +218,8 @@ test('phaseAt returns correct phases at boundary ticks', () => {
   assert.equal(phaseAt(DEF, 0).id, 'opening');
   assert.equal(phaseAt(DEF, 7_199).id, 'opening');
   assert.equal(phaseAt(DEF, 7_200).id, 'pressure');
-  assert.equal(phaseAt(DEF, 39_599).id, 'mutation');
-  assert.equal(phaseAt(DEF, 39_600).id, 'boss');
+  assert.equal(phaseAt(DEF, 35_999).id, 'mutation');
+  assert.equal(phaseAt(DEF, 36_000).id, 'boss');
   assert.equal(phaseAt(DEF, 43_199).id, 'boss');
   assert.equal(phaseAt(DEF, 43_200).id, 'overtime');
   assert.equal(phaseAt(DEF, 100_000).id, 'overtime');
@@ -248,7 +249,7 @@ test('evaluateOutcome: no victory before boss.requested, even if bossDefeatedThi
 test('evaluateOutcome: victory when boss.requested && bossDefeatedThisTick', () => {
   const state = createInitialState(DEF, 1);
   state.boss.requested = true;
-  const result = evaluateOutcome(state, aliveMetrics(39_600, { bossDefeatedThisTick: true }));
+  const result = evaluateOutcome(state, aliveMetrics(36_000, { bossDefeatedThisTick: true }));
   assert.deepEqual(result, { outcome: 'victory', terminalKind: 'victory' });
 });
 
@@ -257,7 +258,7 @@ test('evaluateOutcome: defeat wins over simultaneous victory signal', () => {
   state.boss.requested = true;
   const result = evaluateOutcome(
     state,
-    aliveMetrics(39_600, { playerAlive: false, bossDefeatedThisTick: true }),
+    aliveMetrics(36_000, { playerAlive: false, bossDefeatedThisTick: true }),
   );
   assert.deepEqual(result, { outcome: 'defeat', terminalKind: 'defeat' });
 });
@@ -275,7 +276,7 @@ test('evaluateOutcome: terminal outcome is sticky', () => {
 
 test('deserializeState rejects a forged victory-without-boss-requested state', () => {
   const state = createInitialState(DEF, 1);
-  state.tick = 39_600;
+  state.tick = 36_000;
   state.phase = 'boss';
   state.outcome = 'victory';
   // boss.requested left false — forged.

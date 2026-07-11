@@ -27,9 +27,8 @@ export const COMBAT_FEEDBACK_LIFETIME_TICKS: Readonly<Record<CombatFeedbackCueKi
 });
 
 /**
- * The default matches the current simulation's 40-unit pickup range. A caller
- * using a different simulation config can pass its player.pickupRadius below
- * without changing the frozen app snapshot contract.
+ * Baseline collection radius for callers that explicitly override the live
+ * snapshot value, matching the current simulation's unmodified 40-unit range.
  */
 export const DEFAULT_PICKUP_COLLECTION_RADIUS = 40;
 
@@ -56,7 +55,7 @@ export interface CombatFeedbackSnapshot {
 }
 
 export interface CombatFeedbackProjectorOptions {
-  /** Pickup collection radius in world units; defaults to the current sim's 40. */
+  /** Optional test/special-case override for the live snapshot collection radius. */
   readonly pickupCollectionRadius?: number;
 }
 
@@ -76,8 +75,11 @@ function requireNonNegativeFinite(name: string, value: number): void {
   }
 }
 
-function resolvePickupCollectionRadius(options: CombatFeedbackProjectorOptions | undefined): number {
-  const radius = options?.pickupCollectionRadius ?? DEFAULT_PICKUP_COLLECTION_RADIUS;
+function resolvePickupCollectionRadius(
+  current: RenderSnapshot,
+  options: CombatFeedbackProjectorOptions | undefined,
+): number {
+  const radius = options?.pickupCollectionRadius ?? current.playerPickupRadius;
   requireNonNegativeFinite('pickupCollectionRadius', radius);
   return radius;
 }
@@ -160,7 +162,7 @@ export function projectCombatFeedback(
   current: RenderSnapshot,
   options?: CombatFeedbackProjectorOptions,
 ): CombatFeedbackSnapshot {
-  const pickupCollectionRadius = resolvePickupCollectionRadius(options);
+  const pickupCollectionRadius = resolvePickupCollectionRadius(current, options);
   const tick = current.tick;
   let cues: CombatFeedbackCue[] | null = null;
   const add = (cue: CombatFeedbackCue): void => {

@@ -73,11 +73,13 @@
   slice catalog, so unsupported future-trait commands cannot appear in offers.
   `applyAreaDamage` and `playTraitCue` are supported; zone, mark, chain, melee,
   and shield commands explicitly reject until their persistent state exists.
-- Director events now present phase, elite, boss, overtime, victory, and defeat
-  notices. Catch-up frames retain every director event stepped in that frame.
-- A real 43,200-tick Greg autoplay using the actual trait runtime and run
-  director reaches the boss and reproduces its exact replay hash. Its endurance
-  configuration validates infrastructure, not normal difficulty balance.
+- Director events now present phase, elite, boss, victory, and defeat notices
+  in normal mode. Catch-up frames retain every director event stepped in that
+  frame.
+- A real integrated Greg autoplay using the actual trait runtime and run
+  director reaches a terminal outcome no later than the normal cap and
+  reproduces its exact replay hash. Its endurance configuration validates
+  infrastructure, not normal difficulty balance.
 - The first owner playtest found the vision promising. Screen-space vertical
   movement is corrected; upgrade cards now explain triggers, effects, sockets,
   Adapted improvements, and the Thornstorm pairing.
@@ -89,7 +91,7 @@
   remains below that playtest information.
 - That HUD now also persistently projects authoritative elapsed time, current
   run phase, and the phase-appropriate objective. Before the boss it names the
-  survival goal; during boss/overtime it makes defeating **The Final Threat**
+  survival goal; during the boss phase it makes defeating **The Final Threat**
   explicit, without changing simulation, replay, or balance.
 - Per-action trait callouts are intentionally absent from active play. The
   persistent Active Adaptations panel and the central pause panel instead show
@@ -142,18 +144,25 @@
   again use 44px-high touch targets.
 - Sparse procedural sound feedback is now opt-in and **Off** by default. The
   player can enable it from the Start run card or the in-run **Sound: Off/On**
-  control; only start/restart, rate-limited pickup, upgrade-open, victory, and
-  defeat cues are synthesized. It never changes gameplay or replay, and
-  unavailable browser audio is a nonfatal silent fallback.
+  control; stronger start/restart and upgrade cues, rate-limited pickup,
+  player-hit, and quiet auto-attack texture cues, plus victory/defeat, are
+  synthesized. It never changes gameplay or replay, and unavailable browser
+  audio is a nonfatal silent fallback.
 - `?autopilot=1&stress=1&fullrun=1` extends the accelerated, deterministic
-  first-offer stress harness from 18,000 to 43,200 ticks for boss/run-flow UI
-  checks. It is not evidence of normal-difficulty balance or survival.
+  first-offer stress harness from 18,000 to a terminal outcome no later than
+  the 43,200-tick normal boundary for boss/run-flow UI checks. It is not
+  evidence of normal-difficulty balance or survival.
 - A constrained `Publish web-toy preview` workflow is prepared for relevant
   `main` pushes. It tests, lints, and builds the browser slice, then publishes
   only `apps/web-toy/dist` through GitHub Pages Actions once the repository
   owner enables Pages.
-- Current package test scripts report 161 headless-simulation, 58 trait-runtime,
-  62 run-director, and 177 web-toy tests: **459 passing tests** in total.
+- The progression alpha now has unbounded in-run XP, a mixed trait/neutral
+  chooser, real XP Magnet attraction, Essence Cache fallback, local Essence
+  settlement, and three ranks of next-run Starting Vitality. Normal mode is a
+  finite 12:00 run with a 10:00 boss and a bounded level-pressure ramp at
+  levels 4 and 7 (capacity plus 120→108→96-tick ordinary-wave cadence).
+- Current package test scripts report 186 headless-simulation, 58 trait-runtime,
+  68 run-director, and 194 web-toy tests: **506 passing tests** in total.
 - The project is now backed up in the private GitHub repository
   `TomMonk1100/AnimalSurvivor` on `main`.
 
@@ -161,9 +170,9 @@
 
 - Ten human concept interviews have not occurred.
 - No complete normal-balance run has been played end-to-end by a human in the
-  browser yet. The real 12-minute deterministic replay gate and a short live
-  browser smoke pass now succeed, but they do not replace hands-on pacing and
-  clarity feedback.
+  browser yet. The real integrated replay reaches a terminal outcome no later
+  than the normal cap and a short local browser smoke confirms the mixed chooser
+  and pause summary, but neither replaces hands-on pacing and clarity feedback.
 - The `fullrun=1` browser stress option is an accelerated engineering path; it
   has not validated a normal-balance browser run, boss outcome, or human flow.
 - Low-end-device rendering remains unknown, but the instanced primitive fixture

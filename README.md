@@ -6,7 +6,8 @@ slice: a deterministic simulation drives a browser game with visible hero
 adaptations, automatic attacks, upgrades, elites, and a boss encounter.
 
 This is a playtest build, not a finished game. Its current purpose is to make
-the core movement, combat, upgrade, and visual-feedback loop easy to evaluate.
+the core movement, combat, upgrade, progression, and visual-feedback loop easy
+to evaluate.
 
 ## Play the Gate 1 slice
 
@@ -25,10 +26,12 @@ Open the local Vite URL printed in the terminal (normally
   core loop before anything moves. The deterministic autopilot and stress URLs
   bypass that first-run gate.
 - **Sound effects** are optional and start **Off**. Enable them on the Start
-  run card or with the in-run **Sound: Off/On** control. The few quiet,
-  procedural cues cover starting/restarting, spaced XP pickups, upgrade
-  openings, victory, and defeat; they never change gameplay or replay, and an
-  unavailable browser audio feature simply leaves the game playable and silent.
+  run card or with the in-run **Sound: Off/On** control. The stronger but still
+  sparse procedural cues confirm starting/restarting and upgrade choices, give
+  spaced XP pickups, a quiet rate-limited auto-attack texture, and player-hit
+  feedback, and mark victory or defeat. They never change gameplay or replay;
+  an unavailable browser audio feature simply leaves the game playable and
+  silent.
 - Move Greg with **WASD** or the **arrow keys**. On touch devices, use the
   bottom-left virtual joystick. His facing is presentation-only: a sharp
   reversal visibly resolves across four bounded turns without changing movement
@@ -42,32 +45,47 @@ Open the local Vite URL printed in the terminal (normally
 - The HUD also keeps the elapsed run time, current authored phase, and the
   phase-appropriate goal visible: survive until **The Final Threat**, then
   defeat it to finish the run.
-- When Greg levels up, the game pauses at an upgrade choice. Click a card to
-  continue the run. The first card receives keyboard focus; press **1**, **2**,
-  or **3**, or use **Tab** then **Enter**, to choose without a mouse.
+- Normal mode has a hard **12:00** end. **The Final Threat** enters at **10:00**;
+  defeat it before 12:00 to win. Normal mode does not enter hidden overtime.
+- Earned levels also apply a small capped pressure ramp: levels **4** and **7**
+  raise live-enemy capacity and shorten ordinary-wave cadence from 120 to 108
+  to 96 ticks. It cannot release a same-tick spawn burst.
+- Greg has no player-visible level cap. When he levels up, the game pauses at an
+  upgrade choice. The mixed chooser presents animal adaptations alongside six
+  neutral run upgrades—**Swift Paws**, **XP Magnet**, **Sturdy Hide**,
+  **Sharpened Instinct**, **Rapid Instinct**, and **Growth**—and reserves room
+  for a neutral card when animal offers would otherwise fill the row. Once every
+  finite run upgrade is complete, **Essence Cache** remains as a legal fallback.
+  Click a card to continue; the first card receives keyboard focus, and **1**,
+  **2**, or **3** (or **Tab** then **Enter**) choose without a mouse.
 - **Porcupine Quills** fires quill bursts. **Puffer Pouch** pulls nearby enemies
   in, then upgrades into a wider knockback pulse. Adapt both paths to evolve
   them into **Thornstorm Mantle**, which gathers enemies before a radial quill
   storm.
 - The normal interface stays compact and player-facing. Press **Esc** to pause
-  or resume a live desktop run; a centered notice explains how to resume.
-  Append `?debug=1` to expose the diagnostic HUD and engineering controls for
-  repeatable checks.
+  or resume a live desktop run; the centered pause panel explains both owned
+  animal adaptations and neutral run-upgrade ranks instead of cycling action
+  copy above active combat. Append `?debug=1` to expose the diagnostic HUD and
+  engineering controls for repeatable checks.
 - On touch, the floating joystick thumb follows each drag. The persistent
   **Active Adaptations** cards stay above the lower-left joystick in portrait
   and clear to its right in landscape. **Pause**, **Restart run**, and terminal
   **Play again** controls use 44px-high touch targets.
 - A live boss exposes a persistent **The Final Threat** health bar. At victory or
-  defeat, the outcome card offers **Play again** to restart the same seed.
+  defeat, the outcome card banks the earned **Essence** once for that run in a
+  local browser profile and offers **Play again** to restart the same seed.
+  Spend saved Essence on the capped **Starting Vitality** purchase; each rank
+  adds starting maximum health on the next run.
 - The follow camera uses a deliberately tighter presentation-only frame, making
   Greg, nearby threats, and green XP motes easier to read without changing
   movement, simulation space, balance, or replay.
 
 For a deterministic accelerated run, append
 `?autopilot=1&stress=1` to the local URL. Append `&fullrun=1` to extend that
-engineering harness to the 12-minute authored boundary, including the boss
-encounter if Greg survives. It auto-selects upgrades and is not a normal-balance
-playtest. The browser-specific README has the full control list, diagnostics,
+engineering harness to a terminal outcome no later than the 12-minute normal
+boundary, including the boss encounter if Greg survives. It auto-selects
+upgrades and is not a normal-balance playtest. The browser-specific README has
+the full control list, diagnostics,
 and stress procedure:
 [`apps/web-toy/README.md`](apps/web-toy/README.md).
 For a short nontechnical hands-on test, use the
@@ -104,10 +122,13 @@ their own focused test suites and commands in their package READMEs:
 
 ## Current state
 
-The technical slice has deterministic replay and browser parity coverage, but
-real human balance testing is still pending. Hands-on play is needed to tune
-movement feel, pacing, upgrade comprehension, trait readability, and the
-elite/boss experience before this can advance beyond Gate 1.
+The current universal-progression and local-profile alpha has passed its full
+deterministic and browser package gates, but human balance testing is still
+pending. Hands-on play is needed to tune movement feel, pacing, upgrade
+comprehension, trait readability, and the elite/boss experience before this can
+advance beyond Gate 1. **Luck**,
+player-selectable difficulties, Hardcore Endless, and additional animal traits
+are deliberately deferred rather than implied by this small alpha catalog.
 
 For the up-to-date milestone, known gaps, and next work, see
 [`docs/status/current.md`](docs/status/current.md). The original product

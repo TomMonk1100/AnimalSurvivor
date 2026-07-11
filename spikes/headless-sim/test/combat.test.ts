@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import type { PlayerState, SimEvents } from '../src/types.js';
 import {
   applyXpThresholds,
+  attractPickups,
   collectPickups,
   spawnProjectile,
   stepEnemies,
   stepProjectiles,
+  xpRequiredForNextLevel,
 } from '../src/combat.js';
 import { DEFAULT_CONFIG } from '../src/config.js';
 import { BruteForceGrid, createEnemyPool, createPickupPool, createProjectilePool } from './helpers-c.js';
@@ -353,6 +355,52 @@ test('collectPickups: collects in-range pickups, adds xp, fires events', () => {
   assert.equal(pickups.isLive(outOfRangeId), true);
 });
 
+test('collectPickups: applies a truthful positive XP gain multiplier at collection time', () => {
+  const pickups = createPickupPool(1);
+  const events = makeEvents();
+  const player = makePlayer({ x: 0, y: 0, pickupRadius: 10, xp: 0 });
+  const slot = pickups.spawn();
+  pickups.data.posX[slot] = 0;
+  pickups.data.posY[slot] = 0;
+  pickups.data.radius[slot] = 1;
+  pickups.data.xp[slot] = 5;
+
+  collectPickups(pickups, player, events, 1.24);
+
+  assert.equal(player.xp, 6.2);
+  assert.throws(() => collectPickups(pickups, player, events, 0), /multiplier/);
+});
+
+test('attractPickups: pulls only in-range pickups by a bounded deterministic step', () => {
+  const pickups = createPickupPool(4);
+  const player = makePlayer({ x: 0, y: 0, pickupRadius: 10 });
+
+  const near = pickups.spawn();
+  pickups.data.posX[near] = 100;
+  pickups.data.posY[near] = 0;
+  pickups.data.radius[near] = 1;
+
+  const far = pickups.spawn();
+  pickups.data.posX[far] = 201;
+  pickups.data.posY[far] = 0;
+  pickups.data.radius[far] = 1;
+
+  attractPickups(pickups, player, 0.5, 200, 80);
+
+  assert.equal(pickups.data.posX[near], 60);
+  assert.equal(pickups.data.posY[near], 0);
+  assert.equal(pickups.data.posX[far], 201);
+  assert.equal(pickups.data.posY[far], 0);
+});
+
+test('attractPickups: validates its deterministic inputs', () => {
+  const pickups = createPickupPool(1);
+  const player = makePlayer();
+  assert.throws(() => attractPickups(pickups, player, -1, 10, 10), /dt/);
+  assert.throws(() => attractPickups(pickups, player, 1, -1, 10), /radius/);
+  assert.throws(() => attractPickups(pickups, player, 1, 10, -1), /speed/);
+});
+
 // ---------------------------------------------------------------------------
 // applyXpThresholds
 // ---------------------------------------------------------------------------
@@ -364,8 +412,8 @@ test('applyXpThresholds: emits a multi-level chain on a huge xp gain', () => {
 
   applyXpThresholds(player, xpThresholds, events);
 
-  assert.equal(player.level, 5);
-  assert.deepEqual(events.levelUps, [2, 3, 4, 5]);
+  assert.equal(player.level, 6);
+  assert.deepEqual(events.levelUps, [2, 3, 4, 5, 6]);
 });
 
 test('applyXpThresholds: no level up when xp is below the next threshold', () => {
@@ -377,6 +425,23 @@ test('applyXpThresholds: no level up when xp is below the next threshold', () =>
 
   assert.equal(player.level, 1);
   assert.deepEqual(events.levelUps, []);
+});
+
+test('xp curve: continues deterministically after the authored opening thresholds', () => {
+  const thresholds = [5, 15, 30, 50];
+  assert.equal(xpRequiredForNextLevel(thresholds, 1), 5);
+  assert.equal(xpRequiredForNextLevel(thresholds, 4), 50);
+  assert.equal(xpRequiredForNextLevel(thresholds, 5), 78);
+  assert.equal(xpRequiredForNextLevel(thresholds, 6), 114);
+  assert.equal(xpRequiredForNextLevel([], 1), null);
+});
+
+test('applyXpThresholds: keeps leveling past the authored opening table', () => {
+  const events = makeEvents();
+  const player = makePlayer({ level: 1, xp: 200 });
+  applyXpThresholds(player, [5, 15, 30, 50], events);
+  assert.equal(player.level, 8);
+  assert.deepEqual(events.levelUps, [2, 3, 4, 5, 6, 7, 8]);
 });
 
 // ---------------------------------------------------------------------------

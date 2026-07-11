@@ -35,7 +35,9 @@ export function createSnapshot(config: SimConfig): RenderSnapshot {
     playerX: 0,
     playerY: 0,
     playerRadius: 0,
+    playerPickupRadius: config.player.pickupRadius,
     playerHp: 0,
+    playerMaxHp: 0,
     playerXp: 0,
     playerLevel: 1,
     playerAlive: false,
@@ -110,7 +112,9 @@ export function captureSnapshot(out: RenderSnapshot, sim: Simulation): void {
   out.playerX = sim.player.x;
   out.playerY = sim.player.y;
   out.playerRadius = sim.player.radius;
+  out.playerPickupRadius = sim.player.pickupRadius;
   out.playerHp = sim.player.hp;
+  out.playerMaxHp = sim.player.maxHp;
   out.playerXp = sim.player.xp;
   out.playerLevel = sim.player.level;
   out.playerAlive = sim.player.alive;

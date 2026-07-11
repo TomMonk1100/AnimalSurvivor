@@ -9,7 +9,7 @@
  */
 
 import type { DirectorState, RunDefinition } from './contracts.js';
-import { RUN_PHASE_ORDER } from './ids.js';
+import { NORMAL_RUN_PHASE_ORDER, RUN_PHASE_ORDER } from './ids.js';
 
 const FNV_OFFSET_BASIS_32 = 0x811c9dc5;
 const FNV_PRIME_32 = 0x01000193;
@@ -169,30 +169,45 @@ function canonicalDefinitionString(def: RunDefinition): string {
   ].join(FIELD_SEP);
 
   const threatStr = [def.threat.initialBudget, def.threat.maxBudget].join(FIELD_SEP);
+  const levelPressureStr = def.levelPressure === undefined
+    ? 'none'
+    : [
+      def.levelPressure.startLevel,
+      def.levelPressure.levelsPerStep,
+      def.levelPressure.maxSteps,
+      def.levelPressure.softCapPerStep,
+      def.levelPressure.hardCapPerStep,
+      def.levelPressure.intervalTicksReductionPerStep,
+    ].join(FIELD_SEP);
 
-  const phaseArchetypesStr = RUN_PHASE_ORDER.map((id) =>
+  const phaseOrder = def.mode === 'normal' ? NORMAL_RUN_PHASE_ORDER : RUN_PHASE_ORDER;
+  const phaseArchetypesStr = phaseOrder.map((id) =>
     (def.waves.phaseArchetypes[id] ?? []).join(FIELD_SEP),
   ).join(ITEM_SEP);
   const wavesStr = [def.waves.intervalTicks, phaseArchetypesStr].join(SEP);
 
-  const overtimeStr = [
-    def.overtime.supportIntervalTicks,
-    def.overtime.archetypeId,
-    def.overtime.count,
-    def.overtime.formation,
-    def.overtime.minDistance,
-    def.overtime.maxDistance,
-    def.overtime.maxSupportWaves,
-  ].join(FIELD_SEP);
+  const overtimeStr = def.overtime === undefined
+    ? 'none'
+    : [
+      def.overtime.supportIntervalTicks,
+      def.overtime.archetypeId,
+      def.overtime.count,
+      def.overtime.formation,
+      def.overtime.minDistance,
+      def.overtime.maxDistance,
+      def.overtime.maxSupportWaves,
+    ].join(FIELD_SEP);
 
   return [
     def.contentVersion,
+    def.mode,
     def.durationTicks,
     phasesStr,
     archetypesStr,
     eliteBeatsStr,
     bossStr,
     threatStr,
+    levelPressureStr,
     wavesStr,
     overtimeStr,
     def.eventBufferCapacity,
@@ -204,7 +219,8 @@ function canonicalDefinitionString(def: RunDefinition): string {
  * Canonical hex fingerprint of every gameplay-affecting field of `def`.
  * Equivalent definitions (deep-equal content) always produce identical
  * fingerprints; any authored change to timing, archetypes, beats, boss,
- * threat, waves, overtime, buffer capacity, or default seed changes it.
+ * threat, level pressure, waves, mode/overtime, buffer capacity, or default
+ * seed changes it.
  */
 export function fingerprintDefinition(def: RunDefinition): string {
   return fnv1a32(canonicalDefinitionString(def));

@@ -91,7 +91,11 @@ export interface RenderSnapshot {
   playerX: number;
   playerY: number;
   playerRadius: number;
+  /** Live pickup collection radius, including any active Magnet ranks. */
+  playerPickupRadius: number;
   playerHp: number;
+  /** Current maximum health copied at the tick boundary for truthful HUDs. */
+  playerMaxHp: number;
   /** Experience copied at the tick boundary; never read live by the renderer. */
   playerXp: number;
   /** Current player level copied at the tick boundary. */
@@ -155,7 +159,7 @@ export interface HudStats {
   playerMaxHp: number;
   playerXp: number;
   playerLevel: number;
-  /** Next cumulative XP threshold, or null once the configured table is exhausted. */
+  /** Next cumulative XP threshold; null only when a test configuration disables leveling. */
   playerNextXp: number | null;
   simTick: number;
   /** Ticks advanced on the last frame (catch-up count). */

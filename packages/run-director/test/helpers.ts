@@ -5,6 +5,7 @@
  */
 import type { DirectorEvent, RunMetrics } from '../src/index.js';
 import { RunDirector } from '../src/index.js';
+import { BOSS_ENTRANCE_TICK } from '../src/ids.js';
 
 export interface WorldOptions {
   /** Tick at which the player dies (playerAlive=false from then on). -1 = never. */
@@ -31,7 +32,7 @@ export function metricsAt(tick: number, opts: WorldOptions = {}): RunMetrics {
     playerLevel: 1 + Math.floor(tick / 3600),
     liveEnemies: live,
     killsTotal: Math.floor(tick / 10),
-    bossAlive: tick >= 39_600 && (bossDefeatTick < 0 || tick < bossDefeatTick),
+    bossAlive: tick >= BOSS_ENTRANCE_TICK && (bossDefeatTick < 0 || tick < bossDefeatTick),
     bossDefeatedThisTick: bossDefeatTick >= 0 && tick === bossDefeatTick,
   };
 }
@@ -63,7 +64,7 @@ export function runAtTicks(
   return events;
 }
 
-/** Authored (non-discretionary) events: phase/elite/boss/overtime/terminal. */
+/** Authored (non-discretionary) events: phase/elite/boss/terminal. */
 export function authoredOnly(events: readonly DirectorEvent[]): DirectorEvent[] {
   return events.filter((e) => {
     if (e.kind === 'spawnRequested') return false;

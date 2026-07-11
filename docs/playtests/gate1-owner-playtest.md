@@ -42,23 +42,25 @@ ask the owner to enable Pages first.
   available for touch and mouse play; the centered **Paused** notice should say
   exactly how to resume.
 - **Sound effects** are optional and initially **Off**. Enable them from the
-  Start run card or later with **Sound: Off/On**. They only provide quiet cues
-  for start/restart, rate-limited XP pickups, upgrade openings, victory, and
-  defeat.
+  Start run card or later with **Sound: Off/On**. They provide sparse cues for
+  stronger start/restart and upgrade confirmations, rate-limited XP pickups,
+  player hits, a quiet auto-attack texture, victory, and defeat.
 - Until Greg gains the first XP, the player HUD identifies visible green motes
   as XP to collect for levels and upgrade choices.
 - The HUD also keeps elapsed run time, the current phase, and the current goal
   visible. Before the boss, the goal is to survive until **The Final Threat**;
-  during boss/overtime, it is to defeat that threat and finish the run.
-- Choose one animal adaptation whenever the upgrade card pauses the run. The
-  first card receives keyboard focus; press **1**, **2**, or **3**, or use
-  **Tab** then **Enter**, to select an offer.
+  during the boss phase, it is to defeat that threat by the 12:00 normal cap.
+- Choose an offered animal adaptation or neutral run upgrade whenever the card
+  pauses the run. The first card receives keyboard focus; press **1**, **2**,
+  or **3**, or use **Tab** then **Enter**, to select an offer.
 - On touch, the lower-left joystick shows a floating thumb while you drag and
   clears it when you release. The persistent Active Adaptations cards stay
   above it in portrait and to its right in landscape. Pause, Restart run, and
   terminal Play again have 44px-high touch targets.
 - A live boss shows a purple **The Final Threat** health bar. At the end of a
-  run, use **Play again** on the outcome card to restart the same seed.
+  run, the outcome card banks Essence once and **Play again** restarts the same
+  seed. If affordable, buy **Starting Vitality** and verify its +10 maximum
+  health applies only to the next run.
 
 ## Five-minute test
 
@@ -68,14 +70,15 @@ ask the owner to enable Pages first.
 2. Move in every direction and reverse sharply for 20 seconds. Does screen-up
    match pressing Up? Does Greg's facing resolve the reversal across four
    bounded visual turns without making movement feel less responsive?
-3. Take each of the two first upgrades at least once.
+3. Take each of the two first animal upgrades at least once, then take at least
+   one neutral upgrade and say what its card claims it changes.
    - **Porcupine Quills:** automatic bursts at nearby enemies.
    - **Puffer Pouch:** a pull pulse first, then a push pulse when Adapted.
 4. Keep an eye on the **Active Adaptations** panel at lower right. After an
    upgrade card closes, can you still explain what that build does and when it
    triggers?
-5. Press **Esc** after choosing an upgrade. Does the centered pause panel list
-   your active build, explain its effect, and make resuming obvious?
+5. Press **Esc** after choosing upgrades. Does the centered pause panel list
+   both your animal and neutral build effects, and make resuming obvious?
 6. If offered both Adapted traits, take them to form **Thornstorm Mantle**.
    Does its sequence read as: telegraph, pull enemies in, then radial quills?
 7. At an upgrade choice, try keyboard selection: does the first card already
@@ -83,10 +86,10 @@ ask the owner to enable Pages first.
    **Tab** + **Enter** work as expected? On a touch emulation/device, does the
    joystick thumb follow the drag and disappear on release, while the Active
    Adaptations cards avoid the joystick in both portrait and landscape?
-8. With **Sound effects** enabled, are the sparse start/restart, rate-limited
-   pickup, upgrade-open, and terminal victory/defeat cues useful and quiet
-   enough? Toggle **Sound: On/Off** during the run. If enabling audio cannot
-   start, does its nonfatal status message leave play uninterrupted?
+8. With **Sound effects** enabled, are the sparse start/restart, pickup,
+   upgrade, player-hit, quiet attack, and terminal victory/defeat cues useful
+   and quiet enough? Toggle **Sound: On/Off** during the run. If enabling audio
+   cannot start, does its nonfatal status message leave play uninterrupted?
 9. At any moment, can you say what phase you are in and what ends the run from
    the persistent HUD? Does the tighter camera make Greg, nearby threats, and
    green XP motes readable without making the arena feel cramped?
@@ -95,9 +98,10 @@ ask the owner to enable Pages first.
 
 Open the local URL with `?autopilot=1&stress=1&fullrun=1`. This deterministically
 chooses the first upgrade and raises the accelerated stress cap to the
-12-minute authored boundary. It is useful only for inspecting the boss health
-bar and terminal **Play again** flow if the normal-health run reaches them; it
-does not validate normal difficulty or replace the hands-on test above.
+12-minute normal boundary, stopping at terminal if it occurs earlier. It is
+useful only for inspecting the boss health bar and terminal **Play again** flow
+if the normal-health run reaches them; it does not validate normal difficulty
+or replace the hands-on test above.
 
 ## What to report
 
@@ -119,7 +123,8 @@ Short answers are enough:
   Did the short attack, pickup, hit, and death rings make normal combat easier
   to follow, or did they become distracting?
 - Boss/end flow, if seen: did the boss bar make progress clear, and was **Play
-  again** obvious after the outcome?
+  again**, the Essence reward, and the next-run Starting Vitality purchase
+  obvious after the outcome?
 - Screen clutter: was the HUD, adaptation panel, or pause summary helpful or
   distracting?
 - One moment that felt exciting and one that felt frustrating.

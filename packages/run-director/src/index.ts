@@ -9,7 +9,8 @@
  * advancing from prevTick P (k = T - P >= 1):
  *   1. Interval processing over (P, T]: threat accrual per phase segment,
  *      phaseStarted events, authored one-shot beats (elite warnings/requests,
- *      boss warning/request), overtime activation + bounded periodic support.
+ *      boss warning/request), and (for explicit endless content only) bounded
+ *      overtime support.
  *      All interval events are collected then emitted in chronological
  *      (tick, priority, id) order so sequence numbers are stable regardless of
  *      catch-up granularity.
@@ -33,12 +34,12 @@ import type {
   SpawnIntent,
 } from './contracts.js';
 import type { EventKind, RunOutcome, RunPhaseId } from './ids.js';
-import { RUN_DURATION_TICKS } from './ids.js';
 import { getDefaultDefinition } from './definitions.js';
 import { validateDefinition } from './validation.js';
 import { createInitialState, cloneState, phaseAt } from './director-state.js';
 import { accrueThreat } from './threat-budget.js';
 import { serviceSpawns } from './spawn-scheduler.js';
+import { resolveLiveEnemyCaps } from './level-pressure.js';
 import { evaluateOutcome } from './objective-runtime.js';
 import { createEventBuffer, type EventSink } from './event-buffer.js';
 import { serializeState, deserializeState } from './serialization.js';
@@ -148,21 +149,35 @@ export class RunDirector {
       return [];
     }
 
-    // 3. Interval processing over (prev, T].
-    this.processInterval(prev, T, metrics);
+    // 3. A finite normal run never processes an overtime tick. On a catch-up
+    // call that crosses the deadline, still emit any authored events through
+    // the final playable tick before resolving the terminal result at exactly
+    // durationTicks.
+    const normalDeadlineReached = this.def.mode === 'normal' && T >= this.def.durationTicks;
+    const intervalEnd = normalDeadlineReached ? this.def.durationTicks - 1 : T;
+    if (intervalEnd >= prev + 1) {
+      this.processInterval(prev, intervalEnd, metrics);
+    }
 
     // 4. Outcome evaluation at T. boss.requested is now accurate for this tick.
-    const evaluation = evaluateOutcome(this.state, metrics);
+    // A boss killed on the exact deadline still wins; a missing kill signal at
+    // or after the deadline is a normal-mode defeat instead of hidden overtime.
+    const evaluation = evaluateOutcome(
+      this.state,
+      metrics,
+      normalDeadlineReached ? this.def.durationTicks : null,
+    );
     if (evaluation.terminalKind !== null && !this.state.terminalEmitted) {
+      const terminalTick = normalDeadlineReached ? this.def.durationTicks : T;
       this.state.outcome = evaluation.outcome;
       if (evaluation.terminalKind === 'victory') {
         this.state.boss.alive = false;
         this.state.boss.defeated = true;
       }
-      this.emitTerminal(evaluation.terminalKind, T);
+      this.emitTerminal(evaluation.terminalKind, terminalTick);
       this.state.terminalEmitted = true;
       this.state.tick = T;
-      this.state.phase = phaseAt(this.def, T).id;
+      this.state.phase = this.phaseAtTerminal(terminalTick);
       return this.buffer.drain();
     }
 
@@ -375,63 +390,70 @@ export class RunDirector {
       });
     }
 
-    // (d) Overtime activation (crossing RUN_DURATION_TICKS with a live boss) and
-    //     bounded periodic support waves.
-    const willWinNow = state.boss.requested && metrics.bossDefeatedThisTick;
-    if (
-      !state.overtime.active &&
-      T >= RUN_DURATION_TICKS &&
-      state.boss.requested &&
-      !state.boss.defeated &&
-      !willWinNow
-    ) {
-      state.overtime.active = true;
-      state.overtime.startedTick = RUN_DURATION_TICKS;
-      state.overtime.nextSupportTick = RUN_DURATION_TICKS + def.overtime.supportIntervalTicks;
-      pending.push({
-        tick: RUN_DURATION_TICKS,
-        prio: PRIO.overtimeStarted,
-        tie: 'overtime',
-        make: (seq, ph) => ({ kind: 'overtimeStarted', tick: RUN_DURATION_TICKS, seq, phase: ph }),
-      });
-    }
-    if (state.overtime.active) {
+    // (d) Endless-only overtime activation and bounded periodic support. A
+    // normal definition never reaches this branch: its deadline is terminal.
+    if (def.mode === 'endless') {
       const ot = def.overtime;
-      const phaseHardCap = phaseAt(def, T).hardCap;
-      while (
-        state.overtime.nextSupportTick >= from &&
-        state.overtime.nextSupportTick <= T &&
-        state.overtime.wavesEmitted < ot.maxSupportWaves
+      if (ot === undefined) throw new Error('endless definition is missing overtime config');
+      const willWinNow = state.boss.requested && metrics.bossDefeatedThisTick;
+      if (
+        !state.overtime.active &&
+        T >= def.durationTicks &&
+        state.boss.requested &&
+        !state.boss.defeated &&
+        !willWinNow
       ) {
-        const st = state.overtime.nextSupportTick;
-        // Skip (but still advance the schedule) when congested — bounded, never bursts.
-        if (metrics.liveEnemies < phaseHardCap) {
-          state.overtime.wavesEmitted += 1;
-          const intent: SpawnIntent = {
-            archetypeId: ot.archetypeId,
-            count: ot.count,
-            formation: ot.formation,
-            minDistance: ot.minDistance,
-            maxDistance: ot.maxDistance,
-            elite: false,
-            boss: false,
-          };
-          pending.push({
-            tick: st,
-            prio: PRIO.support,
-            tie: `otsupport:${st}`,
-            make: (seq, ph) => ({
-              kind: 'spawnRequested',
+        state.overtime.active = true;
+        state.overtime.startedTick = def.durationTicks;
+        state.overtime.nextSupportTick = def.durationTicks + ot.supportIntervalTicks;
+        pending.push({
+          tick: def.durationTicks,
+          prio: PRIO.overtimeStarted,
+          tie: 'overtime',
+          make: (seq, ph) => ({ kind: 'overtimeStarted', tick: def.durationTicks, seq, phase: ph }),
+        });
+      }
+      if (state.overtime.active) {
+        const phaseHardCap = resolveLiveEnemyCaps(
+          phaseAt(def, T),
+          def.levelPressure,
+          metrics.playerLevel,
+        ).hardCap;
+        while (
+          state.overtime.nextSupportTick >= from &&
+          state.overtime.nextSupportTick <= T &&
+          state.overtime.wavesEmitted < ot.maxSupportWaves
+        ) {
+          const st = state.overtime.nextSupportTick;
+          // Skip (but still advance the schedule) when congested — bounded, never bursts.
+          if (metrics.liveEnemies < phaseHardCap) {
+            state.overtime.wavesEmitted += 1;
+            const intent: SpawnIntent = {
+              archetypeId: ot.archetypeId,
+              count: ot.count,
+              formation: ot.formation,
+              minDistance: ot.minDistance,
+              maxDistance: ot.maxDistance,
+              elite: false,
+              boss: false,
+            };
+            pending.push({
               tick: st,
-              seq,
-              phase: ph,
-              intent,
-              cost: 0,
-              delayed: false,
-            }),
-          });
+              prio: PRIO.support,
+              tie: `otsupport:${st}`,
+              make: (seq, ph) => ({
+                kind: 'spawnRequested',
+                tick: st,
+                seq,
+                phase: ph,
+                intent,
+                cost: 0,
+                delayed: false,
+              }),
+            });
+          }
+          state.overtime.nextSupportTick += ot.supportIntervalTicks;
         }
-        state.overtime.nextSupportTick += ot.supportIntervalTicks;
       }
     }
 
@@ -445,13 +467,20 @@ export class RunDirector {
   }
 
   private emitTerminal(kind: 'victory' | 'defeat', tick: number): void {
-    const phase = phaseAt(this.def, tick).id;
+    const phase = this.phaseAtTerminal(tick);
     const seq = this.state.seq++;
     if (kind === 'victory') {
       this.push({ kind: 'victory', tick, seq, phase });
     } else {
       this.push({ kind: 'defeat', tick, seq, phase });
     }
+  }
+
+  private phaseAtTerminal(tick: number): RunPhaseId {
+    const phaseTick = this.def.mode === 'normal' && tick >= this.def.durationTicks
+      ? this.def.durationTicks - 1
+      : tick;
+    return phaseAt(this.def, phaseTick).id;
   }
 
   private push(event: DirectorEvent): void {
@@ -478,6 +507,11 @@ export * from './contracts.js';
 export * from './ids.js';
 export { getDefaultDefinition, phaseDefFor, archetypeDef } from './definitions.js';
 export { validateDefinition } from './validation.js';
+export {
+  resolveDiscretionaryWaveInterval,
+  resolveLevelPressureSteps,
+  resolveLiveEnemyCaps,
+} from './level-pressure.js';
 export { createInitialState, phaseAt, cloneState } from './director-state.js';
 export { serializeState, deserializeState } from './serialization.js';
 export { hashState, fingerprintDefinition } from './state-hash.js';

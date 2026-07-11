@@ -10,14 +10,13 @@ import type {
   ArchetypeDefinition,
   BossDefinition,
   EliteBeatDefinition,
-  OvertimeConfig,
+  LevelPressureConfig,
   PhaseDefinition,
   RunDefinition,
   ThreatConfig,
   WaveConfig,
 } from '../contracts.js';
 import { BOSS_ENTRANCE_TICK, CONTENT_VERSION, RUN_DURATION_TICKS } from '../ids.js';
-import { OPEN_END } from '../contracts.js';
 
 /* ============================================================================
  * Phases — inclusive tick ranges, contiguous & non-overlapping.
@@ -51,23 +50,15 @@ const PHASES: readonly PhaseDefinition[] = [
   {
     id: 'mutation',
     startTick: 28_800,
-    endTick: 39_599,
+    endTick: 35_999,
     softCap: 10,
     hardCap: 16,
     threatPerTick: 8,
   },
   {
     id: 'boss',
-    startTick: 39_600,
+    startTick: BOSS_ENTRANCE_TICK,
     endTick: 43_199,
-    softCap: 6,
-    hardCap: 10,
-    threatPerTick: 3,
-  },
-  {
-    id: 'overtime',
-    startTick: 43_200,
-    endTick: OPEN_END,
     softCap: 6,
     hardCap: 10,
     threatPerTick: 3,
@@ -166,8 +157,8 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
   {
     id: 'elite:mutation-1',
     phaseId: 'mutation',
-    warningTick: 35_700,
-    requestTick: 36_000,
+    warningTick: 33_300,
+    requestTick: 33_600,
     archetypeId: 'enemy:elite',
     count: 1,
     formation: 'arc',
@@ -181,7 +172,7 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
  * ==========================================================================*/
 
 const BOSS: BossDefinition = {
-  warningTick: 38_400,
+  warningTick: 34_800,
   requestTick: BOSS_ENTRANCE_TICK,
   archetypeId: 'enemy:boss',
   formation: 'ring',
@@ -190,12 +181,23 @@ const BOSS: BossDefinition = {
 };
 
 /* ============================================================================
- * Threat, waves, overtime
+ * Threat and waves
  * ==========================================================================*/
 
 const THREAT: ThreatConfig = {
   initialBudget: 0,
   maxBudget: 2_000,
+};
+
+// Level 4 earns +1/+2 capacity and a 12-tick cadence gain; level 7 earns the
+// final step. The 120-tick base cadence therefore resolves to 108, then 96.
+const LEVEL_PRESSURE: LevelPressureConfig = {
+  startLevel: 4,
+  levelsPerStep: 3,
+  maxSteps: 2,
+  softCapPerStep: 1,
+  hardCapPerStep: 2,
+  intervalTicksReductionPerStep: 12,
 };
 
 const WAVES: WaveConfig = {
@@ -206,18 +208,7 @@ const WAVES: WaveConfig = {
     adaptation: ['enemy:fodder', 'enemy:runner', 'enemy:brute'],
     mutation: ['enemy:fodder', 'enemy:runner', 'enemy:brute'],
     boss: ['enemy:fodder'],
-    overtime: ['enemy:fodder'],
   },
-};
-
-const OVERTIME: OvertimeConfig = {
-  supportIntervalTicks: 300,
-  archetypeId: 'enemy:fodder',
-  count: 2,
-  formation: 'arc',
-  minDistance: 10,
-  maxDistance: 16,
-  maxSupportWaves: 40,
 };
 
 /* ============================================================================
@@ -226,14 +217,15 @@ const OVERTIME: OvertimeConfig = {
 
 export const GREG_FIRST_RUN: RunDefinition = {
   contentVersion: CONTENT_VERSION,
+  mode: 'normal',
   durationTicks: RUN_DURATION_TICKS,
   phases: PHASES,
   archetypes: ARCHETYPES,
   eliteBeats: ELITE_BEATS,
   boss: BOSS,
   threat: THREAT,
+  levelPressure: LEVEL_PRESSURE,
   waves: WAVES,
-  overtime: OVERTIME,
   eventBufferCapacity: 256,
   defaultSeed: 0x5eed,
 };

@@ -35,6 +35,7 @@ import type {
 import type { ArchetypeId } from './ids.js';
 import { canAfford, spend } from './threat-budget.js';
 import { rngWeightedIndex } from './rng.js';
+import { resolveDiscretionaryWaveInterval, resolveLiveEnemyCaps } from './level-pressure.js';
 
 /** Find an archetype definition by id, iterating by index only. Throws if absent. */
 function findArchetype(def: RunDefinition, id: ArchetypeId): ArchetypeDefinition {
@@ -80,9 +81,15 @@ export function serviceSpawns(
   tick: number,
 ): SpawnDecision[] {
   const liveEnemies = metrics.liveEnemies;
+  const caps = resolveLiveEnemyCaps(phase, def.levelPressure, metrics.playerLevel);
+  const intervalTicks = resolveDiscretionaryWaveInterval(
+    def.waves.intervalTicks,
+    def.levelPressure,
+    metrics.playerLevel,
+  );
 
   // Congestion: release nothing at all this tick. Delayed queue left intact.
-  if (liveEnemies >= phase.hardCap) {
+  if (liveEnemies >= caps.hardCap) {
     return [];
   }
 
@@ -92,7 +99,7 @@ export function serviceSpawns(
   // 1) Drain at most one delayed wave (FIFO head only) this tick.
   if (state.spawn.delayed.length > 0) {
     const head = state.spawn.delayed[0];
-    if (head !== undefined && liveEnemies < phase.softCap && canAfford(state.threat, head.cost)) {
+    if (head !== undefined && liveEnemies < caps.softCap && canAfford(state.threat, head.cost)) {
       spend(state.threat, head.cost);
       state.spawn.delayed.shift();
       decisions.push(toDecision(head, head.cost, true));
@@ -105,10 +112,10 @@ export function serviceSpawns(
   //    queue this tick, the interval has elapsed, and we're under softCap.
   if (
     !releasedDelayed &&
-    state.threat.ticksSinceSpawn >= def.waves.intervalTicks &&
-    liveEnemies < phase.softCap
+    state.threat.ticksSinceSpawn >= intervalTicks &&
+    liveEnemies < caps.softCap
   ) {
-    const eligibleIds = def.waves.phaseArchetypes[phase.id];
+    const eligibleIds = def.waves.phaseArchetypes[phase.id] ?? [];
     const eligibleArchetypes: ArchetypeDefinition[] = [];
     for (let i = 0; i < eligibleIds.length; i++) {
       const id = eligibleIds[i];

@@ -1,77 +1,91 @@
-# Progression Roadmap — Alpha to Playable Loop
+# Progression Roadmap — Current Alpha to Playable Loop
 
-## Product decision
+## Current alpha milestone
 
-Animal Survivor is a 12-minute, build-making survival game. A player should
-keep leveling throughout a run, assemble a mixture of animal adaptations and
-universal upgrades, earn a persistent currency after the run, and eventually
-unlock deliberately chosen higher-difficulty and endless modes.
+Animal Survivor is now testing a 12-minute, build-making survival loop. Greg
+keeps leveling throughout a run, chooses from mixed animal and neutral upgrade
+cards, earns persistent Essence after an attempt, and can buy one small
+between-run improvement. This is an implemented alpha milestone awaiting
+human-balance validation, not a claim that the progression loop is finished.
 
-The current two-animal Greg slice remains the foundation. We will not expose
-unsupported future animal traits merely to increase card count: their gameplay
-commands need real simulation support first.
+The two-animal Greg slice remains the foundation. We do not expose unsupported
+future animal traits merely to inflate card count: every offered trait must have
+real deterministic simulation support.
 
-## Build order
+## Per-run progression V1
 
-### 1. Immediate alpha response
+- The XP curve continues past the authored opening thresholds, so there is no
+  player-visible max level during a run.
+- A level-up pauses at the tick boundary and presents a mixed set of legal
+  animal-adaptation and neutral-upgrade cards. The chooser reserves neutral
+  space when animal offers would otherwise fill it, so neutral progression is
+  genuinely available rather than a theoretical fallback.
+- The six implemented neutral run upgrades are:
+  - **Swift Paws** — movement speed;
+  - **XP Magnet** — larger collection radius plus visible XP-mote attraction;
+  - **Sturdy Hide** — maximum health;
+  - **Sharpened Instinct** — base weapon damage;
+  - **Rapid Instinct** — base auto-fire cooldown; and
+  - **Growth** — XP gained.
+- Each neutral card is rank-capped for the run. Once every finite animal and
+  neutral choice is exhausted, **Essence Cache** remains a legal repeatable
+  fallback and contributes its reward to the terminal Essence settlement.
+- The pause panel is the durable build reference: it shows both owned animal
+  adaptations and selected neutral-upgrade ranks/effects without repeating
+  action text over combat.
 
-- Keep the active combat view quiet: explain owned upgrades in the persistent
-  panel and pause panel, not through repeating action banners.
-- Improve early-wave readability and boss entrance/pacing without masking the
-  underlying encounter problem.
-- Make milestone audio audible and purposeful, but do not add per-projectile
-  sound spam.
+## Pressure and normal-mode boundary
 
-### 2. Per-run progression V1
+- **Normal** is a finite 12:00 run. The boss enters at **10:00**; killing it by
+  12:00 wins, while an alive boss at the deadline is a defeat. Normal mode has
+  no hidden overtime.
+- The current authored level-pressure rule is deliberately bounded and does not
+  create a spawn burst: level 4 raises opening caps from 4/8 to 5/10 and
+  shortens ordinary waves from 120 to 108 ticks; level 7 raises caps to 6/12
+  and cadence to 96 ticks. The same content-owned rule drives later phases.
+- This is a first balance pass, not evidence that the enemy curve or boss HP is
+  correct for a fully developed build.
 
-Build one deterministic, replay-safe level-up system that can offer:
+## Meta progression V1
 
-- existing animal trait cards;
-- universal cards: **Swift Paws** (move speed), **XP Magnet** (real pickup
-  attraction), **Sturdy Hide** (survivability), and **Sharpened Instinct**
-  (base weapon improvement);
-- **Essence Cache** as a legal fallback once finite upgrades are exhausted.
+- Terminal **Essence** is calculated app-side and credited once per stable run
+  id, including any earned **Essence Cache** rewards.
+- A versioned local browser profile stores Essence and the first permanent
+  purchase, **Starting Vitality**.
+- Starting Vitality is deliberately small and capped: three ranks, each adding
+  +10 starting maximum health to the next run. Browser persistence is never
+  read directly by deterministic gameplay; it is normalized into the run-start
+  loadout before a run begins.
 
-Replace the finite XP threshold list with an integer cumulative curve so the
-run never shows a player-visible max level. Every selected card and all
-universal ranks participate in the canonical simulation hash and replay.
+## Determinism and replay contract
 
-**Luck is explicitly deferred.** It becomes a card only once it changes a
-truthful rarity, offer, chest, or drop system.
+- The level curve, universal catalog/order/ranks, XP-magnet state, offer queue,
+  and bounded level pressure are canonical gameplay facts.
+- Replays now record typed `trait`, `universal`, and `essence` selections, plus
+  the universal-catalog and normalized run-start-loadout fingerprints.
+- The deterministic config version is 4. Older replay records reject rather
+  than silently replay against different progression content.
+- Terminal profile settlement remains outside the simulation and is idempotent,
+  so a replay, outcome rerender, or page refresh cannot duplicate Essence.
 
-### 3. Meta progression V1
+## Explicitly deferred
 
-- Award idempotent **Essence** on terminal runs.
-- Persist a versioned local profile outside the simulation.
-- Pass a normalized, immutable starting loadout into a run.
-- Start with one small capped purchase, such as starting health or starting
-  magnet, to prove the between-run improvement loop.
-
-### 4. Modes and difficulty
-
-- **Normal:** ends at the authored 12-minute boundary; the boss must be tuned
-  against a conservative expected build.
-- **Higher difficulties:** use separate, fingerprinted run definitions rather
-  than invisible multipliers.
-- **Hardcore Endless:** becomes a later, clearly opt-in mode unlocked after
-  normal/meta progression; it has its own ramp and does not reuse accidental
-  normal-mode overtime.
-
-## Determinism rules
-
-- Universal offers receive a domain-separated seeded RNG; they never consume
-  spawn RNG implicitly.
-- Replays record typed card selections and the normalized run-start loadout.
-- The XP curve, universal catalog, universal ranks, pickup attraction state,
-  and offer state are all versioned/hashable gameplay facts.
-- Terminal Essence settlement is app-owned and idempotent, so a replay or page
-  refresh cannot duplicate a reward.
+- **Luck** is not an implemented card. It needs a truthful rarity, offer,
+  chest, or drop system before it can be offered.
+- Player-selectable higher difficulties and **Hardcore Endless** are not shipped.
+  They require separately fingerprinted authored definitions and explicit player
+  choice after the normal/meta loop is proven.
+- More animal traits remain deferred until their persistent gameplay state,
+  commands, visuals, and balance are implemented. The current Greg catalog is
+  intentionally small rather than misleading.
 
 ## Validation gates
 
-- Unit tests for the curve, ranks, card eligibility, fallback offers, and
-  pickup attraction.
-- Replay/hash parity with mixed animal and universal choices.
-- Browser smoke of an ordinary manual run: no max level, visible magnet pull,
-  pause summary, and clear terminal reward.
-- Human playtest before balancing difficulty unlocks or Hardcore Endless.
+- Run all headless, trait-runtime, run-director, and web-toy tests plus
+  typecheck, lint, and production build after integrating this alpha milestone.
+- Verify replay/hash parity for mixed animal and neutral selections, fallback
+  Essence Cache choices, and a nonzero Starting Vitality loadout.
+- Browser-smoke a normal run for continuous levels, visible XP attraction,
+  pause-build clarity, terminal Essence, and a next-run Vitality effect.
+- Run human playtests before tuning player-selectable difficulties, Hardcore
+  Endless, Luck, or broader trait content.

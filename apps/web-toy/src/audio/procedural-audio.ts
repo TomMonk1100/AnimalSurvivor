@@ -59,14 +59,32 @@ interface Tone {
   readonly frequency: number;
   readonly peakGain: number;
   readonly durationSeconds: number;
+  /** Optional offset for a second note in a concise UI cue. */
+  readonly startOffsetSeconds?: number;
 }
 
-const TONES: Readonly<Record<AudioCue, Tone>> = Object.freeze({
-  start: { shape: 'triangle', frequency: 523.25, peakGain: 0.04, durationSeconds: 0.11 },
-  pickup: { shape: 'sine', frequency: 783.99, peakGain: 0.028, durationSeconds: 0.055 },
-  upgrade: { shape: 'triangle', frequency: 659.25, peakGain: 0.042, durationSeconds: 0.14 },
-  victory: { shape: 'sine', frequency: 880, peakGain: 0.05, durationSeconds: 0.2 },
-  defeat: { shape: 'sawtooth', frequency: 164.81, peakGain: 0.025, durationSeconds: 0.18 },
+type ToneProfile = readonly Tone[];
+
+const TONES: Readonly<Record<AudioCue, ToneProfile>> = Object.freeze({
+  // A two-note confirmation is easier to notice than the former single short
+  // chirp, while still remaining modest enough for an opt-in game layer.
+  start: [
+    { shape: 'triangle', frequency: 392, peakGain: 0.065, durationSeconds: 0.13 },
+    { shape: 'triangle', frequency: 587.33, peakGain: 0.078, durationSeconds: 0.19, startOffsetSeconds: 0.1 },
+  ],
+  pickup: [{ shape: 'sine', frequency: 783.99, peakGain: 0.028, durationSeconds: 0.055 }],
+  // The brighter rising pair makes a paused upgrade choice unmistakable from
+  // both the start confirmation and the frequent XP ping.
+  upgrade: [
+    { shape: 'sine', frequency: 659.25, peakGain: 0.07, durationSeconds: 0.13 },
+    { shape: 'triangle', frequency: 987.77, peakGain: 0.086, durationSeconds: 0.22, startOffsetSeconds: 0.11 },
+  ],
+  damage: [{ shape: 'sawtooth', frequency: 196, peakGain: 0.035, durationSeconds: 0.11 }],
+  // Kept intentionally softer and lower than the pickup chime: auto-fire is
+  // common, while the router limits it to one short texture every half second.
+  attack: [{ shape: 'triangle', frequency: 329.63, peakGain: 0.018, durationSeconds: 0.055 }],
+  victory: [{ shape: 'sine', frequency: 880, peakGain: 0.05, durationSeconds: 0.2 }],
+  defeat: [{ shape: 'sawtooth', frequency: 164.81, peakGain: 0.025, durationSeconds: 0.18 }],
 });
 
 type BrowserAudioContextConstructor = new () => ProceduralAudioContext;
@@ -96,9 +114,10 @@ function finiteTime(value: number): number {
 }
 
 /**
- * Builds one short, quiet oscillator per routed cue. There are intentionally no
- * attack, hit, or enemy-death sounds: the router only requests sparse player
- * milestones, so the synth stays readable during catch-up or crowded fights.
+ * Builds a small bounded voice profile per routed cue. There are intentionally
+ * no enemy-death sounds. The router permits only low-volume, rate-limited
+ * auto-attack texture and player-damage feedback, so the synth stays readable
+ * in crowded fights.
  */
 export function createProceduralAudio(options: ProceduralAudioOptions = {}): ProceduralAudio {
   const createContext = options.createContext ?? createBrowserContext;
@@ -157,20 +176,22 @@ export function createProceduralAudio(options: ProceduralAudioOptions = {}): Pro
 
   function play(cue: AudioCue): void {
     if (!enabled || context === null || disposed) return;
-    const tone = TONES[cue];
     try {
       const now = finiteTime(context.currentTime);
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = tone.shape;
-      oscillator.frequency.setValueAtTime(tone.frequency, now);
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.linearRampToValueAtTime(tone.peakGain, now + 0.008);
-      gain.gain.linearRampToValueAtTime(0.0001, now + tone.durationSeconds);
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start(now);
-      oscillator.stop(now + tone.durationSeconds + 0.01);
+      for (const tone of TONES[cue]) {
+        const startAt = now + (tone.startOffsetSeconds ?? 0);
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = tone.shape;
+        oscillator.frequency.setValueAtTime(tone.frequency, startAt);
+        gain.gain.setValueAtTime(0.0001, startAt);
+        gain.gain.linearRampToValueAtTime(tone.peakGain, startAt + 0.008);
+        gain.gain.linearRampToValueAtTime(0.0001, startAt + tone.durationSeconds);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(startAt);
+        oscillator.stop(startAt + tone.durationSeconds + 0.01);
+      }
     } catch {
       // A browser may interrupt/close a context between a player gesture and a
       // later routed cue. Keep gameplay alive and wait for the next opt-in tap.

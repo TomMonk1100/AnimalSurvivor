@@ -104,6 +104,19 @@ describe('combat feedback projection', () => {
     })).toThrow('pickupCollectionRadius');
   });
 
+  it('uses the live snapshot pickup radius so Magnet collections retain feedback', () => {
+    const { previous, current } = snapshots();
+    previous.playerX = current.playerX = 0;
+    previous.playerY = current.playerY = 0;
+    previous.playerPickupRadius = current.playerPickupRadius = 90;
+    // This is farther than the base 40-unit collection range but exactly
+    // reachable after a fully-ranked XP Magnet expands collection radius.
+    entity(previous.pickups, 0, 77, 91, 0, 1);
+
+    const result = projectCombatFeedback(previous, current);
+    expect(result.cues.map((cue) => cue.kind)).toEqual(['pickup']);
+  });
+
   it('emits an explicit terminal player-death cue and remains deterministic', () => {
     const { previous, current } = snapshots(88);
     current.playerAlive = false;

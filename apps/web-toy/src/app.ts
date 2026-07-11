@@ -10,7 +10,7 @@
  *   Agent C  createInputController / createAutopilot / perf monitor / HUD
  *   contracts.ts  the frozen interfaces between them
  */
-import { DEFAULT_CONFIG } from '@sim';
+import { DEFAULT_CONFIG, UNIVERSAL_UPGRADE_CATALOG, xpRequiredForNextLevel } from '@sim';
 import type { RunDirectorFactory, SimConfig, TraitRuntimeFactory } from '@sim';
 import { GREG_VERTICAL_SLICE_CATALOG, TraitRuntime } from '@traits';
 import { RunDirector } from '@director';
@@ -27,13 +27,21 @@ import { projectDirectorEvent, type DirectorNotice } from './presentation/direct
 import { presentActiveAdaptations } from './presentation/active-adaptations';
 import { presentBossHealth } from './presentation/boss-health';
 import { presentRunSummary } from './presentation/run-summary';
-import { presentUpgrade } from './presentation/upgrade-copy';
+import { presentRunUpgrade } from './presentation/upgrade-copy';
 import { isPauseShortcut, upgradeShortcutIndex } from './presentation/upgrade-shortcuts';
 import { presentRunIntro } from './presentation/run-intro';
 import { presentRunProgress } from './presentation/run-progress';
 import { presentPauseNotice } from './presentation/pause-notice';
+import { presentActiveUniversalUpgrades } from './presentation/active-universal-upgrades';
+import { calculateTerminalEssenceReward } from './presentation/terminal-essence';
 import { createAudioCueRouter } from './audio/audio-cue-router';
 import { createProceduralAudio } from './audio/procedural-audio';
+import {
+  STARTING_VITALITY_COSTS,
+  STARTING_VITALITY_MAX_RANK,
+  createProfileStore,
+  type ProfileStorage,
+} from './profile/profile-store';
 
 /** Deterministic 32-bit seed from a string (djb2). Used only for UI convenience. */
 function seedFromString(s: string): number {
@@ -61,14 +69,32 @@ const traitRuntimeFactory: TraitRuntimeFactory = ({ seed, initialTick }) =>
   new TraitRuntime({ seed, initialTick, catalog: GREG_VERTICAL_SLICE_CATALOG });
 const runDirectorFactory: RunDirectorFactory = ({ seed }) => new RunDirector({ seed });
 
+/** Defers browser-storage access so restricted/private modes stay non-fatal. */
+function browserProfileStorage(): ProfileStorage {
+  return {
+    getItem(key: string): string | null {
+      return window.localStorage.getItem(key);
+    },
+    setItem(key: string, value: string): void {
+      window.localStorage.setItem(key, value);
+    },
+  };
+}
+
+/** Run IDs are app-owned settlement keys, never deterministic simulation input. */
+function createRunId(seed: number, sequence: number): string {
+  const cryptoId = globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${performance.now().toFixed(3)}`;
+  return `run:${seed.toString(16)}:${sequence}:${cryptoId}`;
+}
+
 export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const params = new URLSearchParams(window.location.search);
   const stressMode = params.get('stress') === '1';
   const renderStressMode = params.get('renderstress') === '1';
   const diagnosticsMode = params.get('debug') === '1';
   // The default stress pass stays a quick five simulated minutes. `fullrun=1`
-  // deliberately reaches the 12-minute authored terminal boundary so the boss
-  // encounter can be checked through the same browser harness.
+  // continues until a terminal outcome, no later than the 12-minute normal
+  // boundary, so the boss encounter can be checked through the same harness.
   const fullRunStressMode = params.get('fullrun') === '1';
   const stressStopTicks = config.hz * 60 * (fullRunStressMode ? 12 : 5);
   const seedParam = params.get('seed');
@@ -105,10 +131,16 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const introSoundStatus = document.getElementById('run-intro-sound-status') as HTMLElement;
   const introStartButton = document.getElementById('run-intro-start') as HTMLButtonElement;
 
-  const driver: SimDriver = createSimDriver(config, initialSeed, {
-    traitRuntimeFactory,
-    runDirectorFactory,
-  });
+  const profileStore = createProfileStore(browserProfileStorage());
+  function simulationOptions() {
+    return {
+      traitRuntimeFactory,
+      universalUpgradeCatalog: UNIVERSAL_UPGRADE_CATALOG,
+      runDirectorFactory,
+      runStartLoadout: profileStore.startLoadout(),
+    };
+  }
+  const driver: SimDriver = createSimDriver(config, initialSeed, simulationOptions());
   const renderStress = renderStressMode ? createRenderStressHarness(config) : null;
   const renderer: RendererAdapter = createRenderer(canvas, config);
   const perf = createPerformanceMonitor();
@@ -140,6 +172,9 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   });
   let runStarted = !intro.holdAtStart;
   let currentSeed = initialSeed;
+  let runSequence = 0;
+  let currentRunId = createRunId(currentSeed, runSequence);
+  let terminalRewardDetail: string | null = null;
   let upgradePromptSerial = 0;
   let syntheticDriverNow = performance.now();
   let renderedOfferKey = '';
@@ -151,6 +186,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
 
   function renderPauseNotice(): void {
     const notice = presentPauseNotice(controls.paused, presentActiveAdaptations(driver.traitVisualState()));
+    const universalUpgrades = presentActiveUniversalUpgrades(driver.universalUpgradeRanks);
     pauseNoticeRoot.hidden = notice === null;
     pauseNoticeRoot.replaceChildren();
     if (notice === null) return;
@@ -163,10 +199,10 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     upgradesTitle.className = 'pause-upgrades-title';
     upgradesTitle.textContent = 'Active upgrades';
     pauseNoticeRoot.appendChild(upgradesTitle);
-    if (notice.upgrades.length === 0) {
+    if (notice.upgrades.length === 0 && universalUpgrades.length === 0) {
       const empty = document.createElement('span');
       empty.className = 'pause-upgrades-empty';
-      empty.textContent = 'No animal upgrades selected yet.';
+      empty.textContent = 'No upgrades selected yet.';
       pauseNoticeRoot.appendChild(empty);
       return;
     }
@@ -181,6 +217,23 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       cadence.textContent = upgrade.cadence;
       card.append(cardTitle, effect, cadence);
       pauseNoticeRoot.appendChild(card);
+    }
+    if (universalUpgrades.length > 0) {
+      const neutralTitle = document.createElement('strong');
+      neutralTitle.className = 'pause-upgrades-title';
+      neutralTitle.textContent = 'Neutral run upgrades';
+      pauseNoticeRoot.appendChild(neutralTitle);
+      for (const upgrade of universalUpgrades) {
+        const card = document.createElement('section');
+        card.className = 'pause-upgrade-card';
+        card.dataset.kind = 'universal';
+        const cardTitle = document.createElement('strong');
+        cardTitle.textContent = `${upgrade.title} — Rank ${upgrade.rank}/${upgrade.maxRank}`;
+        const effect = document.createElement('span');
+        effect.textContent = upgrade.effect;
+        card.append(cardTitle, effect);
+        pauseNoticeRoot.appendChild(card);
+      }
     }
   }
 
@@ -214,9 +267,9 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   }
 
   /** One presentation-owned path for click and keyboard upgrade selections. */
-  function chooseUpgrade(traitId: string): void {
+  function chooseUpgrade(id: string): void {
     if (!driver.upgradeSelectionPending) return;
-    driver.selectUpgrade(traitId);
+    driver.selectUpgrade(id);
     activeInput().clear();
     driver.noteVisible(syntheticDriverNow);
     renderedOfferKey = '';
@@ -225,7 +278,13 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
 
   function renderUpgradeChoices(): void {
     const offers = driver.pendingUpgradeOffers;
-    const key = offers.map((offer) => `${offer.traitId}:${offer.resultStage}`).join('|');
+    const key = offers.map((offer) => {
+      switch (offer.kind) {
+        case 'trait': return `${offer.kind}:${offer.id}:${offer.resultStage}`;
+        case 'universal': return `${offer.kind}:${offer.id}:${offer.nextRank}/${offer.maxRank}`;
+        case 'essence': return `${offer.kind}:${offer.id}:${offer.amount}`;
+      }
+    }).join('|');
     if (key === renderedOfferKey && upgradeRoot.hidden === !driver.upgradeSelectionPending) return;
     renderedOfferKey = key;
     upgradeRoot.replaceChildren();
@@ -234,7 +293,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
 
     const heading = document.createElement('h2');
     heading.id = 'upgrade-choices-heading';
-    heading.textContent = 'Choose an animal adaptation';
+    heading.textContent = 'Choose an upgrade';
     upgradeRoot.appendChild(heading);
     const shortcutHint = document.createElement('p');
     shortcutHint.id = 'upgrade-choices-shortcuts';
@@ -244,7 +303,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       : `Press 1–${offers.length}, or Tab + Enter to choose.`;
     upgradeRoot.appendChild(shortcutHint);
     for (const [index, offer] of offers.entries()) {
-      const presentation = presentUpgrade(offer, driver.traitVisualState());
+      const presentation = presentRunUpgrade(offer, driver.traitVisualState());
       const choice = document.createElement('button');
       choice.type = 'button';
       choice.setAttribute('aria-keyshortcuts', String(index + 1));
@@ -261,7 +320,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
         choice.appendChild(hint);
       }
       choice.addEventListener('click', () => {
-        chooseUpgrade(offer.traitId);
+        chooseUpgrade(offer.id);
       });
       upgradeRoot.appendChild(choice);
     }
@@ -277,7 +336,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     const offer = driver.pendingUpgradeOffers[index];
     if (offer === undefined) return;
     event.preventDefault();
-    chooseUpgrade(offer.traitId);
+    chooseUpgrade(offer.id);
   }
 
   function onKeyboardShortcut(event: KeyboardEvent): void {
@@ -338,9 +397,33 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     bossHealthBar.setAttribute('aria-valuetext', `${boss.label}: ${boss.percent}% health remaining`);
   }
 
+  function settleTerminalReward(outcome: 'victory' | 'defeat'): string {
+    if (terminalRewardDetail !== null) return terminalRewardDetail;
+    try {
+      const reward = calculateTerminalEssenceReward(outcome, driver.totalKills, driver.runEssenceEarned);
+      const settlement = profileStore.settleTerminalRun({
+        runId: currentRunId,
+        outcome,
+        essenceAward: reward.total,
+      });
+      terminalRewardDetail = settlement.settled
+        ? `+${settlement.awardedEssence} Essence banked (${settlement.profile.essence} total).`
+        : `Essence for this run was already banked (${settlement.profile.essence} total).`;
+      renderProfile();
+    } catch {
+      // Storage can be disabled or quota-limited. The run result remains valid;
+      // only the optional persistent reward needs a retry on a later run.
+      terminalRewardDetail = 'Essence could not be saved in this browser.';
+    }
+    return terminalRewardDetail;
+  }
+
   function renderRunOutcome(): void {
     const summary = presentRunSummary(driver.runOutcome, driver.tick, config.hz, driver.runPhase);
-    const key = summary === null ? '' : `${summary.tone}:${summary.headline}:${summary.detail}`;
+    const rewardDetail = driver.runOutcome === 'victory' || driver.runOutcome === 'defeat'
+      ? settleTerminalReward(driver.runOutcome)
+      : null;
+    const key = summary === null ? '' : `${summary.tone}:${summary.headline}:${summary.detail}:${rewardDetail ?? ''}`;
     if (key === renderedOutcomeKey && outcomeRoot.hidden === (summary === null)) return;
     renderedOutcomeKey = key;
     outcomeRoot.hidden = summary === null;
@@ -351,11 +434,14 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     headline.textContent = summary.headline;
     const detail = document.createElement('span');
     detail.textContent = summary.detail;
+    const reward = document.createElement('span');
+    reward.className = 'outcome-essence';
+    reward.textContent = rewardDetail ?? '';
     const playAgain = document.createElement('button');
     playAgain.type = 'button';
     playAgain.textContent = 'Play again';
     playAgain.addEventListener('click', restartRun);
-    outcomeRoot.append(headline, detail, playAgain);
+    outcomeRoot.append(headline, detail, reward, playAgain);
   }
 
   // ---- controls UI (built once; no per-frame DOM creation) ----------------
@@ -376,7 +462,10 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     const raw = seedInput.value.trim();
     currentSeed = /^\d+$/.test(raw) ? Number(raw) >>> 0 : seedFromString(raw);
     seedInput.value = String(currentSeed);
-    driver.restart(currentSeed);
+    runSequence++;
+    currentRunId = createRunId(currentSeed, runSequence);
+    terminalRewardDetail = null;
+    driver.restart(currentSeed, simulationOptions());
     activeDirectorNotice = null;
     renderedDirectorKey = '';
     renderedOfferKey = '';
@@ -389,6 +478,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     renderUpgradeChoices();
     renderAdaptations();
     renderRunOutcome();
+    renderProfile();
     syntheticDriverNow = performance.now();
     keyboardInput.clear();
     perf.reset();
@@ -424,6 +514,44 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     controlsSoundStatus.hidden = true;
     controlsRoot.appendChild(controlsSoundStatus);
   }
+
+  const profileRoot = document.createElement('section');
+  profileRoot.className = 'profile-summary';
+  const profileText = document.createElement('strong');
+  const profileDetail = document.createElement('span');
+  const vitalityButton = document.createElement('button');
+  vitalityButton.type = 'button';
+  profileRoot.append(profileText, profileDetail, vitalityButton);
+  controlsRoot.appendChild(profileRoot);
+  let profileMessage = '';
+
+  function renderProfile(message?: string): void {
+    if (message !== undefined) profileMessage = message;
+    const profile = profileStore.profile();
+    const loadout = profileStore.startLoadout();
+    const rank = profile.startingVitalityRank;
+    const nextCost = rank < STARTING_VITALITY_MAX_RANK ? STARTING_VITALITY_COSTS[rank]! : null;
+    profileText.textContent = `Essence ${profile.essence} · Vitality ${rank}/${STARTING_VITALITY_MAX_RANK}`;
+    profileDetail.textContent = profileMessage || `New runs start with +${loadout.maxHpBonus} max HP.`;
+    vitalityButton.disabled = nextCost === null || profile.essence < nextCost;
+    vitalityButton.textContent = nextCost === null
+      ? 'Starting Vitality: MAX'
+      : `Buy +10 starting HP (${nextCost} Essence)`;
+  }
+
+  vitalityButton.addEventListener('click', () => {
+    try {
+      const purchase = profileStore.purchaseStartingVitality();
+      renderProfile(purchase.purchased
+        ? 'Starting Vitality purchased. It applies on your next run.'
+        : purchase.reason === 'insufficient-essence'
+          ? `Need ${purchase.cost ?? 0} Essence for the next rank.`
+          : 'Starting Vitality is already maxed.');
+    } catch {
+      renderProfile('Vitality could not be saved in this browser.');
+    }
+  });
+  renderProfile();
 
   function renderSoundControls(message: string | null = null): void {
     const enabled = proceduralAudio.enabled;
@@ -548,7 +676,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     driver.frame(syntheticDriverNow, activeInput(), effectivePaused);
     if (stressMode && driver.upgradeSelectionPending) {
       const firstOffer = driver.pendingUpgradeOffers[0];
-      if (firstOffer !== undefined) driver.selectUpgrade(firstOffer.traitId);
+      if (firstOffer !== undefined) driver.selectUpgrade(firstOffer.id);
     }
     audioCueRouter.observe({
       tick: driver.tick,
@@ -584,17 +712,16 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       const rs = renderer.stats();
       const [, frameP95Ms, frameP99Ms] = perf.percentiles();
       const playerSnapshot = driver.curr;
-      const nextXpIndex = Math.max(0, playerSnapshot.playerLevel - 1);
       const stats: HudStats = {
         fps: perf.fps,
         frameTimeMs: perf.frameTimeMs,
         frameP95Ms,
         frameP99Ms,
         playerHp: playerSnapshot.playerHp,
-        playerMaxHp: config.player.maxHp,
+        playerMaxHp: playerSnapshot.playerMaxHp,
         playerXp: playerSnapshot.playerXp,
         playerLevel: playerSnapshot.playerLevel,
-        playerNextXp: config.xpThresholds[nextXpIndex] ?? null,
+        playerNextXp: xpRequiredForNextLevel(config.xpThresholds, playerSnapshot.playerLevel),
         simTick: driver.tick,
         ticksLastFrame: driver.ticksLastFrame,
         droppedAccumSec: driver.droppedAccumSec,

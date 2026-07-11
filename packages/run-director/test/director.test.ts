@@ -18,27 +18,26 @@ test('every required phase starts at its exact boundary, in order', () => {
     { id: 'pressure', tick: 7_200 },
     { id: 'adaptation', tick: 18_000 },
     { id: 'mutation', tick: 28_800 },
-    { id: 'boss', tick: 39_600 },
-    { id: 'overtime', tick: 43_200 },
+    { id: 'boss', tick: 36_000 },
   ]);
 });
 
 test('three pre-boss elite beats fire exactly once at authored ticks', () => {
   const d = new RunDirector({ seed: 2 });
-  const events = runEveryTick(d, 0, 39_600);
+  const events = runEveryTick(d, 0, 36_000);
   const elites = events
     .filter((e) => e.kind === 'eliteRequested')
     .map((e) => ({ id: (e as { beatId: string }).beatId, tick: e.tick }));
   assert.deepEqual(elites, [
     { id: 'elite:pressure-1', tick: 12_000 },
     { id: 'elite:adaptation-1', tick: 24_000 },
-    { id: 'elite:mutation-1', tick: 36_000 },
+    { id: 'elite:mutation-1', tick: 33_600 },
   ]);
 });
 
 test('each elite warning precedes its request in stable order', () => {
   const d = new RunDirector({ seed: 3 });
-  const events = runEveryTick(d, 0, 39_600);
+  const events = runEveryTick(d, 0, 36_000);
   for (const beatId of ['elite:pressure-1', 'elite:adaptation-1', 'elite:mutation-1']) {
     const warn = events.find((e) => e.kind === 'eliteWarning' && (e as { beatId: string }).beatId === beatId);
     const req = events.find((e) => e.kind === 'eliteRequested' && (e as { beatId: string }).beatId === beatId);
@@ -48,48 +47,49 @@ test('each elite warning precedes its request in stable order', () => {
   }
 });
 
-test('boss warning precedes boss request; request fires exactly once at 39,600', () => {
+test('boss warning precedes boss request; request fires exactly once at 36,000', () => {
   const d = new RunDirector({ seed: 4 });
   const events = runEveryTick(d, 0, 43_200);
   const warn = events.find((e) => e.kind === 'bossWarning');
   const reqs = events.filter((e) => e.kind === 'bossRequested');
   assert.ok(warn, 'boss warning present');
   assert.equal(reqs.length, 1, 'exactly one boss request');
-  assert.equal(reqs[0]!.tick, 39_600);
+  assert.equal(reqs[0]!.tick, 36_000);
   assert.ok(warn!.tick < reqs[0]!.tick);
   assert.ok(warn!.seq < reqs[0]!.seq);
 });
 
 test('boss entrance owns its tick without a concurrent discretionary wave', () => {
   const d = new RunDirector({ seed: 41 });
-  const events = runEveryTick(d, 0, 39_600)
-    .filter((event) => event.tick === 39_600);
+  const events = runEveryTick(d, 0, 36_000)
+    .filter((event) => event.tick === 36_000);
 
   assert.equal(events.filter((event) => event.kind === 'bossRequested').length, 1);
   assert.equal(events.filter((event) => event.kind === 'spawnRequested').length, 0);
 });
 
-test('reaching tick 43,200 with a live boss enters overtime, not victory', () => {
+test('normal mode ends at 12:00 with defeat when the boss survives, without overtime', () => {
   const d = new RunDirector({ seed: 5 });
   const events = runEveryTick(d, 0, 43_200); // no boss defeat ever
-  assert.equal(countKind(events, 'overtimeStarted'), 1);
+  const defeat = events.find((event) => event.kind === 'defeat');
+  assert.ok(defeat);
+  assert.equal(defeat!.tick, 43_200);
+  assert.equal(defeat!.phase, 'boss');
   assert.equal(countKind(events, 'victory'), 0);
-  assert.equal(d.outcome, 'running');
-  assert.equal(d.phase, 'overtime');
+  assert.equal(countKind(events, 'overtimeStarted'), 0);
+  assert.equal(events.filter((event) => event.kind === 'spawnRequested' && event.tick >= 43_200).length, 0);
+  assert.equal(d.outcome, 'defeat');
+  assert.equal(d.phase, 'boss');
 });
 
-test('overtime support waves are bounded and never grow without limit', () => {
+test('a boss killed on the exact normal deadline wins rather than timing out', () => {
   const d = new RunDirector({ seed: 6 });
-  runEveryTick(d, 0, 43_200);
-  const events = runEveryTick(d, 43_201, 54_000);
-  // Overtime support waves are the free (cost 0) spawnRequested events; normal
-  // discretionary spawns (cost > 0) may also occur but are rate/cap limited.
-  const support = events.filter(
-    (e) => e.kind === 'spawnRequested' && (e as { cost: number }).cost === 0,
-  );
-  // maxSupportWaves is 40 in content; support must never exceed it.
-  assert.ok(support.length <= 40, `support waves ${support.length} <= 40`);
-  assert.equal(d.outcome, 'running');
+  runEveryTick(d, 0, 43_199);
+  const events = runAtTicks(d, [43_200], { bossDefeatTick: 43_200 });
+  assert.equal(countKind(events, 'victory'), 1);
+  assert.equal(countKind(events, 'defeat'), 0);
+  assert.equal(countKind(events, 'overtimeStarted'), 0);
+  assert.equal(d.outcome, 'victory');
 });
 
 test('valid boss defeat after request produces exactly one victory', () => {
@@ -200,8 +200,8 @@ test('tick-skip catch-up preserves authored one-shot events and ordering', () =>
   const fineEvents = authoredOnly(runEveryTick(fine, 0, 43_200));
   // Big skips that still straddle every authored boundary and beat.
   const ticks = [
-    0, 7_200, 11_700, 12_000, 18_000, 23_700, 24_000, 28_800, 35_700, 36_000, 38_400,
-    39_600, 43_200,
+    0, 7_200, 11_700, 12_000, 18_000, 23_700, 24_000, 28_800, 33_300, 33_600, 34_800,
+    36_000, 43_200,
   ];
   const skipEvents = authoredOnly(runAtTicks(skip, ticks));
   const norm = (e: (typeof fineEvents)[number]) => `${e.kind}@${e.tick}`;

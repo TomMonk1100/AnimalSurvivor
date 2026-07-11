@@ -22,7 +22,7 @@ import type {
   SimConfig,
   Simulation,
   SimulationOptions,
-  TraitUpgradeOfferView,
+  RunUpgradeOfferView,
   TraitVisualAttachmentView,
   TraitPresentationEventView,
   UpgradeSelection,
@@ -76,8 +76,11 @@ export interface SimDriver {
   readonly projHigh: number;
   readonly pickupsLive: number;
   readonly pickupsHigh: number;
+  readonly totalKills: number;
+  readonly runEssenceEarned: number;
+  readonly universalUpgradeRanks: readonly number[];
   /** Offers awaiting the player's deterministic level-up choice. */
-  readonly pendingUpgradeOffers: readonly TraitUpgradeOfferView[];
+  readonly pendingUpgradeOffers: readonly RunUpgradeOfferView[];
   /** True while fixed-tick advancement is blocked on an upgrade choice. */
   readonly upgradeSelectionPending: boolean;
   readonly runOutcome: RunOutcomeView | null;
@@ -92,7 +95,7 @@ export interface SimDriver {
    */
   readonly traitPresentationEvents: readonly TraitPresentationEventView[];
   hash(): string;
-  selectUpgrade(traitId: string): UpgradeSelection;
+  selectUpgrade(id: string): UpgradeSelection;
   traitVisualState(): readonly TraitVisualAttachmentView[];
   /**
    * Advance the driver by one rendered frame. `nowMs` is wall-clock time
@@ -107,8 +110,8 @@ export interface SimDriver {
    * frameDelta, preventing an unbounded catch-up burst on the next frame().
    */
   noteVisible(nowMs: number): void;
-  /** Rebuilds the simulation with a new seed and resets the driver's clock/snapshots. */
-  restart(seed: number): void;
+  /** Rebuilds the simulation with a new seed/options and resets driver clock/snapshots. */
+  restart(seed: number, options?: SimulationOptions): void;
 }
 
 function clamp01(v: number): number {
@@ -126,7 +129,8 @@ export function createSimDriver(
 ): SimDriver {
   const dt = 1 / config.hz;
 
-  let sim: Simulation = createSimulation(config, seed, options);
+  let activeOptions = options;
+  let sim: Simulation = createSimulation(config, seed, activeOptions);
 
   // Double-buffered interpolation snapshots. We never reassign the buffers'
   // internal typed arrays — only which buffer plays the "prev" vs "curr"
@@ -147,7 +151,7 @@ export function createSimDriver(
   // command rather than five aliases of the final tick's mutable records.
   const traitPresentationEventStorage: MutableTraitPresentationEvent[] = [];
   const frameTraitPresentationEvents: TraitPresentationEventView[] = [];
-  const combatFeedbackPool = createCombatFeedbackPool({ pickupCollectionRadius: config.player.pickupRadius });
+  const combatFeedbackPool = createCombatFeedbackPool();
   let combatFeedback: CombatFeedbackSnapshot = Object.freeze({ tick: sim.tick, cues: Object.freeze([]) });
   let inFrame = false;
 
@@ -224,7 +228,8 @@ export function createSimDriver(
       frameDirectorEvents.length = 0;
       frameTraitPresentationEvents.length = 0;
 
-      if (paused || sim.upgradeSelectionPending) {
+      const terminalBeforeFrame = sim.runOutcome !== null && sim.runOutcome !== 'running';
+      if (paused || sim.upgradeSelectionPending || terminalBeforeFrame) {
         // Do not accumulate time and do not step gameplay ticks. prev/curr/
         // alpha are left exactly as they were; the renderer keeps showing
         // the last interpolated pose. An upgrade prompt is a simulation-owned
@@ -262,6 +267,13 @@ export function createSimDriver(
         combatFeedback = combatFeedbackPool.advance(prevBuf, currBuf);
         accumulator -= dt;
         stepped++;
+        if (sim.runOutcome !== null && sim.runOutcome !== 'running') {
+          // A terminal tick is a hard gameplay boundary. Discard accumulated
+          // wall-clock time rather than allowing later loop iterations to add
+          // kills, XP, or presentation state after terminal settlement.
+          accumulator = 0;
+          break;
+        }
         if (sim.upgradeSelectionPending) {
           // A level-up choice is a tick boundary. Do not consume any more of
           // this frame's already-accumulated time until the choice is made.
@@ -291,11 +303,12 @@ export function createSimDriver(
     lastNowMs = nowMs;
   }
 
-  function restart(newSeed: number): void {
+  function restart(newSeed: number, nextOptions?: SimulationOptions): void {
     if (inFrame) {
       throw new Error('SimDriver.restart() called during frame()');
     }
-    sim = createSimulation(config, newSeed, options);
+    if (nextOptions !== undefined) activeOptions = nextOptions;
+    sim = createSimulation(config, newSeed, activeOptions);
     accumulator = 0;
     lastNowMs = null;
     alpha = 0;
@@ -345,6 +358,15 @@ export function createSimDriver(
     get pickupsHigh() {
       return sim.pickups.data.highWater;
     },
+    get totalKills() {
+      return sim.totalKills;
+    },
+    get runEssenceEarned() {
+      return sim.runEssenceEarned;
+    },
+    get universalUpgradeRanks() {
+      return sim.universalUpgradeRanks;
+    },
     get pendingUpgradeOffers() {
       return sim.pendingUpgradeOffers;
     },
@@ -369,8 +391,15 @@ export function createSimDriver(
     hash() {
       return sim.hash();
     },
-    selectUpgrade(traitId: string) {
-      return sim.selectUpgrade(traitId);
+    selectUpgrade(id: string) {
+      const selection = sim.selectUpgrade(id);
+      // A choice changes authoritative stats at the same fixed-tick boundary.
+      // Refresh both interpolation buffers immediately so the paused HUD and
+      // resume frame never display stale max HP, pickup radius, or movement.
+      captureSnapshot(currBuf, sim);
+      captureSnapshot(prevBuf, sim);
+      alpha = 0;
+      return selection;
     },
     traitVisualState() {
       return sim.traitVisualState();
