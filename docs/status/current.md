@@ -103,9 +103,9 @@
 - The renderer's orthographic follow frame is deliberately tighter so Greg,
   nearby threats, and XP motes have a clearer first-glance scale; it remains a
   presentation-only camera change with no simulation-space or replay impact.
-- Renderer-only combat cues now persist across fixed-tick catch-up, and fixed
-  primitive feedback pools show attacks, hits, pickups, enemy deaths, and player
-  death without mutating gameplay.
+- Renderer-only combat cues now persist across fixed-tick catch-up. Their fixed
+  primitive pools render ordinary attacks, pickups, hits, enemy deaths, and
+  player death as short additive fading rings without mutating gameplay.
 - Actual executed trait commands now cross a presentation-only stream from the
   deterministic simulation through the fixed-tick driver. Puffer Pouch and
   Thornstorm therefore have distinct pooled telegraph, gather, knockback, and
@@ -147,7 +147,7 @@
   only `apps/web-toy/dist` through GitHub Pages Actions once the repository
   owner enables Pages.
 - Current package test scripts report 161 headless-simulation, 58 trait-runtime,
-  61 run-director, and 177 web-toy tests: **457 passing tests** in total.
+  61 run-director, and 180 web-toy tests: **460 passing tests** in total.
 - The project is now backed up in the private GitHub repository
   `TomMonk1100/AnimalSurvivor` on `main`.
 

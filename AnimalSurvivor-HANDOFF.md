@@ -139,8 +139,9 @@ Path: `apps/web-toy/`
 - The orthographic follow camera uses a deliberately tighter presentation-only
   frame so Greg, nearby threats, and XP motes are readable at a glance; it does
   not alter simulation space, balance, input, hashing, or replay.
-- Bounded primitive feedback pools show attacks, hits, pickups, deaths, and
-  trait effects without mutating gameplay state.
+- Bounded primitive feedback pools show ordinary attacks, hits, pickups, and
+  deaths as short additive fading rings alongside trait effects, without
+  mutating gameplay state.
 - Director events present phase, elite, boss, overtime, victory, and defeat
   notices. Elites and bosses have distinct bounded instanced primitive roles.
 - App-owned enemy snapshots copy current and maximum health, so a persistent,
@@ -182,9 +183,9 @@ All checks below ran successfully from
 - Headless simulation: 161/161 tests passed; typecheck and lint passed.
 - Trait runtime: 58/58 tests passed; typecheck and lint passed.
 - Run director: 61/61 tests passed; typecheck and lint passed.
-- Web toy: 177/177 tests passed; typecheck, lint, and production build passed.
-- Total: 457 passing automated tests.
-- Web production build passed: 1,234 modules transformed. The current main
+- Web toy: 180/180 tests passed; typecheck, lint, and production build passed.
+- Total: 460 passing automated tests.
+- Web production build passed: 1,235 modules transformed. The current main
   JavaScript bundle is about 2.03 MB minified (523 kB gzip); Vite reports the
   expected chunk-size warning.
 - Concrete simulation + real TraitRuntime + real RunDirector replay reproduced

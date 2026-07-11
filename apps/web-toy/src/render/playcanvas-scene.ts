@@ -201,6 +201,7 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
   entitiesRoot.addChild(playerEntity);
   const gregPresentation = createGregPresentation(app, entitiesRoot, worldHalfWidth, worldHalfHeight);
   const combatFeedbackPresentation = createCombatFeedbackPresentation(
+    app.graphicsDevice,
     entitiesRoot,
     worldHalfWidth,
     worldHalfHeight,

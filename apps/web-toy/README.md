@@ -218,7 +218,7 @@ Run from apps/web-toy:
 | npm ci | Installs the locked browser-tooling dependency set. |
 | npm run typecheck | Strict TypeScript, including noUncheckedIndexedAccess. |
 | npm run lint | ESLint with --max-warnings 0; app-source Math.random is banned. |
-| npm test | The current suite contains **177 tests** across the driver, input, snapshots, presentation, procedural audio, real integrated run replay, and renderer-facing helpers. |
+| npm test | The current suite contains **180 tests** across the driver, input, snapshots, presentation, procedural audio, real integrated run replay, and renderer-facing helpers. |
 | npm run build | Strict typecheck plus a Vite production build. |
 
 The suite covers accumulator exactness, catch-up and hidden-tab behavior,
@@ -318,6 +318,8 @@ Development-only (not shipped in the browser bundle):
   behavior.
 - Trait attachments and trait-command feedback are bounded primitive
   presentation, not final VFX, meshes, animation, or accessibility treatment.
+  Ordinary combat uses short additive fading rings for attacks, pickups, hits,
+  and deaths; their tuning still needs hands-on feedback.
   The current sound feedback is similarly a small optional procedural layer;
   its volume, timing, and cue clarity need human feedback.
 - Aggregate culling is disabled: each category is arena-wide, and each

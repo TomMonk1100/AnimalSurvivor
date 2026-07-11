@@ -34,6 +34,9 @@ Open the local Vite URL printed in the terminal (normally
   reversal visibly resolves across four bounded turns without changing movement
   input or simulation state.
 - Greg automatically attacks nearby enemies; there is no aiming control.
+- Short additive rings now mark ordinary shots, XP pickups, enemy deaths, and
+  player hits. They are renderer-only feedback and never change combat,
+  balance, or replay.
 - Before Greg earns the first XP, the HUD labels visible green motes as XP so
   it is clear that collecting them creates levels and upgrade choices.
 - The HUD also keeps the elapsed run time, current authored phase, and the

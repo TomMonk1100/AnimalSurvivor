@@ -115,6 +115,8 @@ Short answers are enough:
   frequent? Did switching it on/off or an unavailable-audio message behave
   clearly without interrupting play?
 - Combat readability: could you tell why enemies moved, died, or were pushed?
+  Did the short attack, pickup, hit, and death rings make normal combat easier
+  to follow, or did they become distracting?
 - Boss/end flow, if seen: did the boss bar make progress clear, and was **Play
   again** obvious after the outcome?
 - Screen clutter: was the HUD, adaptation panel, or action callout helpful or
