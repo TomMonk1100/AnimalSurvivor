@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RUN_ENEMY_ROLE } from '@sim';
 import type { CategorySnapshot, ViewCategory } from '../src/contracts';
 import {
   DEFAULT_INSTANCE_CAPACITY,
@@ -11,6 +12,7 @@ interface Entry {
   y: number;
   radius?: number;
   archetype?: number;
+  role?: number;
 }
 
 function makeId(slot: number, generation: number): number {
@@ -24,6 +26,7 @@ function snapshot(entries: readonly Entry[], category: ViewCategory = 'enemy'): 
   const y = new Float32Array(capacity);
   const radius = new Float32Array(capacity);
   const archetype = new Uint8Array(capacity);
+  const role = new Uint8Array(capacity);
 
   entries.forEach((entry, index) => {
     id[index] = entry.id;
@@ -31,9 +34,10 @@ function snapshot(entries: readonly Entry[], category: ViewCategory = 'enemy'): 
     y[index] = entry.y;
     radius[index] = entry.radius ?? 1;
     archetype[index] = entry.archetype ?? 0;
+    role[index] = entry.role ?? RUN_ENEMY_ROLE.regular;
   });
 
-  return { category, count: capacity, id, x, y, radius, archetype };
+  return { category, count: capacity, id, x, y, radius, archetype, role };
 }
 
 function matrix(store: InstancedTransformStore, index: number): number[] {
@@ -59,6 +63,7 @@ describe('InstancedTransformStore', () => {
     expect(store.count).toBe(1);
     expect(store.ids[0]).toBe(id);
     expect(store.archetypes[0]).toBe(4);
+    expect(store.roles[0]).toBe(RUN_ENEMY_ROLE.regular);
     expect(matrix(store, 0)).toEqual([
       6, 0, 0, 0,
       0, 6, 0, 0,
@@ -96,6 +101,36 @@ describe('InstancedTransformStore', () => {
 
     store.update(previous, current, 0.5);
 
+    expect(matrix(store, 0)[12]).toBe(100);
+    expect(matrix(store, 0)[14]).toBe(200);
+  });
+
+  it('copies role data and builds fixed role batches without stale-generation interpolation', () => {
+    const reusedSlot = 12;
+    const previous = snapshot([
+      { id: makeId(reusedSlot, 4), x: 1, y: 2, role: RUN_ENEMY_ROLE.elite },
+      { id: makeId(13, 1), x: 20, y: 30, role: RUN_ENEMY_ROLE.boss },
+    ]);
+    const current = snapshot([
+      { id: makeId(reusedSlot, 5), x: 100, y: 200, role: RUN_ENEMY_ROLE.regular },
+      { id: makeId(13, 1), x: 40, y: 70, role: RUN_ENEMY_ROLE.boss },
+      { id: makeId(14, 1), x: 50, y: 80, role: RUN_ENEMY_ROLE.elite },
+    ]);
+    const store = new InstancedTransformStore(3);
+
+    store.update(previous, current, 0.5, 0, 0, 1, RUN_ENEMY_ROLE.boss, 2);
+
+    expect(store.count).toBe(1);
+    expect(store.ids[0]).toBe(makeId(13, 1));
+    expect(store.roles[0]).toBe(RUN_ENEMY_ROLE.boss);
+    expect(matrix(store, 0)[12]).toBe(30);
+    expect(matrix(store, 0)[14]).toBe(50);
+    expect(matrix(store, 0)[0]).toBe(4);
+
+    store.update(previous, current, 0.5, 0, 0, 1, RUN_ENEMY_ROLE.regular);
+    expect(store.count).toBe(1);
+    expect(store.ids[0]).toBe(makeId(reusedSlot, 5));
+    expect(store.roles[0]).toBe(RUN_ENEMY_ROLE.regular);
     expect(matrix(store, 0)[12]).toBe(100);
     expect(matrix(store, 0)[14]).toBe(200);
   });
@@ -147,6 +182,7 @@ describe('InstancedTransformStore', () => {
       y: Array.from(value.y),
       radius: Array.from(value.radius),
       archetype: Array.from(value.archetype),
+      role: Array.from(value.role),
     }));
 
     new InstancedTransformStore(1).update(previous, current, 0.75, -10, -20);
@@ -158,6 +194,7 @@ describe('InstancedTransformStore', () => {
       y: Array.from(value.y),
       radius: Array.from(value.radius),
       archetype: Array.from(value.archetype),
+      role: Array.from(value.role),
     }))).toEqual(before);
   });
 
@@ -179,6 +216,7 @@ describe('InstancedTransformStore', () => {
     expect(new Uint8Array(first.matrices.buffer)).toEqual(new Uint8Array(second.matrices.buffer));
     expect(new Uint8Array(first.ids.buffer)).toEqual(new Uint8Array(second.ids.buffer));
     expect(first.archetypes).toEqual(second.archetypes);
+    expect(first.roles).toEqual(second.roles);
 
     // A second pass also proves that the transient slot lookup was reset.
     first.update(snapshot([]), current, 0);

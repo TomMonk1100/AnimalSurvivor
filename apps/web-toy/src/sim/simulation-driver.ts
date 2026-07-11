@@ -30,6 +30,8 @@ import type {
   RunPhaseView,
 } from '@sim';
 import { captureSnapshot, createSnapshot } from './snapshot-producer';
+import { createCombatFeedbackPool } from '../presentation/combat-feedback-pool';
+import type { CombatFeedbackSnapshot } from '../presentation/combat-feedback';
 
 /** Max simulation ticks stepped within a single frame() call. */
 export const MAX_CATCHUP_TICKS = 5;
@@ -80,6 +82,8 @@ export interface SimDriver {
   readonly runOutcome: RunOutcomeView | null;
   readonly runPhase: RunPhaseView | null;
   readonly directorEvents: readonly RunDirectorEventView[];
+  /** Presentation cues accumulated on every fixed tick, even during catch-up. */
+  readonly combatFeedback: CombatFeedbackSnapshot;
   hash(): string;
   selectUpgrade(traitId: string): UpgradeSelection;
   traitVisualState(): readonly TraitVisualAttachmentView[];
@@ -127,6 +131,8 @@ export function createSimDriver(
   let ticksLastFrame = 0;
   let droppedAccumSec = 0;
   const frameDirectorEvents: RunDirectorEventView[] = [];
+  const combatFeedbackPool = createCombatFeedbackPool({ pickupCollectionRadius: config.player.pickupRadius });
+  let combatFeedback: CombatFeedbackSnapshot = Object.freeze({ tick: sim.tick, cues: Object.freeze([]) });
   let inFrame = false;
 
   function primeSnapshots(): void {
@@ -185,6 +191,7 @@ export function createSimDriver(
         sim.step(tickInput);
         for (const event of sim.directorEvents) frameDirectorEvents.push(event);
         captureSnapshot(currBuf, sim);
+        combatFeedback = combatFeedbackPool.advance(prevBuf, currBuf);
         accumulator -= dt;
         stepped++;
         if (sim.upgradeSelectionPending) {
@@ -227,7 +234,9 @@ export function createSimDriver(
     ticksLastFrame = 0;
     droppedAccumSec = 0;
     frameDirectorEvents.length = 0;
+    combatFeedbackPool.reset();
     primeSnapshots();
+    combatFeedback = Object.freeze({ tick: sim.tick, cues: Object.freeze([]) });
   }
 
   return {
@@ -281,6 +290,9 @@ export function createSimDriver(
     },
     get directorEvents() {
       return frameDirectorEvents;
+    },
+    get combatFeedback() {
+      return combatFeedback;
     },
     hash() {
       return sim.hash();

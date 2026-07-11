@@ -32,6 +32,7 @@ function clampAlpha(alpha: number): number {
 export class InstancedTransformStore {
   readonly ids: Int32Array;
   readonly archetypes: Uint8Array;
+  readonly roles: Uint8Array;
   readonly matrices: Float32Array;
 
   private readonly previousIndexBySlot = new Int32Array(ENTITY_SLOT_COUNT).fill(-1);
@@ -44,6 +45,7 @@ export class InstancedTransformStore {
 
     this.ids = new Int32Array(capacity);
     this.archetypes = new Uint8Array(capacity);
+    this.roles = new Uint8Array(capacity);
     this.matrices = new Float32Array(capacity * MATRIX_STRIDE);
   }
 
@@ -54,7 +56,10 @@ export class InstancedTransformStore {
   /**
    * Rebuild the active instance prefix without allocating or mutating either
    * snapshot. Offsets are applied after interpolation; `zScale` supports the
-   * top-down camera's simulation-Y to scene-Z inversion.
+   * top-down camera's simulation-Y to scene-Z inversion. When `roleFilter` is
+   * supplied, only current entries with that role are emitted. This permits a
+   * fixed number of shared-material role batches without ever allocating a
+   * renderer view per enemy.
    */
   update(
     previous: CategorySnapshot,
@@ -63,6 +68,8 @@ export class InstancedTransformStore {
     offsetX = 0,
     offsetZ = 0,
     zScale = 1,
+    roleFilter?: number,
+    scaleMultiplier = 1,
   ): void {
     if (current.count > this.capacity) {
       throw new RangeError(
@@ -73,10 +80,13 @@ export class InstancedTransformStore {
     const t = clampAlpha(alpha);
 
     for (let index = 0; index < previous.count; index++) {
+      if (roleFilter !== undefined && previous.role[index] !== roleFilter) continue;
       this.previousIndexBySlot[idSlot(previous.id[index]!)] = index;
     }
 
+    let emitted = 0;
     for (let index = 0; index < current.count; index++) {
+      if (roleFilter !== undefined && current.role[index] !== roleFilter) continue;
       const id = current.id[index]!;
       const previousIndex = this.previousIndexBySlot[idSlot(id)]!;
       const currentX = current.x[index]!;
@@ -89,11 +99,12 @@ export class InstancedTransformStore {
         z = previous.y[previousIndex]! + (currentZ - previous.y[previousIndex]!) * t;
       }
 
-      const scale = current.radius[index]! * 2;
-      const matrixOffset = index * MATRIX_STRIDE;
+      const scale = current.radius[index]! * 2 * scaleMultiplier;
+      const matrixOffset = emitted * MATRIX_STRIDE;
 
-      this.ids[index] = id;
-      this.archetypes[index] = current.archetype[index]!;
+      this.ids[emitted] = id;
+      this.archetypes[emitted] = current.archetype[index]!;
+      this.roles[emitted] = current.role[index]!;
 
       // Column-major uniform-scale + translation matrix.
       this.matrices[matrixOffset] = scale;
@@ -112,14 +123,16 @@ export class InstancedTransformStore {
       this.matrices[matrixOffset + 13] = 0;
       this.matrices[matrixOffset + 14] = z * zScale + offsetZ;
       this.matrices[matrixOffset + 15] = 1;
+      emitted++;
     }
 
     // Clear only touched lookup entries, keeping update O(live entities) rather
     // than filling all 65,536 possible entity slots every rendered frame.
     for (let index = 0; index < previous.count; index++) {
+      if (roleFilter !== undefined && previous.role[index] !== roleFilter) continue;
       this.previousIndexBySlot[idSlot(previous.id[index]!)] = -1;
     }
 
-    this.liveCount = current.count;
+    this.liveCount = emitted;
   }
 }

@@ -24,6 +24,8 @@ import { createPerformanceMonitor } from './diagnostics/performance-monitor';
 import { createHud } from './diagnostics/debug-hud';
 import type { RendererAdapter } from './contracts';
 import { projectDirectorEvent, type DirectorNotice } from './presentation/director-notices';
+import { presentRunSummary } from './presentation/run-summary';
+import { presentUpgrade } from './presentation/upgrade-copy';
 
 /** Deterministic 32-bit seed from a string (djb2). Used only for UI convenience. */
 function seedFromString(s: string): number {
@@ -50,27 +52,6 @@ const RESOLUTION_NOTE = 'local hardware evidence — not a universal pass thresh
 const traitRuntimeFactory: TraitRuntimeFactory = ({ seed, initialTick }) =>
   new TraitRuntime({ seed, initialTick, catalog: GREG_VERTICAL_SLICE_CATALOG });
 const runDirectorFactory: RunDirectorFactory = ({ seed }) => new RunDirector({ seed });
-
-function displayTraitName(traitId: string): string {
-  return traitId
-    .split('-')
-    .map((part) => part.length === 0 ? part : part[0]!.toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-function describeUpgrade(traitId: string, stage: 'bud' | 'adapted'): string {
-  if (traitId === 'porcupine-quills') {
-    return stage === 'bud'
-      ? 'Automatically fires a compact quill burst at nearby enemies.'
-      : 'Fires more quills, faster. Combines with Adapted Puffer Pouch into Thornstorm.';
-  }
-  if (traitId === 'puffer-pouch') {
-    return stage === 'bud'
-      ? 'Periodically pulls nearby enemies toward Greg.'
-      : 'Becomes a wider knockback pulse. Combines with Adapted Quills into Thornstorm.';
-  }
-  return stage === 'bud' ? 'Adds a new visible animal adaptation.' : 'Strengthens this adaptation.';
-}
 
 export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const params = new URLSearchParams(window.location.search);
@@ -151,13 +132,21 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     heading.textContent = 'Choose an animal adaptation';
     upgradeRoot.appendChild(heading);
     for (const offer of offers) {
+      const presentation = presentUpgrade(offer, driver.traitVisualState());
       const choice = document.createElement('button');
       choice.type = 'button';
       const title = document.createElement('strong');
-      title.textContent = `${displayTraitName(offer.traitId)} — ${offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE'}`;
+      title.textContent = `${presentation.title} — ${presentation.badge}`;
+      const socket = document.createElement('small');
+      socket.textContent = presentation.socket;
       const description = document.createElement('span');
-      description.textContent = describeUpgrade(offer.traitId, offer.resultStage);
-      choice.append(title, description);
+      description.textContent = presentation.description;
+      choice.append(title, socket, description);
+      if (presentation.pairingHint !== null) {
+        const hint = document.createElement('em');
+        hint.textContent = presentation.pairingHint;
+        choice.appendChild(hint);
+      }
       choice.addEventListener('click', () => {
         driver.selectUpgrade(offer.traitId);
         activeInput().clear();
@@ -170,15 +159,16 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   }
 
   function renderRunOutcome(): void {
-    const outcome = driver.runOutcome;
-    outcomeRoot.hidden = outcome === null || outcome === 'running';
-    if (outcome === 'victory') {
-      outcomeRoot.dataset.outcome = 'victory';
-      outcomeRoot.textContent = 'Run complete — Greg survives!';
-    } else if (outcome === 'defeat') {
-      outcomeRoot.dataset.outcome = 'defeat';
-      outcomeRoot.textContent = 'Greg was overwhelmed — return stronger and try again';
-    }
+    const summary = presentRunSummary(driver.runOutcome, driver.tick, config.hz, driver.runPhase);
+    outcomeRoot.hidden = summary === null;
+    if (summary === null) return;
+    outcomeRoot.dataset.outcome = summary.tone;
+    outcomeRoot.replaceChildren();
+    const headline = document.createElement('strong');
+    headline.textContent = summary.headline;
+    const detail = document.createElement('span');
+    detail.textContent = summary.detail;
+    outcomeRoot.append(headline, detail);
   }
 
   // ---- controls UI (built once; no per-frame DOM creation) ----------------
@@ -300,6 +290,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
         renderStress?.curr ?? driver.curr,
         driver.alpha,
         driver.traitVisualState(),
+        driver.combatFeedback,
       );
     }
 

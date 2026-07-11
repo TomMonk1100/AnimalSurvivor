@@ -4,7 +4,7 @@
  * copies: nothing here ever writes to the simulation's live typed arrays.
  */
 import type { CategorySnapshot, RenderSnapshot, ViewCategory } from '../contracts';
-import type { EnemyPool, PickupPool, Pool, ProjectilePool, SimConfig, Simulation } from '@sim';
+import type { PickupPool, Pool, ProjectilePool, SimConfig, Simulation } from '@sim';
 
 /** Projectiles have no radius field in the sim pool; used only for the view. */
 const PROJECTILE_VIEW_RADIUS = 3;
@@ -18,6 +18,7 @@ function createCategorySnapshot(category: ViewCategory, capacity: number): Categ
     y: new Float32Array(capacity),
     radius: new Float32Array(capacity),
     archetype: new Uint8Array(capacity),
+    role: new Uint8Array(capacity),
   };
 }
 
@@ -40,7 +41,8 @@ export function createSnapshot(config: SimConfig): RenderSnapshot {
   };
 }
 
-function captureEnemies(out: CategorySnapshot, pool: Pool<EnemyPool>): void {
+function captureEnemies(out: CategorySnapshot, sim: Simulation): void {
+  const pool = sim.enemies;
   const data = pool.data;
   let n = 0;
   for (let slot = 0; slot < data.capacity; slot++) {
@@ -50,6 +52,7 @@ function captureEnemies(out: CategorySnapshot, pool: Pool<EnemyPool>): void {
     out.y[n] = data.posY[slot]!;
     out.radius[n] = data.radius[slot]!;
     out.archetype[n] = data.archetype[slot]!;
+    out.role[n] = sim.enemyPresentationRole(out.id[n]!);
     n++;
   }
   out.count = n;
@@ -65,6 +68,7 @@ function captureProjectiles(out: CategorySnapshot, pool: Pool<ProjectilePool>): 
     out.y[n] = data.posY[slot]!;
     out.radius[n] = PROJECTILE_VIEW_RADIUS;
     out.archetype[n] = 0;
+    out.role[n] = 0;
     n++;
   }
   out.count = n;
@@ -80,6 +84,7 @@ function capturePickups(out: CategorySnapshot, pool: Pool<PickupPool>): void {
     out.y[n] = data.posY[slot]!;
     out.radius[n] = data.radius[slot]!;
     out.archetype[n] = 0;
+    out.role[n] = 0;
     n++;
   }
   out.count = n;
@@ -98,7 +103,7 @@ export function captureSnapshot(out: RenderSnapshot, sim: Simulation): void {
   out.playerHp = sim.player.hp;
   out.playerAlive = sim.player.alive;
 
-  captureEnemies(out.enemies, sim.enemies);
+  captureEnemies(out.enemies, sim);
   captureProjectiles(out.projectiles, sim.projectiles);
   capturePickups(out.pickups, sim.pickups);
 }

@@ -79,7 +79,46 @@ function createUpgradeRuntimeFactory(
   };
 }
 
+function createFeedbackRuntimeFactory(): TraitRuntimeFactory {
+  return ({ initialTick }): TraitRuntimePort => {
+    let lastTick = initialTick;
+    return {
+      update(context: TraitRuntimeUpdateContext) {
+        if (context.tick !== lastTick + 1) throw new Error('non-sequential trait tick');
+        lastTick = context.tick;
+        return {
+          length: 1,
+          at(index) {
+            if (index !== 0) throw new RangeError('only one command');
+            return {
+              kind: 'spawnProjectileBurst', sourceId: 'test-feedback', tick: context.tick, targeting: 'none',
+              originX: context.playerX, originY: context.playerY, dirX: 1, dirY: 0,
+              count: 1, damage: 0, speed: 1, radius: 0, strength: 0, facing: 0, spread: 0, range: 0,
+            };
+          },
+        };
+      },
+      offers: () => [],
+      applyUpgrade: (traitId) => ({ outcome: { ok: false, kind: 'unknownTrait', traitId }, evolved: null }),
+      visualState: () => [],
+      hash: () => lastTick.toString(16).padStart(16, '0'),
+      fingerprint: () => '0123456789abcdef',
+    };
+  };
+}
+
 describe('createSimDriver: fixed-tick accumulator', () => {
+  it('retains feedback from every tick in a multi-tick catch-up frame', () => {
+    const driver = createSimDriver(DEFAULT_CONFIG, SEED, { traitRuntimeFactory: createFeedbackRuntimeFactory() });
+    const input = new ConstantInput();
+
+    driver.frame(0, input, false);
+    driver.frame(DT_MS * 5, input, false);
+
+    expect(driver.tick).toBe(5);
+    expect(driver.combatFeedback.cues.filter((cue) => cue.kind === 'attack').map((cue) => cue.tick)).toEqual([1, 2, 3, 4, 5]);
+  });
+
   it('retains director events from every tick in a multi-tick catch-up frame', () => {
     const runDirectorFactory: RunDirectorFactory = (): RunDirectorPort => {
       let tick = -1;

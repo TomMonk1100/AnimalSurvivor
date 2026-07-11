@@ -18,6 +18,7 @@
  *   - Exactly one canonical TickInput is produced per simulation tick.
  */
 import type { EntityId, PlayerState, SimEvents, TickInput, TraitVisualAttachmentView } from '@sim';
+import type { CombatFeedbackSnapshot } from './presentation/combat-feedback';
 
 export type { EntityId, PlayerState, SimEvents, TickInput };
 
@@ -56,7 +57,9 @@ export type ViewCategory = 'enemy' | 'projectile' | 'pickup';
 /**
  * A flat, allocation-stable list of live entities of one category captured at a
  * tick boundary. Parallel arrays indexed 0..count-1. `id` is the generation-
- * guarded EntityId; `archetype` is only meaningful for enemies (0 otherwise).
+ * guarded EntityId. `archetype` and `role` are only meaningful for enemies
+ * (both are 0 otherwise). Role values mirror the simulation's fixed
+ * regular/elite/boss mapping: 0, 1, and 2 respectively.
  * Buffers are preallocated to capacity and reused every tick — never resized in
  * the steady-state loop.
  */
@@ -68,6 +71,7 @@ export interface CategorySnapshot {
   readonly y: Float32Array;
   readonly radius: Float32Array;
   readonly archetype: Uint8Array;
+  readonly role: Uint8Array;
 }
 
 /** One full render snapshot: player transform + per-category entity snapshots. */
@@ -111,6 +115,7 @@ export interface RendererAdapter {
     curr: RenderSnapshot,
     alpha: number,
     traitVisualState: readonly TraitVisualAttachmentView[],
+    combatFeedback: CombatFeedbackSnapshot,
   ): void;
   /** Resize backing store to CSS size * min(devicePixelRatio, cap). */
   resize(): void;

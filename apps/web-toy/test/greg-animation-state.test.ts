@@ -8,6 +8,7 @@ import {
   type GregAnimationInput,
   type GregAnimationState,
 } from '../src/hero/greg-animation-state';
+import { GREG_LOCOMOTION_STOP_DISTANCE } from '../src/hero/greg-locomotion-presentation';
 
 const idleInput: GregAnimationInput = {
   alive: true,
@@ -29,6 +30,7 @@ describe('Greg animation state', () => {
       transitionDurationSeconds: 0.2,
       restart: true,
       actionTicksRemaining: 0,
+      locomotionMoving: false,
       nextHitReaction: 1,
     });
   });
@@ -45,9 +47,37 @@ describe('Greg animation state', () => {
       restart: true,
     });
     expect(advance(walking, { movementMagnitude: 1 })).toMatchObject({ clip: 'Walk', restart: false });
-    expect(advance(walking, { movementMagnitude: GREG_MOVEMENT_THRESHOLD })).toMatchObject({
+    expect(advance(walking, { movementMagnitude: GREG_LOCOMOTION_STOP_DISTANCE })).toMatchObject({
       kind: 'idle',
       clip: 'Idle',
+      restart: true,
+    });
+  });
+
+  it('uses start/stop hysteresis and retains locomotion beneath attack and hit clips', () => {
+    let state = advance(createGregAnimationState(), { movementMagnitude: GREG_MOVEMENT_THRESHOLD });
+    expect(state).toMatchObject({ kind: 'movement', locomotionMoving: true, restart: true });
+
+    state = advance(state, { movementMagnitude: (GREG_MOVEMENT_THRESHOLD + GREG_LOCOMOTION_STOP_DISTANCE) / 2 });
+    expect(state).toMatchObject({ kind: 'movement', locomotionMoving: true, restart: false });
+
+    state = advance(state, { movementMagnitude: GREG_MOVEMENT_THRESHOLD, attackPulse: true });
+    expect(state).toMatchObject({ kind: 'attack', locomotionMoving: true, restart: true });
+
+    state = advance(state, { movementMagnitude: GREG_LOCOMOTION_STOP_DISTANCE, hitPulse: true });
+    expect(state).toMatchObject({ kind: 'hit', locomotionMoving: false, restart: true });
+  });
+
+  it('accepts a projector locomotion recommendation and its bounded blend time', () => {
+    const result = advance(createGregAnimationState(), {
+      movementMagnitude: 0,
+      locomotionMoving: true,
+      locomotionBlendSeconds: 0.12,
+    });
+    expect(result).toMatchObject({
+      kind: 'movement',
+      locomotionMoving: true,
+      transitionDurationSeconds: 0.12,
       restart: true,
     });
   });
@@ -79,14 +109,14 @@ describe('Greg animation state', () => {
     expect(state).toMatchObject({ kind: 'movement', clip: 'Walk', restart: true, actionTicksRemaining: 0 });
   });
 
-  it('allows a new attack pulse to restart an active attack', () => {
+  it('consumes repeated attack pulses without restarting an active attack', () => {
     const attacking = advance(createGregAnimationState(), { attackPulse: true });
-    const restarted = advance(attacking, { attackPulse: true });
-    expect(restarted).toMatchObject({
+    const continued = advance(attacking, { attackPulse: true });
+    expect(continued).toMatchObject({
       kind: 'attack',
       clip: 'Attack',
-      restart: true,
-      actionTicksRemaining: GREG_ATTACK_HOLD_TICKS,
+      restart: false,
+      actionTicksRemaining: GREG_ATTACK_HOLD_TICKS - 1,
     });
   });
 

@@ -136,6 +136,7 @@ import {
   createRunSpawnAdapter,
   RUN_ENEMY_ROLE,
   type DirectedEnemySpawn,
+  type RunEnemyRole,
   type RunSpawnAdapterOptions,
 } from './run-spawn-adapter.js';
 
@@ -167,6 +168,14 @@ export interface Simulation {
   readonly totalKills: number;
   readonly pendingUpgradeOffers: readonly TraitUpgradeOfferView[];
   readonly upgradeSelectionPending: boolean;
+  /**
+   * Read-only presentation classification for a live enemy id. This mirrors
+   * the run adapter's already-authoritative role and is intentionally not a
+   * writable component exposed to callers. Stale/dead ids safely read as a
+   * regular enemy so a renderer can discard an obsolete snapshot without
+   * affecting simulation state.
+   */
+  enemyPresentationRole(id: EntityId): RunEnemyRole;
   step(input: TickInput): SimEvents;
   selectUpgrade(traitId: string): UpgradeSelection;
   traitVisualState(): readonly TraitVisualAttachmentView[];
@@ -539,6 +548,13 @@ export function createSimulation(
     return traitRuntime?.visualState() ?? EMPTY_TRAIT_VISUALS;
   }
 
+  function enemyPresentationRole(id: EntityId): RunEnemyRole {
+    const slot = enemies.slotOf(id);
+    return slot === -1
+      ? RUN_ENEMY_ROLE.regular
+      : enemyRoles[slot]! as RunEnemyRole;
+  }
+
   function hash(): string {
     const writer = createHashWriter();
     writer.u32(CONFIG_VERSION);
@@ -696,6 +712,7 @@ export function createSimulation(
     get xpLostToFullPickupPool() {
       return xpLostToFullPickupPool;
     },
+    enemyPresentationRole,
     step,
     selectUpgrade,
     traitVisualState,

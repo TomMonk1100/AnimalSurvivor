@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DEFAULT_CONFIG, type SimConfig } from '../src/config.js';
 import { createSimulation, runReplay } from '../src/simulation.js';
+import { RUN_ENEMY_ROLE } from '../src/run-spawn-adapter.js';
 import type {
   RunDirectorEventView,
   RunDirectorFactory,
@@ -76,6 +77,11 @@ test('primes tick zero, replaces legacy waves, and executes authored boss placem
   assert.notEqual(slot, -1);
   assert.equal(sim.enemies.data.archetype[slot], 2);
   assert.equal(sim.enemies.data.maxHp[slot], DEFAULT_CONFIG.archetypes[2]!.hp * 30);
+  const bossId = sim.enemies.idOf(slot);
+  const hashBeforePresentationRead = sim.hash();
+  assert.equal(sim.enemyPresentationRole(bossId), RUN_ENEMY_ROLE.boss);
+  assert.equal(sim.enemyPresentationRole(-1), RUN_ENEMY_ROLE.regular);
+  assert.equal(sim.hash(), hashBeforePresentationRead, 'presentation reads must not affect canonical state');
 });
 
 test('tracks boss identity and reports a same-tick boss kill to the director', () => {

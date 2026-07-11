@@ -60,7 +60,7 @@
 import * as pc from 'playcanvas';
 import type { SimConfig } from '@sim';
 import type { TraitVisualAttachmentView } from '@sim';
-import { DEFAULT_CONFIG } from '@sim';
+import { DEFAULT_CONFIG, RUN_ENEMY_ROLE } from '@sim';
 import type {
   RendererAdapter,
   RendererStats,
@@ -72,6 +72,8 @@ import { createInstancedCategoryBatch } from './instanced-category-batch';
 import type { InstancedCategoryBatch } from './instanced-category-batch';
 import { InstancedTransformStore } from './instanced-transform-store';
 import { createGregPresentation } from '../hero/greg-presentation';
+import type { CombatFeedbackSnapshot } from '../presentation/combat-feedback';
+import { createCombatFeedbackPresentation } from './combat-feedback-presentation';
 
 /** Backing-store size cap: CSS size * min(devicePixelRatio, RESOLUTION_CAP). */
 const RESOLUTION_CAP = 2;
@@ -91,6 +93,11 @@ const CATEGORY_COLORS: Record<ViewCategory, pc.Color> = {
   projectile: new pc.Color(0.95, 0.85, 0.2), // yellow
   pickup: new pc.Color(0.27, 0.9, 0.36), // green
 };
+/** Fixed role treatments: never a unique material or mesh per enemy. */
+const ELITE_ENEMY_COLOR = new pc.Color(1, 0.58, 0.12); // amber
+const BOSS_ENEMY_COLOR = new pc.Color(0.72, 0.22, 0.95); // violet
+const ELITE_SCALE_MULTIPLIER = 1.35;
+const BOSS_SCALE_MULTIPLIER = 2.2;
 
 /** One shared unlit/flat material per category (+ player). No per-unit materials. */
 function createFlatMaterial(color: pc.Color): pc.StandardMaterial {
@@ -167,6 +174,8 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     projectile: createFlatMaterial(CATEGORY_COLORS.projectile),
     pickup: createFlatMaterial(CATEGORY_COLORS.pickup),
   };
+  const eliteEnemyMaterial = createFlatMaterial(ELITE_ENEMY_COLOR);
+  const bossEnemyMaterial = createFlatMaterial(BOSS_ENEMY_COLOR);
   const playerMaterial = createFlatMaterial(PLAYER_COLOR);
 
   const playerEntity = new pc.Entity('player');
@@ -179,14 +188,28 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
   playerEntity.enabled = false;
   entitiesRoot.addChild(playerEntity);
   const gregPresentation = createGregPresentation(app, entitiesRoot, worldHalfWidth, worldHalfHeight);
+  const combatFeedbackPresentation = createCombatFeedbackPresentation(
+    entitiesRoot,
+    worldHalfWidth,
+    worldHalfHeight,
+  );
 
   // --- Hardware-instanced category views ---------------------------------
-  // Low-poly geometry keeps the stress fixture focused on submission cost.
-  // All categories share this immutable mesh; color remains one material per
-  // category, yielding one swarm draw per non-empty category.
+  // Regular enemies, elites, and bosses use three fixed batches. That gives
+  // the two authored special roles a one-glance silhouette/color/scale read
+  // while keeping draw-call growth bounded at two extra draws, never one draw
+  // or material per enemy. Projectiles and pickups retain the shared sphere.
   const categoryMesh = pc.Mesh.fromGeometry(
     app.graphicsDevice,
     new pc.SphereGeometry({ latitudeBands: 8, longitudeBands: 8 }),
+  );
+  const eliteEnemyMesh = pc.Mesh.fromGeometry(
+    app.graphicsDevice,
+    new pc.CylinderGeometry({ radius: 0.55, height: 1, heightSegments: 1, capSegments: 6 }),
+  );
+  const bossEnemyMesh = pc.Mesh.fromGeometry(
+    app.graphicsDevice,
+    new pc.ConeGeometry({ baseRadius: 0.62, height: 1.25, heightSegments: 1, capSegments: 5 }),
   );
   const batches: Record<ViewCategory, InstancedCategoryBatch> = {
     enemy: createInstancedCategoryBatch(
@@ -214,12 +237,30 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
       materials.pickup,
     ),
   };
+  const eliteEnemyBatch = createInstancedCategoryBatch(
+    app.graphicsDevice,
+    entitiesRoot,
+    'elite-enemy',
+    config.enemyCap,
+    eliteEnemyMesh,
+    eliteEnemyMaterial,
+  );
+  const bossEnemyBatch = createInstancedCategoryBatch(
+    app.graphicsDevice,
+    entitiesRoot,
+    'boss-enemy',
+    config.enemyCap,
+    bossEnemyMesh,
+    bossEnemyMaterial,
+  );
 
   const transformStores: Record<ViewCategory, InstancedTransformStore> = {
     enemy: new InstancedTransformStore(config.enemyCap),
     projectile: new InstancedTransformStore(config.projectileCap),
     pickup: new InstancedTransformStore(config.pickupCap),
   };
+  const eliteEnemyTransforms = new InstancedTransformStore(config.enemyCap);
+  const bossEnemyTransforms = new InstancedTransformStore(config.enemyCap);
 
   let ready = true;
   let lastDrawCalls = 0;
@@ -238,6 +279,7 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     curr: RenderSnapshot,
     alpha: number,
     traitVisualState: readonly TraitVisualAttachmentView[],
+    combatFeedback: CombatFeedbackSnapshot,
   ): void {
     if (contextLost) {
       return;
@@ -250,6 +292,7 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     const playerSceneZ = worldHalfHeight - playerWorldY;
 
     gregPresentation.update(prev, curr, alpha, traitVisualState);
+    combatFeedbackPresentation.update(combatFeedback);
     // The cyan sphere is a resilient loading/error fallback. Greg takes over
     // asynchronously once the audited glTF has loaded and initialized.
     playerEntity.enabled = curr.playerAlive && !gregPresentation.ready;
@@ -268,6 +311,27 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
       -worldHalfWidth,
       worldHalfHeight,
       -1,
+      RUN_ENEMY_ROLE.regular,
+    );
+    eliteEnemyTransforms.update(
+      prev.enemies,
+      curr.enemies,
+      alpha,
+      -worldHalfWidth,
+      worldHalfHeight,
+      -1,
+      RUN_ENEMY_ROLE.elite,
+      ELITE_SCALE_MULTIPLIER,
+    );
+    bossEnemyTransforms.update(
+      prev.enemies,
+      curr.enemies,
+      alpha,
+      -worldHalfWidth,
+      worldHalfHeight,
+      -1,
+      RUN_ENEMY_ROLE.boss,
+      BOSS_SCALE_MULTIPLIER,
     );
     transformStores.projectile.update(
       prev.projectiles,
@@ -286,6 +350,8 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
       -1,
     );
     batches.enemy.sync(transformStores.enemy);
+    eliteEnemyBatch.sync(eliteEnemyTransforms);
+    bossEnemyBatch.sync(bossEnemyTransforms);
     batches.projectile.sync(transformStores.projectile);
     batches.pickup.sync(transformStores.pickup);
 
@@ -303,9 +369,16 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
   function stats(): RendererStats {
     return {
       drawCalls: toFiniteNumberOrFallback(lastDrawCalls, -1),
-      liveViews: batches.enemy.liveViews + batches.projectile.liveViews + batches.pickup.liveViews,
+      liveViews:
+        batches.enemy.liveViews +
+        eliteEnemyBatch.liveViews +
+        bossEnemyBatch.liveViews +
+        batches.projectile.liveViews +
+        batches.pickup.liveViews,
       highWaterViews:
         batches.enemy.highWaterViews +
+        eliteEnemyBatch.highWaterViews +
+        bossEnemyBatch.highWaterViews +
         batches.projectile.highWaterViews +
         batches.pickup.highWaterViews,
       contextLost: contextLost ? 1 : 0,
@@ -317,13 +390,20 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     canvas.removeEventListener('webglcontextrestored', onContextRestored, false);
     ready = false;
     batches.enemy.dispose();
+    eliteEnemyBatch.dispose();
+    bossEnemyBatch.dispose();
     batches.projectile.dispose();
     batches.pickup.dispose();
     categoryMesh.destroy();
+    eliteEnemyMesh.destroy();
+    bossEnemyMesh.destroy();
     materials.enemy.destroy();
+    eliteEnemyMaterial.destroy();
+    bossEnemyMaterial.destroy();
     materials.projectile.destroy();
     materials.pickup.destroy();
     playerMaterial.destroy();
+    combatFeedbackPresentation.dispose();
     gregPresentation.dispose();
     app.destroy();
   }

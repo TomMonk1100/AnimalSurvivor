@@ -1,7 +1,6 @@
 import * as pc from 'playcanvas';
 import type { RenderSnapshot } from '../contracts';
 import type { TraitVisualAttachmentView } from '@sim';
-import { lerp } from '../render/interpolation';
 import {
   advanceGregAnimation,
   createGregAnimationState,
@@ -24,12 +23,15 @@ import {
 } from './greg-attachment-visuals';
 import { createGregFoxLoader, type GregFoxLoader } from './greg-fox-loader';
 import { createGregTraitVisualProjector } from './greg-trait-visual-projector';
+import {
+  createGregLocomotionPresentationState,
+  projectGregLocomotion,
+} from './greg-locomotion-presentation';
 
 // The source fox is long but extremely narrow from above. A modestly widened
 // gameplay scale preserves the authored proportions in profile while giving
 // Greg a readable top-down silhouette close to the sim's 16-unit footprint.
 const GREG_SCALE: readonly [x: number, y: number, z: number] = [10, 6, 6];
-const MOVEMENT_EPSILON_SQ = 1e-6;
 
 export interface GregPresentation {
   readonly ready: boolean;
@@ -188,8 +190,8 @@ export function createGregPresentation(
   let sockets: GregAttachmentSockets<AttachmentNode> | null = null;
   let traitVisualProjector: ReturnType<typeof createGregTraitVisualProjector> | null = null;
   let animation: GregAnimationState = createGregAnimationState();
+  let locomotion = createGregLocomotionPresentationState();
   let lastAnimationTick = -1;
-  let headingDegrees = 0;
   let disposed = false;
 
   void loader.load().then((loaded) => {
@@ -220,23 +222,29 @@ export function createGregPresentation(
       if (entity === null) return;
       traitVisualProjector?.sync(traitVisualState);
       entity.enabled = current.playerAlive;
-      const x = lerp(previous.playerX, current.playerX, alpha) - worldHalfWidth;
-      const z = worldHalfHeight - lerp(previous.playerY, current.playerY, alpha);
-      entity.setLocalPosition(x, 0, z);
-
-      const dx = current.playerX - previous.playerX;
-      const dz = previous.playerY - current.playerY;
-      if (dx * dx + dz * dz > MOVEMENT_EPSILON_SQ) {
-        headingDegrees = Math.atan2(dx, dz) * 180 / Math.PI;
+      if (current.tick < locomotion.sampledTick) {
+        locomotion = createGregLocomotionPresentationState();
+        animation = createGregAnimationState();
+        lastAnimationTick = -1;
       }
-      entity.setLocalEulerAngles(0, headingDegrees, 0);
+      const pose = projectGregLocomotion(locomotion, previous, current, alpha);
+      locomotion = pose.state;
+      entity.setLocalPosition(pose.x - worldHalfWidth, 0, worldHalfHeight - pose.y);
+      entity.setLocalEulerAngles(0, pose.headingDegrees, 0);
 
       if (current.tick !== lastAnimationTick) {
-        animation = advanceGregAnimation(animation, deriveGregAnimationInput(previous, current));
+        const baseInput = deriveGregAnimationInput(previous, current);
+        animation = advanceGregAnimation(animation, {
+          ...baseInput,
+          movementMagnitude: pose.movementMagnitude,
+          locomotionMoving: pose.animation.moving,
+          locomotionBlendSeconds: pose.animation.transitionDurationSeconds,
+        });
         lastAnimationTick = current.tick;
         if (animation.restart) {
           entity.anim?.baseLayer?.transition(animation.clip, animation.transitionDurationSeconds);
         }
+        entity.anim!.speed = animation.kind === 'movement' ? pose.animation.walkPlaybackRate : 1;
       }
     },
     dispose() {
