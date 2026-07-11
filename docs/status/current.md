@@ -93,6 +93,8 @@
 - Greg now has a renderer-only locomotion projector with bounded turning and
   movement hysteresis; repeated automatic attacks no longer restart an active
   attack clip.
+- A fixed two-layer world-space arena grid now gives movement stable visual
+  reference points without touching simulation state or allocating per frame.
 - Renderer-only combat cues now persist across fixed-tick catch-up, and fixed
   primitive feedback pools show attacks, hits, pickups, enemy deaths, and player
   death without mutating gameplay.

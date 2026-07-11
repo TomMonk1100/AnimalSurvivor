@@ -142,6 +142,9 @@ health, timers, RNG, entity lifetimes, trait state, or director state.
   of min(devicePixelRatio, 2); the orthographic top-down camera follows Greg.
   Simulation x-right/y-up maps to XZ as sceneX = simX - worldWidth/2 and
   sceneZ = worldHeight/2 - simY, so screen-up matches simulation +Y.
+- **Arena reference:** two static, subtle world-space line meshes give the
+  camera-following view a minor/major grid. They are built once, use shared
+  materials, and never update or allocate during the render loop.
 - **Instanced swarms:** regular enemies, elite enemies, bosses, projectiles,
   and pickups use fixed hardware-instanced category batches. A normal enemy is
   a red sphere, an elite is an amber cylinder, and a boss is a violet cone. The
@@ -170,7 +173,7 @@ Run from apps/web-toy:
 | npm ci | Installs the locked browser-tooling dependency set. |
 | npm run typecheck | Strict TypeScript, including noUncheckedIndexedAccess. |
 | npm run lint | ESLint with --max-warnings 0; app-source Math.random is banned. |
-| npm test | The current suite contains **147 tests** across the driver, input, snapshots, presentation, real integrated run replay, and renderer-facing helpers. |
+| npm test | The current suite contains **150 tests** across the driver, input, snapshots, presentation, real integrated run replay, and renderer-facing helpers. |
 | npm run build | Strict typecheck plus a Vite production build. |
 
 The suite covers accumulator exactness, catch-up and hidden-tab behavior,

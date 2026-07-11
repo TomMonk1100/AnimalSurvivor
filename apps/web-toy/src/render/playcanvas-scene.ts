@@ -75,6 +75,7 @@ import { createGregPresentation } from '../hero/greg-presentation';
 import type { CombatFeedbackSnapshot } from '../presentation/combat-feedback';
 import { createCombatFeedbackPresentation } from './combat-feedback-presentation';
 import { createTraitCommandPresentation } from './trait-command-presentation';
+import { createArenaGridPresentation } from './arena-grid-presentation';
 
 /** Backing-store size cap: CSS size * min(devicePixelRatio, RESOLUTION_CAP). */
 const RESOLUTION_CAP = 2;
@@ -142,6 +143,12 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
   // --- Scene root, camera, materials -----------------------------------
   const entitiesRoot = new pc.Entity('entities');
   app.root.addChild(entitiesRoot);
+  const arenaGridPresentation = createArenaGridPresentation(
+    app.graphicsDevice,
+    entitiesRoot,
+    config.worldWidth,
+    config.worldHeight,
+  );
 
   const camera = new pc.Entity('camera');
   camera.addComponent('camera', {
@@ -415,6 +422,7 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     traitCommandPresentation.dispose();
     combatFeedbackPresentation.dispose();
     gregPresentation.dispose();
+    arenaGridPresentation.dispose();
     app.destroy();
   }
 

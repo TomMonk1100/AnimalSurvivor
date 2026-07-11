@@ -129,6 +129,8 @@ Path: `apps/web-toy/`
   cadence; short callouts name live Puffer and Thornstorm actions.
 - Greg has renderer-only locomotion with bounded turning/hysteresis, and repeat
   auto-attacks do not restart an active attack clip.
+- A fixed minor/major world-space arena grid gives camera-following movement a
+  stable reference without affecting simulation state or per-frame allocation.
 - Bounded primitive feedback pools show attacks, hits, pickups, deaths, and
   trait effects without mutating gameplay state.
 - Director events present phase, elite, boss, overtime, victory, and defeat
@@ -143,10 +145,10 @@ All checks below ran successfully from
 - Headless simulation: 161/161 tests passed; typecheck and lint passed.
 - Trait runtime: 58/58 tests passed; typecheck and lint passed.
 - Run director: 61/61 tests passed; typecheck and lint passed.
-- Web toy: 147/147 tests passed; typecheck, lint, and production build passed.
-- Total: 427 passing automated tests.
-- Web production build passed: 1,227 modules transformed. The current main
-  JavaScript bundle is about 2.02 MB minified (520 kB gzip); Vite reports the
+- Web toy: 150/150 tests passed; typecheck, lint, and production build passed.
+- Total: 430 passing automated tests.
+- Web production build passed: 1,228 modules transformed. The current main
+  JavaScript bundle is about 2.02 MB minified (521 kB gzip); Vite reports the
   expected chunk-size warning.
 - Concrete simulation + real TraitRuntime + real RunDirector replay reproduced
   the exact final hash with a recorded trait selection.
