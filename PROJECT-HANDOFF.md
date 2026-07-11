@@ -146,8 +146,9 @@ Path: `apps/web-toy/`
   also identifies visible green motes as XP to collect.
 - Upgrade prompts focus the first offer, allow **1**/**2**/**3** direct picks,
   and preserve **Tab** + **Enter** navigation. The touch joystick has a
-  floating drag thumb; Pause, Restart run, and terminal Play again use 44px
-  touch targets.
+  floating drag thumb; persistent Active Adaptations cards stay above that
+  lower-left control in portrait and to its right in landscape. Pause, Restart
+  run, and terminal Play again use 44px touch targets.
 - `?autopilot=1&stress=1&fullrun=1` extends the deterministic first-offer stress
   harness from 18,000 to the 43,200-tick authored boundary for boss/run-flow UI
   checks; it is not normal-balance evidence.
@@ -236,7 +237,8 @@ Scope:
 1. Test corrected vertical movement, locomotion smoothness, upgrade-card and
    Active Adaptations comprehension, combat/trait callouts, and elite/boss
    readability, boss-health progress, terminal **Play again** flow, keyboard
-   upgrade selection, and touch joystick feedback on desktop/mobile.
+   upgrade selection, and touch joystick feedback plus joystick-safe
+   adaptation-card placement on desktop/mobile.
 2. Record concrete observations at the relevant trait or director event rather
    than inferring balance from the autoplay fixture.
 3. Tune only the bounded renderer-facing cue lifetimes, sizes, colours, and

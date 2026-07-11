@@ -38,8 +38,10 @@ Open the local Vite URL printed in the terminal (normally
   storm.
 - The normal interface stays compact and player-facing. Append `?debug=1` to
   expose the diagnostic HUD and engineering controls for repeatable checks.
-- On touch, the floating joystick thumb follows each drag. **Pause**, **Restart
-  run**, and terminal **Play again** controls use 44px-high touch targets.
+- On touch, the floating joystick thumb follows each drag. The persistent
+  **Active Adaptations** cards stay above the lower-left joystick in portrait
+  and clear to its right in landscape. **Pause**, **Restart run**, and terminal
+  **Play again** controls use 44px-high touch targets.
 - A live boss exposes a persistent **The Final Threat** health bar. At victory or
   defeat, the outcome card offers **Play again** to restart the same seed.
 

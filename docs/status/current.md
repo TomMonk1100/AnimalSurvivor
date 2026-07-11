@@ -121,7 +121,9 @@
 - Upgrade prompts now put keyboard focus on the first offer, support **1**,
   **2**, and **3** for direct selection, and retain ordinary **Tab** + **Enter**
   button navigation. The touch joystick now has a floating drag thumb, while
-  Pause, Restart run, and terminal Play again use 44px-high touch targets.
+  persistent Active Adaptations cards stay above that lower-left control in
+  portrait and to its right in landscape; Pause, Restart run, and terminal Play
+  again use 44px-high touch targets.
 - `?autopilot=1&stress=1&fullrun=1` extends the accelerated, deterministic
   first-offer stress harness from 18,000 to 43,200 ticks for boss/run-flow UI
   checks. It is not evidence of normal-difficulty balance or survival.

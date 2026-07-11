@@ -54,7 +54,7 @@ driver hash, tick, controls, and stop method.
 | ?autopilot=1&stress=1&fullrun=1 | Keep the same accelerated, first-offer stress path through the 43,200-tick authored boundary instead of stopping at 18,000. It can exercise boss and terminal UI if Greg survives; it is not a normal-balance result. |
 | ?autopilot=1&stress=1&renderstress=1 | Also feed a renderer-only fixture of 1,000 enemies, 500 projectiles, and 200 pickups to the GPU; it does not alter simulation state or hash. |
 | **Upgrade choices** | The first card receives focus when the run pauses. Press **1**, **2**, or **3** for the matching offered card, or use normal **Tab** + **Enter** button navigation. |
-| **Virtual joystick** | Drag inside the lower-left zone to move. A floating thumb follows the clamped drag and disappears on release, cancel, or focus loss. |
+| **Virtual joystick** | Drag inside the lower-left zone to move. A floating thumb follows the clamped drag and disappears on release, cancel, or focus loss. On narrow screens, persistent adaptation cards stay above it in portrait and to its right in landscape. |
 | **Pause / Resume** | Stops stepping. A paused frame advances no clock, RNG, entity state, trait runtime, or run director. |
 | **Restart run** | Rebuilds the integrated run from the current seed in the compact player-facing controls. |
 | **Restart w/ seed** (debug) | Rebuilds the integrated run from the seed in the debug text box. |
@@ -240,10 +240,12 @@ To repeat useful checks locally:
 4. **Read-only rendering A/B:** add `?debug=1`, then toggle **Renderer: OFF/ON**
    while autopilot runs. The simulation/hash should continue identically with
    draw calls shown as zero while rendering is detached.
-5. **Mobile layout and input:** emulate 390 x 844; check that the lower-left
-   joystick thumb follows a drag and resets on release, that Pause/Restart run
-   and terminal Play again are comfortable 44px targets, and that the page has
-   no horizontal overflow.
+5. **Mobile layout and input:** emulate 390 x 844 in both portrait and
+   landscape; check that the lower-left joystick thumb follows a drag and
+   resets on release, the persistent adaptation cards stay above the joystick
+   in portrait and to its right in landscape, Pause/Restart run and terminal
+   Play again are comfortable 44px targets, and the page has no horizontal
+   overflow.
 6. **Context loss:** use a browser's WEBGL_lose_context facility if available;
    confirm the context banner pauses the run and restoration resumes without an
    unexpected hash discontinuity.

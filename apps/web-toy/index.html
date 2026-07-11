@@ -453,6 +453,20 @@
         #run-intro .run-intro-card { padding: 18px; }
         #run-intro h1 { font-size: 23px; }
       }
+      /* Keep the persistent build cards out of the movement thumb's path. */
+      @media (max-width: 600px) and (orientation: portrait) {
+        #adaptations {
+          bottom: calc(42vw + 28px);
+        }
+      }
+      @media (max-width: 600px) and (orientation: landscape) {
+        #adaptations {
+          right: 8px;
+          bottom: 8px;
+          left: calc(42vw + 28px);
+          width: auto;
+        }
+      }
     </style>
   </head>
   <body>

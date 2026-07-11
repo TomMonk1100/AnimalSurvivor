@@ -30,8 +30,9 @@ skip it so their deterministic checks begin immediately.
   first card receives keyboard focus; press **1**, **2**, or **3**, or use
   **Tab** then **Enter**, to select an offer.
 - On touch, the lower-left joystick shows a floating thumb while you drag and
-  clears it when you release. Pause, Restart run, and terminal Play again have
-  44px-high touch targets.
+  clears it when you release. The persistent Active Adaptations cards stay
+  above it in portrait and to its right in landscape. Pause, Restart run, and
+  terminal Play again have 44px-high touch targets.
 - A live boss shows a purple **The Final Threat** health bar. At the end of a
   run, use **Play again** on the outcome card to restart the same seed.
 
@@ -55,7 +56,8 @@ skip it so their deterministic checks begin immediately.
 7. At an upgrade choice, try keyboard selection: does the first card already
    have focus, do **1**/**2**/**3** match the visible offers, and does
    **Tab** + **Enter** work as expected? On a touch emulation/device, does the
-   joystick thumb follow the drag and disappear on release?
+   joystick thumb follow the drag and disappear on release, while the Active
+   Adaptations cards avoid the joystick in both portrait and landscape?
 
 ## Optional accelerated boss/run-flow check
 
@@ -73,8 +75,9 @@ Short answers are enough:
 - Onboarding: did the **Start run** card and first green-mote XP hint explain
   what to do without outside help?
 - Upgrade clarity: which card or active effect was unclear?
-- Interaction: did keyboard upgrade selection, the joystick thumb, or the
-  44px Pause/Restart/Play again controls feel unclear or awkward?
+- Interaction: did keyboard upgrade selection, the joystick thumb, the
+  joystick-safe adaptation-card placement, or the 44px Pause/Restart/Play
+  again controls feel unclear or awkward?
 - Combat readability: could you tell why enemies moved, died, or were pushed?
 - Boss/end flow, if seen: did the boss bar make progress clear, and was **Play
   again** obvious after the outcome?
