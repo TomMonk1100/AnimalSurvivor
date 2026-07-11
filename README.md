@@ -25,7 +25,9 @@ Open the local Vite URL printed in the terminal (normally
   core loop before anything moves. The deterministic autopilot and stress URLs
   bypass that first-run gate.
 - Move Greg with **WASD** or the **arrow keys**. On touch devices, use the
-  bottom-left virtual joystick.
+  bottom-left virtual joystick. His facing is presentation-only: a sharp
+  reversal visibly resolves across four bounded turns without changing movement
+  input or simulation state.
 - Greg automatically attacks nearby enemies; there is no aiming control.
 - Before Greg earns the first XP, the HUD labels visible green motes as XP so
   it is clear that collecting them creates levels and upgrade choices.

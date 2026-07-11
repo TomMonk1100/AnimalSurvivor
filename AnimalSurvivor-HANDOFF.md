@@ -127,8 +127,10 @@ Path: `apps/web-toy/`
   gather, knockback, and burst effects across catch-up frames.
 - The HUD and persistent Active Adaptations panel explain selected effects and
   cadence; short callouts name live Puffer and Thornstorm actions.
-- Greg has renderer-only locomotion with bounded turning/hysteresis, and repeat
-  auto-attacks do not restart an active attack clip.
+- Greg has renderer-only locomotion with a 45-degree-per-tick visual turn cap
+  and hysteresis. Sharp reversals resolve across four bounded visual turns while
+  position, input, simulation, and replay remain unchanged; repeat auto-attacks
+  do not restart an active attack clip.
 - A fixed minor/major world-space arena grid gives camera-following movement a
   stable reference without affecting simulation state or per-frame allocation.
 - Bounded primitive feedback pools show attacks, hits, pickups, deaths, and
@@ -167,8 +169,8 @@ All checks below ran successfully from
 - Headless simulation: 161/161 tests passed; typecheck and lint passed.
 - Trait runtime: 58/58 tests passed; typecheck and lint passed.
 - Run director: 61/61 tests passed; typecheck and lint passed.
-- Web toy: 163/163 tests passed; typecheck, lint, and production build passed.
-- Total: 443 passing automated tests.
+- Web toy: 164/164 tests passed; typecheck, lint, and production build passed.
+- Total: 444 passing automated tests.
 - Web production build passed: 1,231 modules transformed. The current main
   JavaScript bundle is about 2.03 MB minified (522 kB gzip); Vite reports the
   expected chunk-size warning.

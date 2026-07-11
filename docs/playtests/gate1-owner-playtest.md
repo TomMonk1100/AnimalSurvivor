@@ -50,8 +50,9 @@ ask the owner to enable Pages first.
 1. On the opening **Start run** card, can you explain the core loop before
    starting? After starting, does the green-mote XP hint make it clear what to
    collect?
-2. Move in every direction for 20 seconds. Does screen-up match pressing Up?
-   Does Greg's movement feel smooth enough to understand?
+2. Move in every direction and reverse sharply for 20 seconds. Does screen-up
+   match pressing Up? Does Greg's facing resolve the reversal across four
+   bounded visual turns without making movement feel less responsive?
 3. Take each of the two first upgrades at least once.
    - **Porcupine Quills:** automatic bursts at nearby enemies.
    - **Puffer Pouch:** a pull pulse first, then a push pulse when Adapted.

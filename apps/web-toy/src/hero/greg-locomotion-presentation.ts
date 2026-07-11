@@ -19,7 +19,7 @@ export const GREG_LOCOMOTION_START_DISTANCE = 0.15;
 export const GREG_LOCOMOTION_STOP_DISTANCE = 0.06;
 
 /** Visual turn cap, applied once per newly observed simulation tick. */
-export const GREG_MAX_TURN_DEGREES_PER_TICK = 24;
+export const GREG_MAX_TURN_DEGREES_PER_TICK = 45;
 
 /** Renderer recommendations for the existing Idle/Walk animation policy. */
 export const GREG_WALK_ENTER_BLEND_SECONDS = 0.12;

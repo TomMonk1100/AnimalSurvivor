@@ -78,8 +78,8 @@ describe('Greg locomotion presentation', () => {
   it('interpolates diagonal position and heading with a bounded turn', () => {
     const result = project(createGregLocomotionPresentationState(), 1, 2, -2, 0.5);
 
-    // dx=+2, dy=-2 maps to a 45-degree scene heading. The visual turn is
-    // deliberately limited to 24 degrees/tick, then interpolated at alpha=.5.
+    // dx=+2, dy=-2 maps to a 45-degree scene heading. The visual turn reaches
+    // that modest diagonal target in one tick, then interpolates at alpha=.5.
     expect(result.x).toBeCloseTo(11);
     expect(result.y).toBeCloseTo(19);
     expect(result.targetHeadingDegrees).toBeCloseTo(45);
@@ -113,6 +113,22 @@ describe('Greg locomotion presentation', () => {
     expect(left.state.previousHeadingDegrees).toBe(GREG_MAX_TURN_DEGREES_PER_TICK);
     expect(left.state.headingDegrees).toBe(0);
     expect(left.state.headingDegrees).not.toBe(left.targetHeadingDegrees);
+  });
+
+  it('resolves a full reversal in four bounded visual turns', () => {
+    let state = createGregLocomotionPresentationState();
+    state = project(state, 1, 2, 0).state;
+    state = project(state, 2, 2, 0).state;
+    expect(state.headingDegrees).toBe(90);
+
+    state = project(state, 3, -2, 0).state;
+    expect(state.headingDegrees).toBe(135);
+    state = project(state, 4, -2, 0).state;
+    expect(state.headingDegrees).toBe(180);
+    state = project(state, 5, -2, 0).state;
+    expect(state.headingDegrees).toBe(225);
+    state = project(state, 6, -2, 0).state;
+    expect(state.headingDegrees).toBe(270);
   });
 
   it('keeps the last heading while dead and delegates terminal animation priority to the reducer', () => {

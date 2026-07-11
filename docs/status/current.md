@@ -90,9 +90,10 @@
 - Short callouts name real Puffer and Thornstorm actions at the instant they
   execute, making pulls, pushes, gathering, and the radial quill storm legible
   without altering authoritative simulation state.
-- Greg now has a renderer-only locomotion projector with bounded turning and
-  movement hysteresis; repeated automatic attacks no longer restart an active
-  attack clip.
+- Greg now has a renderer-only locomotion projector with a 45-degree-per-tick
+  visual turn cap and movement hysteresis. Sharp reversals resolve across four
+  bounded visual turns while position, input, simulation, and replay remain
+  unchanged; repeated automatic attacks no longer restart an active attack clip.
 - A fixed two-layer world-space arena grid now gives movement stable visual
   reference points without touching simulation state or allocating per frame.
 - Renderer-only combat cues now persist across fixed-tick catch-up, and fixed
@@ -132,7 +133,7 @@
   only `apps/web-toy/dist` through GitHub Pages Actions once the repository
   owner enables Pages.
 - Current package test scripts report 161 headless-simulation, 58 trait-runtime,
-  61 run-director, and 163 web-toy tests: **443 passing tests** in total.
+  61 run-director, and 164 web-toy tests: **444 passing tests** in total.
 - The project is now backed up in the private GitHub repository
   `TomMonk1100/AnimalSurvivor` on `main`.
 

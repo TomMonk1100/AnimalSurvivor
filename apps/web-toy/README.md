@@ -178,8 +178,10 @@ health, timers, RNG, entity lifetimes, trait state, or director state.
   role treatment adds bounded fixed batches, not one mesh or material per enemy.
 - **Greg:** an audited local Quaternius fox glTF replaces a resilient cyan
   fallback after loading. A fixed-tick presentation reducer drives Idle, Walk,
-  Attack, Hit, and Death behavior; bounded visual heading and hysteresis keep
-  locomotion readable without touching movement state.
+  Attack, Hit, and Death behavior; a 45-degree-per-tick visual turn cap and
+  hysteresis keep locomotion readable without touching position, input,
+  simulation, or replay state. A sharp reversal resolves across four bounded
+  visual turns.
 - **Live attachments:** actual authoritative trait visual state mounts Bud and
   Adapted recipes to stable head/back sockets. Thornstorm consumes its
   ingredient visuals into one Mythic silhouette.
@@ -200,7 +202,7 @@ Run from apps/web-toy:
 | npm ci | Installs the locked browser-tooling dependency set. |
 | npm run typecheck | Strict TypeScript, including noUncheckedIndexedAccess. |
 | npm run lint | ESLint with --max-warnings 0; app-source Math.random is banned. |
-| npm test | The current suite contains **163 tests** across the driver, input, snapshots, presentation, real integrated run replay, and renderer-facing helpers. |
+| npm test | The current suite contains **164 tests** across the driver, input, snapshots, presentation, real integrated run replay, and renderer-facing helpers. |
 | npm run build | Strict typecheck plus a Vite production build. |
 
 The suite covers accumulator exactness, catch-up and hidden-tab behavior,
