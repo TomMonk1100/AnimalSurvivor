@@ -55,6 +55,18 @@ and stress procedure:
 For a short nontechnical hands-on test, use the
 [Gate 1 owner playtest guide](docs/playtests/gate1-owner-playtest.md).
 
+## Share a hosted playtest
+
+`Publish web-toy preview` is a GitHub Actions workflow for relevant pushes to
+`main`. It tests, lints, and builds the browser slice, then publishes only
+`apps/web-toy/dist` through GitHub Pages Actions.
+
+Before the first deployment, the repository owner must enable GitHub Pages in
+**Settings → Pages → Build and deployment → Source: GitHub Actions**. After a
+green workflow run, open its deployment link in **Actions**, or **Settings →
+Pages**, to get the GitHub-assigned playtest URL. The URL is intentionally not
+hardcoded in this repository.
+
 ## Automated verification
 
 Run the browser-slice checks from `apps/web-toy/`:

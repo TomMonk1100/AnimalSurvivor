@@ -127,6 +127,10 @@
 - `?autopilot=1&stress=1&fullrun=1` extends the accelerated, deterministic
   first-offer stress harness from 18,000 to 43,200 ticks for boss/run-flow UI
   checks. It is not evidence of normal-difficulty balance or survival.
+- A constrained `Publish web-toy preview` workflow is prepared for relevant
+  `main` pushes. It tests, lints, and builds the browser slice, then publishes
+  only `apps/web-toy/dist` through GitHub Pages Actions once the repository
+  owner enables Pages.
 - Current package test scripts report 161 headless-simulation, 58 trait-runtime,
   61 run-director, and 163 web-toy tests: **443 passing tests** in total.
 - The project is now backed up in the private GitHub repository
@@ -144,6 +148,10 @@
 - Low-end-device rendering remains unknown, but the instanced primitive fixture
   now renders 1,000 enemies, 500 projectiles, and 200 pickups in four draw calls.
 - Physical touch hardware and forced WebGL context-loss recovery remain untested.
+- GitHub Pages still requires a one-time owner choice in **Settings → Pages →
+  Build and deployment → Source: GitHub Actions**. After that, the actual
+  hosted URL must be taken from the green Action deployment or **Settings →
+  Pages**; it is not assumed or hardcoded in project documentation.
 - Trait-command timing and visual readability still need a human playtest; the
   current effects are deliberately bounded primitive cues, not final art.
 - Elite and boss roles are visually distinct primitives, but still need final
@@ -162,15 +170,18 @@ evidence is in
 
 ## Next integration sequence
 
-1. Run a second hands-on desktop playtest focused on corrected controls,
+1. If a hosted build is needed for a tester, enable GitHub Pages with **Settings
+   → Pages → Build and deployment → Source: GitHub Actions**, then use the URL
+   reported by a green `Publish web-toy preview` deployment from `main`.
+2. Run a second hands-on desktop playtest focused on corrected controls,
    locomotion feel, upgrade comprehension, combat/trait feedback, and
    elite/boss readability.
-2. Tune the trait-command cue lifetimes, sizes, and colors from that playtest,
+3. Tune the trait-command cue lifetimes, sizes, and colors from that playtest,
    especially Puffer Pouch and Thornstorm's telegraph-to-exhale sequence.
-3. Decide whether to implement each remaining authored command kind or keep it
+4. Decide whether to implement each remaining authored command kind or keep it
    out of all player-facing catalogs until its persistent gameplay state exists.
-4. Run physical-touch, low-end-device, and forced-WebGL-context-loss checks.
-5. Begin external human play checks once the normal-balance loop is enjoyable.
+5. Run physical-touch, low-end-device, and forced-WebGL-context-loss checks.
+6. Begin external human play checks once the normal-balance loop is enjoyable.
 
 ## Owner decisions remaining
 

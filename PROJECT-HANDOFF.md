@@ -152,6 +152,12 @@ Path: `apps/web-toy/`
 - `?autopilot=1&stress=1&fullrun=1` extends the deterministic first-offer stress
   harness from 18,000 to the 43,200-tick authored boundary for boss/run-flow UI
   checks; it is not normal-balance evidence.
+- `Publish web-toy preview` is a constrained workflow for relevant `main`
+  pushes: it tests, lints, and builds the browser slice, then publishes only
+  `apps/web-toy/dist` through GitHub Pages Actions. Before a deployment URL can
+  exist, the owner must enable **Settings → Pages → Build and deployment →
+  Source: GitHub Actions**; obtain the GitHub-assigned URL from the green Action
+  deployment or **Settings → Pages**, never by hardcoding one.
 
 ## Current verification snapshot
 
@@ -223,14 +229,20 @@ human playtesting.
   normal-balance browser run or human-playtest result.
 - Low-end physical devices, touch hardware, and forced WebGL context loss still
   require testing.
+- GitHub Pages availability is pending the owner's one-time **Settings → Pages
+  → Build and deployment → Source: GitHub Actions** choice and a green
+  deployment from `main`; no hosted URL is assumed in these docs.
 - Code splitting can be considered later; it is not the immediate gameplay
   bottleneck.
 
 ## Recommended next task
 
-Run a second hands-on desktop playtest, then make one evidence-led presentation
-tuning pass. Do not reopen completed trait-socket, command-stream, or director
-notice integration without a reproducible regression.
+If a hosted tester link is needed, first enable **Settings → Pages → Build and
+deployment → Source: GitHub Actions**, then use the GitHub-assigned URL from a
+green `Publish web-toy preview` deployment on `main`. Run a second hands-on
+desktop playtest after that, then make one evidence-led presentation tuning
+pass. Do not reopen completed trait-socket, command-stream, or director-notice
+integration without a reproducible regression.
 
 Scope:
 

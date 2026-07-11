@@ -1,0 +1,76 @@
+name: Publish web-toy preview
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/web-toy-preview.yml'
+      - 'apps/web-toy/**'
+      - 'assets/vendor/quaternius/**'
+      - 'packages/run-director/**'
+      - 'packages/trait-runtime/**'
+      - 'spikes/headless-sim/**'
+  workflow_dispatch:
+
+# The build can only read repository contents. The deploy job receives the
+# narrowly scoped Pages/OIDC permissions required by GitHub's Pages action.
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web-toy
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web-toy/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test -- --run
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build preview
+        run: npm run build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: apps/web-toy/dist
+
+  deploy:
+    needs: build
+    # Manual runs may build from any branch, but only main may publish a URL.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy Pages artifact
+        id: deployment
+        uses: actions/deploy-pages@v4

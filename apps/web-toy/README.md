@@ -39,6 +39,15 @@ choose an adaptation to resume it.
 For the recommended hands-on check, use the
 [Gate 1 owner playtest guide](../../docs/playtests/gate1-owner-playtest.md).
 
+## Hosted GitHub Pages preview
+
+For sharing a build, relevant pushes to `main` run the `Publish web-toy
+preview` workflow: it tests, lints, builds, and deploys `dist/` through GitHub
+Pages Actions. The repository owner must first choose **Settings → Pages → Build
+and deployment → Source: GitHub Actions**. Once a run is green, use its
+deployment link in **Actions**, or **Settings → Pages**, to find the
+GitHub-assigned URL; no live URL is hardcoded here.
+
 The app handle is exposed at window.__webToy for local checks, including its
 driver hash, tick, controls, and stop method.
 

@@ -19,6 +19,15 @@ and player-facing; `?debug=1` exposes diagnostics and engineering controls. A
 normal manual run waits at tick 0 on a **Start run** card; the automated URLs
 skip it so their deterministic checks begin immediately.
 
+## Open a shared browser preview
+
+If the repository owner has enabled **Settings → Pages → Build and deployment
+→ Source: GitHub Actions**, a green `Publish web-toy preview` run from `main`
+can provide a hosted build. Open the deployment link in **Actions**, or use
+**Settings → Pages**, to find the GitHub-assigned URL. The link is deliberately
+not written into this guide; if no deployment is shown, use the local build or
+ask the owner to enable Pages first.
+
 ## Controls
 
 - Move with **WASD** or the **arrow keys** on desktop.
