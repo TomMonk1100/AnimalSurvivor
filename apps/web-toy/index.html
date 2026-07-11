@@ -46,6 +46,47 @@
         user-select: none;
         max-width: 46vw;
       }
+      #adaptations {
+        position: absolute;
+        z-index: 2;
+        right: 12px;
+        bottom: 12px;
+        display: grid;
+        gap: 6px;
+        width: min(264px, calc(100vw - 32px));
+        pointer-events: none;
+        user-select: none;
+      }
+      #adaptations[hidden] {
+        display: none;
+      }
+      #adaptations .adaptations-title {
+        color: #dbeeff;
+        font: 700 12px/1.2 system-ui, sans-serif;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      #adaptations .adaptation-card {
+        padding: 8px 9px;
+        border: 1px solid #354963;
+        border-left: 3px solid #79c7ec;
+        border-radius: 6px;
+        background: rgba(10, 14, 20, 0.78);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+        font: 12px/1.3 system-ui, sans-serif;
+      }
+      #adaptations .adaptation-card[data-stage="Mythic"] {
+        border-left-color: #e383ff;
+        background: rgba(45, 22, 59, 0.82);
+      }
+      #adaptations .adaptation-card strong,
+      #adaptations .adaptation-card span,
+      #adaptations .adaptation-card small {
+        display: block;
+      }
+      #adaptations .adaptation-card strong { color: #eef7ff; font-size: 13px; }
+      #adaptations .adaptation-card span { margin-top: 2px; color: #c5d6e6; }
+      #adaptations .adaptation-card small { margin-top: 4px; color: #83b8df; font-weight: 600; }
       #controls {
         position: absolute;
         top: 8px;
@@ -192,6 +233,15 @@
         #controls button {
           padding: 5px 7px;
         }
+        #adaptations {
+          right: 8px;
+          bottom: 8px;
+          width: min(236px, calc(100vw - 24px));
+        }
+        #adaptations .adaptation-card {
+          padding: 6px 7px;
+          font-size: 11px;
+        }
         #joystick {
           width: 42vw;
           height: 42vw;
@@ -206,6 +256,7 @@
         <div id="joystick"></div>
       </div>
       <pre id="hud"></pre>
+      <aside id="adaptations" aria-label="Active adaptations" aria-live="polite" hidden></aside>
       <div id="controls"></div>
       <section id="upgrade-choices" aria-live="polite" hidden></section>
       <div id="director-notice" class="banner" role="status" aria-live="polite" hidden></div>

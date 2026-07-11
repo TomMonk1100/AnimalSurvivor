@@ -24,6 +24,7 @@ import { createPerformanceMonitor } from './diagnostics/performance-monitor';
 import { createHud } from './diagnostics/debug-hud';
 import type { RendererAdapter } from './contracts';
 import { projectDirectorEvent, type DirectorNotice } from './presentation/director-notices';
+import { presentActiveAdaptations } from './presentation/active-adaptations';
 import { presentRunSummary } from './presentation/run-summary';
 import { presentUpgrade } from './presentation/upgrade-copy';
 
@@ -69,6 +70,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const surface = document.getElementById('game-surface') as HTMLElement;
   const joystickZone = document.getElementById('joystick') as HTMLElement;
   const hudRoot = document.getElementById('hud') as HTMLElement;
+  const adaptationsRoot = document.getElementById('adaptations') as HTMLElement;
   const controlsRoot = document.getElementById('controls') as HTMLElement;
   const ctxBanner = document.getElementById('ctx-banner') as HTMLElement;
   const upgradeRoot = document.getElementById('upgrade-choices') as HTMLElement;
@@ -95,6 +97,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   let currentSeed = initialSeed;
   let syntheticDriverNow = performance.now();
   let renderedOfferKey = '';
+  let renderedAdaptationsKey = '';
   let activeDirectorNotice: DirectorNotice | null = null;
   let renderedDirectorKey = '';
 
@@ -155,6 +158,36 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
         renderUpgradeChoices();
       });
       upgradeRoot.appendChild(choice);
+    }
+  }
+
+  /** Rebuild only when a deterministic upgrade changes the active build. */
+  function renderAdaptations(): void {
+    const cards = presentActiveAdaptations(driver.traitVisualState());
+    const key = cards.map((card) => `${card.id}:${card.stageLabel}:${card.effect}:${card.cadence}`).join('|');
+    const hidden = cards.length === 0;
+    if (key === renderedAdaptationsKey && adaptationsRoot.hidden === hidden) return;
+    renderedAdaptationsKey = key;
+    adaptationsRoot.replaceChildren();
+    adaptationsRoot.hidden = hidden;
+    if (hidden) return;
+
+    const heading = document.createElement('strong');
+    heading.className = 'adaptations-title';
+    heading.textContent = 'Active adaptations';
+    adaptationsRoot.appendChild(heading);
+    for (const card of cards) {
+      const root = document.createElement('section');
+      root.className = 'adaptation-card';
+      root.dataset.stage = card.stageLabel;
+      const title = document.createElement('strong');
+      title.textContent = `${card.title} — ${card.stageLabel}`;
+      const effect = document.createElement('span');
+      effect.textContent = card.effect;
+      const cadence = document.createElement('small');
+      cadence.textContent = card.cadence;
+      root.append(title, effect, cadence);
+      adaptationsRoot.appendChild(root);
     }
   }
 
@@ -277,6 +310,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       if (firstOffer !== undefined) driver.selectUpgrade(firstOffer.traitId);
     }
     renderUpgradeChoices();
+    renderAdaptations();
     renderDirectorNotice();
     renderRunOutcome();
     if (stressMode && driver.tick >= stressStopTicks && !controls.paused) {

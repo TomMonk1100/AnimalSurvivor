@@ -81,6 +81,9 @@
 - The first owner playtest found the vision promising. Screen-space vertical
   movement is corrected; upgrade cards now explain triggers, effects, sockets,
   Adapted improvements, and the Thornstorm pairing.
+- A persistent Active Adaptations panel now keeps each selected build's effect
+  and cadence visible after the choice card closes, including Thornstorm's
+  telegraph-to-gather-to-storm sequence.
 - Greg now has a renderer-only locomotion projector with bounded turning and
   movement hysteresis; repeated automatic attacks no longer restart an active
   attack clip.
