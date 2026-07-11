@@ -126,7 +126,8 @@ Path: `apps/web-toy/`
   fixed-tick driver, so Puffer Pouch and Thornstorm retain ordered telegraph,
   gather, knockback, and burst effects across catch-up frames.
 - The HUD and persistent Active Adaptations panel explain selected effects and
-  cadence; short callouts name live Puffer and Thornstorm actions.
+  cadence. The centered pause panel repeats the owned build details without
+  cycling per-action text over active combat.
 - The player-facing HUD persistently projects authoritative elapsed time,
   phase, and the current objective. It names survival until **The Final
   Threat** before the boss and defeating that threat during boss/overtime.
@@ -185,9 +186,9 @@ All checks below ran successfully from
 - Headless simulation: 161/161 tests passed; typecheck and lint passed.
 - Trait runtime: 58/58 tests passed; typecheck and lint passed.
 - Run director: 61/61 tests passed; typecheck and lint passed.
-- Web toy: 181/181 tests passed; typecheck, lint, and production build passed.
-- Total: 461 passing automated tests.
-- Web production build passed: 1,236 modules transformed. The current main
+- Web toy: 177/177 tests passed; typecheck, lint, and production build passed.
+- Total: 457 passing automated tests.
+- Web production build passed: 1,235 modules transformed. The current main
   JavaScript bundle is about 2.03 MB minified (523 kB gzip); Vite reports the
   expected chunk-size warning.
 - Concrete simulation + real TraitRuntime + real RunDirector replay reproduced
@@ -267,8 +268,8 @@ integration without a reproducible regression.
 Scope:
 
 1. Test corrected vertical movement, locomotion smoothness, upgrade-card and
-   Active Adaptations comprehension, optional sound feedback, combat/trait
-   callouts, and elite/boss readability, boss-health progress, terminal **Play
+   Active Adaptations/pause-summary comprehension, optional sound feedback,
+   combat feedback and elite/boss readability, boss-health progress, terminal **Play
    again** flow, keyboard upgrade selection, and touch joystick feedback plus
    joystick-safe adaptation-card placement on desktop/mobile.
 2. Record concrete observations at the relevant trait or director event rather

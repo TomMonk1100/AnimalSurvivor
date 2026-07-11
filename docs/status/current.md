@@ -91,9 +91,9 @@
   run phase, and the phase-appropriate objective. Before the boss it names the
   survival goal; during boss/overtime it makes defeating **The Final Threat**
   explicit, without changing simulation, replay, or balance.
-- Short callouts name real Puffer and Thornstorm actions at the instant they
-  execute, making pulls, pushes, gathering, and the radial quill storm legible
-  without altering authoritative simulation state.
+- Per-action trait callouts are intentionally absent from active play. The
+  persistent Active Adaptations panel and the central pause panel instead show
+  the selected build's effects and cadence without covering combat.
 - Greg now has a renderer-only locomotion projector with a 45-degree-per-tick
   visual turn cap and movement hysteresis. Sharp reversals resolve across four
   bounded visual turns while position, input, simulation, and replay remain
@@ -149,7 +149,7 @@
   only `apps/web-toy/dist` through GitHub Pages Actions once the repository
   owner enables Pages.
 - Current package test scripts report 161 headless-simulation, 58 trait-runtime,
-  61 run-director, and 181 web-toy tests: **461 passing tests** in total.
+  61 run-director, and 177 web-toy tests: **457 passing tests** in total.
 - The project is now backed up in the private GitHub repository
   `TomMonk1100/AnimalSurvivor` on `main`.
 

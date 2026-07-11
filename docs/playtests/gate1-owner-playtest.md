@@ -74,8 +74,8 @@ ask the owner to enable Pages first.
 4. Keep an eye on the **Active Adaptations** panel at lower right. After an
    upgrade card closes, can you still explain what that build does and when it
    triggers?
-5. Watch the short callout near the top when Puffer or Thornstorm activates.
-   Do "Inhale", "Gather", and "Quill storm" match what you see on screen?
+5. Press **Esc** after choosing an upgrade. Does the centered pause panel list
+   your active build, explain its effect, and make resuming obvious?
 6. If offered both Adapted traits, take them to form **Thornstorm Mantle**.
    Does its sequence read as: telegraph, pull enemies in, then radial quills?
 7. At an upgrade choice, try keyboard selection: does the first card already
@@ -120,7 +120,7 @@ Short answers are enough:
   to follow, or did they become distracting?
 - Boss/end flow, if seen: did the boss bar make progress clear, and was **Play
   again** obvious after the outcome?
-- Screen clutter: was the HUD, adaptation panel, or action callout helpful or
+- Screen clutter: was the HUD, adaptation panel, or pause summary helpful or
   distracting?
 - One moment that felt exciting and one that felt frustrating.
 

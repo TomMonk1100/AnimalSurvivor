@@ -103,10 +103,10 @@ motes on screen are XP to collect.
 
 The simulation emits executed trait commands into a presentation-only stream.
 The renderer turns supported commands into short-lived, fixed-pool ground
-pulses, while top-of-screen callouts name meaningful Puffer and Thornstorm
-moments such as Inhale, Gather, Blast, and Quill storm. These cues are copied
-across fixed-tick catch-up before rendering and never feed back into gameplay,
-hashing, or replay state.
+pulses. The persistent **Active Adaptations** panel—and the central pause
+panel—explain the selected build and cadence without repeatedly covering play
+with per-action text. These cues are copied across fixed-tick catch-up before
+rendering and never feed back into gameplay, hashing, or replay state.
 
 The authored run director drives phase, elite, boss, overtime, victory, and
 defeat notices. Enemy role remains authoritative in simulation; the renderer
@@ -218,7 +218,7 @@ Run from apps/web-toy:
 | npm ci | Installs the locked browser-tooling dependency set. |
 | npm run typecheck | Strict TypeScript, including noUncheckedIndexedAccess. |
 | npm run lint | ESLint with --max-warnings 0; app-source Math.random is banned. |
-| npm test | The current suite contains **181 tests** across the driver, input, snapshots, presentation, procedural audio, real integrated run replay, and renderer-facing helpers. |
+| npm test | The current suite contains **177 tests** across the driver, input, snapshots, presentation, procedural audio, real integrated run replay, and renderer-facing helpers. |
 | npm run build | Strict typecheck plus a Vite production build. |
 
 The suite covers accumulator exactness, catch-up and hidden-tab behavior,

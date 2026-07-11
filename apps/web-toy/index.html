@@ -287,7 +287,7 @@
         z-index: 3;
         left: 50%;
         top: 50%;
-        width: min(280px, calc(100vw - 32px));
+        width: min(390px, calc(100vw - 32px));
         box-sizing: border-box;
         padding: 14px 18px;
         transform: translate(-50%, -50%);
@@ -305,6 +305,33 @@
       #pause-notice strong, #pause-notice span { display: block; }
       #pause-notice strong { font-size: 18px; }
       #pause-notice span { margin-top: 4px; color: #c8ddec; }
+      #pause-notice .pause-upgrades-title {
+        margin-top: 15px;
+        color: #9fcce8;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      #pause-notice .pause-upgrades-empty {
+        color: #b6c8d8;
+        font-size: 12px;
+      }
+      #pause-notice .pause-upgrade-card {
+        margin-top: 8px;
+        padding: 8px 9px;
+        text-align: left;
+        background: rgba(28, 51, 73, 0.72);
+        border: 1px solid #476c89;
+        border-left: 3px solid #79c7ec;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      #pause-notice .pause-upgrade-card strong,
+      #pause-notice .pause-upgrade-card span,
+      #pause-notice .pause-upgrade-card small { display: block; }
+      #pause-notice .pause-upgrade-card strong { color: #edf7ff; font-size: 13px; }
+      #pause-notice .pause-upgrade-card span { color: #c5d6e6; }
+      #pause-notice .pause-upgrade-card small { margin-top: 3px; color: #83b8df; font-weight: 600; }
       #upgrade-choices h2 {
         margin: 0 0 12px;
         text-align: center;
@@ -412,32 +439,6 @@
       #director-notice strong { font-size: 16px; }
       #director-notice[data-tone="warning"] { background: rgba(104, 72, 14, 0.94); border-color: #f4c05d; }
       #director-notice[data-tone="danger"] { background: rgba(111, 28, 28, 0.94); border-color: #ff7777; }
-      #trait-callout {
-        position: absolute;
-        z-index: 3;
-        left: 50%;
-        top: 108px;
-        width: min(360px, calc(100vw - 32px));
-        padding: 8px 12px;
-        box-sizing: border-box;
-        transform: translateX(-50%);
-        color: #eaf6ff;
-        text-align: center;
-        background: rgba(18, 35, 50, 0.9);
-        border: 1px solid #6db7e4;
-        border-radius: 8px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34);
-        font: 13px/1.3 system-ui, sans-serif;
-        pointer-events: none;
-        user-select: none;
-      }
-      #trait-callout[hidden] { display: none; }
-      #trait-callout strong, #trait-callout span { display: block; }
-      #trait-callout strong { font-size: 14px; }
-      #trait-callout span { margin-top: 2px; color: #c8e3f4; }
-      #trait-callout[data-tone="gather"] { background: rgba(13, 57, 74, 0.92); border-color: #62cfe9; }
-      #trait-callout[data-tone="knockback"] { background: rgba(91, 37, 16, 0.92); border-color: #ff9a58; }
-      #trait-callout[data-tone="mythic"] { background: rgba(61, 29, 82, 0.93); border-color: #e390ff; }
       #boss-health {
         position: absolute;
         z-index: 3;
@@ -511,10 +512,6 @@
           padding: 6px 7px;
           font-size: 11px;
         }
-        #trait-callout {
-          top: 166px;
-          font-size: 12px;
-        }
         #boss-health {
           top: 218px;
           width: min(340px, calc(100vw - 24px));
@@ -555,7 +552,6 @@
       <section id="pause-notice" role="status" aria-live="polite" hidden></section>
       <section id="upgrade-choices" aria-live="polite" aria-labelledby="upgrade-choices-heading" aria-describedby="upgrade-choices-shortcuts" hidden></section>
       <div id="director-notice" class="banner" role="status" aria-live="polite" hidden></div>
-      <div id="trait-callout" aria-hidden="true" hidden></div>
       <section id="boss-health" aria-label="Boss health" hidden>
         <header><strong id="boss-health-title">The Final Threat</strong><span id="boss-health-text"></span></header>
         <div id="boss-health-bar" role="progressbar" aria-labelledby="boss-health-title" aria-valuemin="0" aria-valuemax="100">

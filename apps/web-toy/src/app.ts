@@ -25,7 +25,6 @@ import { createHud } from './diagnostics/debug-hud';
 import type { RendererAdapter } from './contracts';
 import { projectDirectorEvent, type DirectorNotice } from './presentation/director-notices';
 import { presentActiveAdaptations } from './presentation/active-adaptations';
-import { projectTraitCueCallout, type TraitCueCallout } from './presentation/trait-cue-callout';
 import { presentBossHealth } from './presentation/boss-health';
 import { presentRunSummary } from './presentation/run-summary';
 import { presentUpgrade } from './presentation/upgrade-copy';
@@ -91,7 +90,6 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const upgradeRoot = document.getElementById('upgrade-choices') as HTMLElement;
   const outcomeRoot = document.getElementById('run-outcome') as HTMLElement;
   const directorRoot = document.getElementById('director-notice') as HTMLElement;
-  const traitCalloutRoot = document.getElementById('trait-callout') as HTMLElement;
   const bossHealthRoot = document.getElementById('boss-health') as HTMLElement;
   const bossHealthTitle = document.getElementById('boss-health-title') as HTMLElement;
   const bossHealthText = document.getElementById('boss-health-text') as HTMLElement;
@@ -148,14 +146,11 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   let renderedAdaptationsKey = '';
   let activeDirectorNotice: DirectorNotice | null = null;
   let renderedDirectorKey = '';
-  let activeTraitCallout: TraitCueCallout | null = null;
-  let renderedTraitCalloutKey = '';
-  let lastTraitCalloutTick = -1;
   let renderedBossHealthKey = '';
   let renderedOutcomeKey = '';
 
   function renderPauseNotice(): void {
-    const notice = presentPauseNotice(controls.paused);
+    const notice = presentPauseNotice(controls.paused, presentActiveAdaptations(driver.traitVisualState()));
     pauseNoticeRoot.hidden = notice === null;
     pauseNoticeRoot.replaceChildren();
     if (notice === null) return;
@@ -164,6 +159,29 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     const detail = document.createElement('span');
     detail.textContent = notice.detail;
     pauseNoticeRoot.append(title, detail);
+    const upgradesTitle = document.createElement('strong');
+    upgradesTitle.className = 'pause-upgrades-title';
+    upgradesTitle.textContent = 'Active upgrades';
+    pauseNoticeRoot.appendChild(upgradesTitle);
+    if (notice.upgrades.length === 0) {
+      const empty = document.createElement('span');
+      empty.className = 'pause-upgrades-empty';
+      empty.textContent = 'No animal upgrades selected yet.';
+      pauseNoticeRoot.appendChild(empty);
+      return;
+    }
+    for (const upgrade of notice.upgrades) {
+      const card = document.createElement('section');
+      card.className = 'pause-upgrade-card';
+      const cardTitle = document.createElement('strong');
+      cardTitle.textContent = `${upgrade.title} — ${upgrade.stageLabel}`;
+      const effect = document.createElement('span');
+      effect.textContent = upgrade.effect;
+      const cadence = document.createElement('small');
+      cadence.textContent = upgrade.cadence;
+      card.append(cardTitle, effect, cadence);
+      pauseNoticeRoot.appendChild(card);
+    }
   }
 
   function renderDirectorNotice(): void {
@@ -302,39 +320,6 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     }
   }
 
-  /** Names only real commands from the current Greg slice; gameplay never reads this state. */
-  function renderTraitCallout(): void {
-    if (driver.runOutcome === 'victory' || driver.runOutcome === 'defeat') {
-      activeTraitCallout = null;
-      if (renderedTraitCalloutKey === '' && traitCalloutRoot.hidden) return;
-      renderedTraitCalloutKey = '';
-      traitCalloutRoot.replaceChildren();
-      traitCalloutRoot.hidden = true;
-      return;
-    }
-    if (driver.tick < lastTraitCalloutTick) activeTraitCallout = null;
-    lastTraitCalloutTick = driver.tick;
-    for (const event of driver.traitPresentationEvents) {
-      const callout = projectTraitCueCallout(event);
-      if (callout !== null) activeTraitCallout = callout;
-    }
-    if (activeTraitCallout !== null && driver.tick >= activeTraitCallout.expiresAtTick) {
-      activeTraitCallout = null;
-    }
-    const key = activeTraitCallout?.key ?? '';
-    if (key === renderedTraitCalloutKey && traitCalloutRoot.hidden === (activeTraitCallout === null)) return;
-    renderedTraitCalloutKey = key;
-    traitCalloutRoot.replaceChildren();
-    traitCalloutRoot.hidden = activeTraitCallout === null;
-    if (activeTraitCallout === null) return;
-    traitCalloutRoot.dataset.tone = activeTraitCallout.tone;
-    const title = document.createElement('strong');
-    title.textContent = activeTraitCallout.title;
-    const detail = document.createElement('span');
-    detail.textContent = activeTraitCallout.detail;
-    traitCalloutRoot.append(title, detail);
-  }
-
   /**
    * Boss health is presentation-only and reads the app-owned current snapshot.
    * The key keeps this static DOM treatment quiet between the HUD's 4 Hz updates.
@@ -393,9 +378,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     seedInput.value = String(currentSeed);
     driver.restart(currentSeed);
     activeDirectorNotice = null;
-    activeTraitCallout = null;
     renderedDirectorKey = '';
-    renderedTraitCalloutKey = '';
     renderedOfferKey = '';
     renderedAdaptationsKey = '';
     renderedBossHealthKey = '';
@@ -405,7 +388,6 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     bossHealthRoot.hidden = true;
     renderUpgradeChoices();
     renderAdaptations();
-    renderTraitCallout();
     renderRunOutcome();
     syntheticDriverNow = performance.now();
     keyboardInput.clear();
@@ -575,7 +557,6 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     });
     renderUpgradeChoices();
     renderAdaptations();
-    renderTraitCallout();
     renderDirectorNotice();
     renderRunOutcome();
     if (stressMode && driver.tick >= stressStopTicks && !controls.paused) {

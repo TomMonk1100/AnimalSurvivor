@@ -4,9 +4,22 @@ import { presentPauseNotice } from '../src/presentation/pause-notice';
 describe('pause notice presentation', () => {
   it('only exposes a clear resume instruction while manually paused', () => {
     expect(presentPauseNotice(false)).toBeNull();
-    expect(presentPauseNotice(true)).toEqual({
+    expect(presentPauseNotice(true, [{
+      id: 'porcupine-quills:bud',
+      title: 'Porcupine Quills',
+      stageLabel: 'Bud',
+      effect: 'Automatically fires a compact quill burst at nearby enemies.',
+      cadence: 'Every 1.5 seconds',
+    }])).toEqual({
       title: 'Paused',
       detail: 'Press Esc or Resume to continue.',
+      upgrades: [{
+        id: 'porcupine-quills:bud',
+        title: 'Porcupine Quills',
+        stageLabel: 'Bud',
+        effect: 'Automatically fires a compact quill burst at nearby enemies.',
+        cadence: 'Every 1.5 seconds',
+      }],
     });
   });
 });
