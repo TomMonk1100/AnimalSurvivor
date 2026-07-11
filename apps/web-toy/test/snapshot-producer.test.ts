@@ -73,7 +73,47 @@ describe('snapshot producer enemy presentation roles', () => {
       RUN_ENEMY_ROLE.elite,
       RUN_ENEMY_ROLE.boss,
     ]);
+    const bruteHp = DEFAULT_CONFIG.archetypes[2]!.hp;
+    expect(Array.from(snapshot.enemies.hp.slice(0, snapshot.enemies.count))).toEqual([
+      bruteHp,
+      bruteHp * 5,
+      bruteHp * 30,
+    ]);
+    expect(Array.from(snapshot.enemies.maxHp.slice(0, snapshot.enemies.count))).toEqual([
+      bruteHp,
+      bruteHp * 5,
+      bruteHp * 30,
+    ]);
     expect(sim.hash()).toBe(hashBeforeCapture);
+    const bossIndex = Array.from(snapshot.enemies.role.slice(0, snapshot.enemies.count))
+      .indexOf(RUN_ENEMY_ROLE.boss);
+    const bossSlot = sim.enemies.slotOf(snapshot.enemies.id[bossIndex]!);
+    expect(bossSlot).toBeGreaterThanOrEqual(0);
+    sim.enemies.data.hp[bossSlot] = 1;
+    expect(snapshot.enemies.hp[bossIndex]).toBe(bruteHp * 30);
+  });
+
+  it('keeps health fields zero for non-enemy categories', () => {
+    const sim = createSimulation(QUIET_CONFIG, 12);
+    const projectileSlot = sim.projectiles.spawn();
+    const pickupSlot = sim.pickups.spawn();
+    expect(projectileSlot).toBeGreaterThanOrEqual(0);
+    expect(pickupSlot).toBeGreaterThanOrEqual(0);
+    sim.projectiles.data.posX[projectileSlot] = 10;
+    sim.projectiles.data.posY[projectileSlot] = 20;
+    sim.pickups.data.posX[pickupSlot] = 30;
+    sim.pickups.data.posY[pickupSlot] = 40;
+    sim.pickups.data.radius[pickupSlot] = 4;
+
+    const snapshot = createSnapshot(QUIET_CONFIG);
+    captureSnapshot(snapshot, sim);
+
+    expect(snapshot.projectiles.count).toBe(1);
+    expect(snapshot.pickups.count).toBe(1);
+    expect(snapshot.projectiles.hp[0]).toBe(0);
+    expect(snapshot.projectiles.maxHp[0]).toBe(0);
+    expect(snapshot.pickups.hp[0]).toBe(0);
+    expect(snapshot.pickups.maxHp[0]).toBe(0);
   });
 });
 

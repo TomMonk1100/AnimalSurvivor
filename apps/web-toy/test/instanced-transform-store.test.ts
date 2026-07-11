@@ -11,6 +11,8 @@ interface Entry {
   x: number;
   y: number;
   radius?: number;
+  hp?: number;
+  maxHp?: number;
   archetype?: number;
   role?: number;
 }
@@ -25,6 +27,8 @@ function snapshot(entries: readonly Entry[], category: ViewCategory = 'enemy'): 
   const x = new Float32Array(capacity);
   const y = new Float32Array(capacity);
   const radius = new Float32Array(capacity);
+  const hp = new Float32Array(capacity);
+  const maxHp = new Float32Array(capacity);
   const archetype = new Uint8Array(capacity);
   const role = new Uint8Array(capacity);
 
@@ -33,11 +37,13 @@ function snapshot(entries: readonly Entry[], category: ViewCategory = 'enemy'): 
     x[index] = entry.x;
     y[index] = entry.y;
     radius[index] = entry.radius ?? 1;
+    hp[index] = entry.hp ?? 0;
+    maxHp[index] = entry.maxHp ?? 0;
     archetype[index] = entry.archetype ?? 0;
     role[index] = entry.role ?? RUN_ENEMY_ROLE.regular;
   });
 
-  return { category, count: capacity, id, x, y, radius, archetype, role };
+  return { category, count: capacity, id, x, y, radius, hp, maxHp, archetype, role };
 }
 
 function matrix(store: InstancedTransformStore, index: number): number[] {
@@ -181,6 +187,8 @@ describe('InstancedTransformStore', () => {
       x: Array.from(value.x),
       y: Array.from(value.y),
       radius: Array.from(value.radius),
+      hp: Array.from(value.hp),
+      maxHp: Array.from(value.maxHp),
       archetype: Array.from(value.archetype),
       role: Array.from(value.role),
     }));
@@ -193,6 +201,8 @@ describe('InstancedTransformStore', () => {
       x: Array.from(value.x),
       y: Array.from(value.y),
       radius: Array.from(value.radius),
+      hp: Array.from(value.hp),
+      maxHp: Array.from(value.maxHp),
       archetype: Array.from(value.archetype),
       role: Array.from(value.role),
     }))).toEqual(before);

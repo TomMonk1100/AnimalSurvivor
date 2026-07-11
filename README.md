@@ -30,12 +30,17 @@ Open the local Vite URL printed in the terminal (normally
   in, then upgrades into a wider knockback pulse. Adapt both paths to evolve
   them into **Thornstorm Mantle**, which gathers enemies before a radial quill
   storm.
-- The on-screen **Pause / Resume**, **Restart w/ seed**, and autopilot controls
-  are useful for repeatable checks.
+- The normal interface stays compact and player-facing. Append `?debug=1` to
+  expose the diagnostic HUD and engineering controls for repeatable checks.
+- A live boss exposes a persistent **The Final Threat** health bar. At victory or
+  defeat, the outcome card offers **Play again** to restart the same seed.
 
 For a deterministic accelerated run, append
-`?autopilot=1&stress=1` to the local URL. The browser-specific README has the
-full control list, diagnostics, and stress procedure:
+`?autopilot=1&stress=1` to the local URL. Append `&fullrun=1` to extend that
+engineering harness to the 12-minute authored boundary, including the boss
+encounter if Greg survives. It auto-selects upgrades and is not a normal-balance
+playtest. The browser-specific README has the full control list, diagnostics,
+and stress procedure:
 [`apps/web-toy/README.md`](apps/web-toy/README.md).
 For a short nontechnical hands-on test, use the
 [Gate 1 owner playtest guide](docs/playtests/gate1-owner-playtest.md).

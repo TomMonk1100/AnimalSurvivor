@@ -39,18 +39,22 @@ For the recommended hands-on check, use the
 The app handle is exposed at window.__webToy for local checks, including its
 driver hash, tick, controls, and stop method.
 
-### URL controls and on-screen buttons
+### URL controls and debug buttons
 
 | Control | Effect |
 | --- | --- |
 | ?seed=&lt;number or text&gt; | Start with an explicit seed; text is hashed to a 32-bit seed. The default is 0x1234abcd. |
+| ?debug=1 | Shows the diagnostic HUD and engineering controls. The default presentation keeps those details out of the player-facing view. |
 | ?autopilot=1 | Boot directly into deterministic autopilot. |
 | ?autopilot=1&stress=1 | Step up to five simulation ticks per rendered frame and auto-pause at tick 18,000. Stress mode selects the first pending upgrade deterministically so it does not stall. |
+| ?autopilot=1&stress=1&fullrun=1 | Keep the same accelerated, first-offer stress path through the 43,200-tick authored boundary instead of stopping at 18,000. It can exercise boss and terminal UI if Greg survives; it is not a normal-balance result. |
 | ?autopilot=1&stress=1&renderstress=1 | Also feed a renderer-only fixture of 1,000 enemies, 500 projectiles, and 200 pickups to the GPU; it does not alter simulation state or hash. |
 | **Pause / Resume** | Stops stepping. A paused frame advances no clock, RNG, entity state, trait runtime, or run director. |
-| **Restart w/ seed** | Rebuilds the integrated run from the seed in the text box. |
-| **Autopilot: ON/OFF** | Toggles the pure-function-of-tick stress input. |
-| **Renderer: ON/OFF** | Detaches or attaches GPU rendering while simulation keeps running, so local A/B checks can confirm that rendering does not affect gameplay. |
+| **Restart run** | Rebuilds the integrated run from the current seed in the compact player-facing controls. |
+| **Restart w/ seed** (debug) | Rebuilds the integrated run from the seed in the debug text box. |
+| **Play again** | Appears on a terminal victory/defeat card and restarts the current seed without requiring debug controls. |
+| **Autopilot: ON/OFF** (debug) | Toggles the pure-function-of-tick stress input. |
+| **Renderer: ON/OFF** (debug) | Detaches or attaches GPU rendering while simulation keeps running, so local A/B checks can confirm that rendering does not affect gameplay. |
 
 ## What is playable now
 
@@ -78,7 +82,11 @@ hashing, or replay state.
 The authored run director drives phase, elite, boss, overtime, victory, and
 defeat notices. Enemy role remains authoritative in simulation; the renderer
 reads it to give elites amber cylinder treatments and bosses violet cone
-treatments, without per-enemy material or entity allocation.
+treatments, without per-enemy material or entity allocation. App-owned enemy
+snapshots also copy current and maximum health, so a live boss gets a persistent,
+accessible **The Final Threat** bar without exposing writable gameplay state.
+When the authoritative run ends, its outcome card includes **Play again** for a
+same-seed restart.
 
 ## Architecture and renderer/simulation boundary
 
@@ -173,7 +181,7 @@ Run from apps/web-toy:
 | npm ci | Installs the locked browser-tooling dependency set. |
 | npm run typecheck | Strict TypeScript, including noUncheckedIndexedAccess. |
 | npm run lint | ESLint with --max-warnings 0; app-source Math.random is banned. |
-| npm test | The current suite contains **150 tests** across the driver, input, snapshots, presentation, real integrated run replay, and renderer-facing helpers. |
+| npm test | The current suite contains **155 tests** across the driver, input, snapshots, presentation, real integrated run replay, and renderer-facing helpers. |
 | npm run build | Strict typecheck plus a Vite production build. |
 
 The suite covers accumulator exactness, catch-up and hidden-tab behavior,
@@ -208,15 +216,21 @@ To repeat useful checks locally:
    In particular, check vertical controls, upgrade comprehension, Puffer and
    Thornstorm sequence readability, HUD clutter, and elite/boss recognition.
 2. **Deterministic stress:** open
-   /?autopilot=1&stress=1&renderstress=1&seed=305441741. It accelerates to and
+   /?autopilot=1&stress=1&renderstress=1&debug=1&seed=305441741. It accelerates to and
    auto-pauses at tick 18,000; compare the displayed hash with the five-minute
    automated-check value above.
-3. **Read-only rendering A/B:** toggle **Renderer: OFF/ON** while autopilot
-   runs. The simulation/hash should continue identically with draw calls shown
-   as zero while rendering is detached.
-4. **Mobile layout:** emulate 390 x 844; check the lower-left joystick and
+3. **Accelerated boss/run flow:** open
+   /?autopilot=1&stress=1&fullrun=1. It raises the stress cap to 43,200 ticks
+   and makes deterministic upgrade choices. If the normal-health run reaches a
+   live boss, verify the **The Final Threat** health bar appears and the terminal
+   card offers **Play again**. This is an engineering UI check, not evidence of
+   normal-balance survival.
+4. **Read-only rendering A/B:** add `?debug=1`, then toggle **Renderer: OFF/ON**
+   while autopilot runs. The simulation/hash should continue identically with
+   draw calls shown as zero while rendering is detached.
+5. **Mobile layout:** emulate 390 x 844; check the lower-left joystick and
    ensure the page has no horizontal overflow.
-5. **Context loss:** use a browser's WEBGL_lose_context facility if available;
+6. **Context loss:** use a browser's WEBGL_lose_context facility if available;
    confirm the context banner pauses the run and restoration resumes without an
    unexpected hash discontinuity.
 

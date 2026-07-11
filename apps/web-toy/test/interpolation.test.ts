@@ -49,6 +49,8 @@ describe('interpolation reads do not mutate snapshots or sim state', () => {
         x: Array.from(buf.enemies.x),
         y: Array.from(buf.enemies.y),
         radius: Array.from(buf.enemies.radius),
+        hp: Array.from(buf.enemies.hp),
+        maxHp: Array.from(buf.enemies.maxHp),
         archetype: Array.from(buf.enemies.archetype),
       },
       projectiles: {
@@ -56,12 +58,16 @@ describe('interpolation reads do not mutate snapshots or sim state', () => {
         id: Array.from(buf.projectiles.id),
         x: Array.from(buf.projectiles.x),
         y: Array.from(buf.projectiles.y),
+        hp: Array.from(buf.projectiles.hp),
+        maxHp: Array.from(buf.projectiles.maxHp),
       },
       pickups: {
         count: buf.pickups.count,
         id: Array.from(buf.pickups.id),
         x: Array.from(buf.pickups.x),
         y: Array.from(buf.pickups.y),
+        hp: Array.from(buf.pickups.hp),
+        maxHp: Array.from(buf.pickups.maxHp),
       },
     });
 

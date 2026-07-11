@@ -26,6 +26,7 @@ import type { RendererAdapter } from './contracts';
 import { projectDirectorEvent, type DirectorNotice } from './presentation/director-notices';
 import { presentActiveAdaptations } from './presentation/active-adaptations';
 import { projectTraitCueCallout, type TraitCueCallout } from './presentation/trait-cue-callout';
+import { presentBossHealth } from './presentation/boss-health';
 import { presentRunSummary } from './presentation/run-summary';
 import { presentUpgrade } from './presentation/upgrade-copy';
 
@@ -59,7 +60,12 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const params = new URLSearchParams(window.location.search);
   const stressMode = params.get('stress') === '1';
   const renderStressMode = params.get('renderstress') === '1';
-  const stressStopTicks = config.hz * 60 * 5;
+  const diagnosticsMode = params.get('debug') === '1';
+  // The default stress pass stays a quick five simulated minutes. `fullrun=1`
+  // deliberately reaches the 12-minute authored terminal boundary so the boss
+  // encounter can be checked through the same browser harness.
+  const fullRunStressMode = params.get('fullrun') === '1';
+  const stressStopTicks = config.hz * 60 * (fullRunStressMode ? 12 : 5);
   const seedParam = params.get('seed');
   const initialSeed = seedParam
     ? /^\d+$/.test(seedParam)
@@ -78,6 +84,11 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const outcomeRoot = document.getElementById('run-outcome') as HTMLElement;
   const directorRoot = document.getElementById('director-notice') as HTMLElement;
   const traitCalloutRoot = document.getElementById('trait-callout') as HTMLElement;
+  const bossHealthRoot = document.getElementById('boss-health') as HTMLElement;
+  const bossHealthTitle = document.getElementById('boss-health-title') as HTMLElement;
+  const bossHealthText = document.getElementById('boss-health-text') as HTMLElement;
+  const bossHealthBar = document.getElementById('boss-health-bar') as HTMLElement;
+  const bossHealthFill = document.getElementById('boss-health-fill') as HTMLElement;
 
   const driver: SimDriver = createSimDriver(config, initialSeed, {
     traitRuntimeFactory,
@@ -86,7 +97,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const renderStress = renderStressMode ? createRenderStressHarness(config) : null;
   const renderer: RendererAdapter = createRenderer(canvas, config);
   const perf = createPerformanceMonitor();
-  const hud = createHud(hudRoot);
+  const hud = createHud(hudRoot, { diagnostics: diagnosticsMode });
 
   const keyboardInput: InputSource = createInputController({ surface, joystickZone });
   const autopilot: InputSource = createAutopilot();
@@ -105,8 +116,18 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   let activeTraitCallout: TraitCueCallout | null = null;
   let renderedTraitCalloutKey = '';
   let lastTraitCalloutTick = -1;
+  let renderedBossHealthKey = '';
+  let renderedOutcomeKey = '';
 
   function renderDirectorNotice(): void {
+    if (driver.runOutcome === 'victory' || driver.runOutcome === 'defeat') {
+      activeDirectorNotice = null;
+      if (renderedDirectorKey === '' && directorRoot.hidden) return;
+      renderedDirectorKey = '';
+      directorRoot.replaceChildren();
+      directorRoot.hidden = true;
+      return;
+    }
     for (const event of driver.directorEvents) {
       const projected = projectDirectorEvent(event);
       if (projected !== null && projected.expiresAtTick !== null) activeDirectorNotice = projected;
@@ -198,6 +219,14 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
 
   /** Names only real commands from the current Greg slice; gameplay never reads this state. */
   function renderTraitCallout(): void {
+    if (driver.runOutcome === 'victory' || driver.runOutcome === 'defeat') {
+      activeTraitCallout = null;
+      if (renderedTraitCalloutKey === '' && traitCalloutRoot.hidden) return;
+      renderedTraitCalloutKey = '';
+      traitCalloutRoot.replaceChildren();
+      traitCalloutRoot.hidden = true;
+      return;
+    }
     if (driver.tick < lastTraitCalloutTick) activeTraitCallout = null;
     lastTraitCalloutTick = driver.tick;
     for (const event of driver.traitPresentationEvents) {
@@ -221,17 +250,42 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     traitCalloutRoot.append(title, detail);
   }
 
+  /**
+   * Boss health is presentation-only and reads the app-owned current snapshot.
+   * The key keeps this static DOM treatment quiet between the HUD's 4 Hz updates.
+   */
+  function renderBossHealth(): void {
+    const boss = presentBossHealth(driver.curr.enemies);
+    const key = boss === null ? '' : `${boss.id}:${boss.current}:${boss.max}`;
+    if (key === renderedBossHealthKey && bossHealthRoot.hidden === (boss === null)) return;
+    renderedBossHealthKey = key;
+    bossHealthRoot.hidden = boss === null;
+    if (boss === null) return;
+    bossHealthTitle.textContent = boss.label;
+    bossHealthText.textContent = `${Math.ceil(boss.current)} / ${Math.ceil(boss.max)} HP`;
+    bossHealthFill.style.transform = `scaleX(${boss.fraction})`;
+    bossHealthBar.setAttribute('aria-valuenow', String(boss.percent));
+    bossHealthBar.setAttribute('aria-valuetext', `${boss.label}: ${boss.percent}% health remaining`);
+  }
+
   function renderRunOutcome(): void {
     const summary = presentRunSummary(driver.runOutcome, driver.tick, config.hz, driver.runPhase);
+    const key = summary === null ? '' : `${summary.tone}:${summary.headline}:${summary.detail}`;
+    if (key === renderedOutcomeKey && outcomeRoot.hidden === (summary === null)) return;
+    renderedOutcomeKey = key;
     outcomeRoot.hidden = summary === null;
+    outcomeRoot.replaceChildren();
     if (summary === null) return;
     outcomeRoot.dataset.outcome = summary.tone;
-    outcomeRoot.replaceChildren();
     const headline = document.createElement('strong');
     headline.textContent = summary.headline;
     const detail = document.createElement('span');
     detail.textContent = summary.detail;
-    outcomeRoot.append(headline, detail);
+    const playAgain = document.createElement('button');
+    playAgain.type = 'button';
+    playAgain.textContent = 'Play again';
+    playAgain.addEventListener('click', restartRun);
+    outcomeRoot.append(headline, detail, playAgain);
   }
 
   // ---- controls UI (built once; no per-frame DOM creation) ----------------
@@ -243,36 +297,49 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     return b;
   }
   const pauseBtn = button('Pause', () => setPaused(!controls.paused));
-  const autoBtn = button(controls.autopilotOn ? 'Autopilot: ON' : 'Autopilot: OFF', () => {
-    controls.autopilotOn = !controls.autopilotOn;
-    autoBtn.textContent = controls.autopilotOn ? 'Autopilot: ON' : 'Autopilot: OFF';
-    activeInput().clear();
-  });
-  const renderBtn = button('Renderer: ON', () => {
-    controls.renderEnabled = !controls.renderEnabled;
-    renderBtn.textContent = controls.renderEnabled ? 'Renderer: ON' : 'Renderer: OFF';
-  });
   const seedInput = document.createElement('input');
   seedInput.type = 'text';
   seedInput.value = String(currentSeed);
   seedInput.size = 10;
   seedInput.style.cssText = 'font:inherit;background:#0f151f;color:#d7e0ea;border:1px solid #33415a;border-radius:5px;padding:5px;';
-  controlsRoot.appendChild(seedInput);
-  button('Restart w/ seed', () => {
+  function restartRun(): void {
     const raw = seedInput.value.trim();
     currentSeed = /^\d+$/.test(raw) ? Number(raw) >>> 0 : seedFromString(raw);
     seedInput.value = String(currentSeed);
     driver.restart(currentSeed);
     activeDirectorNotice = null;
+    activeTraitCallout = null;
     renderedDirectorKey = '';
+    renderedTraitCalloutKey = '';
     renderedOfferKey = '';
+    renderedAdaptationsKey = '';
+    renderedBossHealthKey = '';
+    renderedOutcomeKey = '';
+    bossHealthRoot.hidden = true;
     renderUpgradeChoices();
+    renderAdaptations();
+    renderTraitCallout();
     renderRunOutcome();
     syntheticDriverNow = performance.now();
     keyboardInput.clear();
     perf.reset();
     setPaused(false);
-  });
+  }
+  if (diagnosticsMode) {
+    const autoBtn = button(controls.autopilotOn ? 'Autopilot: ON' : 'Autopilot: OFF', () => {
+      controls.autopilotOn = !controls.autopilotOn;
+      autoBtn.textContent = controls.autopilotOn ? 'Autopilot: ON' : 'Autopilot: OFF';
+      activeInput().clear();
+    });
+    const renderBtn = button('Renderer: ON', () => {
+      controls.renderEnabled = !controls.renderEnabled;
+      renderBtn.textContent = controls.renderEnabled ? 'Renderer: ON' : 'Renderer: OFF';
+    });
+    controlsRoot.appendChild(seedInput);
+    button('Restart w/ seed', restartRun);
+  } else {
+    button('Restart run', restartRun);
+  }
 
   function setPaused(p: boolean): void {
     controls.paused = p;
@@ -395,6 +462,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
         autopilot: controls.autopilotOn,
       };
       hud.update(stats);
+      renderBossHealth();
     }
   }
   raf = requestAnimationFrame(frame);

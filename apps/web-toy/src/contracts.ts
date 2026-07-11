@@ -64,9 +64,9 @@ export type ViewCategory = 'enemy' | 'projectile' | 'pickup';
 /**
  * A flat, allocation-stable list of live entities of one category captured at a
  * tick boundary. Parallel arrays indexed 0..count-1. `id` is the generation-
- * guarded EntityId. `archetype` and `role` are only meaningful for enemies
- * (both are 0 otherwise). Role values mirror the simulation's fixed
- * regular/elite/boss mapping: 0, 1, and 2 respectively.
+ * guarded EntityId. `archetype`, `role`, `hp`, and `maxHp` are only meaningful
+ * for enemies (all are 0 otherwise). Role values mirror the simulation's
+ * fixed regular/elite/boss mapping: 0, 1, and 2 respectively.
  * Buffers are preallocated to capacity and reused every tick — never resized in
  * the steady-state loop.
  */
@@ -77,6 +77,10 @@ export interface CategorySnapshot {
   readonly x: Float32Array;
   readonly y: Float32Array;
   readonly radius: Float32Array;
+  /** Current health copied for enemies; zero for projectiles and pickups. */
+  readonly hp: Float32Array;
+  /** Maximum health copied for enemies; zero for projectiles and pickups. */
+  readonly maxHp: Float32Array;
   readonly archetype: Uint8Array;
   readonly role: Uint8Array;
 }

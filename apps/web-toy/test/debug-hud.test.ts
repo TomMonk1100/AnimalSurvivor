@@ -41,4 +41,10 @@ describe('debug HUD player-facing status', () => {
   it('reports max level without inventing another XP threshold', () => {
     expect(formatHud(stats({ playerXp: 380, playerNextXp: null }))).toContain('XP 380 • MAX LEVEL');
   });
+
+  it('can keep diagnostics out of the player-facing default', () => {
+    expect(formatHud(stats(), false)).toBe(
+      'GREG  HP 76/100  LV 3  XP 22/30\nMove: WASD / Arrow Keys • auto-fire',
+    );
+  });
 });

@@ -33,7 +33,13 @@ function fillCategory(
     out.x[i] = centerX + (column - halfColumns) * spacing + Math.sin(phase + i * 0.17) * 2;
     out.y[i] = centerY + (row - halfRows) * spacing + Math.cos(phase * 0.8 + i * 0.13) * 2;
     out.radius[i] = radius;
-    out.archetype[i] = i % 3;
+    // Stress snapshots are renderer-only, but keep the expanded snapshot
+    // contract coherent: synthetic enemies are healthy and non-enemy
+    // categories explicitly have no health data.
+    out.hp[i] = out.category === 'enemy' ? 100 : 0;
+    out.maxHp[i] = out.category === 'enemy' ? 100 : 0;
+    out.archetype[i] = out.category === 'enemy' ? i % 3 : 0;
+    out.role[i] = 0;
   }
 }
 

@@ -17,6 +17,8 @@ function createCategorySnapshot(category: ViewCategory, capacity: number): Categ
     x: new Float32Array(capacity),
     y: new Float32Array(capacity),
     radius: new Float32Array(capacity),
+    hp: new Float32Array(capacity),
+    maxHp: new Float32Array(capacity),
     archetype: new Uint8Array(capacity),
     role: new Uint8Array(capacity),
   };
@@ -53,6 +55,8 @@ function captureEnemies(out: CategorySnapshot, sim: Simulation): void {
     out.x[n] = data.posX[slot]!;
     out.y[n] = data.posY[slot]!;
     out.radius[n] = data.radius[slot]!;
+    out.hp[n] = data.hp[slot]!;
+    out.maxHp[n] = data.maxHp[slot]!;
     out.archetype[n] = data.archetype[slot]!;
     out.role[n] = sim.enemyPresentationRole(out.id[n]!);
     n++;
@@ -69,6 +73,8 @@ function captureProjectiles(out: CategorySnapshot, pool: Pool<ProjectilePool>): 
     out.x[n] = data.posX[slot]!;
     out.y[n] = data.posY[slot]!;
     out.radius[n] = PROJECTILE_VIEW_RADIUS;
+    out.hp[n] = 0;
+    out.maxHp[n] = 0;
     out.archetype[n] = 0;
     out.role[n] = 0;
     n++;
@@ -85,6 +91,8 @@ function capturePickups(out: CategorySnapshot, pool: Pool<PickupPool>): void {
     out.x[n] = data.posX[slot]!;
     out.y[n] = data.posY[slot]!;
     out.radius[n] = data.radius[slot]!;
+    out.hp[n] = 0;
+    out.maxHp[n] = 0;
     out.archetype[n] = 0;
     out.role[n] = 0;
     n++;

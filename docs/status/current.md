@@ -106,6 +106,20 @@
 - Elites and bosses now have read-only presentation roles and distinct bounded
   instanced treatments: amber cylinder elites and violet cone bosses, while
   gameplay role state remains authoritative and hashed.
+- App-owned enemy snapshots now copy current and maximum health. A persistent,
+  accessible **The Final Threat** bar appears only while the authoritative boss
+  is alive; it remains a read-only presentation surface outside hash and replay
+  state.
+- Terminal victory and defeat cards now include **Play again**, which restarts
+  the current seed without requiring the diagnostic control strip.
+- The normal web-toy HUD and controls are now compact and player-facing;
+  `?debug=1` restores the diagnostic HUD and engineering controls for local
+  checks.
+- `?autopilot=1&stress=1&fullrun=1` extends the accelerated, deterministic
+  first-offer stress harness from 18,000 to 43,200 ticks for boss/run-flow UI
+  checks. It is not evidence of normal-difficulty balance or survival.
+- Current package test scripts report 161 headless-simulation, 58 trait-runtime,
+  61 run-director, and 155 web-toy tests: **435 passing tests** in total.
 - The project is now backed up in the private GitHub repository
   `TomMonk1100/AnimalSurvivor` on `main`.
 
@@ -116,6 +130,8 @@
   browser yet. The real 12-minute deterministic replay gate and a short live
   browser smoke pass now succeed, but they do not replace hands-on pacing and
   clarity feedback.
+- The `fullrun=1` browser stress option is an accelerated engineering path; it
+  has not validated a normal-balance browser run, boss outcome, or human flow.
 - Low-end-device rendering remains unknown, but the instanced primitive fixture
   now renders 1,000 enemies, 500 projectiles, and 200 pickups in four draw calls.
 - Physical touch hardware and forced WebGL context-loss recovery remain untested.

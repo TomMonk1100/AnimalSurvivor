@@ -11,6 +11,21 @@ describe('renderer-only stress snapshots', () => {
     expect(harness.curr.enemies.count).toBe(1000);
     expect(harness.curr.projectiles.count).toBe(500);
     expect(harness.curr.pickups.count).toBe(200);
+    expect(Array.from(harness.curr.enemies.hp.slice(0, harness.enemies))).toEqual(
+      Array(harness.enemies).fill(100),
+    );
+    expect(Array.from(harness.curr.enemies.maxHp.slice(0, harness.enemies))).toEqual(
+      Array(harness.enemies).fill(100),
+    );
+    expect(Array.from(harness.curr.projectiles.hp.slice(0, harness.projectiles))).toEqual(
+      Array(harness.projectiles).fill(0),
+    );
+    expect(Array.from(harness.curr.pickups.maxHp.slice(0, harness.pickups))).toEqual(
+      Array(harness.pickups).fill(0),
+    );
+    expect(Array.from(harness.curr.projectiles.archetype.slice(0, harness.projectiles))).toEqual(
+      Array(harness.projectiles).fill(0),
+    );
   });
 
   it('is deterministic and keeps adjacent snapshot ticks', () => {
@@ -21,6 +36,7 @@ describe('renderer-only stress snapshots', () => {
     expect(a.prev.tick).toBe(1233);
     expect(a.curr.tick).toBe(1234);
     expect(Array.from(a.curr.enemies.x)).toEqual(Array.from(b.curr.enemies.x));
+    expect(Array.from(a.curr.enemies.hp)).toEqual(Array.from(b.curr.enemies.hp));
     expect(Array.from(a.curr.projectiles.y)).toEqual(Array.from(b.curr.projectiles.y));
   });
 

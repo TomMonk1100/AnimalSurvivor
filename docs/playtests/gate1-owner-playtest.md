@@ -13,8 +13,9 @@ npm run dev
 ```
 
 Open the local address Vite prints in the terminal. The normal page is the
-playtest build; the `autopilot` and `stress` query options are engineering
-checks, not the recommended way to play.
+playtest build; the `autopilot`, `stress`, and `fullrun` query options are
+engineering checks, not the recommended way to play. The normal UI is compact
+and player-facing; `?debug=1` exposes diagnostics and engineering controls.
 
 ## Controls
 
@@ -22,6 +23,8 @@ checks, not the recommended way to play.
 - On touch devices, use the lower-left virtual joystick.
 - Greg attacks automatically; movement is the only required combat control.
 - Choose one animal adaptation whenever the upgrade card pauses the run.
+- A live boss shows a purple **The Final Threat** health bar. At the end of a
+  run, use **Play again** on the outcome card to restart the same seed.
 
 ## Five-minute test
 
@@ -38,6 +41,14 @@ checks, not the recommended way to play.
 5. If offered both Adapted traits, take them to form **Thornstorm Mantle**.
    Does its sequence read as: telegraph, pull enemies in, then radial quills?
 
+## Optional accelerated boss/run-flow check
+
+Open the local URL with `?autopilot=1&stress=1&fullrun=1`. This deterministically
+chooses the first upgrade and raises the accelerated stress cap to the
+12-minute authored boundary. It is useful only for inspecting the boss health
+bar and terminal **Play again** flow if the normal-health run reaches them; it
+does not validate normal difficulty or replace the hands-on test above.
+
 ## What to report
 
 Short answers are enough:
@@ -45,6 +56,8 @@ Short answers are enough:
 - Movement: smooth / delayed / backwards / confusing, plus one example.
 - Upgrade clarity: which card or active effect was unclear?
 - Combat readability: could you tell why enemies moved, died, or were pushed?
+- Boss/end flow, if seen: did the boss bar make progress clear, and was **Play
+  again** obvious after the outcome?
 - Screen clutter: was the HUD, adaptation panel, or action callout helpful or
   distracting?
 - One moment that felt exciting and one that felt frustrating.

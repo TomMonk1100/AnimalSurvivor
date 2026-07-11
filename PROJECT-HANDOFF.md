@@ -135,7 +135,15 @@ Path: `apps/web-toy/`
   trait effects without mutating gameplay state.
 - Director events present phase, elite, boss, overtime, victory, and defeat
   notices. Elites and bosses have distinct bounded instanced primitive roles.
-- Terminal outcome UI is wired to the simulation-owned run outcome.
+- App-owned enemy snapshots copy current and maximum health, so a persistent,
+  accessible boss-health bar appears only while the authoritative boss is live.
+- Terminal outcome UI is wired to the simulation-owned run outcome and includes
+  **Play again** for a same-seed restart.
+- The normal web-toy HUD and controls are compact and player-facing;
+  `?debug=1` restores diagnostics and engineering controls for local checks.
+- `?autopilot=1&stress=1&fullrun=1` extends the deterministic first-offer stress
+  harness from 18,000 to the 43,200-tick authored boundary for boss/run-flow UI
+  checks; it is not normal-balance evidence.
 
 ## Current verification snapshot
 
@@ -145,8 +153,8 @@ All checks below ran successfully from
 - Headless simulation: 161/161 tests passed; typecheck and lint passed.
 - Trait runtime: 58/58 tests passed; typecheck and lint passed.
 - Run director: 61/61 tests passed; typecheck and lint passed.
-- Web toy: 150/150 tests passed; typecheck, lint, and production build passed.
-- Total: 430 passing automated tests.
+- Web toy: 155/155 tests passed; typecheck, lint, and production build passed.
+- Total: 435 passing automated tests.
 - Web production build passed: 1,228 modules transformed. The current main
   JavaScript bundle is about 2.02 MB minified (521 kB gzip); Vite reports the
   expected chunk-size warning.
@@ -203,6 +211,8 @@ human playtesting.
   out of player-facing catalogs in the meantime.
 - Elite and boss roles are visually distinct primitives, but still need final
   authored meshes, animation, and richer entrance behavior.
+- The full-run browser stress option is an engineering UI check, not a
+  normal-balance browser run or human-playtest result.
 - Low-end physical devices, touch hardware, and forced WebGL context loss still
   require testing.
 - Code splitting can be considered later; it is not the immediate gameplay
@@ -218,7 +228,7 @@ Scope:
 
 1. Test corrected vertical movement, locomotion smoothness, upgrade-card and
    Active Adaptations comprehension, combat/trait callouts, and elite/boss
-   readability on desktop.
+   readability, boss-health progress, and terminal **Play again** flow on desktop.
 2. Record concrete observations at the relevant trait or director event rather
    than inferring balance from the autoplay fixture.
 3. Tune only the bounded renderer-facing cue lifetimes, sizes, colours, and
