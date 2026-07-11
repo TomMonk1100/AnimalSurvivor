@@ -282,6 +282,29 @@
       #upgrade-choices[hidden] {
         display: none;
       }
+      #pause-notice {
+        position: absolute;
+        z-index: 3;
+        left: 50%;
+        top: 50%;
+        width: min(280px, calc(100vw - 32px));
+        box-sizing: border-box;
+        padding: 14px 18px;
+        transform: translate(-50%, -50%);
+        color: #e9f5ff;
+        text-align: center;
+        background: rgba(15, 29, 45, 0.94);
+        border: 1px solid #75a9d5;
+        border-radius: 10px;
+        box-shadow: 0 12px 38px rgba(0, 0, 0, 0.46);
+        font: 13px/1.35 system-ui, sans-serif;
+        pointer-events: none;
+        user-select: none;
+      }
+      #pause-notice[hidden] { display: none; }
+      #pause-notice strong, #pause-notice span { display: block; }
+      #pause-notice strong { font-size: 18px; }
+      #pause-notice span { margin-top: 4px; color: #c8ddec; }
       #upgrade-choices h2 {
         margin: 0 0 12px;
         text-align: center;
@@ -529,6 +552,7 @@
       <pre id="hud"></pre>
       <aside id="adaptations" aria-label="Active adaptations" aria-live="polite" hidden></aside>
       <div id="controls"></div>
+      <section id="pause-notice" role="status" aria-live="polite" hidden></section>
       <section id="upgrade-choices" aria-live="polite" aria-labelledby="upgrade-choices-heading" aria-describedby="upgrade-choices-shortcuts" hidden></section>
       <div id="director-notice" class="banner" role="status" aria-live="polite" hidden></div>
       <div id="trait-callout" aria-hidden="true" hidden></div>

@@ -72,7 +72,7 @@ driver hash, tick, controls, and stop method.
 | ?autopilot=1&stress=1&renderstress=1 | Also feed a renderer-only fixture of 1,000 enemies, 500 projectiles, and 200 pickups to the GPU; it does not alter simulation state or hash. |
 | **Upgrade choices** | The first card receives focus when the run pauses. Press **1**, **2**, or **3** for the matching offered card, or use normal **Tab** + **Enter** button navigation. |
 | **Virtual joystick** | Drag inside the lower-left zone to move. A floating thumb follows the clamped drag and disappears on release, cancel, or focus loss. On narrow screens, persistent adaptation cards stay above it in portrait and to its right in landscape. |
-| **Pause / Resume** | Stops stepping. Press **Esc** during a live desktop run to toggle it; a paused frame advances no clock, RNG, entity state, trait runtime, or run director. |
+| **Pause / Resume** | Stops stepping. Press **Esc** during a live desktop run to toggle it; a centered notice explains how to resume, and a paused frame advances no clock, RNG, entity state, trait runtime, or run director. |
 | **Restart run** | Rebuilds the integrated run from the current seed in the compact player-facing controls. |
 | **Restart w/ seed** (debug) | Rebuilds the integrated run from the seed in the debug text box. |
 | **Play again** | Appears on a terminal victory/defeat card and restarts the current seed without requiring debug controls. Pause, Restart run, and Play again have 44px-high touch targets. |
@@ -218,7 +218,7 @@ Run from apps/web-toy:
 | npm ci | Installs the locked browser-tooling dependency set. |
 | npm run typecheck | Strict TypeScript, including noUncheckedIndexedAccess. |
 | npm run lint | ESLint with --max-warnings 0; app-source Math.random is banned. |
-| npm test | The current suite contains **180 tests** across the driver, input, snapshots, presentation, procedural audio, real integrated run replay, and renderer-facing helpers. |
+| npm test | The current suite contains **181 tests** across the driver, input, snapshots, presentation, procedural audio, real integrated run replay, and renderer-facing helpers. |
 | npm run build | Strict typecheck plus a Vite production build. |
 
 The suite covers accumulator exactness, catch-up and hidden-tab behavior,

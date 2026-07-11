@@ -124,7 +124,9 @@
   `?debug=1` restores the diagnostic HUD and engineering controls for local
   checks.
 - A live desktop run now supports **Esc** as a repeat-safe pause/resume toggle;
-  it ignores upgrade-prompt and terminal states so it cannot strand the run.
+  it ignores upgrade-prompt and terminal states so it cannot strand the run. A
+  centered **Paused** notice tells the player how to resume instead of making
+  the game appear frozen.
 - A normal manual run now waits at tick 0 behind a presentation-only **Start
   run** gate. Automated autopilot/stress paths bypass it, and the normal HUD
   identifies green motes as XP until Greg earns the first point.
@@ -147,7 +149,7 @@
   only `apps/web-toy/dist` through GitHub Pages Actions once the repository
   owner enables Pages.
 - Current package test scripts report 161 headless-simulation, 58 trait-runtime,
-  61 run-director, and 180 web-toy tests: **460 passing tests** in total.
+  61 run-director, and 181 web-toy tests: **461 passing tests** in total.
 - The project is now backed up in the private GitHub repository
   `TomMonk1100/AnimalSurvivor` on `main`.
 

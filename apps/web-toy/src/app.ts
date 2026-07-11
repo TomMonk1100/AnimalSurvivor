@@ -32,6 +32,7 @@ import { presentUpgrade } from './presentation/upgrade-copy';
 import { isPauseShortcut, upgradeShortcutIndex } from './presentation/upgrade-shortcuts';
 import { presentRunIntro } from './presentation/run-intro';
 import { presentRunProgress } from './presentation/run-progress';
+import { presentPauseNotice } from './presentation/pause-notice';
 import { createAudioCueRouter } from './audio/audio-cue-router';
 import { createProceduralAudio } from './audio/procedural-audio';
 
@@ -85,6 +86,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const hudRoot = document.getElementById('hud') as HTMLElement;
   const adaptationsRoot = document.getElementById('adaptations') as HTMLElement;
   const controlsRoot = document.getElementById('controls') as HTMLElement;
+  const pauseNoticeRoot = document.getElementById('pause-notice') as HTMLElement;
   const ctxBanner = document.getElementById('ctx-banner') as HTMLElement;
   const upgradeRoot = document.getElementById('upgrade-choices') as HTMLElement;
   const outcomeRoot = document.getElementById('run-outcome') as HTMLElement;
@@ -151,6 +153,18 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   let lastTraitCalloutTick = -1;
   let renderedBossHealthKey = '';
   let renderedOutcomeKey = '';
+
+  function renderPauseNotice(): void {
+    const notice = presentPauseNotice(controls.paused);
+    pauseNoticeRoot.hidden = notice === null;
+    pauseNoticeRoot.replaceChildren();
+    if (notice === null) return;
+    const title = document.createElement('strong');
+    title.textContent = notice.title;
+    const detail = document.createElement('span');
+    detail.textContent = notice.detail;
+    pauseNoticeRoot.append(title, detail);
+  }
 
   function renderDirectorNotice(): void {
     if (driver.runOutcome === 'victory' || driver.runOutcome === 'defeat') {
@@ -489,6 +503,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   function setPaused(p: boolean): void {
     controls.paused = p;
     pauseBtn.textContent = p ? 'Resume' : 'Pause';
+    renderPauseNotice();
     if (p) activeInput().clear();
     else proceduralAudio.resumeIfEnabled();
   }
