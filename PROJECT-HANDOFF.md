@@ -116,28 +116,45 @@ Path: `apps/web-toy/`
 - Greg uses an audited low-poly fox glTF with deterministic animation and stable
   attachment sockets.
 - GPU-instanced enemy/projectile/pickup rendering is already demonstrated.
+- Authoritative trait visual state is projected onto those sockets: Quills and
+  Pouch Bud/Adapted forms replace cleanly, and Thornstorm consumes both into one
+  Mythic silhouette.
+- The limited Greg catalog keeps unsupported future commands out of offers.
+  `applyAreaDamage` and `playTraitCue` are supported; zone, mark, chain, melee,
+  and shield commands explicitly reject until they have persistent state.
+- Executed trait commands cross a read-only presentation stream through the
+  fixed-tick driver, so Puffer Pouch and Thornstorm retain ordered telegraph,
+  gather, knockback, and burst effects across catch-up frames.
+- The HUD and persistent Active Adaptations panel explain selected effects and
+  cadence; short callouts name live Puffer and Thornstorm actions.
+- Greg has renderer-only locomotion with bounded turning/hysteresis, and repeat
+  auto-attacks do not restart an active attack clip.
+- Bounded primitive feedback pools show attacks, hits, pickups, deaths, and
+  trait effects without mutating gameplay state.
+- Director events present phase, elite, boss, overtime, victory, and defeat
+  notices. Elites and bosses have distinct bounded instanced primitive roles.
 - Terminal outcome UI is wired to the simulation-owned run outcome.
 
-## Verified state after moving the project
+## Current verification snapshot
 
 All checks below ran successfully from
-`/Users/adammuncie/GameDev/AnimalSurvivor` on 2026-07-10:
+`/Users/adammuncie/GameDev/AnimalSurvivor` on 2026-07-11:
 
-- Headless simulation: 155/155 tests passed; typecheck and lint passed.
+- Headless simulation: 161/161 tests passed; typecheck and lint passed.
 - Trait runtime: 58/58 tests passed; typecheck and lint passed.
 - Run director: 61/61 tests passed; typecheck and lint passed.
-- Web toy: 101/101 tests passed; typecheck and lint passed.
-- Total: 375 passing automated tests.
-- Web production build passed: 1,216 modules transformed.
-- `npm ci` reported zero vulnerabilities in every package.
+- Web toy: 147/147 tests passed; typecheck, lint, and production build passed.
+- Total: 427 passing automated tests.
+- Web production build passed: 1,227 modules transformed. The current main
+  JavaScript bundle is about 2.02 MB minified (520 kB gzip); Vite reports the
+  expected chunk-size warning.
 - Concrete simulation + real TraitRuntime + real RunDirector replay reproduced
   the exact final hash with a recorded trait selection.
-- Live browser smoke test passed at 60 FPS with no console errors:
-  - gameplay advanced;
-  - director spawned enemies;
-  - XP produced a deterministic three-choice prompt;
-  - Porcupine Quills Bud was selected;
-  - simulation resumed cleanly with no dropped accumulated time.
+- A real 43,200-tick Greg autoplay using the real trait runtime and director
+  reaches the boss and reproduces its exact replay hash. Its endurance setup
+  validates infrastructure, not normal difficulty balance.
+- A short local browser smoke pass advanced gameplay and showed no console
+  errors, but it is not a human end-to-end playtest.
 
 Useful gate commands:
 
@@ -174,44 +191,46 @@ human playtesting.
 
 ## Known limitations
 
-- Trait visual state is exposed by the simulation and web driver but is not yet
-  fully projected onto Greg's live renderer sockets.
-- Only the first Quills/Pouch/Thornstorm combat-command subset is implemented:
-  directed/radial projectile bursts, gather, knockback, and telegraphs.
-- Remaining authored command kinds must be implemented or explicitly rejected.
-- Elite and boss currently reuse the brute prototype and need distinct visual
-  presentation later.
-- Phase changes, elite/boss warnings, and richer victory/defeat presentation are
-  not implemented.
-- The full 12-minute balance curve has not been human-playtested.
+- Gate 0 still lacks its ten external human concept interviews.
+- No human has played a complete normal-balance 12-minute browser run. Automated
+  replay and short smoke coverage do not validate pacing, clarity, or balance.
+- Trait-command timing, lifetimes, sizes, and colours need hands-on feedback;
+  the current effects are deliberately bounded primitive cues, not final art.
+- Zone, mark, chain, melee, and shield command kinds remain explicitly rejected
+  until their persistent gameplay state is designed and implemented. Keep them
+  out of player-facing catalogs in the meantime.
+- Elite and boss roles are visually distinct primitives, but still need final
+  authored meshes, animation, and richer entrance behavior.
 - Low-end physical devices, touch hardware, and forced WebGL context loss still
   require testing.
-- Production JavaScript is currently about 2 MB minified; code splitting can be
-  considered later, but it is not the immediate gameplay bottleneck.
+- Code splitting can be considered later; it is not the immediate gameplay
+  bottleneck.
 
 ## Recommended next task
 
-Connect authoritative trait visual state to Greg's stable attachment sockets.
+Run a second hands-on desktop playtest, then make one evidence-led presentation
+tuning pass. Do not reopen completed trait-socket, command-stream, or director
+notice integration without a reproducible regression.
 
 Scope:
 
-1. Carry `traitVisualState()` into the renderer-facing presentation layer
-   without letting rendering mutate or step simulation state.
-2. Map Porcupine Quills Bud/Adapted, Puffer Pouch Bud/Adapted, and Thornstorm
-   Mythic visual keys to the existing validated primitive recipes.
-3. Show/hide attachments according to `enabled`, stage, source ID, and socket
-   occupancy.
-4. Preserve interpolation, deterministic hash parity, and renderer-off parity.
-5. Add focused presentation/contract tests and run all affected gates.
-6. Perform a live browser check that selecting an upgrade visibly changes Greg
-   and that Mythic replacement hides consumed independent attachments.
+1. Test corrected vertical movement, locomotion smoothness, upgrade-card and
+   Active Adaptations comprehension, combat/trait callouts, and elite/boss
+   readability on desktop.
+2. Record concrete observations at the relevant trait or director event rather
+   than inferring balance from the autoplay fixture.
+3. Tune only the bounded renderer-facing cue lifetimes, sizes, colours, and
+   messaging indicated by that feedback; preserve simulation and replay hashes.
+4. Re-run the affected automated gates and retain the distinction between a
+   successful smoke test and a normal-balance human run.
 
 After that:
 
-1. finish or reject the remaining trait command vocabulary;
-2. add phase/warning/elite/boss presentation from `directorEvents`;
-3. run a complete 12-minute autoplay and replay parity test;
-4. begin human playtesting.
+1. decide whether each remaining unsupported trait command kind gets persistent
+   state or remains excluded from all player-facing catalogs;
+2. run physical-touch, low-end-device, and forced-WebGL-context-loss checks;
+3. begin broader external human play checks once the normal-balance loop is
+   enjoyable.
 
 ## Non-negotiable technical rules
 
@@ -229,6 +248,9 @@ After that:
 ## First instruction for the new agent
 
 Read this handoff and `docs/status/current.md`, confirm the workspace is
-`/Users/adammuncie/GameDev/AnimalSurvivor`, run a quick `git status --short`,
-then start the recommended trait-visual socket integration. Do not recreate the
-old Documents workspace.
+`/Users/adammuncie/GameDev/AnimalSurvivor`, and run a quick `git status --short`.
+Do not recreate the old Documents workspace or reimplement completed trait
+socket, trait-command-presentation, or director-notice work. Start from the
+most recent hands-on feedback; if no human tester is available, run the listed
+gates and prepare the focused playtest/tuning work without claiming balance is
+validated.
