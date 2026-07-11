@@ -57,6 +57,37 @@ real deterministic simulation support.
   read directly by deterministic gameplay; it is normalized into the run-start
   loadout before a run begins.
 
+## Reviewed Opus swarm packet — 2026-07-11
+
+An independently produced, blind-swarm packet was audited against this alpha.
+Its four supplied standalone test suites pass locally, but it is reference
+material rather than merged game code. The current six-card neutral catalog,
+Starting Vitality values, and normal-mode contract remain canonical.
+
+- **Keep now:** truthful mechanic gating, capped anti-grind meta progression,
+  visible authored difficulty modifiers, and deterministic/fingerprinted
+  gameplay definitions are good constraints for later work.
+- **Do not merge yet:** Long Reach and Swift Pull duplicate the two parts of
+  current **XP Magnet**; Sparse Hunt and Long Breath need player-specific
+  director pressure hooks; Reckless Edge needs signed max-health handling and
+  deterministic clamp tests. Crit, mitigation, regeneration, dodge, Essence
+  scaling, Luck, rerolls, revive, and shields remain blocked on their named
+  systems.
+- **Balance lab:** the supplied CLI is a useful future design-tool foundation,
+  but its numbers are examples and several formulas must be adapted to live
+  data. After a human normal-mode run, port it outside gameplay packages and
+  calibrate it from the real config, universal catalog, director pressure, and
+  boss adapter values.
+- **Enemy behaviours:** the Runner/Charger/Tank/Zoner state machines are useful
+  design references, not drop-in simulation code. A future Runner slice must
+  add behavior state, explicit hit timing, snapshot/telegraph data, hashing,
+  replay, pause, and slot-reuse coverage before it replaces the current simple
+  seek/contact behavior. It follows—not precedes—the normal-mode playtest.
+- **Modes:** Hard, Brutal, and Hardcore Endless remain future work. If adopted,
+  their identities must derive from canonical authored definitions, and
+  Hardcore should require both complete core meta progression and a Brutal
+  victory—not just an opaque unlock flag.
+
 ## Determinism and replay contract
 
 - The level curve, universal catalog/order/ranks, XP-magnet state, offer queue,

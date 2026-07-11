@@ -276,6 +276,11 @@ human playtesting.
   explicitly deferred, not hidden or partially shipped.
 - Essence and Starting Vitality are a local-browser first pass, not cloud saves,
   cross-device progression, a full menu, or a finished meta economy.
+- An independently supplied Opus swarm packet was audited and all four of its
+  standalone suites pass locally. It is retained as design reference only;
+  [`docs/progression-roadmap.md`](docs/progression-roadmap.md) records the
+  accepted guardrails and why no packet is being merged ahead of the required
+  human normal-mode playtest.
 - Trait-command timing, lifetimes, sizes, and colours need hands-on feedback;
   the current effects are deliberately bounded primitive cues, not final art.
 - Zone, mark, chain, melee, and shield command kinds remain explicitly rejected
