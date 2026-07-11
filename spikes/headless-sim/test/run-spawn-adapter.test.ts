@@ -41,6 +41,21 @@ test('maps elite and boss roles with explicit health multipliers', () => {
   ]);
 });
 
+test('uses the tuned default boss multiplier when content does not override it', () => {
+  const out: DirectedEnemySpawn[] = [];
+  const boss = {
+    ...spawnEvent('enemy:boss', 'ring', 1),
+    kind: 'bossRequested' as const,
+    intent: { ...spawnEvent('enemy:boss', 'ring', 1).intent!, boss: true },
+  };
+  createRunSpawnAdapter().execute([boss], {
+    playerX: 0, playerY: 0, worldWidth: 1_000, worldHeight: 1_000,
+    spawn: (request) => { out.push(request); return true; },
+  });
+
+  assert.equal(out[0]?.hpMultiplier, 18);
+});
+
 test('reports pool rejection and unsupported content without throwing', () => {
   const adapter = createRunSpawnAdapter();
   const stats = adapter.execute([spawnEvent('enemy:unknown', 'cluster'), spawnEvent('enemy:runner', 'lane', 2)], {

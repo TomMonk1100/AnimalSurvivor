@@ -76,7 +76,7 @@ test('primes tick zero, replaces legacy waves, and executes authored boss placem
   const slot = sim.enemies.data.alive.indexOf(1);
   assert.notEqual(slot, -1);
   assert.equal(sim.enemies.data.archetype[slot], 2);
-  assert.equal(sim.enemies.data.maxHp[slot], DEFAULT_CONFIG.archetypes[2]!.hp * 30);
+  assert.equal(sim.enemies.data.maxHp[slot], DEFAULT_CONFIG.archetypes[2]!.hp * 18);
   const bossId = sim.enemies.idOf(slot);
   const hashBeforePresentationRead = sim.hash();
   assert.equal(sim.enemyPresentationRole(bossId), RUN_ENEMY_ROLE.boss);

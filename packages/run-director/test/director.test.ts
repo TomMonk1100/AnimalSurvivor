@@ -60,6 +60,15 @@ test('boss warning precedes boss request; request fires exactly once at 39,600',
   assert.ok(warn!.seq < reqs[0]!.seq);
 });
 
+test('boss entrance owns its tick without a concurrent discretionary wave', () => {
+  const d = new RunDirector({ seed: 41 });
+  const events = runEveryTick(d, 0, 39_600)
+    .filter((event) => event.tick === 39_600);
+
+  assert.equal(events.filter((event) => event.kind === 'bossRequested').length, 1);
+  assert.equal(events.filter((event) => event.kind === 'spawnRequested').length, 0);
+});
+
 test('reaching tick 43,200 with a live boss enters overtime, not victory', () => {
   const d = new RunDirector({ seed: 5 });
   const events = runEveryTick(d, 0, 43_200); // no boss defeat ever

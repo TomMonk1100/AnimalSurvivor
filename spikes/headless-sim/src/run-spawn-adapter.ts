@@ -87,7 +87,10 @@ function mapping(intent: RunSpawnIntentView, eliteMultiplier: number, bossMultip
 export function createRunSpawnAdapter(options: RunSpawnAdapterOptions = {}) {
   const distanceScale = options.distanceScale ?? 20;
   const eliteMultiplier = options.eliteHpMultiplier ?? 5;
-  const bossMultiplier = options.bossHpMultiplier ?? 30;
+  // The first playable Greg boss needs a real response period before the
+  // 12-minute boundary. This remains an adapter-owned temporary tune until
+  // boss health moves into versioned run content.
+  const bossMultiplier = options.bossHpMultiplier ?? 18;
   for (const [name, value] of Object.entries({ distanceScale, eliteMultiplier, bossMultiplier })) {
     if (!Number.isFinite(value) || value <= 0) throw new RangeError(`${name} must be finite and positive`);
   }

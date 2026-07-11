@@ -143,6 +143,10 @@ Path: `apps/web-toy/`
 - Bounded primitive feedback pools show ordinary attacks, hits, pickups, and
   deaths as short additive fading rings alongside trait effects, without
   mutating gameplay state.
+- The first alpha pacing tune sends three-unit fodder waves through a readable
+  arc at 200–320 world units rather than a close surround. The boss owns its
+  entrance tick, and its temporary adapter multiplier is 18× (1,440 HP) while
+  the broader progression/boss balance work is built.
 - Director events present phase, elite, boss, overtime, victory, and defeat
   notices. Elites and bosses have distinct bounded instanced primitive roles.
 - App-owned enemy snapshots copy current and maximum health, so a persistent,
@@ -183,11 +187,11 @@ Path: `apps/web-toy/`
 All checks below ran successfully from
 `/Users/adammuncie/GameDev/AnimalSurvivor` on 2026-07-11:
 
-- Headless simulation: 161/161 tests passed; typecheck and lint passed.
+- Headless simulation: 162/162 tests passed; typecheck and lint passed.
 - Trait runtime: 58/58 tests passed; typecheck and lint passed.
-- Run director: 61/61 tests passed; typecheck and lint passed.
+- Run director: 62/62 tests passed; typecheck and lint passed.
 - Web toy: 177/177 tests passed; typecheck, lint, and production build passed.
-- Total: 457 passing automated tests.
+- Total: 459 passing automated tests.
 - Web production build passed: 1,235 modules transformed. The current main
   JavaScript bundle is about 2.03 MB minified (523 kB gzip); Vite reports the
   expected chunk-size warning.

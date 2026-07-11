@@ -166,9 +166,13 @@ export class RunDirector {
       return this.buffer.drain();
     }
 
-    // 5. Discretionary spawns at T (only while running).
+    // 5. Discretionary spawns at T (only while running). The authored boss
+    // owns its exact entrance tick: a concurrent ordinary wave turns the
+    // introduction into unreadable clutter and undercuts the warning beat.
     const phase = phaseAt(this.def, T);
-    const decisions = serviceSpawns(this.state, this.def, phase, metrics, T);
+    const decisions = T === this.def.boss.requestTick
+      ? []
+      : serviceSpawns(this.state, this.def, phase, metrics, T);
     for (const d of decisions) {
       const intent: SpawnIntent = {
         archetypeId: d.archetypeId,
