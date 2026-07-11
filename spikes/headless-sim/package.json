@@ -1,0 +1,19 @@
+{
+  "name": "headless-sim",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Renderer-free deterministic simulation spike for AnimalSurvivor",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --skipLibCheck",
+    "typecheck": "tsc -p tsconfig.json --noEmit --skipLibCheck",
+    "test": "tsc -p tsconfig.json --skipLibCheck && node --test \"dist/test/**/*.test.js\"",
+    "lint": "node scripts/lint.mjs",
+    "bench": "tsc -p tsconfig.json --skipLibCheck && node dist/bench/bench.js",
+    "bench:projectiles": "tsc -p tsconfig.json --skipLibCheck && node dist/bench/projectile-bench.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.6.0"
+  }
+}

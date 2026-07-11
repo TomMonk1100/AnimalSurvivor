@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>Animal Survivor Concept Test</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-rounded, system-ui, sans-serif;
+        background: #101629;
+        color: #fff9e8;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 50% 0%, #27345d, #101629 60%); }
+      main { width: min(1040px, 92vw); margin: 0 auto; padding: 48px 0 64px; }
+      nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 44px; }
+      .mark { font-weight: 900; letter-spacing: .08em; color: #ffcf69; }
+      .toggle { display: flex; gap: 8px; }
+      button { border: 1px solid #ffffff33; border-radius: 999px; padding: 10px 16px; background: #ffffff0d; color: inherit; cursor: pointer; }
+      button[aria-pressed="true"] { background: #69dfc4; color: #101629; border-color: transparent; }
+      .hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; }
+      h1 { font-size: clamp(3rem, 7vw, 6.4rem); line-height: .9; margin: 0 0 24px; max-width: 10ch; }
+      .lede { font-size: clamp(1.1rem, 2.2vw, 1.45rem); line-height: 1.5; color: #d9dded; max-width: 620px; }
+      .art { aspect-ratio: 4 / 3; border: 1px solid #ffffff22; border-radius: 32px; display: grid; place-items: center; background: linear-gradient(145deg, #ffffff12, #ffffff05); overflow: hidden; }
+      .art img { width: 100%; height: 100%; object-fit: cover; display: none; }
+      .placeholder { padding: 32px; text-align: center; color: #aeb6d4; }
+      ul { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; list-style: none; padding: 0; margin: 36px 0; }
+      li { padding: 16px; border-radius: 18px; background: #ffffff0b; border: 1px solid #ffffff16; }
+      .cta { background: #ffcf69; color: #101629; border: 0; font-weight: 900; font-size: 1.05rem; padding: 15px 24px; }
+      footer { margin-top: 56px; color: #8993b5; font-size: .9rem; }
+      @media (max-width: 760px) { .hero { grid-template-columns: 1fr; } ul { grid-template-columns: 1fr; } nav { align-items: flex-start; gap: 20px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <div class="mark">PROJECT WILDFORM</div>
+        <div class="toggle" aria-label="Pitch variant">
+          <button id="show-a" aria-pressed="true">Pitch A</button>
+          <button id="show-b" aria-pressed="false">Pitch B</button>
+        </div>
+      </nav>
+      <section class="hero">
+        <div>
+          <h1 id="headline">Build the animal. Become the legend.</h1>
+          <p class="lede" id="subhead">Survive the swarm while every power visibly changes your hero. Grow quills, sonar ears, beetle armor, electric tails, and stranger combinations until your cute animal becomes a one-of-a-kind mythic creature.</p>
+          <ul>
+            <li>Movement-only combat</li>
+            <li>Every major upgrade appears</li>
+            <li>Pair traits into mythic forms</li>
+            <li>Save every final creature</li>
+          </ul>
+          <button class="cta" id="interest">I would play this</button>
+        </div>
+        <div class="art">
+          <img id="concept-art" src="../../assets/concepts/gate0-board-a-storybook-wildguard.png" alt="A fox visibly evolving from a natural hero into a low-poly mythic creature" style="display:block" />
+        </div>
+      </section>
+      <footer>This is an unpaid concept test for a serious hobby project. No signup or tracking is active.</footer>
+    </main>
+    <script>
+      const copy = {
+        a: {
+          headline: "Build the animal. Become the legend.",
+          subhead: "Survive the swarm while every power visibly changes your hero. Grow quills, sonar ears, beetle armor, electric tails, and stranger combinations until your cute animal becomes a one-of-a-kind mythic creature."
+        },
+        b: {
+          headline: "Every run creates a new species of hero.",
+          subhead: "Start small, outgrow the swarm, and evolve a familiar animal into a beautifully bizarre champion. Your final silhouette is the story of every choice you made."
+        }
+      };
+      function show(variant) {
+        document.querySelector("#headline").textContent = copy[variant].headline;
+        document.querySelector("#subhead").textContent = copy[variant].subhead;
+        document.querySelector("#show-a").setAttribute("aria-pressed", String(variant === "a"));
+        document.querySelector("#show-b").setAttribute("aria-pressed", String(variant === "b"));
+      }
+      document.querySelector("#show-a").addEventListener("click", () => show("a"));
+      document.querySelector("#show-b").addEventListener("click", () => show("b"));
+      document.querySelector("#interest").addEventListener("click", (event) => {
+        event.currentTarget.textContent = "Interest recorded for this local test";
+        event.currentTarget.disabled = true;
+      });
+    </script>
+  </body>
+</html>

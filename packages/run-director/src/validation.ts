@@ -1,0 +1,383 @@
+/**
+ * AGENT A — OWNED.
+ *
+ * Pure content validation. `validateDefinition` throws an Error with a clear
+ * message on the FIRST violation found (fail-fast, deterministic order).
+ * Never mutates its input.
+ */
+
+import type {
+  ArchetypeDefinition,
+  EliteBeatDefinition,
+  PhaseDefinition,
+  RunDefinition,
+} from './contracts.js';
+import { OPEN_END } from './contracts.js';
+import {
+  BOSS_ENTRANCE_TICK,
+  RUN_DURATION_TICKS,
+  RUN_PHASE_ORDER,
+  type ArchetypeId,
+  type RunPhaseId,
+} from './ids.js';
+
+/* ============================================================================
+ * Small numeric helpers
+ * ==========================================================================*/
+
+function isPosInt(value: number): boolean {
+  return Number.isFinite(value) && Number.isInteger(value) && value > 0;
+}
+
+function isNonNegInt(value: number): boolean {
+  return Number.isFinite(value) && Number.isInteger(value) && value >= 0;
+}
+
+/* ============================================================================
+ * Public entry point
+ * ==========================================================================*/
+
+export function validateDefinition(def: RunDefinition): void {
+  validateDuration(def);
+  const phaseById = validatePhases(def);
+  const archetypeIds = validateArchetypes(def);
+  validateEliteBeats(def, phaseById, archetypeIds);
+  validateBoss(def, archetypeIds);
+  validateThreat(def);
+  validateWaves(def, archetypeIds);
+  validateOvertime(def, archetypeIds);
+  validateEventBuffer(def);
+}
+
+/* ============================================================================
+ * Duration
+ * ==========================================================================*/
+
+function validateDuration(def: RunDefinition): void {
+  if (def.durationTicks !== RUN_DURATION_TICKS) {
+    throw new Error(
+      `validateDefinition: durationTicks must equal RUN_DURATION_TICKS (${RUN_DURATION_TICKS}), got ${def.durationTicks}`,
+    );
+  }
+}
+
+/* ============================================================================
+ * Phases
+ * ==========================================================================*/
+
+function validatePhases(def: RunDefinition): ReadonlyMap<RunPhaseId, PhaseDefinition> {
+  if (def.phases.length !== RUN_PHASE_ORDER.length) {
+    throw new Error(
+      `validateDefinition: expected exactly ${RUN_PHASE_ORDER.length} phases (one per RUN_PHASE_ORDER entry), got ${def.phases.length}`,
+    );
+  }
+
+  const byId = new Map<RunPhaseId, PhaseDefinition>();
+  for (const phase of def.phases) {
+    if (byId.has(phase.id)) {
+      throw new Error(`validateDefinition: duplicate phase id "${phase.id}"`);
+    }
+    byId.set(phase.id, phase);
+  }
+
+  for (const id of RUN_PHASE_ORDER) {
+    if (!byId.has(id)) {
+      throw new Error(`validateDefinition: missing required phase "${id}"`);
+    }
+  }
+
+  let previous: PhaseDefinition | null = null;
+  for (const id of RUN_PHASE_ORDER) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const phase = byId.get(id)!;
+
+    if (!Number.isFinite(phase.startTick) || !Number.isInteger(phase.startTick)) {
+      throw new Error(`validateDefinition: phase "${id}" startTick must be an integer`);
+    }
+    if (phase.endTick !== OPEN_END && (!Number.isFinite(phase.endTick) || !Number.isInteger(phase.endTick))) {
+      throw new Error(`validateDefinition: phase "${id}" endTick must be an integer or OPEN_END`);
+    }
+    if (phase.startTick > phase.endTick) {
+      throw new Error(`validateDefinition: phase "${id}" startTick must be <= endTick`);
+    }
+    if (!isPosInt(phase.softCap)) {
+      throw new Error(`validateDefinition: phase "${id}" softCap must be a positive integer`);
+    }
+    if (!isPosInt(phase.hardCap)) {
+      throw new Error(`validateDefinition: phase "${id}" hardCap must be a positive integer`);
+    }
+    if (phase.softCap >= phase.hardCap) {
+      throw new Error(`validateDefinition: phase "${id}" softCap must be < hardCap`);
+    }
+    if (!isPosInt(phase.threatPerTick)) {
+      throw new Error(`validateDefinition: phase "${id}" threatPerTick must be a positive integer`);
+    }
+
+    if (previous === null) {
+      if (phase.startTick !== 0) {
+        throw new Error(`validateDefinition: first phase "${id}" must start at tick 0`);
+      }
+    } else {
+      if (phase.startTick !== previous.endTick + 1) {
+        throw new Error(
+          `validateDefinition: phase "${id}" must start immediately after previous phase ends (expected startTick ${
+            previous.endTick + 1
+          }, got ${phase.startTick})`,
+        );
+      }
+    }
+    previous = phase;
+  }
+
+  const overtime = byId.get('overtime');
+  if (!overtime || overtime.endTick !== OPEN_END) {
+    throw new Error('validateDefinition: overtime phase endTick must equal OPEN_END');
+  }
+
+  return byId;
+}
+
+/* ============================================================================
+ * Archetypes
+ * ==========================================================================*/
+
+function validateArchetypes(def: RunDefinition): ReadonlySet<ArchetypeId> {
+  const ids = new Set<ArchetypeId>();
+  for (const archetype of def.archetypes) {
+    if (ids.has(archetype.id)) {
+      throw new Error(`validateDefinition: duplicate archetype id "${archetype.id}"`);
+    }
+    ids.add(archetype.id);
+    validateArchetypeFields(archetype);
+  }
+  return ids;
+}
+
+function validateArchetypeFields(archetype: ArchetypeDefinition): void {
+  const subject = `archetype "${archetype.id}"`;
+  if (!isPosInt(archetype.cost)) {
+    throw new Error(`validateDefinition: ${subject} cost must be a positive integer`);
+  }
+  if (!isPosInt(archetype.weight)) {
+    throw new Error(`validateDefinition: ${subject} weight must be a positive integer`);
+  }
+  if (!isPosInt(archetype.count)) {
+    throw new Error(`validateDefinition: ${subject} count must be a positive integer`);
+  }
+  if (!isNonNegInt(archetype.minDistance)) {
+    throw new Error(`validateDefinition: ${subject} minDistance must be a non-negative integer`);
+  }
+  if (!isNonNegInt(archetype.maxDistance)) {
+    throw new Error(`validateDefinition: ${subject} maxDistance must be a non-negative integer`);
+  }
+  if (archetype.minDistance > archetype.maxDistance) {
+    throw new Error(`validateDefinition: ${subject} minDistance must be <= maxDistance`);
+  }
+}
+
+/* ============================================================================
+ * Elite beats
+ * ==========================================================================*/
+
+const REQUIRED_ELITE_PHASES: readonly RunPhaseId[] = ['pressure', 'adaptation', 'mutation'];
+
+function validateEliteBeats(
+  def: RunDefinition,
+  phaseById: ReadonlyMap<RunPhaseId, PhaseDefinition>,
+  archetypeIds: ReadonlySet<ArchetypeId>,
+): void {
+  if (def.eliteBeats.length !== 3) {
+    throw new Error(
+      `validateDefinition: expected exactly 3 elite beats, got ${def.eliteBeats.length}`,
+    );
+  }
+
+  const seenIds = new Set<string>();
+  const seenPhases = new Set<RunPhaseId>();
+
+  for (const beat of def.eliteBeats) {
+    if (seenIds.has(beat.id)) {
+      throw new Error(`validateDefinition: duplicate elite beat id "${beat.id}"`);
+    }
+    seenIds.add(beat.id);
+
+    validateEliteBeatFields(beat, phaseById, archetypeIds);
+
+    if (!REQUIRED_ELITE_PHASES.includes(beat.phaseId)) {
+      throw new Error(
+        `validateDefinition: elite beat "${beat.id}" phaseId must be one of ${REQUIRED_ELITE_PHASES.join(', ')}`,
+      );
+    }
+    if (seenPhases.has(beat.phaseId)) {
+      throw new Error(
+        `validateDefinition: more than one elite beat targets phase "${beat.phaseId}"`,
+      );
+    }
+    seenPhases.add(beat.phaseId);
+  }
+
+  for (const id of REQUIRED_ELITE_PHASES) {
+    if (!seenPhases.has(id)) {
+      throw new Error(`validateDefinition: missing elite beat for phase "${id}"`);
+    }
+  }
+}
+
+function validateEliteBeatFields(
+  beat: EliteBeatDefinition,
+  phaseById: ReadonlyMap<RunPhaseId, PhaseDefinition>,
+  archetypeIds: ReadonlySet<ArchetypeId>,
+): void {
+  const subject = `elite beat "${beat.id}"`;
+  const phase = phaseById.get(beat.phaseId);
+  if (!phase) {
+    throw new Error(`validateDefinition: ${subject} references unknown phase "${beat.phaseId}"`);
+  }
+  if (!Number.isFinite(beat.warningTick) || !Number.isInteger(beat.warningTick)) {
+    throw new Error(`validateDefinition: ${subject} warningTick must be an integer`);
+  }
+  if (!Number.isFinite(beat.requestTick) || !Number.isInteger(beat.requestTick)) {
+    throw new Error(`validateDefinition: ${subject} requestTick must be an integer`);
+  }
+  if (beat.warningTick >= beat.requestTick) {
+    throw new Error(`validateDefinition: ${subject} warningTick must be < requestTick`);
+  }
+  if (beat.warningTick < phase.startTick || beat.warningTick > phase.endTick) {
+    throw new Error(`validateDefinition: ${subject} warningTick must lie inside phase "${beat.phaseId}"`);
+  }
+  if (beat.requestTick < phase.startTick || beat.requestTick > phase.endTick) {
+    throw new Error(`validateDefinition: ${subject} requestTick must lie inside phase "${beat.phaseId}"`);
+  }
+  if (!archetypeIds.has(beat.archetypeId)) {
+    throw new Error(`validateDefinition: ${subject} references unknown archetype "${beat.archetypeId}"`);
+  }
+  if (!isPosInt(beat.count)) {
+    throw new Error(`validateDefinition: ${subject} count must be a positive integer`);
+  }
+  if (!isNonNegInt(beat.minDistance)) {
+    throw new Error(`validateDefinition: ${subject} minDistance must be a non-negative integer`);
+  }
+  if (!isNonNegInt(beat.maxDistance)) {
+    throw new Error(`validateDefinition: ${subject} maxDistance must be a non-negative integer`);
+  }
+  if (beat.minDistance > beat.maxDistance) {
+    throw new Error(`validateDefinition: ${subject} minDistance must be <= maxDistance`);
+  }
+}
+
+/* ============================================================================
+ * Boss
+ * ==========================================================================*/
+
+function validateBoss(def: RunDefinition, archetypeIds: ReadonlySet<ArchetypeId>): void {
+  const boss = def.boss;
+  if (!Number.isFinite(boss.warningTick) || !Number.isInteger(boss.warningTick)) {
+    throw new Error('validateDefinition: boss warningTick must be an integer');
+  }
+  if (!Number.isFinite(boss.requestTick) || !Number.isInteger(boss.requestTick)) {
+    throw new Error('validateDefinition: boss requestTick must be an integer');
+  }
+  if (boss.requestTick !== BOSS_ENTRANCE_TICK) {
+    throw new Error(
+      `validateDefinition: boss requestTick must equal BOSS_ENTRANCE_TICK (${BOSS_ENTRANCE_TICK}), got ${boss.requestTick}`,
+    );
+  }
+  if (boss.warningTick >= boss.requestTick) {
+    throw new Error('validateDefinition: boss warningTick must be < requestTick');
+  }
+  if (boss.warningTick < 0) {
+    throw new Error('validateDefinition: boss warningTick must be >= 0');
+  }
+  if (!archetypeIds.has(boss.archetypeId)) {
+    throw new Error(`validateDefinition: boss references unknown archetype "${boss.archetypeId}"`);
+  }
+  if (!isNonNegInt(boss.minDistance)) {
+    throw new Error('validateDefinition: boss minDistance must be a non-negative integer');
+  }
+  if (!isNonNegInt(boss.maxDistance)) {
+    throw new Error('validateDefinition: boss maxDistance must be a non-negative integer');
+  }
+  if (boss.minDistance > boss.maxDistance) {
+    throw new Error('validateDefinition: boss minDistance must be <= maxDistance');
+  }
+}
+
+/* ============================================================================
+ * Threat
+ * ==========================================================================*/
+
+function validateThreat(def: RunDefinition): void {
+  const threat = def.threat;
+  if (!isNonNegInt(threat.initialBudget)) {
+    throw new Error('validateDefinition: threat.initialBudget must be a non-negative integer');
+  }
+  if (!isPosInt(threat.maxBudget)) {
+    throw new Error('validateDefinition: threat.maxBudget must be a positive integer');
+  }
+  if (threat.maxBudget < threat.initialBudget) {
+    throw new Error('validateDefinition: threat.maxBudget must be >= threat.initialBudget');
+  }
+}
+
+/* ============================================================================
+ * Waves
+ * ==========================================================================*/
+
+function validateWaves(def: RunDefinition, archetypeIds: ReadonlySet<ArchetypeId>): void {
+  const waves = def.waves;
+  if (!isPosInt(waves.intervalTicks)) {
+    throw new Error('validateDefinition: waves.intervalTicks must be a positive integer');
+  }
+  for (const id of RUN_PHASE_ORDER) {
+    const eligible = waves.phaseArchetypes[id];
+    if (!eligible || eligible.length === 0) {
+      throw new Error(`validateDefinition: waves.phaseArchetypes["${id}"] must be a non-empty array`);
+    }
+    for (const archetypeId of eligible) {
+      if (!archetypeIds.has(archetypeId)) {
+        throw new Error(
+          `validateDefinition: waves.phaseArchetypes["${id}"] references unknown archetype "${archetypeId}"`,
+        );
+      }
+    }
+  }
+}
+
+/* ============================================================================
+ * Overtime
+ * ==========================================================================*/
+
+function validateOvertime(def: RunDefinition, archetypeIds: ReadonlySet<ArchetypeId>): void {
+  const overtime = def.overtime;
+  if (!isPosInt(overtime.supportIntervalTicks)) {
+    throw new Error('validateDefinition: overtime.supportIntervalTicks must be a positive integer');
+  }
+  if (!archetypeIds.has(overtime.archetypeId)) {
+    throw new Error(`validateDefinition: overtime references unknown archetype "${overtime.archetypeId}"`);
+  }
+  if (!isPosInt(overtime.count)) {
+    throw new Error('validateDefinition: overtime.count must be a positive integer');
+  }
+  if (!isNonNegInt(overtime.minDistance)) {
+    throw new Error('validateDefinition: overtime.minDistance must be a non-negative integer');
+  }
+  if (!isNonNegInt(overtime.maxDistance)) {
+    throw new Error('validateDefinition: overtime.maxDistance must be a non-negative integer');
+  }
+  if (overtime.minDistance > overtime.maxDistance) {
+    throw new Error('validateDefinition: overtime.minDistance must be <= overtime.maxDistance');
+  }
+  if (!isPosInt(overtime.maxSupportWaves)) {
+    throw new Error('validateDefinition: overtime.maxSupportWaves must be a positive integer');
+  }
+}
+
+/* ============================================================================
+ * Event buffer
+ * ==========================================================================*/
+
+function validateEventBuffer(def: RunDefinition): void {
+  if (!isPosInt(def.eventBufferCapacity) || def.eventBufferCapacity < 64) {
+    throw new Error('validateDefinition: eventBufferCapacity must be a positive integer >= 64');
+  }
+}

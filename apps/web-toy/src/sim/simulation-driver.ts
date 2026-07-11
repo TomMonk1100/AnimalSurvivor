@@ -1,0 +1,298 @@
+/**
+ * Agent A — fixed-tick simulation driver. Wraps a `@sim` Simulation with a
+ * wall-clock accumulator so gameplay always advances in fixed `1/config.hz`
+ * increments, independent of frame rate. Owns the app's double-buffered
+ * interpolation snapshots (see snapshot-producer.ts / ../contracts.ts).
+ *
+ * FROZEN INTEGRATION RULES THIS FILE FOLLOWS:
+ *   - Wall-clock delta is NEVER passed into sim.step(); the sim only ever
+ *     sees fixed `dt = 1/config.hz` ticks.
+ *   - Exactly one canonical TickInput is produced per simulation tick, via
+ *     `input.sample(sim.tick, paused)`.
+ *   - While paused, no time is accumulated and no gameplay ticks are
+ *     stepped; the driver simply holds the last snapshots.
+ *   - Catch-up is capped at MAX_CATCHUP_TICKS ticks per frame(); any
+ *     accumulator time still in excess after that is discarded and recorded
+ *     in `droppedAccumSec`, so a long stall can never spiral into an
+ *     unbounded burst of ticks.
+ */
+import type { InputSource, RenderSnapshot, TickInput } from '../contracts';
+import { createSimulation } from '@sim';
+import type {
+  SimConfig,
+  Simulation,
+  SimulationOptions,
+  TraitUpgradeOfferView,
+  TraitVisualAttachmentView,
+  UpgradeSelection,
+  RunDirectorEventView,
+  RunOutcomeView,
+  RunPhaseView,
+} from '@sim';
+import { captureSnapshot, createSnapshot } from './snapshot-producer';
+
+/** Max simulation ticks stepped within a single frame() call. */
+export const MAX_CATCHUP_TICKS = 5;
+
+/**
+ * Any single frame() wall-clock delta larger than this (seconds) is treated
+ * as a stall (e.g. debugger pause, unrelated jank) rather than legitimate
+ * elapsed time: the excess above this threshold is dropped before the
+ * catch-up loop even runs. `noteVisible` is the primary defense against
+ * hidden-tab gaps; this is a defensive backstop for gaps that arrive as a
+ * single large frameDelta without an intervening noteVisible call.
+ */
+const HARD_CLAMP_SEC = 0.25;
+
+/**
+ * Tolerance for the `accumulator >= dt` "is a tick due" comparison. Wall-clock
+ * timestamps (e.g. performance.now()) grow unboundedly over a long session;
+ * subtracting two large-but-close doubles loses precision at roughly this
+ * scale, which can otherwise misclassify a legitimately-due tick as "not yet"
+ * and stall the accumulator by one tick's worth of time. The epsilon is many
+ * orders of magnitude smaller than any real dt (>= 1/1000s), so it never
+ * causes a tick to fire early in practice.
+ */
+const TICK_EPS = 1e-7;
+
+export interface SimDriver {
+  /** Snapshot captured at the tick boundary BEFORE the most recent step(s). */
+  readonly prev: RenderSnapshot;
+  /** Snapshot captured at the tick boundary AFTER the most recent step(s). */
+  readonly curr: RenderSnapshot;
+  /** Fractional progress toward the next tick, in [0, 1). Interpolate prev->curr by this. */
+  readonly alpha: number;
+  /** Ticks stepped during the most recent frame() call. */
+  readonly ticksLastFrame: number;
+  /** Accumulated sim time (seconds) discarded by clamping/the catch-up cap on the most recent frame() call. */
+  readonly droppedAccumSec: number;
+  readonly tick: number;
+  readonly enemiesLive: number;
+  readonly enemiesHigh: number;
+  readonly projLive: number;
+  readonly projHigh: number;
+  readonly pickupsLive: number;
+  readonly pickupsHigh: number;
+  /** Offers awaiting the player's deterministic level-up choice. */
+  readonly pendingUpgradeOffers: readonly TraitUpgradeOfferView[];
+  /** True while fixed-tick advancement is blocked on an upgrade choice. */
+  readonly upgradeSelectionPending: boolean;
+  readonly runOutcome: RunOutcomeView | null;
+  readonly runPhase: RunPhaseView | null;
+  readonly directorEvents: readonly RunDirectorEventView[];
+  hash(): string;
+  selectUpgrade(traitId: string): UpgradeSelection;
+  traitVisualState(): readonly TraitVisualAttachmentView[];
+  /**
+   * Advance the driver by one rendered frame. `nowMs` is wall-clock time
+   * (e.g. from a rAF callback or performance.now()). Steps zero or more
+   * fixed-dt simulation ticks, each fed by exactly one `input.sample(...)`
+   * call, then updates `prev`/`curr`/`alpha` for the renderer to interpolate.
+   */
+  frame(nowMs: number, input: InputSource, paused: boolean): void;
+  /**
+   * Call when the tab/page regains visibility after being hidden. Resets the
+   * wall-clock reference point so the hidden gap is never observed as a
+   * frameDelta, preventing an unbounded catch-up burst on the next frame().
+   */
+  noteVisible(nowMs: number): void;
+  /** Rebuilds the simulation with a new seed and resets the driver's clock/snapshots. */
+  restart(seed: number): void;
+}
+
+function clamp01(v: number): number {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+export function createSimDriver(
+  config: SimConfig,
+  seed: number,
+  options: SimulationOptions = {},
+): SimDriver {
+  const dt = 1 / config.hz;
+
+  let sim: Simulation = createSimulation(config, seed, options);
+
+  // Double-buffered interpolation snapshots. We never reassign the buffers'
+  // internal typed arrays — only which buffer plays the "prev" vs "curr"
+  // role, by swapping these two references.
+  let bufA: RenderSnapshot = createSnapshot(config);
+  let bufB: RenderSnapshot = createSnapshot(config);
+  let currBuf = bufA;
+  let prevBuf = bufB;
+
+  let lastNowMs: number | null = null;
+  let accumulator = 0;
+  let alpha = 0;
+  let ticksLastFrame = 0;
+  let droppedAccumSec = 0;
+  const frameDirectorEvents: RunDirectorEventView[] = [];
+  let inFrame = false;
+
+  function primeSnapshots(): void {
+    // Both buffers start identical (the sim's initial state) so a renderer
+    // that reads prev/curr before any tick has stepped gets a valid, stable
+    // pose instead of zeroed-out garbage.
+    captureSnapshot(currBuf, sim);
+    captureSnapshot(prevBuf, sim);
+  }
+  primeSnapshots();
+
+  function frame(nowMs: number, input: InputSource, paused: boolean): void {
+    if (inFrame) {
+      throw new Error('SimDriver.frame() called reentrantly');
+    }
+    inFrame = true;
+    try {
+      const frameDeltaMs = lastNowMs === null ? 0 : nowMs - lastNowMs;
+      lastNowMs = nowMs;
+
+      ticksLastFrame = 0;
+      droppedAccumSec = 0;
+      frameDirectorEvents.length = 0;
+
+      if (paused || sim.upgradeSelectionPending) {
+        // Do not accumulate time and do not step gameplay ticks. prev/curr/
+        // alpha are left exactly as they were; the renderer keeps showing
+        // the last interpolated pose. An upgrade prompt is a simulation-owned
+        // pause: updating lastNowMs above prevents prompt dwell time from
+        // becoming a catch-up burst, while the pre-existing accumulator is
+        // retained for a clean resume after selection.
+        return;
+      }
+
+      let frameDeltaSec = frameDeltaMs / 1000;
+      if (frameDeltaSec < 0) {
+        // Defensive: a non-monotonic clock must never run time backwards.
+        frameDeltaSec = 0;
+      }
+      if (frameDeltaSec > HARD_CLAMP_SEC) {
+        droppedAccumSec += frameDeltaSec - HARD_CLAMP_SEC;
+        frameDeltaSec = HARD_CLAMP_SEC;
+      }
+
+      accumulator += frameDeltaSec;
+
+      let stepped = 0;
+      while (accumulator + TICK_EPS >= dt && stepped < MAX_CATCHUP_TICKS) {
+        // Rotate and capture on EVERY stepped tick. After a multi-tick catch-up
+        // burst, prev/curr must represent the final two adjacent tick states,
+        // not the state before the entire burst and the final state.
+        const tmp = prevBuf;
+        prevBuf = currBuf;
+        currBuf = tmp;
+        const tickInput: TickInput = input.sample(sim.tick, false);
+        sim.step(tickInput);
+        for (const event of sim.directorEvents) frameDirectorEvents.push(event);
+        captureSnapshot(currBuf, sim);
+        accumulator -= dt;
+        stepped++;
+        if (sim.upgradeSelectionPending) {
+          // A level-up choice is a tick boundary. Do not consume any more of
+          // this frame's already-accumulated time until the choice is made.
+          break;
+        }
+      }
+
+      if (!sim.upgradeSelectionPending && accumulator + TICK_EPS >= dt) {
+        // Catch-up cap hit and time is still owed. Never let it spiral:
+        // discard whole-tick multiples of the excess, keeping only the
+        // sub-dt remainder so `alpha` stays well-defined and continuous.
+        const keep = accumulator % dt;
+        droppedAccumSec += accumulator - keep;
+        accumulator = keep;
+      }
+
+      ticksLastFrame = stepped;
+      // Present the exact boundary snapshot while the upgrade chooser is up;
+      // accumulator time is preserved independently for post-choice resume.
+      alpha = sim.upgradeSelectionPending ? 0 : clamp01(accumulator / dt);
+    } finally {
+      inFrame = false;
+    }
+  }
+
+  function noteVisible(nowMs: number): void {
+    lastNowMs = nowMs;
+  }
+
+  function restart(newSeed: number): void {
+    if (inFrame) {
+      throw new Error('SimDriver.restart() called during frame()');
+    }
+    sim = createSimulation(config, newSeed, options);
+    accumulator = 0;
+    lastNowMs = null;
+    alpha = 0;
+    ticksLastFrame = 0;
+    droppedAccumSec = 0;
+    frameDirectorEvents.length = 0;
+    primeSnapshots();
+  }
+
+  return {
+    get prev() {
+      return prevBuf;
+    },
+    get curr() {
+      return currBuf;
+    },
+    get alpha() {
+      return alpha;
+    },
+    get ticksLastFrame() {
+      return ticksLastFrame;
+    },
+    get droppedAccumSec() {
+      return droppedAccumSec;
+    },
+    get tick() {
+      return sim.tick;
+    },
+    get enemiesLive() {
+      return sim.enemies.data.count;
+    },
+    get enemiesHigh() {
+      return sim.enemies.data.highWater;
+    },
+    get projLive() {
+      return sim.projectiles.data.count;
+    },
+    get projHigh() {
+      return sim.projectiles.data.highWater;
+    },
+    get pickupsLive() {
+      return sim.pickups.data.count;
+    },
+    get pickupsHigh() {
+      return sim.pickups.data.highWater;
+    },
+    get pendingUpgradeOffers() {
+      return sim.pendingUpgradeOffers;
+    },
+    get upgradeSelectionPending() {
+      return sim.upgradeSelectionPending;
+    },
+    get runOutcome() {
+      return sim.runOutcome;
+    },
+    get runPhase() {
+      return sim.runPhase;
+    },
+    get directorEvents() {
+      return frameDirectorEvents;
+    },
+    hash() {
+      return sim.hash();
+    },
+    selectUpgrade(traitId: string) {
+      return sim.selectUpgrade(traitId);
+    },
+    traitVisualState() {
+      return sim.traitVisualState();
+    },
+    frame,
+    noteVisible,
+    restart,
+  };
+}

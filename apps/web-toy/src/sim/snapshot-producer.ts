@@ -1,0 +1,104 @@
+/**
+ * Agent A — produces app-owned RenderSnapshot objects (see ../contracts.ts)
+ * from live simulation state. Snapshots are flat, preallocated, read-only
+ * copies: nothing here ever writes to the simulation's live typed arrays.
+ */
+import type { CategorySnapshot, RenderSnapshot, ViewCategory } from '../contracts';
+import type { EnemyPool, PickupPool, Pool, ProjectilePool, SimConfig, Simulation } from '@sim';
+
+/** Projectiles have no radius field in the sim pool; used only for the view. */
+const PROJECTILE_VIEW_RADIUS = 3;
+
+function createCategorySnapshot(category: ViewCategory, capacity: number): CategorySnapshot {
+  return {
+    category,
+    count: 0,
+    id: new Int32Array(capacity),
+    x: new Float32Array(capacity),
+    y: new Float32Array(capacity),
+    radius: new Float32Array(capacity),
+    archetype: new Uint8Array(capacity),
+  };
+}
+
+/**
+ * Allocates a RenderSnapshot with each CategorySnapshot buffer preallocated
+ * to the matching pool capacity. Buffers are reused every tick thereafter —
+ * never resized in the steady-state loop.
+ */
+export function createSnapshot(config: SimConfig): RenderSnapshot {
+  return {
+    tick: 0,
+    playerX: 0,
+    playerY: 0,
+    playerRadius: 0,
+    playerHp: 0,
+    playerAlive: false,
+    enemies: createCategorySnapshot('enemy', config.enemyCap),
+    projectiles: createCategorySnapshot('projectile', config.projectileCap),
+    pickups: createCategorySnapshot('pickup', config.pickupCap),
+  };
+}
+
+function captureEnemies(out: CategorySnapshot, pool: Pool<EnemyPool>): void {
+  const data = pool.data;
+  let n = 0;
+  for (let slot = 0; slot < data.capacity; slot++) {
+    if (data.alive[slot] !== 1) continue;
+    out.id[n] = pool.idOf(slot);
+    out.x[n] = data.posX[slot]!;
+    out.y[n] = data.posY[slot]!;
+    out.radius[n] = data.radius[slot]!;
+    out.archetype[n] = data.archetype[slot]!;
+    n++;
+  }
+  out.count = n;
+}
+
+function captureProjectiles(out: CategorySnapshot, pool: Pool<ProjectilePool>): void {
+  const data = pool.data;
+  let n = 0;
+  for (let slot = 0; slot < data.capacity; slot++) {
+    if (data.alive[slot] !== 1) continue;
+    out.id[n] = pool.idOf(slot);
+    out.x[n] = data.posX[slot]!;
+    out.y[n] = data.posY[slot]!;
+    out.radius[n] = PROJECTILE_VIEW_RADIUS;
+    out.archetype[n] = 0;
+    n++;
+  }
+  out.count = n;
+}
+
+function capturePickups(out: CategorySnapshot, pool: Pool<PickupPool>): void {
+  const data = pool.data;
+  let n = 0;
+  for (let slot = 0; slot < data.capacity; slot++) {
+    if (data.alive[slot] !== 1) continue;
+    out.id[n] = pool.idOf(slot);
+    out.x[n] = data.posX[slot]!;
+    out.y[n] = data.posY[slot]!;
+    out.radius[n] = data.radius[slot]!;
+    out.archetype[n] = 0;
+    n++;
+  }
+  out.count = n;
+}
+
+/**
+ * Fills `out` IN PLACE from the simulation's current state. Read-only with
+ * respect to `sim` — never writes to any sim array. Allocation-free: reuses
+ * `out`'s existing typed-array buffers.
+ */
+export function captureSnapshot(out: RenderSnapshot, sim: Simulation): void {
+  out.tick = sim.tick;
+  out.playerX = sim.player.x;
+  out.playerY = sim.player.y;
+  out.playerRadius = sim.player.radius;
+  out.playerHp = sim.player.hp;
+  out.playerAlive = sim.player.alive;
+
+  captureEnemies(out.enemies, sim.enemies);
+  captureProjectiles(out.projectiles, sim.projectiles);
+  capturePickups(out.pickups, sim.pickups);
+}
