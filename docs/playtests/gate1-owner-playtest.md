@@ -22,7 +22,12 @@ and player-facing; `?debug=1` exposes diagnostics and engineering controls.
 - Move with **WASD** or the **arrow keys** on desktop.
 - On touch devices, use the lower-left virtual joystick.
 - Greg attacks automatically; movement is the only required combat control.
-- Choose one animal adaptation whenever the upgrade card pauses the run.
+- Choose one animal adaptation whenever the upgrade card pauses the run. The
+  first card receives keyboard focus; press **1**, **2**, or **3**, or use
+  **Tab** then **Enter**, to select an offer.
+- On touch, the lower-left joystick shows a floating thumb while you drag and
+  clears it when you release. Pause, Restart run, and terminal Play again have
+  44px-high touch targets.
 - A live boss shows a purple **The Final Threat** health bar. At the end of a
   run, use **Play again** on the outcome card to restart the same seed.
 
@@ -40,6 +45,10 @@ and player-facing; `?debug=1` exposes diagnostics and engineering controls.
    Do "Inhale", "Gather", and "Quill storm" match what you see on screen?
 5. If offered both Adapted traits, take them to form **Thornstorm Mantle**.
    Does its sequence read as: telegraph, pull enemies in, then radial quills?
+6. At an upgrade choice, try keyboard selection: does the first card already
+   have focus, do **1**/**2**/**3** match the visible offers, and does
+   **Tab** + **Enter** work as expected? On a touch emulation/device, does the
+   joystick thumb follow the drag and disappear on release?
 
 ## Optional accelerated boss/run-flow check
 
@@ -55,6 +64,8 @@ Short answers are enough:
 
 - Movement: smooth / delayed / backwards / confusing, plus one example.
 - Upgrade clarity: which card or active effect was unclear?
+- Interaction: did keyboard upgrade selection, the joystick thumb, or the
+  44px Pause/Restart/Play again controls feel unclear or awkward?
 - Combat readability: could you tell why enemies moved, died, or were pushed?
 - Boss/end flow, if seen: did the boss bar make progress clear, and was **Play
   again** obvious after the outcome?

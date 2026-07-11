@@ -52,6 +52,28 @@ export function createVirtualJoystick(zone: HTMLElement, opts: VirtualJoystickOp
   let vecY = 0;
   let pointerId: number | null = null;
 
+  function clamp(value: number, minimum: number, maximum: number): number {
+    return Math.min(maximum, Math.max(minimum, value));
+  }
+
+  /** Decorative feedback only: it never participates in TickInput math. */
+  function showThumb(screenOffsetX: number, screenOffsetY: number): void {
+    const rect = zone.getBoundingClientRect();
+    const originLocalX = clamp(originX - rect.left, 0, rect.width);
+    const originLocalY = clamp(originY - rect.top, 0, rect.height);
+    const thumbX = clamp(originLocalX + screenOffsetX, 0, rect.width);
+    const thumbY = clamp(originLocalY + screenOffsetY, 0, rect.height);
+    zone.style.setProperty('--joystick-thumb-x', `${thumbX}px`);
+    zone.style.setProperty('--joystick-thumb-y', `${thumbY}px`);
+    zone.dataset.active = 'true';
+  }
+
+  function hideThumb(): void {
+    zone.dataset.active = 'false';
+    zone.style.removeProperty('--joystick-thumb-x');
+    zone.style.removeProperty('--joystick-thumb-y');
+  }
+
   function computeRadius(): number {
     if (opts.maxRadius !== undefined) return opts.maxRadius;
     const rect = zone.getBoundingClientRect();
@@ -74,6 +96,7 @@ export function createVirtualJoystick(zone: HTMLElement, opts: VirtualJoystickOp
     pointerId = null;
     vecX = 0;
     vecY = 0;
+    hideThumb();
   }
 
   function onPointerDown(e: PointerEvent): void {
@@ -84,6 +107,7 @@ export function createVirtualJoystick(zone: HTMLElement, opts: VirtualJoystickOp
     maxRadius = computeRadius();
     vecX = 0;
     vecY = 0;
+    showThumb(0, 0);
     if (typeof zone.setPointerCapture === 'function') {
       try {
         zone.setPointerCapture(e.pointerId);
@@ -103,12 +127,14 @@ export function createVirtualJoystick(zone: HTMLElement, opts: VirtualJoystickOp
     if (mag === 0) {
       vecX = 0;
       vecY = 0;
+      showThumb(0, 0);
       return;
     }
     const clampedMag = Math.min(mag, maxRadius);
     const ratio = maxRadius > 0 ? clampedMag / maxRadius : 0;
     vecX = (dx / mag) * ratio;
     vecY = (dy / mag) * ratio;
+    showThumb((dx / mag) * clampedMag, (dyScreen / mag) * clampedMag);
   }
 
   function onPointerMove(e: PointerEvent): void {
@@ -143,6 +169,7 @@ export function createVirtualJoystick(zone: HTMLElement, opts: VirtualJoystickOp
   window.addEventListener('pointerup', onPointerUp as EventListener);
   window.addEventListener('pointercancel', onPointerCancel as EventListener);
   window.addEventListener('blur', onWindowBlur);
+  hideThumb();
 
   return {
     vector(): Vec2 {

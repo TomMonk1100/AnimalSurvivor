@@ -25,13 +25,16 @@ Open the local Vite URL printed in the terminal (normally
   bottom-left virtual joystick.
 - Greg automatically attacks nearby enemies; there is no aiming control.
 - When Greg levels up, the game pauses at an upgrade choice. Click a card to
-  continue the run.
+  continue the run. The first card receives keyboard focus; press **1**, **2**,
+  or **3**, or use **Tab** then **Enter**, to choose without a mouse.
 - **Porcupine Quills** fires quill bursts. **Puffer Pouch** pulls nearby enemies
   in, then upgrades into a wider knockback pulse. Adapt both paths to evolve
   them into **Thornstorm Mantle**, which gathers enemies before a radial quill
   storm.
 - The normal interface stays compact and player-facing. Append `?debug=1` to
   expose the diagnostic HUD and engineering controls for repeatable checks.
+- On touch, the floating joystick thumb follows each drag. **Pause**, **Restart
+  run**, and terminal **Play again** controls use 44px-high touch targets.
 - A live boss exposes a persistent **The Final Threat** health bar. At victory or
   defeat, the outcome card offers **Play again** to restart the same seed.
 

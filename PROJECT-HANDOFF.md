@@ -141,6 +141,10 @@ Path: `apps/web-toy/`
   **Play again** for a same-seed restart.
 - The normal web-toy HUD and controls are compact and player-facing;
   `?debug=1` restores diagnostics and engineering controls for local checks.
+- Upgrade prompts focus the first offer, allow **1**/**2**/**3** direct picks,
+  and preserve **Tab** + **Enter** navigation. The touch joystick has a
+  floating drag thumb; Pause, Restart run, and terminal Play again use 44px
+  touch targets.
 - `?autopilot=1&stress=1&fullrun=1` extends the deterministic first-offer stress
   harness from 18,000 to the 43,200-tick authored boundary for boss/run-flow UI
   checks; it is not normal-balance evidence.
@@ -153,9 +157,9 @@ All checks below ran successfully from
 - Headless simulation: 161/161 tests passed; typecheck and lint passed.
 - Trait runtime: 58/58 tests passed; typecheck and lint passed.
 - Run director: 61/61 tests passed; typecheck and lint passed.
-- Web toy: 155/155 tests passed; typecheck, lint, and production build passed.
-- Total: 435 passing automated tests.
-- Web production build passed: 1,228 modules transformed. The current main
+- Web toy: 159/159 tests passed; typecheck, lint, and production build passed.
+- Total: 439 passing automated tests.
+- Web production build passed: 1,230 modules transformed. The current main
   JavaScript bundle is about 2.02 MB minified (521 kB gzip); Vite reports the
   expected chunk-size warning.
 - Concrete simulation + real TraitRuntime + real RunDirector replay reproduced
@@ -228,7 +232,8 @@ Scope:
 
 1. Test corrected vertical movement, locomotion smoothness, upgrade-card and
    Active Adaptations comprehension, combat/trait callouts, and elite/boss
-   readability, boss-health progress, and terminal **Play again** flow on desktop.
+   readability, boss-health progress, terminal **Play again** flow, keyboard
+   upgrade selection, and touch joystick feedback on desktop/mobile.
 2. Record concrete observations at the relevant trait or director event rather
    than inferring balance from the autoplay fixture.
 3. Tune only the bounded renderer-facing cue lifetimes, sizes, colours, and

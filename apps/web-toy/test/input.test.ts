@@ -133,6 +133,33 @@ describe('virtual joystick', () => {
     joystick.dispose();
   });
 
+  it('updates a decorative floating-thumb position without changing input math', () => {
+    Object.defineProperty(zone, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        left: 10, top: 20, right: 210, bottom: 220, width: 200, height: 200,
+      }),
+    });
+    const joystick = createVirtualJoystick(zone);
+
+    zone.dispatchEvent(pointerEvent('pointerdown', { clientX: 60, clientY: 70 }));
+    expect(zone.dataset.active).toBe('true');
+    expect(zone.style.getPropertyValue('--joystick-thumb-x')).toBe('50px');
+    expect(zone.style.getPropertyValue('--joystick-thumb-y')).toBe('50px');
+
+    window.dispatchEvent(pointerEvent('pointermove', { clientX: 90, clientY: 50 }));
+    expect(zone.style.getPropertyValue('--joystick-thumb-x')).toBe('80px');
+    expect(zone.style.getPropertyValue('--joystick-thumb-y')).toBe('30px');
+    expect(joystick.vector().x).toBeCloseTo(0.3);
+    expect(joystick.vector().y).toBeCloseTo(0.2);
+
+    window.dispatchEvent(pointerEvent('pointerup', { clientX: 90, clientY: 50 }));
+    expect(zone.dataset.active).toBe('false');
+    expect(zone.style.getPropertyValue('--joystick-thumb-x')).toBe('');
+    expect(zone.style.getPropertyValue('--joystick-thumb-y')).toBe('');
+    joystick.dispose();
+  });
+
   it('maps an upward drag (decreasing clientY) to a positive Y component', () => {
     const joystick = createVirtualJoystick(zone);
     zone.dispatchEvent(pointerEvent('pointerdown', { clientX: 100, clientY: 100 }));

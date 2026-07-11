@@ -49,10 +49,12 @@ driver hash, tick, controls, and stop method.
 | ?autopilot=1&stress=1 | Step up to five simulation ticks per rendered frame and auto-pause at tick 18,000. Stress mode selects the first pending upgrade deterministically so it does not stall. |
 | ?autopilot=1&stress=1&fullrun=1 | Keep the same accelerated, first-offer stress path through the 43,200-tick authored boundary instead of stopping at 18,000. It can exercise boss and terminal UI if Greg survives; it is not a normal-balance result. |
 | ?autopilot=1&stress=1&renderstress=1 | Also feed a renderer-only fixture of 1,000 enemies, 500 projectiles, and 200 pickups to the GPU; it does not alter simulation state or hash. |
+| **Upgrade choices** | The first card receives focus when the run pauses. Press **1**, **2**, or **3** for the matching offered card, or use normal **Tab** + **Enter** button navigation. |
+| **Virtual joystick** | Drag inside the lower-left zone to move. A floating thumb follows the clamped drag and disappears on release, cancel, or focus loss. |
 | **Pause / Resume** | Stops stepping. A paused frame advances no clock, RNG, entity state, trait runtime, or run director. |
 | **Restart run** | Rebuilds the integrated run from the current seed in the compact player-facing controls. |
 | **Restart w/ seed** (debug) | Rebuilds the integrated run from the seed in the debug text box. |
-| **Play again** | Appears on a terminal victory/defeat card and restarts the current seed without requiring debug controls. |
+| **Play again** | Appears on a terminal victory/defeat card and restarts the current seed without requiring debug controls. Pause, Restart run, and Play again have 44px-high touch targets. |
 | **Autopilot: ON/OFF** (debug) | Toggles the pure-function-of-tick stress input. |
 | **Renderer: ON/OFF** (debug) | Detaches or attaches GPU rendering while simulation keeps running, so local A/B checks can confirm that rendering does not affect gameplay. |
 
@@ -68,9 +70,12 @@ combined Mythic. They are real runtime content rather than display-only cards.
 | **Thornstorm Mantle** | Mythic mantle that replaces its ingredients | Telegraphs, gathers enemies, then emits a radial quill storm. |
 
 The upgrade cards name the socket, stage, practical effect, and Mythic pairing.
-After a choice, the **Active Adaptations** panel remains visible and describes
-the build's effect and cadence. The player-facing HUD leads with Greg's health,
-level, XP, and the movement/auto-fire reminder before diagnostic values.
+When they appear, the first card takes keyboard focus: **1**, **2**, and **3**
+select matching offers, while **Tab** + **Enter** follows ordinary button
+navigation. After a choice, the **Active Adaptations** panel remains visible and
+describes the build's effect and cadence. The player-facing HUD leads with
+Greg's health, level, XP, and the movement/auto-fire reminder before diagnostic
+values.
 
 The simulation emits executed trait commands into a presentation-only stream.
 The renderer turns supported commands into short-lived, fixed-pool ground
@@ -181,7 +186,7 @@ Run from apps/web-toy:
 | npm ci | Installs the locked browser-tooling dependency set. |
 | npm run typecheck | Strict TypeScript, including noUncheckedIndexedAccess. |
 | npm run lint | ESLint with --max-warnings 0; app-source Math.random is banned. |
-| npm test | The current suite contains **155 tests** across the driver, input, snapshots, presentation, real integrated run replay, and renderer-facing helpers. |
+| npm test | The current suite contains **159 tests** across the driver, input, snapshots, presentation, real integrated run replay, and renderer-facing helpers. |
 | npm run build | Strict typecheck plus a Vite production build. |
 
 The suite covers accumulator exactness, catch-up and hidden-tab behavior,
@@ -228,8 +233,10 @@ To repeat useful checks locally:
 4. **Read-only rendering A/B:** add `?debug=1`, then toggle **Renderer: OFF/ON**
    while autopilot runs. The simulation/hash should continue identically with
    draw calls shown as zero while rendering is detached.
-5. **Mobile layout:** emulate 390 x 844; check the lower-left joystick and
-   ensure the page has no horizontal overflow.
+5. **Mobile layout and input:** emulate 390 x 844; check that the lower-left
+   joystick thumb follows a drag and resets on release, that Pause/Restart run
+   and terminal Play again are comfortable 44px targets, and that the page has
+   no horizontal overflow.
 6. **Context loss:** use a browser's WEBGL_lose_context facility if available;
    confirm the context banner pauses the run and restoration resumes without an
    unexpected hash discontinuity.

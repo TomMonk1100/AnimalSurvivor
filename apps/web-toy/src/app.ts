@@ -29,6 +29,7 @@ import { projectTraitCueCallout, type TraitCueCallout } from './presentation/tra
 import { presentBossHealth } from './presentation/boss-health';
 import { presentRunSummary } from './presentation/run-summary';
 import { presentUpgrade } from './presentation/upgrade-copy';
+import { upgradeShortcutIndex } from './presentation/upgrade-shortcuts';
 
 /** Deterministic 32-bit seed from a string (djb2). Used only for UI convenience. */
 function seedFromString(s: string): number {
@@ -148,6 +149,16 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     directorRoot.append(title, detail);
   }
 
+  /** One presentation-owned path for click and keyboard upgrade selections. */
+  function chooseUpgrade(traitId: string): void {
+    if (!driver.upgradeSelectionPending) return;
+    driver.selectUpgrade(traitId);
+    activeInput().clear();
+    driver.noteVisible(syntheticDriverNow);
+    renderedOfferKey = '';
+    renderUpgradeChoices();
+  }
+
   function renderUpgradeChoices(): void {
     const offers = driver.pendingUpgradeOffers;
     const key = offers.map((offer) => `${offer.traitId}:${offer.resultStage}`).join('|');
@@ -158,14 +169,23 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     if (!driver.upgradeSelectionPending) return;
 
     const heading = document.createElement('h2');
+    heading.id = 'upgrade-choices-heading';
     heading.textContent = 'Choose an animal adaptation';
     upgradeRoot.appendChild(heading);
-    for (const offer of offers) {
+    const shortcutHint = document.createElement('p');
+    shortcutHint.id = 'upgrade-choices-shortcuts';
+    shortcutHint.className = 'upgrade-shortcuts';
+    shortcutHint.textContent = offers.length === 1
+      ? 'Press 1, or Tab + Enter to choose.'
+      : `Press 1–${offers.length}, or Tab + Enter to choose.`;
+    upgradeRoot.appendChild(shortcutHint);
+    for (const [index, offer] of offers.entries()) {
       const presentation = presentUpgrade(offer, driver.traitVisualState());
       const choice = document.createElement('button');
       choice.type = 'button';
+      choice.setAttribute('aria-keyshortcuts', String(index + 1));
       const title = document.createElement('strong');
-      title.textContent = `${presentation.title} — ${presentation.badge}`;
+      title.textContent = `${index + 1}. ${presentation.title} — ${presentation.badge}`;
       const socket = document.createElement('small');
       socket.textContent = presentation.socket;
       const description = document.createElement('span');
@@ -177,14 +197,21 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
         choice.appendChild(hint);
       }
       choice.addEventListener('click', () => {
-        driver.selectUpgrade(offer.traitId);
-        activeInput().clear();
-        driver.noteVisible(syntheticDriverNow);
-        renderedOfferKey = '';
-        renderUpgradeChoices();
+        chooseUpgrade(offer.traitId);
       });
       upgradeRoot.appendChild(choice);
     }
+    upgradeRoot.querySelector<HTMLButtonElement>('button')?.focus();
+  }
+
+  function onUpgradeShortcut(event: KeyboardEvent): void {
+    if (!driver.upgradeSelectionPending) return;
+    const index = upgradeShortcutIndex(event, driver.pendingUpgradeOffers.length);
+    if (index === null) return;
+    const offer = driver.pendingUpgradeOffers[index];
+    if (offer === undefined) return;
+    event.preventDefault();
+    chooseUpgrade(offer.traitId);
   }
 
   /** Rebuild only when a deterministic upgrade changes the active build. */
@@ -354,6 +381,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   // ---- lifecycle listeners -------------------------------------------------
   const onResize = (): void => renderer.resize();
   window.addEventListener('resize', onResize);
+  window.addEventListener('keydown', onUpgradeShortcut);
 
   const onBlur = (): void => {
     keyboardInput.clear();
@@ -471,6 +499,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     running = false;
     cancelAnimationFrame(raf);
     window.removeEventListener('resize', onResize);
+    window.removeEventListener('keydown', onUpgradeShortcut);
     window.removeEventListener('blur', onBlur);
     document.removeEventListener('visibilitychange', onVisibility);
     keyboardInput.dispose();
