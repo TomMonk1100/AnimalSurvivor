@@ -25,6 +25,7 @@ import { createHud } from './diagnostics/debug-hud';
 import type { RendererAdapter } from './contracts';
 import { projectDirectorEvent, type DirectorNotice } from './presentation/director-notices';
 import { presentActiveAdaptations } from './presentation/active-adaptations';
+import { projectTraitCueCallout, type TraitCueCallout } from './presentation/trait-cue-callout';
 import { presentRunSummary } from './presentation/run-summary';
 import { presentUpgrade } from './presentation/upgrade-copy';
 
@@ -76,6 +77,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const upgradeRoot = document.getElementById('upgrade-choices') as HTMLElement;
   const outcomeRoot = document.getElementById('run-outcome') as HTMLElement;
   const directorRoot = document.getElementById('director-notice') as HTMLElement;
+  const traitCalloutRoot = document.getElementById('trait-callout') as HTMLElement;
 
   const driver: SimDriver = createSimDriver(config, initialSeed, {
     traitRuntimeFactory,
@@ -100,6 +102,9 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   let renderedAdaptationsKey = '';
   let activeDirectorNotice: DirectorNotice | null = null;
   let renderedDirectorKey = '';
+  let activeTraitCallout: TraitCueCallout | null = null;
+  let renderedTraitCalloutKey = '';
+  let lastTraitCalloutTick = -1;
 
   function renderDirectorNotice(): void {
     for (const event of driver.directorEvents) {
@@ -189,6 +194,31 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       root.append(title, effect, cadence);
       adaptationsRoot.appendChild(root);
     }
+  }
+
+  /** Names only real commands from the current Greg slice; gameplay never reads this state. */
+  function renderTraitCallout(): void {
+    if (driver.tick < lastTraitCalloutTick) activeTraitCallout = null;
+    lastTraitCalloutTick = driver.tick;
+    for (const event of driver.traitPresentationEvents) {
+      const callout = projectTraitCueCallout(event);
+      if (callout !== null) activeTraitCallout = callout;
+    }
+    if (activeTraitCallout !== null && driver.tick >= activeTraitCallout.expiresAtTick) {
+      activeTraitCallout = null;
+    }
+    const key = activeTraitCallout?.key ?? '';
+    if (key === renderedTraitCalloutKey && traitCalloutRoot.hidden === (activeTraitCallout === null)) return;
+    renderedTraitCalloutKey = key;
+    traitCalloutRoot.replaceChildren();
+    traitCalloutRoot.hidden = activeTraitCallout === null;
+    if (activeTraitCallout === null) return;
+    traitCalloutRoot.dataset.tone = activeTraitCallout.tone;
+    const title = document.createElement('strong');
+    title.textContent = activeTraitCallout.title;
+    const detail = document.createElement('span');
+    detail.textContent = activeTraitCallout.detail;
+    traitCalloutRoot.append(title, detail);
   }
 
   function renderRunOutcome(): void {
@@ -311,6 +341,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     }
     renderUpgradeChoices();
     renderAdaptations();
+    renderTraitCallout();
     renderDirectorNotice();
     renderRunOutcome();
     if (stressMode && driver.tick >= stressStopTicks && !controls.paused) {
@@ -337,11 +368,18 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       cachedHash = driver.hash();
       const rs = renderer.stats();
       const [, frameP95Ms, frameP99Ms] = perf.percentiles();
+      const playerSnapshot = driver.curr;
+      const nextXpIndex = Math.max(0, playerSnapshot.playerLevel - 1);
       const stats: HudStats = {
         fps: perf.fps,
         frameTimeMs: perf.frameTimeMs,
         frameP95Ms,
         frameP99Ms,
+        playerHp: playerSnapshot.playerHp,
+        playerMaxHp: config.player.maxHp,
+        playerXp: playerSnapshot.playerXp,
+        playerLevel: playerSnapshot.playerLevel,
+        playerNextXp: config.xpThresholds[nextXpIndex] ?? null,
         simTick: driver.tick,
         ticksLastFrame: driver.ticksLastFrame,
         droppedAccumSec: driver.droppedAccumSec,

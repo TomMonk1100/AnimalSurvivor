@@ -50,6 +50,8 @@ function fillSnapshot(
   out.playerY = config.player.startY;
   out.playerRadius = config.player.radius;
   out.playerHp = config.player.maxHp;
+  out.playerXp = 0;
+  out.playerLevel = 1;
   out.playerAlive = true;
   fillCategory(out.enemies, enemies, 40, 9, out.playerX, out.playerY, 3.5, tick);
   fillCategory(out.projectiles, projectiles, 25, 8, out.playerX, out.playerY, 2, tick + 37);

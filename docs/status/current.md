@@ -84,6 +84,12 @@
 - A persistent Active Adaptations panel now keeps each selected build's effect
   and cadence visible after the choice card closes, including Thornstorm's
   telegraph-to-gather-to-storm sequence.
+- The player-facing HUD now leads with Greg's health, level, cumulative XP,
+  and the desktop movement/auto-fire reminder; its original performance data
+  remains below that playtest information.
+- Short callouts name real Puffer and Thornstorm actions at the instant they
+  execute, making pulls, pushes, gathering, and the radial quill storm legible
+  without altering authoritative simulation state.
 - Greg now has a renderer-only locomotion projector with bounded turning and
   movement hysteresis; repeated automatic attacks no longer restart an active
   attack clip.

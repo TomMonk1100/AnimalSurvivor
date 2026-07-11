@@ -34,6 +34,8 @@ export function createSnapshot(config: SimConfig): RenderSnapshot {
     playerY: 0,
     playerRadius: 0,
     playerHp: 0,
+    playerXp: 0,
+    playerLevel: 1,
     playerAlive: false,
     enemies: createCategorySnapshot('enemy', config.enemyCap),
     projectiles: createCategorySnapshot('projectile', config.projectileCap),
@@ -101,6 +103,8 @@ export function captureSnapshot(out: RenderSnapshot, sim: Simulation): void {
   out.playerY = sim.player.y;
   out.playerRadius = sim.player.radius;
   out.playerHp = sim.player.hp;
+  out.playerXp = sim.player.xp;
+  out.playerLevel = sim.player.level;
   out.playerAlive = sim.player.alive;
 
   captureEnemies(out.enemies, sim);

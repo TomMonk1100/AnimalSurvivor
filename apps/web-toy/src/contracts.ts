@@ -88,6 +88,10 @@ export interface RenderSnapshot {
   playerY: number;
   playerRadius: number;
   playerHp: number;
+  /** Experience copied at the tick boundary; never read live by the renderer. */
+  playerXp: number;
+  /** Current player level copied at the tick boundary. */
+  playerLevel: number;
   playerAlive: boolean;
   readonly enemies: CategorySnapshot;
   readonly projectiles: CategorySnapshot;
@@ -142,6 +146,13 @@ export interface HudStats {
   frameTimeMs: number;
   frameP95Ms: number;
   frameP99Ms: number;
+  /** Player-facing values copied from the app-owned current tick snapshot. */
+  playerHp: number;
+  playerMaxHp: number;
+  playerXp: number;
+  playerLevel: number;
+  /** Next cumulative XP threshold, or null once the configured table is exhausted. */
+  playerNextXp: number | null;
   simTick: number;
   /** Ticks advanced on the last frame (catch-up count). */
   ticksLastFrame: number;

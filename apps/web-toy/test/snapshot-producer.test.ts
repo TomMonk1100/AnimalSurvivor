@@ -76,3 +76,22 @@ describe('snapshot producer enemy presentation roles', () => {
     expect(sim.hash()).toBe(hashBeforeCapture);
   });
 });
+
+describe('snapshot producer player progression', () => {
+  it('copies player XP and level at the capture boundary', () => {
+    const sim = createSimulation(QUIET_CONFIG, 12);
+    const snapshot = createSnapshot(QUIET_CONFIG);
+    sim.player.xp = 47;
+    sim.player.level = 3;
+
+    captureSnapshot(snapshot, sim);
+
+    expect(snapshot.playerXp).toBe(47);
+    expect(snapshot.playerLevel).toBe(3);
+
+    sim.player.xp = 99;
+    sim.player.level = 4;
+    expect(snapshot.playerXp).toBe(47);
+    expect(snapshot.playerLevel).toBe(3);
+  });
+});
