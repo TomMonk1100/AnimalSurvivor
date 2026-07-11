@@ -35,7 +35,9 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          node-version: 24
+          # Keep npm's lockfile resolver stable with the version that generated
+          # apps/web-toy/package-lock.json.
+          node-version: 24.18.0
           cache: npm
           cache-dependency-path: ${{ matrix.lockfile }}
 
