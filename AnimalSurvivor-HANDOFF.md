@@ -182,7 +182,7 @@ All checks below ran successfully from
 - Run director: 61/61 tests passed; typecheck and lint passed.
 - Web toy: 176/176 tests passed; typecheck, lint, and production build passed.
 - Total: 456 passing automated tests.
-- Web production build passed: 1,233 modules transformed. The current main
+- Web production build passed: 1,234 modules transformed. The current main
   JavaScript bundle is about 2.03 MB minified (523 kB gzip); Vite reports the
   expected chunk-size warning.
 - Concrete simulation + real TraitRuntime + real RunDirector replay reproduced

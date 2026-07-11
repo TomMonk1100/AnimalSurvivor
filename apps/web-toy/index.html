@@ -125,8 +125,11 @@
         position: absolute;
         left: 16px;
         bottom: 16px;
-        width: 40%;
-        height: 45%;
+        /* Desktop primarily uses keys; keep its touch fallback discoverable
+           without letting an empty control zone dominate the arena. Narrow
+           touch layouts below retain their larger 42vw target. */
+        width: min(240px, 40vw);
+        height: min(240px, 45vh);
         overflow: hidden;
         touch-action: none;
         border: 1px dashed rgba(120, 150, 180, 0.28);
@@ -453,6 +456,11 @@
         transform-origin: left center;
         background: linear-gradient(90deg, #df6aff, #ffa4ef);
         transition: transform 120ms linear;
+      }
+      /* Keyboard/mouse play already has a visible movement reminder. Hide the
+         touch-only zone there so it does not cover useful arena space. */
+      @media (min-width: 601px) and (hover: hover) and (pointer: fine) {
+        #joystick { display: none; }
       }
       @media (max-width: 600px) {
         #hud {
