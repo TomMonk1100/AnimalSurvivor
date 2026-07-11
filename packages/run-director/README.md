@@ -15,12 +15,12 @@ benchmarks.
 Drives a 12-minute (43,200-tick @ 60 Hz) authored Greg run:
 
 - readable opening, then escalating pressure across authored phases;
-- three deterministic pre-boss elite beats;
-- a single boss entrance at tick 39,600;
+- six deterministic pre-boss elite beats that become more frequent late-run;
+- a single boss entrance at tick 36,000 (10:00);
 - **victory** when the boss is defeated after its entrance;
 - **defeat** the instant the player dies (permanent);
-- deterministic **overtime** if tick 43,200 is reached while the boss lives —
-  reaching the deadline never silently awards victory;
+- **defeat** at tick 43,200 if the boss still lives — normal mode has no hidden
+  overtime;
 - replay/save-safe state with canonical content and state hashes;
 - stable pacing regardless of renderer FPS or device speed.
 
@@ -92,15 +92,15 @@ callback, promise, or wall-clock timestamp.
 - **Repeated tick:** calling `step` with the current tick is an idempotent no-op
   (`[]`); a backward tick throws.
 - **Catch-up:** advancing from tick N to N+k processes all authored phase, elite,
-  warning, boss, overtime, and terminal events in `(N, N+k]` via bounded
+  warning, boss, and terminal events in `(N, N+k]` via bounded
   arithmetic — no per-tick loop over skipped ticks.
 - **Precedence:** if death and a valid boss defeat land on the same tick,
   **defeat wins**.
 - **Congestion:** the director respects per-phase soft/hard live-enemy caps.
   While at/over the hard cap it releases nothing. Deferred waves drain at most
   one per tick — congestion never produces an unbounded burst.
-- **Overtime support:** bounded and periodic (capped by `maxSupportWaves`); it
-  never grows without bound as the tick increases.
+- **Optional endless support:** an explicit endless definition may author
+  bounded periodic overtime support; the default normal definition does not.
 - **Event buffer:** fixed-capacity with a deterministic overflow policy
   (drop-oldest non-critical, with an overflow counter). Critical events
   (`victory`, `defeat`, `bossRequested`, `eliteRequested`) are never silently
@@ -110,17 +110,17 @@ callback, promise, or wall-clock timestamp.
 
 | Phase ID     | Tick range       | Purpose                                                   |
 | ------------ | ---------------: | --------------------------------------------------------- |
-| `opening`    | 0 – 7,199        | Teach movement and auto-attacks with low pressure.        |
-| `pressure`   | 7,200 – 17,999   | Mix basic and fast enemies; first elite at 12,000.        |
-| `adaptation` | 18,000 – 28,799  | Higher density; durable enemies; second elite at 24,000.  |
-| `mutation`   | 28,800 – 39,599  | Sustained mixed pressure; final pre-boss elite at 36,000. |
-| `boss`       | 39,600 – 43,199  | Boss spawned exactly once; supporting enemies capped.     |
-| `overtime`   | 43,200 onward    | Boss remains; bounded deterministic support waves.        |
+| `opening`    | 0 – 7,199        | Off-screen fodder approaches at the readable opening cadence. |
+| `pressure`   | 7,200 – 17,999   | Faster pressure, runners, and the first Spitters.         |
+| `adaptation` | 18,000 – 28,799  | Higher density, brutes, Spitters, and two elite beats.    |
+| `mutation`   | 28,800 – 35,999  | Sustained mixed pressure and three elite beats.            |
+| `boss`       | 36,000 – 43,199  | Boss spawned once; normal mode ends at 12:00.              |
 
-Elite beats: `elite:pressure-1` @ 12,000 (warn 11,700), `elite:adaptation-1` @
-24,000 (warn 23,700), `elite:mutation-1` @ 36,000 (warn 35,700). Boss request @
-39,600 (warn 38,400). Generic archetype ids only: `enemy:fodder`,
-`enemy:runner`, `enemy:brute`, `enemy:elite`, `enemy:boss`.
+Phase cadence is 75 / 60 / 45 / 30 / 36 ticks; phase soft/hard caps rise from
+10/18 to 36/56. Elite beats occur at 12,000; 20,400; 25,200; 29,400; 32,400;
+and 34,200 (each warned 300 ticks earlier). Boss request is 36,000 (warn
+34,800). Generic archetype ids: `enemy:fodder`, `enemy:runner`,
+`enemy:brute`, `enemy:spitter`, `enemy:elite`, `enemy:boss`.
 
 ## Package layout
 

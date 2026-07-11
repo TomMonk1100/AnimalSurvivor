@@ -265,6 +265,9 @@ export interface SimEvents {
   kills: number;
   pickupsCollected: number;
   enemiesSpawned: number;
+  /** Hostile projectiles emitted by enemy behavior this tick. */
+  enemyProjectilesFired: number;
+  /** Player and trait projectiles emitted this tick. */
   projectilesFired: number;
 }
 

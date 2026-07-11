@@ -60,8 +60,8 @@
   [`ADR 0008`](../decisions/0008-accept-run-director.md). Its 61 tests and lint
   pass. Saves are now bound to the exact authored content fingerprint.
 - The simulation now owns an optional run director through a structural port,
-  disables the legacy wave scheduler when it is active, maps the five authored
-  encounter roles onto the three prototype enemy archetypes, tracks boss
+  disables the legacy wave scheduler when it is active, maps six authored
+  encounter archetypes onto regular/ranged/elite/boss presentation roles, tracks boss
   identity and same-tick defeat, and includes run content/state in replay and
   canonical hashing. A concrete 600-tick run with the real trait and director
   packages completed deterministically; replay with a real trait selection
@@ -83,6 +83,10 @@
 - The first owner playtest found the vision promising. Screen-space vertical
   movement is corrected; upgrade cards now explain triggers, effects, sockets,
   Adapted improvements, and the Thornstorm pairing.
+- The follow-up owner playtest confirmed the Essence/Starting Vitality loop and
+  the new neutral cards, but found that Greg could stand still safely around
+  six to seven minutes. That specific density feedback drives the current
+  approach-wave, elite-reward, and ranged-pressure pass.
 - A persistent Active Adaptations panel now keeps each selected build's effect
   and cadence visible after the choice card closes, including Thornstorm's
   telegraph-to-gather-to-storm sequence.
@@ -108,10 +112,33 @@
 - Renderer-only combat cues now persist across fixed-tick catch-up. Their fixed
   primitive pools render ordinary attacks, pickups, hits, enemy deaths, and
   player death as short additive fading rings without mutating gameplay.
-- The first alpha pacing tune sends three-unit fodder waves through a readable
-  arc at 200–320 world units rather than a close surround. The boss owns its
-  entrance tick, and its temporary adapter multiplier is 18× (1,440 HP) while
-  the broader progression/boss balance work is built.
+- Ordinary fodder and runner waves now begin at 760–920 world units, with brute
+  and elite formations at 800–960. The deterministic placement adapter keeps a
+  complete formation at its authored radius or rejects it at an edge; it never
+  clamps an off-screen wave beside Greg. This is intended to make threats enter
+  from beyond the current camera boundary rather than spawn at attack range.
+- The boss is deliberately an exception at 400–480 world units, so its 10:00
+  entrance reaches combat within seconds instead of spending much of the short
+  response window walking in.
+- Pressure now rises through authored phase cadence/caps: opening 75 ticks with
+  10/18 live enemies; pressure 60 with 18/30; adaptation 45 with 30/48;
+  mutation 30 with 46/72; and boss 36 with 36/56. Levels 4, 6, and 8 each add
+  +1/+2 capacity and remove four cadence ticks, for a maximum of three steps.
+- Six warned elite beats now occur one/two/three times across pressure,
+  adaptation, and mutation (3:20; 5:40 and 7:00; 8:10, 9:00, and 9:30).
+  Temporary brute-mapped elites retain 5× HP but now award 6× their 4-XP base
+  drop—24 XP—with a visibly larger pickup.
+- Runners now weave deterministically while distant and seek directly close to
+  Greg. Elites skirmish at range, orbit or retreat, and fire orange-red hostile
+  projectiles after 72 ticks in firing range and then every 150 in-range ticks;
+  shots deal 8 damage and respect player invulnerability. Behavior state and
+  cooldowns participate in replay/hash state, and hostile projectile snapshots
+  remain visually distinct.
+- The cobalt **Spitter** is now a distinct normal-plus ranged archetype: it
+  joins pressure through mutation waves, awards 2 XP, holds the same skirmish
+  band, and fires slower 6-damage orange shots after its own 90/180-tick
+  in-range cadence. Its behavior, role, snapshot, fixed renderer batch, and
+  replay state are covered by targeted tests.
 - Actual executed trait commands now cross a presentation-only stream from the
   deterministic simulation through the fixed-tick driver. Puffer Pouch and
   Thornstorm therefore have distinct pooled telegraph, gather, knockback, and
@@ -124,8 +151,10 @@
   accessible **The Final Threat** bar appears only while the authoritative boss
   is alive; it remains a read-only presentation surface outside hash and replay
   state.
-- Terminal victory and defeat cards now include **Play again**, which restarts
-  the current seed without requiring the diagnostic control strip.
+- Terminal victory and defeat cards now use **Continue to upgrades**, which
+  returns to the prep screen without replaying the settled run. Starting
+  Vitality and Essence therefore appear only before a run, never in the active
+  combat HUD; a fresh deterministic run is created when the player starts again.
 - The normal web-toy HUD and controls are now compact and player-facing;
   `?debug=1` restores the diagnostic HUD and engineering controls for local
   checks.
@@ -156,13 +185,16 @@
   `main` pushes. It tests, lints, and builds the browser slice, then publishes
   only `apps/web-toy/dist` through GitHub Pages Actions once the repository
   owner enables Pages.
-- The progression alpha now has unbounded in-run XP, a mixed trait/neutral
-  chooser, real XP Magnet attraction, Essence Cache fallback, local Essence
-  settlement, and three ranks of next-run Starting Vitality. Normal mode is a
-  finite 12:00 run with a 10:00 boss and a bounded level-pressure ramp at
-  levels 4 and 7 (capacity plus 120→108→96-tick ordinary-wave cadence).
-- Current package test scripts report 186 headless-simulation, 58 trait-runtime,
-  68 run-director, and 194 web-toy tests: **506 passing tests** in total.
+- The progression alpha has unbounded in-run XP, a mixed trait/neutral chooser,
+  real XP Magnet attraction, Essence Cache fallback, local Essence settlement,
+  and three ranks of next-run Starting Vitality. Its profile is a prep-screen
+  decision, while normal mode remains a finite 12:00 run with a 10:00 boss.
+- The current post-pressure verification pass has **521 tests** across the
+  headless simulation (197), run director (71), trait runtime (58), and browser
+  app (195), plus typecheck, lint, and production-build gates. Dedicated tests
+  cover phase cadence, off-screen placement/edge rejection, 24-XP elite drops,
+  runner/Spitter/elite behavior, hostile shots, pause/hash parity, and hostile
+  snapshot presentation.
 - The project is now backed up in the private GitHub repository
   `TomMonk1100/AnimalSurvivor` on `main`.
 
@@ -170,13 +202,16 @@
 
 - Ten human concept interviews have not occurred.
 - No complete normal-balance run has been played end-to-end by a human in the
-  browser yet. The real integrated replay reaches a terminal outcome no later
-  than the normal cap and a short local browser smoke confirms the mixed chooser
-  and pause summary, but neither replaces hands-on pacing and clarity feedback.
+  browser yet. The owner has now tested the progression loop and supplied the
+  low-density feedback addressed above, but the revised pressure curve still
+  needs a fresh hands-on run. The real integrated replay reaches a terminal
+  outcome no later than the normal cap, but it does not replace pacing and
+  clarity feedback.
 - The `fullrun=1` browser stress option is an accelerated engineering path; it
   has not validated a normal-balance browser run, boss outcome, or human flow.
-- Low-end-device rendering remains unknown, but the instanced primitive fixture
-  now renders 1,000 enemies, 500 projectiles, and 200 pickups in four draw calls.
+- Low-end-device rendering remains unknown. The regular stress fixture still
+  renders 1,000 enemies, 500 friendly projectiles, and 200 pickups in four draw
+  calls; role-specific enemies and hostile shots add only bounded fixed batches.
 - Physical touch hardware and forced WebGL context-loss recovery remain untested.
 - GitHub Pages still requires a one-time owner choice in **Settings → Pages →
   Build and deployment → Source: GitHub Actions**. After that, the actual
@@ -188,6 +223,8 @@
   mix or authored foley, and needs hands-on volume/timing feedback.
 - Elite and boss roles are visually distinct primitives, but still need final
   authored meshes, animation, and richer entrance behavior.
+- The normal-plus Spitter is implemented, but broader enemy families and
+  additional player attack families still need content, balance, and playtests.
 
 Gate 1 is allowed to proceed at risk because this is a zero-cash AI-built hobby
 project. Gate 2 cannot pass without real human playtesting.
@@ -205,15 +242,20 @@ evidence is in
 1. If a hosted build is needed for a tester, enable GitHub Pages with **Settings
    → Pages → Build and deployment → Source: GitHub Actions**, then use the URL
    reported by a green `Publish web-toy preview` deployment from `main`.
-2. Run a second hands-on desktop playtest focused on corrected controls,
-   locomotion feel, upgrade comprehension, optional sound feedback,
-   combat/trait feedback, and elite/boss readability.
-3. Tune the trait-command cue lifetimes, sizes, and colors from that playtest,
-   especially Puffer Pouch and Thornstorm's telegraph-to-exhale sequence.
-4. Decide whether to implement each remaining authored command kind or keep it
-   out of all player-facing catalogs until its persistent gameplay state exists.
-5. Run physical-touch, low-end-device, and forced-WebGL-context-loss checks.
-6. Begin external human play checks once the normal-balance loop is enjoyable.
+2. Run a focused hands-on pressure test: verify off-screen approaches, rising
+   density at levels 4/6/8 and through 6–10 minutes, the 24-XP elite reward,
+   runner weave, Spitter/elite shots, and whether standing still is still safe.
+3. Verify the terminal-to-prep flow: **Continue to upgrades** should show
+   Essence/Starting Vitality only there, and a purchase should affect only the
+   next fresh run.
+4. Tune only authored pressure values from that evidence (placement, phase
+   cadence/caps, level steps, and temporary boss health), retaining replay-safe
+   definitions and no same-tick wave burst.
+5. If the pressure pass is readable, design the next player attack family and a
+   second enemy behavior with explicit simulation, replay, snapshot, visual,
+   and playtest contracts.
+6. Run physical-touch, low-end-device, and forced-WebGL-context-loss checks,
+   then begin external human play checks once the normal-balance loop is enjoyable.
 
 ## Owner decisions remaining
 

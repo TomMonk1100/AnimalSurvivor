@@ -121,30 +121,30 @@
         font: 600 11px/1.3 system-ui, sans-serif;
         text-align: right;
       }
-      #controls .profile-summary {
+      #run-intro .profile-summary {
         display: grid;
         grid-template-columns: 1fr;
         gap: 3px;
-        flex-basis: 100%;
-        max-width: 280px;
+        width: min(320px, 100%);
+        margin: 15px auto 0;
         padding: 7px 8px;
         color: #dceefd;
         background: rgba(17, 35, 51, 0.88);
         border: 1px solid #3f6786;
         border-radius: 6px;
         font: 11px/1.3 system-ui, sans-serif;
-        text-align: right;
+        text-align: left;
       }
-      #controls .profile-summary strong { color: #a8d9f3; }
-      #controls .profile-summary span { color: #c8d9e7; }
-      #controls .profile-summary button {
+      #run-intro .profile-summary strong { color: #a8d9f3; }
+      #run-intro .profile-summary span { color: #c8d9e7; }
+      #run-intro .profile-summary button {
         min-height: 34px;
         margin-top: 3px;
         padding: 5px 8px;
         color: #e9f7ff;
         background: #254967;
       }
-      #controls .profile-summary button:disabled {
+      #run-intro .profile-summary button:disabled {
         cursor: not-allowed;
         opacity: 0.56;
       }
@@ -599,6 +599,7 @@
         <h1 id="run-intro-heading"></h1>
         <p id="run-intro-objective"></p>
         <p id="run-intro-controls"></p>
+        <section id="run-intro-profile" aria-label="Between-run upgrades"></section>
         <label id="run-intro-sound" class="run-intro-sound">
           <input id="run-intro-sound-toggle" type="checkbox" aria-label="Sound effects" aria-describedby="run-intro-sound-help" />
           <span>Sound effects</span>

@@ -6,11 +6,13 @@ import {
   attractPickups,
   collectPickups,
   spawnProjectile,
+  spawnProjectileWithStats,
   stepEnemies,
   stepProjectiles,
   xpRequiredForNextLevel,
 } from '../src/combat.js';
 import { DEFAULT_CONFIG } from '../src/config.js';
+import { ENEMY_BEHAVIOR_KIND, createEnemyBehaviorState, resetEnemyBehavior } from '../src/enemy-behavior.js';
 import { BruteForceGrid, createEnemyPool, createPickupPool, createProjectilePool } from './helpers-c.js';
 
 function makePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
@@ -31,7 +33,10 @@ function makePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
 }
 
 function makeEvents(): SimEvents {
-  return { levelUps: [], kills: 0, pickupsCollected: 0, enemiesSpawned: 0, projectilesFired: 0 };
+  return {
+    levelUps: [], kills: 0, pickupsCollected: 0, enemiesSpawned: 0,
+    enemyProjectilesFired: 0, projectilesFired: 0,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -142,6 +147,140 @@ test('stepEnemies: player dies (alive=false) when hp reaches 0, hp never goes ne
 
   assert.equal(player.hp, 0);
   assert.equal(player.alive, false);
+});
+
+test('stepEnemies: a distant runner weaves deterministically but direct-seeks when close', () => {
+  const makeRunner = (distance: number) => {
+    const pool = createEnemyPool(2);
+    const grid = new BruteForceGrid();
+    const projectiles = createProjectilePool(4);
+    const events = makeEvents();
+    const state = createEnemyBehaviorState(2);
+    const slot = pool.spawn();
+    pool.data.posX[slot] = 0;
+    pool.data.posY[slot] = 500;
+    pool.data.speed[slot] = 100;
+    pool.data.radius[slot] = 1;
+    pool.data.touchDamage[slot] = 0;
+    grid.insert(pool.idOf(slot), 0, 500);
+    resetEnemyBehavior(state, slot, 'runner', false, 0, 0);
+    const player = makePlayer({ x: distance, y: 500 });
+    stepEnemies(pool, grid, player, 1, 2_000, 2_000, 30, 20, {
+      state, config: DEFAULT_CONFIG.enemyBehavior, tick: 0, projectiles, events,
+    });
+    return { pool, slot };
+  };
+
+  const far = makeRunner(500);
+  const repeat = makeRunner(500);
+  assert.ok(far.pool.data.posX[far.slot]! > 0, 'runner still closes distance');
+  assert.notEqual(far.pool.data.posY[far.slot], 500, 'runner takes a deterministic lateral weave');
+  assert.equal(far.pool.data.posX[far.slot], repeat.pool.data.posX[repeat.slot]);
+  assert.equal(far.pool.data.posY[far.slot], repeat.pool.data.posY[repeat.slot]);
+
+  const close = makeRunner(100);
+  assert.equal(close.pool.data.posY[close.slot], 500, 'close runner stops weaving for a readable direct seek');
+});
+
+test('stepEnemies: an elite skirmishes at range and fires one hostile projectile on its authored cadence', () => {
+  const pool = createEnemyPool(2);
+  const grid = new BruteForceGrid();
+  const projectiles = createProjectilePool(4);
+  const events = makeEvents();
+  const state = createEnemyBehaviorState(2);
+  const slot = pool.spawn();
+  pool.data.posX[slot] = 300;
+  pool.data.posY[slot] = 0;
+  pool.data.speed[slot] = 40;
+  pool.data.radius[slot] = 4;
+  pool.data.touchDamage[slot] = 0;
+  grid.insert(pool.idOf(slot), 300, 0);
+  resetEnemyBehavior(state, slot, 'brute', true, 0, 0);
+  const player = makePlayer({ x: 0, y: 0 });
+  const behavior = { state, config: DEFAULT_CONFIG.enemyBehavior, tick: 1, projectiles, events };
+
+  stepEnemies(pool, grid, player, 1 / 60, 2_000, 2_000, 30, 20, behavior);
+  assert.notEqual(pool.data.posY[slot], 0, 'in-band elite orbits instead of direct-seeking');
+  assert.equal(events.enemyProjectilesFired, 1);
+  assert.equal(projectiles.data.count, 1);
+  const projectileSlot = projectiles.data.alive.findIndex((value) => value === 1);
+  assert.equal(projectiles.data.faction[projectileSlot], 1);
+
+  behavior.tick = 2;
+  stepEnemies(pool, grid, player, 1 / 60, 2_000, 2_000, 30, 20, behavior);
+  assert.equal(events.enemyProjectilesFired, 1, 'cooldown prevents an immediate second hostile shot');
+  assert.equal(projectiles.data.count, 1);
+});
+
+test('stepEnemies: an elite spends its initial hostile-shot delay only while threatening Greg', () => {
+  const pool = createEnemyPool(1);
+  const grid = new BruteForceGrid();
+  const projectiles = createProjectilePool(4);
+  const events = makeEvents();
+  const state = createEnemyBehaviorState(1);
+  const slot = pool.spawn();
+  pool.data.posX[slot] = 500;
+  pool.data.posY[slot] = 0;
+  pool.data.speed[slot] = 0;
+  pool.data.radius[slot] = 4;
+  pool.data.touchDamage[slot] = 0;
+  grid.insert(pool.idOf(slot), 500, 0);
+  resetEnemyBehavior(state, slot, 'brute', true, 2, 0);
+  const player = makePlayer({ x: 0, y: 0 });
+  const behavior = { state, config: DEFAULT_CONFIG.enemyBehavior, tick: 1, projectiles, events };
+
+  stepEnemies(pool, grid, player, 1 / 60, 2_000, 2_000, 30, 20, behavior);
+  assert.equal(state.hostileShotCooldown[slot], 2, 'approach time must not consume the first in-range delay');
+  assert.equal(events.enemyProjectilesFired, 0);
+
+  pool.data.posX[slot] = 300;
+  grid.update(pool.idOf(slot), 300, 0);
+  behavior.tick = 2;
+  stepEnemies(pool, grid, player, 1 / 60, 2_000, 2_000, 30, 20, behavior);
+  assert.equal(state.hostileShotCooldown[slot], 1);
+  assert.equal(events.enemyProjectilesFired, 0);
+
+  behavior.tick = 3;
+  stepEnemies(pool, grid, player, 1 / 60, 2_000, 2_000, 30, 20, behavior);
+  assert.equal(events.enemyProjectilesFired, 1);
+});
+
+test('stepEnemies: a normal-plus spitter holds range and fires its lower-damage hostile shot', () => {
+  const pool = createEnemyPool(1);
+  const grid = new BruteForceGrid();
+  const projectiles = createProjectilePool(4);
+  const events = makeEvents();
+  const state = createEnemyBehaviorState(1);
+  const slot = pool.spawn();
+  pool.data.posX[slot] = 300;
+  pool.data.posY[slot] = 0;
+  pool.data.speed[slot] = 48;
+  pool.data.radius[slot] = 7;
+  pool.data.touchDamage[slot] = 6;
+  grid.insert(pool.idOf(slot), 300, 0);
+  resetEnemyBehavior(state, slot, 'spitter', false, 0, 0);
+  const player = makePlayer({ x: 0, y: 0 });
+  const behavior = { state, config: DEFAULT_CONFIG.enemyBehavior, tick: 1, projectiles, events };
+
+  stepEnemies(pool, grid, player, 1 / 60, 2_000, 2_000, 30, 20, behavior);
+  assert.equal(state.kind[slot], ENEMY_BEHAVIOR_KIND.spitterSkirmish);
+  assert.notEqual(pool.data.posY[slot], 0, 'spitter orbits instead of directly closing in');
+  assert.equal(events.enemyProjectilesFired, 1);
+  const projectileSlot = projectiles.data.alive.findIndex((alive) => alive === 1);
+  assert.equal(projectiles.data.faction[projectileSlot], 1);
+  assert.equal(projectiles.data.damage[projectileSlot], DEFAULT_CONFIG.enemyBehavior.spitterProjectileDamage);
+  assert.equal(state.hostileShotCooldown[slot], DEFAULT_CONFIG.enemyBehavior.spitterFireIntervalTicks);
+});
+
+test('resetEnemyBehavior clears hostile cooldowns before a pooled slot becomes a regular runner', () => {
+  const state = createEnemyBehaviorState(1);
+  resetEnemyBehavior(state, 0, 'brute', true, 72, 0);
+  assert.equal(state.kind[0], ENEMY_BEHAVIOR_KIND.eliteSkirmish);
+  assert.equal(state.hostileShotCooldown[0], 72);
+
+  resetEnemyBehavior(state, 0, 'runner', false, 0, 0);
+  assert.equal(state.kind[0], ENEMY_BEHAVIOR_KIND.runnerWeave);
+  assert.equal(state.hostileShotCooldown[0], 0);
 });
 
 // ---------------------------------------------------------------------------
@@ -322,6 +461,28 @@ test('stepProjectiles: faction 1 projectile never damages enemies', () => {
 
   assert.equal(enemies.data.hp[eSlot], 10, 'hp unchanged for faction 1 projectile');
   assert.equal(projectiles.isLive(pId), true, 'projectile survives since it never processes hits');
+});
+
+test('stepProjectiles: hostile projectile damages Greg once, respects invulnerability, and despawns', () => {
+  const projectiles = createProjectilePool(4);
+  const enemies = createEnemyPool(4);
+  const grid = new BruteForceGrid();
+  const events = makeEvents();
+  const player = makePlayer({ x: 0, y: 0, hp: 20, radius: 2 });
+
+  assert.equal(spawnProjectileWithStats(projectiles, 0, 0, 1, 0, 1, 7, 30, 2, 0, 1), true);
+  const id = projectiles.idOf(0);
+  stepProjectiles(projectiles, enemies, grid, 0, 1_000, 1_000, 1, events, () => {
+    assert.fail('hostile projectile must not damage enemies');
+  }, player, 12);
+  assert.equal(player.hp, 13);
+  assert.equal(player.invulnTicks, 12);
+  assert.equal(projectiles.isLive(id), false);
+
+  assert.equal(spawnProjectileWithStats(projectiles, 0, 0, 1, 0, 1, 7, 30, 2, 0, 1), true);
+  stepProjectiles(projectiles, enemies, grid, 0, 1_000, 1_000, 1, events, () => {}, player, 12);
+  assert.equal(player.hp, 13, 'invulnerability blocks repeat hostile damage');
+  assert.equal(projectiles.data.count, 0, 'blocked collision still consumes the projectile');
 });
 
 // ---------------------------------------------------------------------------

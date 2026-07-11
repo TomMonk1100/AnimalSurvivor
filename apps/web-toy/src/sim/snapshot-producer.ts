@@ -78,7 +78,7 @@ function captureProjectiles(out: CategorySnapshot, pool: Pool<ProjectilePool>): 
     out.hp[n] = 0;
     out.maxHp[n] = 0;
     out.archetype[n] = 0;
-    out.role[n] = 0;
+    out.role[n] = data.faction[slot]!;
     n++;
   }
   out.count = n;

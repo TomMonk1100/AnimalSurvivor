@@ -18,8 +18,10 @@ than trying to answer every question.
 
 - Was it immediately clear how to move, collect XP, and choose an upgrade?
 - Did movement feel responsive and smooth?
-- Were enemies too sparse, too dense, or readable?
-- Did the level 4 pressure increase feel noticeable?
+- Did ordinary enemies enter from beyond the screen edge, or appear too near
+  Greg? Note the time/phase if they did.
+- Were enemies too sparse, too dense, or readable as the phase cadence changed?
+- Did the level 4 and level 6 pressure increases feel noticeable?
 - One exciting moment:
 - One frustrating moment:
 
@@ -43,8 +45,17 @@ Check specifically:
 
 ## Pressure and boss
 
-- Did the level 7 pressure increase feel noticeable?
+- Did the level 8 pressure increase feel noticeable?
 - Could you stand still safely for too long? If yes, when?
+- Did the overall density rise enough from opening through mutation, especially
+  after six to seven minutes?
+- Did runners' distant zig-zag movement feel interesting and readable, or
+  random/confusing?
+- Did cobalt Spitters hold range and fire slow orange shots that were visible
+  and dodgeable? Were their 6-damage shots too weak, too frequent, or unfair?
+- Did elites hold range and fire visible orange-red projectiles that made you
+  move? Were the 8-damage shots fair, too quiet, or hard to see?
+- Did an elite's larger **24-XP** pickup feel meaningful and easy to notice?
 - Did enemies feel unfair, boring, or readable?
 - Did the 10:00 boss entrance feel too early, too late, or right?
 - Did the boss health bar communicate progress?
@@ -65,6 +76,9 @@ Check specifically:
 - Could you afford Starting Vitality? If so, did the purchase wording make it
   clear that it applies on the **next** run?
 - On the next run, did the higher starting maximum HP appear correctly?
+- Was Essence/Starting Vitality visible on the prep screen but absent during
+  active combat? Did terminal **Continue to upgrades** make the return path
+  obvious before starting the next fresh run?
 
 ## One tuning recommendation
 

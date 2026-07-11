@@ -5,9 +5,9 @@
 import type { EnemyArchetype, WaveSegment } from './types.js';
 import { createHashWriter } from './state-hash.js';
 
-// Version 4 adds endless XP, typed run-upgrade replays, and permanent-loadout
-// replay identity. Old records must reject rather than silently diverge.
-export const CONFIG_VERSION = 4;
+// Version 6 adds the directed normal-plus spitter archetype and its hostile
+// projectile cadence. Old records must reject rather than silently diverge.
+export const CONFIG_VERSION = 6;
 
 export interface WeaponConfig {
   /** Ticks between automatic shots. */
@@ -33,6 +33,44 @@ export interface PlayerConfig {
   invulnTicksOnHit: number;
 }
 
+/**
+ * Authored behavior for the first varied-enemy slice. It stays in the
+ * deterministic config so replay identity, headless tests, and browser play
+ * all agree on runner movement and ranged projectile cadence.
+ */
+export interface EnemyBehaviorConfig {
+  /** Sideways fraction blended into a distant runner's approach direction. */
+  runnerWeaveStrength: number;
+  /** Runners stop weaving and directly seek inside this world-space distance. */
+  runnerDirectSeekRange: number;
+  /** Fixed ticks between runner weave-direction flips. */
+  runnerWeavePeriodTicks: number;
+  /** Elites prefer to fight from this distance. */
+  elitePreferredRange: number;
+  /** Half-width of the elite's preferred range band. */
+  eliteRangeBand: number;
+  /** Tangential fraction used while an elite holds its preferred band. */
+  eliteOrbitStrength: number;
+  /** First hostile-shot delay after an elite enters firing range. */
+  eliteInitialFireDelayTicks: number;
+  /** Ticks between elite hostile shots. */
+  eliteFireIntervalTicks: number;
+  /** World units per second for an elite hostile projectile. */
+  eliteProjectileSpeed: number;
+  /** Damage dealt by one hostile projectile. */
+  eliteProjectileDamage: number;
+  /** Lifetime for a hostile projectile. */
+  eliteProjectileLifetimeTicks: number;
+  /** Collision radius for a hostile projectile. */
+  eliteProjectileHitRadius: number;
+  /** First hostile-shot delay after a spitter enters firing range. */
+  spitterInitialFireDelayTicks: number;
+  /** Ticks between a spitter's hostile shots while in firing range. */
+  spitterFireIntervalTicks: number;
+  /** Damage dealt by one spitter projectile. */
+  spitterProjectileDamage: number;
+}
+
 export interface SimConfig {
   hz: number;
   worldWidth: number;
@@ -47,6 +85,7 @@ export interface SimConfig {
   enemyContactCooldownTicks: number;
   player: PlayerConfig;
   weapon: WeaponConfig;
+  enemyBehavior: EnemyBehaviorConfig;
   archetypes: readonly EnemyArchetype[];
   waves: readonly WaveSegment[];
 }
@@ -95,6 +134,29 @@ export function validateConfig(config: SimConfig): void {
   requireFinite('player.radius', p.radius, 0);
   requireFinite('player.pickupRadius', p.pickupRadius, 0);
   requireInteger('player.invulnTicksOnHit', p.invulnTicksOnHit, 0, 0xffff);
+
+  const behavior = config.enemyBehavior;
+  requireFinite('enemyBehavior.runnerWeaveStrength', behavior.runnerWeaveStrength, 0);
+  if (behavior.runnerWeaveStrength > 1) {
+    throw new RangeError('enemyBehavior.runnerWeaveStrength must be <= 1');
+  }
+  requireFinite('enemyBehavior.runnerDirectSeekRange', behavior.runnerDirectSeekRange, 0);
+  requireInteger('enemyBehavior.runnerWeavePeriodTicks', behavior.runnerWeavePeriodTicks, 1, 0xffff);
+  requireFinite('enemyBehavior.elitePreferredRange', behavior.elitePreferredRange, 0);
+  requireFinite('enemyBehavior.eliteRangeBand', behavior.eliteRangeBand, 0);
+  requireFinite('enemyBehavior.eliteOrbitStrength', behavior.eliteOrbitStrength, 0);
+  if (behavior.eliteOrbitStrength > 1) {
+    throw new RangeError('enemyBehavior.eliteOrbitStrength must be <= 1');
+  }
+  requireInteger('enemyBehavior.eliteInitialFireDelayTicks', behavior.eliteInitialFireDelayTicks, 0, 0xffff);
+  requireInteger('enemyBehavior.eliteFireIntervalTicks', behavior.eliteFireIntervalTicks, 1, 0xffff);
+  requireFinite('enemyBehavior.eliteProjectileSpeed', behavior.eliteProjectileSpeed, Number.MIN_VALUE);
+  requireFinite('enemyBehavior.eliteProjectileDamage', behavior.eliteProjectileDamage, Number.MIN_VALUE);
+  requireInteger('enemyBehavior.eliteProjectileLifetimeTicks', behavior.eliteProjectileLifetimeTicks, 1, 0xffff);
+  requireFinite('enemyBehavior.eliteProjectileHitRadius', behavior.eliteProjectileHitRadius, 0);
+  requireInteger('enemyBehavior.spitterInitialFireDelayTicks', behavior.spitterInitialFireDelayTicks, 0, 0xffff);
+  requireInteger('enemyBehavior.spitterFireIntervalTicks', behavior.spitterFireIntervalTicks, 1, 0xffff);
+  requireFinite('enemyBehavior.spitterProjectileDamage', behavior.spitterProjectileDamage, Number.MIN_VALUE);
 
   const weapon = config.weapon;
   requireInteger('weapon.cooldownTicks', weapon.cooldownTicks, 1, 0xffff);
@@ -166,6 +228,23 @@ export function fingerprintConfig(config: SimConfig): string {
   w.f64(p.startX); w.f64(p.startY); w.f64(p.maxHp); w.f64(p.speed);
   w.f64(p.radius); w.f64(p.pickupRadius); w.u32(p.invulnTicksOnHit);
 
+  const behavior = config.enemyBehavior;
+  w.f64(behavior.runnerWeaveStrength);
+  w.f64(behavior.runnerDirectSeekRange);
+  w.u32(behavior.runnerWeavePeriodTicks);
+  w.f64(behavior.elitePreferredRange);
+  w.f64(behavior.eliteRangeBand);
+  w.f64(behavior.eliteOrbitStrength);
+  w.u32(behavior.eliteInitialFireDelayTicks);
+  w.u32(behavior.eliteFireIntervalTicks);
+  w.f64(behavior.eliteProjectileSpeed);
+  w.f64(behavior.eliteProjectileDamage);
+  w.u32(behavior.eliteProjectileLifetimeTicks);
+  w.f64(behavior.eliteProjectileHitRadius);
+  w.u32(behavior.spitterInitialFireDelayTicks);
+  w.u32(behavior.spitterFireIntervalTicks);
+  w.f64(behavior.spitterProjectileDamage);
+
   const weapon = config.weapon;
   w.u32(weapon.cooldownTicks); w.f64(weapon.range); w.f64(weapon.projectileSpeed);
   w.f64(weapon.damage); w.u32(weapon.lifetimeTicks); w.f64(weapon.hitRadius);
@@ -193,6 +272,7 @@ export const DEFAULT_ARCHETYPES: readonly EnemyArchetype[] = [
   { name: 'walker', hp: 20, speed: 55, radius: 6, touchDamage: 5, xpDrop: 1 },
   { name: 'runner', hp: 12, speed: 95, radius: 5, touchDamage: 4, xpDrop: 1 },
   { name: 'brute', hp: 80, speed: 35, radius: 10, touchDamage: 12, xpDrop: 4 },
+  { name: 'spitter', hp: 36, speed: 48, radius: 7, touchDamage: 6, xpDrop: 2 },
 ];
 
 export const DEFAULT_WAVES: readonly WaveSegment[] = [
@@ -200,14 +280,14 @@ export const DEFAULT_WAVES: readonly WaveSegment[] = [
     startTick: 0,
     endTick: 1800,
     spawnIntervalTicks: 30,
-    archetypeWeights: [8, 2, 0],
+    archetypeWeights: [8, 2, 0, 0],
     maxAlive: 300,
   },
   {
     startTick: 1800,
     endTick: 4800,
     spawnIntervalTicks: 12,
-    archetypeWeights: [6, 3, 1],
+    archetypeWeights: [6, 3, 1, 0],
     maxAlive: 700,
     elites: [{ tick: 3000, archetype: 2, hpMultiplier: 5 }],
   },
@@ -215,7 +295,7 @@ export const DEFAULT_WAVES: readonly WaveSegment[] = [
     startTick: 4800,
     endTick: 2147483647,
     spawnIntervalTicks: 6,
-    archetypeWeights: [5, 3, 2],
+    archetypeWeights: [5, 3, 2, 0],
     maxAlive: 1000,
     elites: [
       { tick: 6000, archetype: 2, hpMultiplier: 8 },
@@ -242,6 +322,23 @@ export const DEFAULT_CONFIG: SimConfig = {
     radius: 8,
     pickupRadius: 40,
     invulnTicksOnHit: 20,
+  },
+  enemyBehavior: {
+    runnerWeaveStrength: 0.36,
+    runnerDirectSeekRange: 150,
+    runnerWeavePeriodTicks: 36,
+    elitePreferredRange: 290,
+    eliteRangeBand: 55,
+    eliteOrbitStrength: 0.52,
+    eliteInitialFireDelayTicks: 72,
+    eliteFireIntervalTicks: 150,
+    eliteProjectileSpeed: 260,
+    eliteProjectileDamage: 8,
+    eliteProjectileLifetimeTicks: 180,
+    eliteProjectileHitRadius: 7,
+    spitterInitialFireDelayTicks: 90,
+    spitterFireIntervalTicks: 180,
+    spitterProjectileDamage: 6,
   },
   weapon: {
     cooldownTicks: 20,

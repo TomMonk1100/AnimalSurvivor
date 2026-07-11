@@ -184,7 +184,10 @@ function canonicalDefinitionString(def: RunDefinition): string {
   const phaseArchetypesStr = phaseOrder.map((id) =>
     (def.waves.phaseArchetypes[id] ?? []).join(FIELD_SEP),
   ).join(ITEM_SEP);
-  const wavesStr = [def.waves.intervalTicks, phaseArchetypesStr].join(SEP);
+  const phaseIntervalsStr = phaseOrder.map((id) =>
+    def.waves.phaseIntervalTicks?.[id] ?? def.waves.intervalTicks,
+  ).join(FIELD_SEP);
+  const wavesStr = [def.waves.intervalTicks, phaseIntervalsStr, phaseArchetypesStr].join(SEP);
 
   const overtimeStr = def.overtime === undefined
     ? 'none'

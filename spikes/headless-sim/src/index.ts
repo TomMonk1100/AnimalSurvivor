@@ -9,6 +9,12 @@ export { createClock } from './clock.js';
 export { createReplayRecorder, serializeReplay, deserializeReplay } from './replay.js';
 export { createHashWriter } from './state-hash.js';
 export { createEnemyPool, createProjectilePool, createPickupPool } from './pools.js';
+export {
+  ENEMY_BEHAVIOR_KIND,
+  createEnemyBehaviorState,
+  resetEnemyBehavior,
+} from './enemy-behavior.js';
+export type { EnemyBehaviorKind, EnemyBehaviorState } from './enemy-behavior.js';
 export { createSpatialGrid } from './spatial-grid.js';
 export { selectTarget } from './targeting.js';
 export { createWaveDirector } from './wave-director.js';

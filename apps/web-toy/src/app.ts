@@ -126,6 +126,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const introTitle = document.getElementById('run-intro-heading') as HTMLElement;
   const introObjective = document.getElementById('run-intro-objective') as HTMLElement;
   const introControls = document.getElementById('run-intro-controls') as HTMLElement;
+  const introProfileRoot = document.getElementById('run-intro-profile') as HTMLElement;
   const introSoundRoot = document.getElementById('run-intro-sound') as HTMLElement;
   const introSoundToggle = document.getElementById('run-intro-sound-toggle') as HTMLInputElement;
   const introSoundStatus = document.getElementById('run-intro-sound-status') as HTMLElement;
@@ -439,8 +440,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     reward.textContent = rewardDetail ?? '';
     const playAgain = document.createElement('button');
     playAgain.type = 'button';
-    playAgain.textContent = 'Play again';
-    playAgain.addEventListener('click', restartRun);
+    playAgain.textContent = 'Continue to upgrades';
+    playAgain.addEventListener('click', returnToStart);
     outcomeRoot.append(headline, detail, reward, playAgain);
   }
 
@@ -522,7 +523,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const vitalityButton = document.createElement('button');
   vitalityButton.type = 'button';
   profileRoot.append(profileText, profileDetail, vitalityButton);
-  controlsRoot.appendChild(profileRoot);
+  introProfileRoot.appendChild(profileRoot);
   let profileMessage = '';
 
   function renderProfile(message?: string): void {
@@ -587,6 +588,30 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
 
   function beginRun(): void {
     if (runStarted) return;
+    // Profile purchases are only allowed on this prep screen. Recreate the
+    // deterministic run immediately before launch so its normalized loadout
+    // includes the exact Vitality rank the player just bought.
+    // Do not assign a new settlement id while a terminal result is still
+    // visible on the prep screen: the frame loop continues to render that
+    // result, and it must remain idempotent under its original run id.
+    if (driver.runOutcome === 'victory' || driver.runOutcome === 'defeat') {
+      runSequence++;
+      currentRunId = createRunId(currentSeed, runSequence);
+      terminalRewardDetail = null;
+    }
+    driver.restart(currentSeed, simulationOptions());
+    audioCueRouter.resetForRestart();
+    activeDirectorNotice = null;
+    renderedDirectorKey = '';
+    renderedOfferKey = '';
+    renderedAdaptationsKey = '';
+    renderedBossHealthKey = '';
+    renderedOutcomeKey = '';
+    upgradePromptSerial = 0;
+    bossHealthRoot.hidden = true;
+    renderUpgradeChoices();
+    renderAdaptations();
+    renderRunOutcome();
     runStarted = true;
     keyboardInput.clear();
     // The paused driver already refreshes its timestamp each frame, but this
@@ -596,6 +621,17 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     proceduralAudio.resumeIfEnabled();
     audioCueRouter.beginRun();
     surface.focus({ preventScroll: true });
+  }
+
+  /** Leave a terminal card for the between-run prep screen without replaying it. */
+  function returnToStart(): void {
+    if (driver.runOutcome !== 'victory' && driver.runOutcome !== 'defeat') return;
+    profileMessage = '';
+    runStarted = false;
+    setPaused(false);
+    renderProfile();
+    introStartButton.textContent = 'Start next run';
+    renderRunIntro();
   }
 
   introEyebrow.textContent = intro.eyebrow;

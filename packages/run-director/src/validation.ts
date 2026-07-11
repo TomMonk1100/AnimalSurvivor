@@ -207,14 +207,14 @@ function validateEliteBeats(
   phaseById: ReadonlyMap<RunPhaseId, PhaseDefinition>,
   archetypeIds: ReadonlySet<ArchetypeId>,
 ): void {
-  if (def.eliteBeats.length !== 3) {
+  if (def.eliteBeats.length < REQUIRED_ELITE_PHASES.length) {
     throw new Error(
-      `validateDefinition: expected exactly 3 elite beats, got ${def.eliteBeats.length}`,
+      `validateDefinition: expected at least ${REQUIRED_ELITE_PHASES.length} elite beats, got ${def.eliteBeats.length}`,
     );
   }
 
   const seenIds = new Set<string>();
-  const seenPhases = new Set<RunPhaseId>();
+  const seenRequiredPhases = new Set<RunPhaseId>();
 
   for (const beat of def.eliteBeats) {
     if (seenIds.has(beat.id)) {
@@ -229,16 +229,11 @@ function validateEliteBeats(
         `validateDefinition: elite beat "${beat.id}" phaseId must be one of ${REQUIRED_ELITE_PHASES.join(', ')}`,
       );
     }
-    if (seenPhases.has(beat.phaseId)) {
-      throw new Error(
-        `validateDefinition: more than one elite beat targets phase "${beat.phaseId}"`,
-      );
-    }
-    seenPhases.add(beat.phaseId);
+    seenRequiredPhases.add(beat.phaseId);
   }
 
   for (const id of REQUIRED_ELITE_PHASES) {
-    if (!seenPhases.has(id)) {
+    if (!seenRequiredPhases.has(id)) {
       throw new Error(`validateDefinition: missing elite beat for phase "${id}"`);
     }
   }
@@ -372,14 +367,11 @@ function validateLevelPressure(def: RunDefinition): void {
   if (!isPosInt(levelPressure.intervalTicksReductionPerStep)) {
     throw new Error('validateDefinition: levelPressure.intervalTicksReductionPerStep must be a positive integer');
   }
-  if (
-    def.waves.intervalTicks
-      - levelPressure.maxSteps * levelPressure.intervalTicksReductionPerStep
-      < 1
-  ) {
-    throw new Error('validateDefinition: levelPressure reduces wave interval below 1 tick');
-  }
   for (const phase of def.phases) {
+    const phaseInterval = def.waves.phaseIntervalTicks?.[phase.id] ?? def.waves.intervalTicks;
+    if (phaseInterval - levelPressure.maxSteps * levelPressure.intervalTicksReductionPerStep < 1) {
+      throw new Error(`validateDefinition: levelPressure reduces wave interval below 1 tick in phase "${phase.id}"`);
+    }
     const maxSoftCap = phase.softCap + levelPressure.maxSteps * levelPressure.softCapPerStep;
     const maxHardCap = phase.hardCap + levelPressure.maxSteps * levelPressure.hardCapPerStep;
     if (maxSoftCap >= maxHardCap) {
@@ -398,6 +390,10 @@ function validateWaves(def: RunDefinition, archetypeIds: ReadonlySet<ArchetypeId
     throw new Error('validateDefinition: waves.intervalTicks must be a positive integer');
   }
   for (const id of phaseOrderFor(def)) {
+    const phaseInterval = waves.phaseIntervalTicks?.[id];
+    if (phaseInterval !== undefined && !isPosInt(phaseInterval)) {
+      throw new Error(`validateDefinition: waves.phaseIntervalTicks["${id}"] must be a positive integer`);
+    }
     const eligible = waves.phaseArchetypes[id];
     if (!eligible || eligible.length === 0) {
       throw new Error(`validateDefinition: waves.phaseArchetypes["${id}"] must be a non-empty array`);

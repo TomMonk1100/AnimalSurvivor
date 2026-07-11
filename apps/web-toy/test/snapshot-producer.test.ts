@@ -31,14 +31,21 @@ class RoleDirector implements RunDirectorPort {
         },
       },
       {
-        kind: 'eliteRequested', tick: 1, seq: 2, phase: this.phase,
+        kind: 'spawnRequested', tick: 1, seq: 2, phase: this.phase,
+        intent: {
+          archetypeId: 'enemy:spitter', count: 1, formation: 'ring',
+          minDistance: 5, maxDistance: 5, elite: false, boss: false,
+        },
+      },
+      {
+        kind: 'eliteRequested', tick: 1, seq: 3, phase: this.phase,
         intent: {
           archetypeId: 'enemy:elite', count: 1, formation: 'ring',
           minDistance: 5, maxDistance: 5, elite: true, boss: false,
         },
       },
       {
-        kind: 'bossRequested', tick: 1, seq: 3, phase: this.phase,
+        kind: 'bossRequested', tick: 1, seq: 4, phase: this.phase,
         intent: {
           archetypeId: 'enemy:boss', count: 1, formation: 'ring',
           minDistance: 5, maxDistance: 5, elite: false, boss: true,
@@ -59,7 +66,7 @@ class RoleDirector implements RunDirectorPort {
 const QUIET_CONFIG: SimConfig = { ...DEFAULT_CONFIG, waves: [] };
 
 describe('snapshot producer enemy presentation roles', () => {
-  it('copies authoritative regular, elite, and boss roles without changing the canonical hash', () => {
+  it('copies authoritative regular, ranged, elite, and boss roles without changing the canonical hash', () => {
     const sim = createSimulation(QUIET_CONFIG, 12, { runDirectorFactory: () => new RoleDirector() });
     sim.step({ moveX: 0, moveY: 0, paused: false });
     const snapshot = createSnapshot(QUIET_CONFIG);
@@ -67,20 +74,24 @@ describe('snapshot producer enemy presentation roles', () => {
 
     captureSnapshot(snapshot, sim);
 
-    expect(snapshot.enemies.count).toBe(3);
+    expect(snapshot.enemies.count).toBe(4);
     expect(Array.from(snapshot.enemies.role.slice(0, snapshot.enemies.count))).toEqual([
       RUN_ENEMY_ROLE.regular,
+      RUN_ENEMY_ROLE.ranged,
       RUN_ENEMY_ROLE.elite,
       RUN_ENEMY_ROLE.boss,
     ]);
     const bruteHp = DEFAULT_CONFIG.archetypes[2]!.hp;
+    const spitterHp = DEFAULT_CONFIG.archetypes[3]!.hp;
     expect(Array.from(snapshot.enemies.hp.slice(0, snapshot.enemies.count))).toEqual([
       bruteHp,
+      spitterHp,
       bruteHp * 5,
       bruteHp * 18,
     ]);
     expect(Array.from(snapshot.enemies.maxHp.slice(0, snapshot.enemies.count))).toEqual([
       bruteHp,
+      spitterHp,
       bruteHp * 5,
       bruteHp * 18,
     ]);
@@ -93,7 +104,7 @@ describe('snapshot producer enemy presentation roles', () => {
     expect(snapshot.enemies.hp[bossIndex]).toBe(bruteHp * 18);
   });
 
-  it('keeps health fields zero for non-enemy categories', () => {
+  it('keeps health fields zero for non-enemy categories and copies projectile faction for rendering', () => {
     const sim = createSimulation(QUIET_CONFIG, 12);
     const projectileSlot = sim.projectiles.spawn();
     const pickupSlot = sim.pickups.spawn();
@@ -101,6 +112,7 @@ describe('snapshot producer enemy presentation roles', () => {
     expect(pickupSlot).toBeGreaterThanOrEqual(0);
     sim.projectiles.data.posX[projectileSlot] = 10;
     sim.projectiles.data.posY[projectileSlot] = 20;
+    sim.projectiles.data.faction[projectileSlot] = 1;
     sim.pickups.data.posX[pickupSlot] = 30;
     sim.pickups.data.posY[pickupSlot] = 40;
     sim.pickups.data.radius[pickupSlot] = 4;
@@ -112,6 +124,7 @@ describe('snapshot producer enemy presentation roles', () => {
     expect(snapshot.pickups.count).toBe(1);
     expect(snapshot.projectiles.hp[0]).toBe(0);
     expect(snapshot.projectiles.maxHp[0]).toBe(0);
+    expect(snapshot.projectiles.role[0]).toBe(1);
     expect(snapshot.pickups.hp[0]).toBe(0);
     expect(snapshot.pickups.maxHp[0]).toBe(0);
   });

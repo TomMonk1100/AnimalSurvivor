@@ -82,6 +82,54 @@ function terminalFactory(): RunDirectorFactory {
   };
 }
 
+function eliteFactory(): RunDirectorFactory {
+  return () => {
+    let tick = -1;
+    return {
+      outcome: 'running' as const,
+      get tick() { return tick; },
+      phase: 'opening' as const,
+      step(metrics: RunMetricsView): readonly RunDirectorEventView[] {
+        tick = metrics.tick;
+        if (metrics.tick !== 1) return [];
+        return [{
+          kind: 'eliteRequested', tick: 1, seq: 1, phase: 'opening', beatId: 'elite:test',
+          intent: {
+            archetypeId: 'enemy:elite', count: 1, formation: 'ring',
+            minDistance: 5, maxDistance: 5, elite: true, boss: false,
+          },
+        }];
+      },
+      stateHash: () => Math.max(0, tick).toString(16).padStart(8, '0'),
+      contentFingerprint: () => '2468ace0',
+    };
+  };
+}
+
+function spitterFactory(): RunDirectorFactory {
+  return () => {
+    let tick = -1;
+    return {
+      outcome: 'running' as const,
+      get tick() { return tick; },
+      phase: 'pressure' as const,
+      step(metrics: RunMetricsView): readonly RunDirectorEventView[] {
+        tick = metrics.tick;
+        if (metrics.tick !== 1) return [];
+        return [{
+          kind: 'spawnRequested', tick: 1, seq: 1, phase: 'pressure',
+          intent: {
+            archetypeId: 'enemy:spitter', count: 1, formation: 'ring',
+            minDistance: 5, maxDistance: 5, elite: false, boss: false,
+          },
+        }];
+      },
+      stateHash: () => Math.max(0, tick).toString(16).padStart(8, '0'),
+      contentFingerprint: () => '13579bdf',
+    };
+  };
+}
+
 function quietConfig(): SimConfig {
   return { ...DEFAULT_CONFIG, waves: [] };
 }
@@ -160,4 +208,66 @@ test('run content and state participate in deterministic replay and hash', () =>
     sim.hash(),
   );
   assert.throws(() => runReplay(config, replay), /run content fingerprint mismatch/);
+});
+
+test('elite spawns carry a large XP token and deterministic hostile-shot state survives pause and replay', () => {
+  const config: SimConfig = {
+    ...quietConfig(),
+    enemyBehavior: { ...DEFAULT_CONFIG.enemyBehavior, eliteInitialFireDelayTicks: 0 },
+  };
+  const sim = createSimulation(config, 123, { runDirectorFactory: eliteFactory() });
+
+  sim.step({ moveX: 0, moveY: 0, paused: false }); // elite is requested and placed at tick 1
+  const eliteSlot = sim.enemies.data.alive.findIndex((alive, slot) =>
+    alive === 1 && sim.enemyPresentationRole(sim.enemies.idOf(slot)) === RUN_ENEMY_ROLE.elite,
+  );
+  assert.notEqual(eliteSlot, -1);
+  assert.equal(sim.enemies.data.xpDrop[eliteSlot], DEFAULT_CONFIG.archetypes[2]!.xpDrop * 6);
+
+  const hashBeforePause = sim.hash();
+  const paused = sim.step({ moveX: 0, moveY: 0, paused: true });
+  assert.equal(paused.enemyProjectilesFired, 0);
+  assert.equal(sim.hash(), hashBeforePause, 'paused ticks cannot advance an elite shot cooldown');
+
+  const events = sim.step({ moveX: 0, moveY: 0, paused: false });
+  assert.equal(events.enemyProjectilesFired, 1);
+  const hostileSlot = sim.projectiles.data.alive.findIndex((alive) => alive === 1);
+  assert.notEqual(hostileSlot, -1);
+  assert.equal(sim.projectiles.data.faction[hostileSlot], 1);
+
+  assert.equal(
+    runReplay(config, sim.getReplay(), { runDirectorFactory: eliteFactory() }).finalHash,
+    sim.hash(),
+  );
+});
+
+test('normal-plus spitter spawns with its own XP, presentation role, and replayable hostile shot', () => {
+  const config: SimConfig = {
+    ...quietConfig(),
+    enemyBehavior: { ...DEFAULT_CONFIG.enemyBehavior, spitterInitialFireDelayTicks: 0 },
+  };
+  const sim = createSimulation(config, 321, { runDirectorFactory: spitterFactory() });
+
+  sim.step({ moveX: 0, moveY: 0, paused: false });
+  const spitterSlot = sim.enemies.data.alive.findIndex((alive, slot) =>
+    alive === 1 && sim.enemyPresentationRole(sim.enemies.idOf(slot)) === RUN_ENEMY_ROLE.ranged,
+  );
+  assert.notEqual(spitterSlot, -1);
+  assert.equal(sim.enemies.data.archetype[spitterSlot], 3);
+  assert.equal(sim.enemies.data.xpDrop[spitterSlot], DEFAULT_CONFIG.archetypes[3]!.xpDrop);
+
+  const pausedHash = sim.hash();
+  sim.step({ moveX: 0, moveY: 0, paused: true });
+  assert.equal(sim.hash(), pausedHash, 'paused ticks cannot consume a spitter shot cooldown');
+
+  const events = sim.step({ moveX: 0, moveY: 0, paused: false });
+  assert.equal(events.enemyProjectilesFired, 1);
+  const projectileSlot = sim.projectiles.data.alive.findIndex((alive) => alive === 1);
+  assert.equal(sim.projectiles.data.faction[projectileSlot], 1);
+  assert.equal(sim.projectiles.data.damage[projectileSlot], config.enemyBehavior.spitterProjectileDamage);
+
+  assert.equal(
+    runReplay(config, sim.getReplay(), { runDirectorFactory: spitterFactory() }).finalHash,
+    sim.hash(),
+  );
 });

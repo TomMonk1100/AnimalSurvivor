@@ -14,7 +14,7 @@ function circleInput(t: number): TickInput {
 // faster spawns and a faster weapon cooldown. Spread from DEFAULT_CONFIG per
 // the frozen shape; config.ts itself is never modified.
 const HOT_WAVES: readonly WaveSegment[] = [
-  { startTick: 0, endTick: 100_000, spawnIntervalTicks: 5, archetypeWeights: [1, 0, 0], maxAlive: 30 },
+  { startTick: 0, endTick: 100_000, spawnIntervalTicks: 5, archetypeWeights: [1, 0, 0, 0], maxAlive: 30 },
 ];
 
 const HOT_CONFIG: SimConfig = {

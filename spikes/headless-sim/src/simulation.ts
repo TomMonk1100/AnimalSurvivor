@@ -150,6 +150,7 @@ import {
   type RunEnemyRole,
   type RunSpawnAdapterOptions,
 } from './run-spawn-adapter.js';
+import { createEnemyBehaviorState, resetEnemyBehavior } from './enemy-behavior.js';
 
 export interface SimulationOptions {
   readonly traitRuntimeFactory?: TraitRuntimeFactory;
@@ -255,6 +256,7 @@ function resetEvents(events: SimEvents): void {
   events.kills = 0;
   events.pickupsCollected = 0;
   events.enemiesSpawned = 0;
+  events.enemyProjectilesFired = 0;
   events.projectilesFired = 0;
 }
 
@@ -338,10 +340,11 @@ export function createSimulation(
   // The config is immutable content. A local copy lets an actual run upgrade
   // change projectile damage without mutating caller-owned config state.
   const weapon = { ...config.weapon };
-  if (runDirector !== null && config.archetypes.length < 3) {
-    throw new Error('run director integration requires at least three simulation archetypes');
+  if (runDirector !== null && config.archetypes.length < 4) {
+    throw new Error('run director integration requires at least four simulation archetypes');
   }
   const enemyRoles = new Uint8Array(config.enemyCap);
+  const enemyBehavior = createEnemyBehaviorState(config.enemyCap);
 
   let maxEnemyRadius = 0;
   for (const a of config.archetypes) {
@@ -353,6 +356,7 @@ export function createSimulation(
     kills: 0,
     pickupsCollected: 0,
     enemiesSpawned: 0,
+    enemyProjectilesFired: 0,
     projectilesFired: 0,
   };
   const traitPresentationEventStorage: MutableTraitPresentationEvent[] = [];
@@ -468,7 +472,11 @@ export function createSimulation(
     x: number,
     y: number,
     role: number,
+    xpMultiplier = 1,
   ): boolean {
+    if (!Number.isFinite(xpMultiplier) || xpMultiplier <= 0) {
+      throw new RangeError('enemy XP multiplier must be finite and positive');
+    }
     const slot = enemies.spawn();
     if (slot < 0) return false;
 
@@ -485,9 +493,17 @@ export function createSimulation(
     data.touchDamage[slot] = arch.touchDamage;
     data.contactCooldown[slot] = 0;
     data.archetype[slot] = archetype;
-    data.xpDrop[slot] = arch.xpDrop;
+    data.xpDrop[slot] = arch.xpDrop * xpMultiplier;
     data.marked[slot] = 0;
     enemyRoles[slot] = role;
+    resetEnemyBehavior(
+      enemyBehavior,
+      slot,
+      arch.name,
+      role === RUN_ENEMY_ROLE.elite,
+      config.enemyBehavior.eliteInitialFireDelayTicks,
+      config.enemyBehavior.spitterInitialFireDelayTicks,
+    );
 
     grid.insert(enemies.idOf(slot), x, y);
     if (role === RUN_ENEMY_ROLE.boss) bossEntityId = enemies.idOf(slot);
@@ -510,6 +526,7 @@ export function createSimulation(
       request.x,
       request.y,
       request.role,
+      request.xpMultiplier,
     );
   }
 
@@ -523,6 +540,7 @@ export function createSimulation(
     grid.remove(killedId);
     enemies.despawn(eSlot);
     enemyRoles[eSlot] = RUN_ENEMY_ROLE.regular;
+    resetEnemyBehavior(enemyBehavior, eSlot, '', false, 0, 0);
     if (role === RUN_ENEMY_ROLE.boss && killedId === bossEntityId) {
       bossEntityId = NO_ENTITY;
       bossDefeatedThisTick = true;
@@ -535,7 +553,10 @@ export function createSimulation(
       pickups.data.posX[pSlot] = x;
       pickups.data.posY[pSlot] = y;
       pickups.data.xp[pSlot] = xpDrop;
-      pickups.data.radius[pSlot] = 4;
+      // Rare elite drops are a visibly larger, easier-to-spot XP token while
+      // retaining one bounded pickup per kill and the same authoritative XP
+      // value. Ordinary 1-XP motes remain at radius 4.
+      pickups.data.radius[pSlot] = 4 + Math.min(5, Math.floor(Math.sqrt(xpDrop) / 2));
     }
     events.kills++;
     totalKills++;
@@ -625,6 +646,13 @@ export function createSimulation(
       worldHeight,
       config.enemyContactCooldownTicks,
       config.player.invulnTicksOnHit,
+      {
+        state: enemyBehavior,
+        config: config.enemyBehavior,
+        tick: clock.tick,
+        projectiles,
+        events,
+      },
     );
 
     weaponCooldown--;
@@ -691,7 +719,19 @@ export function createSimulation(
       }
     }
 
-    stepProjectiles(projectiles, enemies, grid, dt, worldWidth, worldHeight, maxEnemyRadius, events, killEnemy);
+    stepProjectiles(
+      projectiles,
+      enemies,
+      grid,
+      dt,
+      worldWidth,
+      worldHeight,
+      maxEnemyRadius,
+      events,
+      killEnemy,
+      player,
+      config.player.invulnTicksOnHit,
+    );
 
     attractPickups(pickups, player, dt, pickupAttractionRadius, pickupAttractionSpeed);
     collectPickups(pickups, player, events, xpGainMultiplier);
@@ -812,6 +852,8 @@ export function createSimulation(
           writer.u8(data.archetype[slot]!);
           writer.f32(data.xpDrop[slot]!);
           writer.u8(data.marked[slot]!);
+          writer.u8(enemyBehavior.kind[slot]!);
+          writer.u16(enemyBehavior.hostileShotCooldown[slot]!);
         }
       }
     }

@@ -47,9 +47,14 @@ Open the local Vite URL printed in the terminal (normally
   defeat it to finish the run.
 - Normal mode has a hard **12:00** end. **The Final Threat** enters at **10:00**;
   defeat it before 12:00 to win. Normal mode does not enter hidden overtime.
-- Earned levels also apply a small capped pressure ramp: levels **4** and **7**
-  raise live-enemy capacity and shorten ordinary-wave cadence from 120 to 108
-  to 96 ticks. It cannot release a same-tick spawn burst.
+- Ordinary waves now enter from beyond the camera rather than materializing
+  beside Greg, then ramp through 75 / 60 / 45 / 30 tick phase cadence. Levels
+  **4**, **6**, and **8** add a bounded **+1 soft / +2 hard** enemy capacity
+  and remove four cadence ticks per step; no same-tick burst is allowed.
+- Runners weave while approaching. The cobalt **Spitter** is a normal-plus
+  ranged enemy that arrives after the opening, holds distance, and fires slow,
+  dodgeable orange shots; elites are tougher ranged skirmishers with 24-XP
+  reward motes.
 - Greg has no player-visible level cap. When he levels up, the game pauses at an
   upgrade choice. The mixed chooser presents animal adaptations alongside six
   neutral run upgrades—**Swift Paws**, **XP Magnet**, **Sturdy Hide**,
@@ -70,12 +75,12 @@ Open the local Vite URL printed in the terminal (normally
 - On touch, the floating joystick thumb follows each drag. The persistent
   **Active Adaptations** cards stay above the lower-left joystick in portrait
   and clear to its right in landscape. **Pause**, **Restart run**, and terminal
-  **Play again** controls use 44px-high touch targets.
+  **Continue to upgrades** controls use 44px-high touch targets.
 - A live boss exposes a persistent **The Final Threat** health bar. At victory or
-  defeat, the outcome card banks the earned **Essence** once for that run in a
-  local browser profile and offers **Play again** to restart the same seed.
-  Spend saved Essence on the capped **Starting Vitality** purchase; each rank
-  adds starting maximum health on the next run.
+  defeat, the outcome card banks the earned **Essence** once for that run and
+  sends Greg back to the prep screen. Spend saved Essence on the capped
+  **Starting Vitality** purchase there; each rank adds starting maximum health
+  on the next run, without leaving permanent-stat UI over active play.
 - The follow camera uses a deliberately tighter presentation-only frame, making
   Greg, nearby threats, and green XP motes easier to read without changing
   movement, simulation space, balance, or replay.
@@ -126,9 +131,9 @@ The current universal-progression and local-profile alpha has passed its full
 deterministic and browser package gates, but human balance testing is still
 pending. Hands-on play is needed to tune movement feel, pacing, upgrade
 comprehension, trait readability, and the elite/boss experience before this can
-advance beyond Gate 1. **Luck**,
-player-selectable difficulties, Hardcore Endless, and additional animal traits
-are deliberately deferred rather than implied by this small alpha catalog.
+advance beyond Gate 1. **Luck**, player-selectable difficulties, Hardcore
+Endless, additional animal traits, and further player attack families are
+deliberately deferred rather than implied by this small alpha catalog.
 
 For the up-to-date milestone, known gaps, and next work, see
 [`docs/status/current.md`](docs/status/current.md). The original product

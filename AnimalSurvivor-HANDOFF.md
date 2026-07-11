@@ -65,9 +65,10 @@ Path: `spikes/headless-sim/`
   without letting browser storage enter deterministic gameplay.
 - Structural injection ports keep the package free of runtime dependencies on
   the trait and run-director packages.
-- Config/replay compatibility is version 4. Typed upgrade selections, the
-  universal catalog fingerprint, and the run-start-loadout fingerprint are
-  recorded so old content cannot silently replay against this alpha state.
+- Config/replay compatibility is version 6. Typed upgrade selections, the
+  universal catalog fingerprint, run-start-loadout fingerprint, and deterministic
+  runner/ranged behavior parameters are recorded so old content cannot silently
+  replay against this alpha state.
 
 Important integration files:
 
@@ -80,6 +81,7 @@ Important integration files:
 - `src/run-start-loadout.ts`
 - `src/run-director-port.ts`
 - `src/run-spawn-adapter.ts`
+- `src/enemy-behavior.ts`
 
 ### Trait/evolution runtime
 
@@ -102,10 +104,12 @@ Path: `packages/run-director/`
   overtime.
 - Opening, pressure, adaptation, mutation, and boss phases. Overtime belongs
   only to a future explicit endless definition.
-- Three authored elite beats, boss entrance, victory, defeat, and bounded
-  content-owned level pressure (levels 4 then 7 add capped live-enemy capacity
-  and shorten ordinary-wave cadence from 120 to 108 to 96 ticks; it never
-  creates a spawn burst).
+- Six authored elite beats: one in pressure at 3:20, two in adaptation at 5:40
+  and 7:00, and three in mutation at 8:10, 9:00, and 9:30. Base phase cadence
+  is 75/60/45/30/36 ticks and base soft/hard caps are 10/18, 18/30, 30/48,
+  46/72, and 36/56 (opening through boss). Bounded level pressure at 4, 6, and
+  8 adds +1/+2 capacity and removes 4 cadence ticks per step; it never creates
+  a same-tick spawn burst.
 - Emits pure intents; never owns simulation pools or renderer state.
 - Imported swarm work was hardened so `RunDirector` saves include and verify
   the exact authored content fingerprint.
@@ -115,11 +119,16 @@ Temporary simulation mappings:
 - fodder -> walker prototype;
 - runner -> runner prototype;
 - brute -> brute prototype;
-- elite -> brute prototype with 5x HP;
+- spitter -> cobalt ranged prototype (36 HP, 2 XP, slow hostile shots);
+- elite -> brute prototype with 5x HP and 6x XP (24 XP from its base 4);
 - boss -> brute prototype with 18x HP (1,440 HP in the current temporary tune).
 
 Formation placement is deterministic arithmetic derived from director event
-tick and sequence and consumes no simulation RNG.
+tick and sequence and consumes no simulation RNG. Ordinary fodder/runner waves
+are authored at 760–920 world units (brutes/elites 800–960); the boss is
+deliberately nearer at 400–480 so its 10:00 entrance reaches combat promptly.
+At an edge, the adapter finds a complete in-bounds formation at its authored
+radius or deterministically rejects it rather than clamping it beside Greg.
 
 ### Web toy
 
@@ -167,20 +176,28 @@ Path: `apps/web-toy/`
 - Bounded primitive feedback pools show ordinary attacks, hits, pickups, and
   deaths as short additive fading rings alongside trait effects, without
   mutating gameplay state.
-- The first alpha pacing tune sends three-unit fodder waves through a readable
-  arc at 200–320 world units rather than a close surround. The boss owns its
-  entrance tick, and its temporary adapter multiplier is 18× (1,440 HP) while
-  the broader progression/boss balance work is built.
+- Ordinary fodder and runner waves now approach from beyond the current camera
+  boundary rather than materializing at weapon range. Their authored 760–920
+  world-unit placement is paired with phase-specific density/cap escalation;
+  the boss owns its entrance tick and retains its temporary 18× HP adapter
+  multiplier (1,440 HP) while broader boss balance work is built.
+- Distant runners use a deterministic weave before directly seeking nearby
+  Greg. Elites hold a range band, orbit or retreat, and fire orange-red hostile
+  projectiles after a 72-tick delay in firing range and then every 150 in-range
+  ticks. Their 8-damage shots are authoritative, respect player invulnerability,
+  and render in their own instanced hostile-projectile batch.
 - Director events present phase, elite, boss, victory, and defeat notices in
   normal mode. Elites and bosses have distinct bounded instanced primitive roles.
 - App-owned enemy snapshots copy current and maximum health, so a persistent,
   accessible boss-health bar appears only while the authoritative boss is live.
 - Terminal outcome UI is wired to the simulation-owned run outcome, settles
-  earned Essence exactly once per app-owned run id, and includes **Play again**
-  for a same-seed restart.
+  earned Essence exactly once per app-owned run id, and uses **Continue to
+  upgrades** to return to the next-run prep screen instead of restarting
+  immediately.
 - A versioned local browser profile holds Essence and the first capped permanent
   purchase, **Starting Vitality** (three +10 maximum-health ranks). Its
-  normalized result applies only when the next deterministic run is created.
+  normalized result applies only when the next deterministic run is created;
+  the profile appears on the prep card, not in active combat.
 - The normal web-toy HUD and controls are compact and player-facing;
   `?debug=1` restores diagnostics and engineering controls for local checks.
 - A live desktop run supports **Esc** as a repeat-safe pause/resume toggle; it
@@ -194,8 +211,8 @@ Path: `apps/web-toy/`
   and preserve **Tab** + **Enter** navigation for mixed trait/universal/Essence
   choices. The touch joystick has a floating drag thumb; persistent Active
   Adaptations cards stay above that lower-left control in portrait and to its
-  right in landscape. Pause, Restart run, and terminal Play again use 44px
-  touch targets.
+  right in landscape. Pause, Restart run, and terminal Continue to upgrades use
+  44px touch targets.
 - Sparse procedural sound feedback is opt-in and **Off** by default. Players
   can enable it on the Start run card or with the in-run **Sound: Off/On**
   control; its stronger start/restart and upgrade confirmations remain sparse,
@@ -217,18 +234,21 @@ Path: `apps/web-toy/`
 All package gates below completed successfully on 2026-07-11 from
 `/Users/adammuncie/GameDev/AnimalSurvivor`:
 
-- Headless simulation: **186/186** tests, typecheck, and lint passed.
+- Headless simulation: **197/197** tests, typecheck, lint, and build passed.
 - Trait runtime: **58/58** tests, typecheck, and lint passed.
-- Run director: **68/68** tests, typecheck, and lint passed.
-- Web toy: **194/194** tests, typecheck, lint, and production build passed.
-- Total: **506** automated tests passed.
+- Run director: **71/71** tests, typecheck, lint, and build passed.
+- Web toy: **195/195** tests, typecheck, lint, and production build passed.
+- Total: **521** automated tests passed.
 - The integrated real-trait/real-director replay reaches a terminal outcome no
   later than the 12:00 normal cap and reproduces its exact final hash.
 - A local browser smoke verified the mixed chooser (two animal cards plus a
   reserved neutral Swift Paws card), selected that card, and showed its exact
   rank/effect in the pause panel. It was not a human balance playtest or a
   terminal-profile-flow test.
-- The current production build transformed 1,242 modules; Vite reports its
+- Dedicated tests cover phase cadence, off-screen placement and edge rejection,
+  24-XP elite drops, runner weave, Spitter/elite shots, pause/hash parity, and
+  hostile snapshot presentation.
+- The current production build transformed 1,243 modules; Vite reports its
   expected chunk-size warning for the roughly 2.06 MB minified main bundle
   (about 530 kB gzip).
 
@@ -288,6 +308,8 @@ human playtesting.
   out of player-facing catalogs in the meantime.
 - Elite and boss roles are visually distinct primitives, but still need final
   authored meshes, animation, and richer entrance behavior.
+- The normal-plus Spitter is implemented, but additional player attack families
+  and broader enemy behavior families remain future content.
 - The full-run browser stress option is an engineering UI check, not a
   normal-balance browser run or human-playtest result.
 - The optional sound layer now includes stronger start/upgrade confirmations,
@@ -303,21 +325,32 @@ human playtesting.
 
 ## Recommended next task
 
-Use the validated progression alpha for one complete human normal-mode playtest
-before expanding its catalog.
+Run a focused human pressure playtest of the revised Greg loop before expanding
+the enemy or player-attack catalog.
 
-1. Run a complete human normal-mode playtest: reach the 10:00 boss or die,
-   observe the hard 12:00 ending, inspect both pause summaries, bank Essence,
-   buy Starting Vitality, then confirm its effect on the next run.
-2. Use that evidence to tune only authored, replay-safe pressure values:
-   placement, the bounded level-pressure steps, and temporary boss health.
-   Record exact observations instead of inferring balance from autoplay.
-3. Only after that loop is enjoyable should the owner enable GitHub Pages for a
-   hosted test link and broaden external playtesting.
+1. Confirm ordinary waves approach from outside the screen and that phase/level
+   pressure is no longer safely ignorable around six to seven minutes. Record
+   the phase, level, and exact failure mode rather than inferring balance from
+   autoplay.
+2. Verify that the six elite beats, their 24-XP pickup, runner weave, and
+   cobalt Spitter/elite orange shots create readable movement decisions without unfair
+   hits. Check that terminal **Continue to upgrades** returns to prep, the
+   profile is absent during play, and a Vitality purchase applies only to a
+   fresh next run.
+3. Tune only authored, replay-safe pressure values from that evidence:
+   placement, phase cadence/caps, bounded level-pressure steps, elite timing,
+   and temporary boss health. Preserve deterministic placement and no same-tick
+   wave burst.
+4. If that loop is readable, design the next player attack family and a second
+   enemy behavior with explicit simulation, replay, snapshot,
+   visual, and playtest contracts.
+5. Only after the compact loop is enjoyable should the owner enable GitHub Pages
+   for a hosted test link and broaden external playtesting.
 
-Do not add Luck, player-selectable difficulty, Hardcore Endless, or more animal
-traits as the next task. Each needs a separate truthful gameplay contract and
-should follow—not preempt—evidence that this compact loop works.
+Do not add Luck, player-selectable difficulty, Hardcore Endless, broader enemy
+families, or more animal traits opportunistically. Each needs a separate
+truthful gameplay contract and should follow—not preempt—evidence that this
+compact loop works.
 
 ## Non-negotiable technical rules
 

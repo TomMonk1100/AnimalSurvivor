@@ -99,11 +99,14 @@ const CATEGORY_COLORS: Record<ViewCategory, pc.Color> = {
   projectile: new pc.Color(0.95, 0.85, 0.2), // yellow
   pickup: new pc.Color(0.27, 0.9, 0.36), // green
 };
+const HOSTILE_PROJECTILE_COLOR = new pc.Color(1, 0.32, 0.1); // orange-red
 /** Fixed role treatments: never a unique material or mesh per enemy. */
 const ELITE_ENEMY_COLOR = new pc.Color(1, 0.58, 0.12); // amber
 const BOSS_ENEMY_COLOR = new pc.Color(0.72, 0.22, 0.95); // violet
+const RANGED_ENEMY_COLOR = new pc.Color(0.18, 0.52, 1); // cobalt-blue
 const ELITE_SCALE_MULTIPLIER = 1.35;
 const BOSS_SCALE_MULTIPLIER = 2.2;
+const RANGED_SCALE_MULTIPLIER = 1.12;
 
 /** One shared unlit/flat material per category (+ player). No per-unit materials. */
 function createFlatMaterial(color: pc.Color): pc.StandardMaterial {
@@ -188,6 +191,8 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
   };
   const eliteEnemyMaterial = createFlatMaterial(ELITE_ENEMY_COLOR);
   const bossEnemyMaterial = createFlatMaterial(BOSS_ENEMY_COLOR);
+  const rangedEnemyMaterial = createFlatMaterial(RANGED_ENEMY_COLOR);
+  const hostileProjectileMaterial = createFlatMaterial(HOSTILE_PROJECTILE_COLOR);
   const playerMaterial = createFlatMaterial(PLAYER_COLOR);
 
   const playerEntity = new pc.Entity('player');
@@ -214,10 +219,11 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
   );
 
   // --- Hardware-instanced category views ---------------------------------
-  // Regular enemies, elites, and bosses use three fixed batches. That gives
-  // the two authored special roles a one-glance silhouette/color/scale read
-  // while keeping draw-call growth bounded at two extra draws, never one draw
-  // or material per enemy. Projectiles and pickups retain the shared sphere.
+  // Regular enemies, elites, bosses, and ranged enemies use fixed batches.
+  // That gives the three authored special roles a one-glance color/scale read
+  // while keeping draw-call growth bounded at three extra draws, never one
+  // draw or material per enemy. Projectiles and pickups retain the shared
+  // sphere.
   const categoryMesh = pc.Mesh.fromGeometry(
     app.graphicsDevice,
     new pc.SphereGeometry({ latitudeBands: 8, longitudeBands: 8 }),
@@ -272,6 +278,22 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     bossEnemyMesh,
     bossEnemyMaterial,
   );
+  const rangedEnemyBatch = createInstancedCategoryBatch(
+    app.graphicsDevice,
+    entitiesRoot,
+    'ranged-enemy',
+    config.enemyCap,
+    eliteEnemyMesh,
+    rangedEnemyMaterial,
+  );
+  const hostileProjectileBatch = createInstancedCategoryBatch(
+    app.graphicsDevice,
+    entitiesRoot,
+    'hostile-projectile',
+    config.projectileCap,
+    categoryMesh,
+    hostileProjectileMaterial,
+  );
 
   const transformStores: Record<ViewCategory, InstancedTransformStore> = {
     enemy: new InstancedTransformStore(config.enemyCap),
@@ -280,6 +302,8 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
   };
   const eliteEnemyTransforms = new InstancedTransformStore(config.enemyCap);
   const bossEnemyTransforms = new InstancedTransformStore(config.enemyCap);
+  const rangedEnemyTransforms = new InstancedTransformStore(config.enemyCap);
+  const hostileProjectileTransforms = new InstancedTransformStore(config.projectileCap);
 
   let ready = true;
   let lastDrawCalls = 0;
@@ -354,6 +378,16 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
       RUN_ENEMY_ROLE.boss,
       BOSS_SCALE_MULTIPLIER,
     );
+    rangedEnemyTransforms.update(
+      prev.enemies,
+      curr.enemies,
+      alpha,
+      -worldHalfWidth,
+      worldHalfHeight,
+      -1,
+      RUN_ENEMY_ROLE.ranged,
+      RANGED_SCALE_MULTIPLIER,
+    );
     transformStores.projectile.update(
       prev.projectiles,
       curr.projectiles,
@@ -361,6 +395,16 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
       -worldHalfWidth,
       worldHalfHeight,
       -1,
+      0,
+    );
+    hostileProjectileTransforms.update(
+      prev.projectiles,
+      curr.projectiles,
+      alpha,
+      -worldHalfWidth,
+      worldHalfHeight,
+      -1,
+      1,
     );
     transformStores.pickup.update(
       prev.pickups,
@@ -373,7 +417,9 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     batches.enemy.sync(transformStores.enemy);
     eliteEnemyBatch.sync(eliteEnemyTransforms);
     bossEnemyBatch.sync(bossEnemyTransforms);
+    rangedEnemyBatch.sync(rangedEnemyTransforms);
     batches.projectile.sync(transformStores.projectile);
+    hostileProjectileBatch.sync(hostileProjectileTransforms);
     batches.pickup.sync(transformStores.pickup);
 
     // app.render() is called manually rather than through app.tick(), so
@@ -394,13 +440,17 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
         batches.enemy.liveViews +
         eliteEnemyBatch.liveViews +
         bossEnemyBatch.liveViews +
+        rangedEnemyBatch.liveViews +
         batches.projectile.liveViews +
+        hostileProjectileBatch.liveViews +
         batches.pickup.liveViews,
       highWaterViews:
         batches.enemy.highWaterViews +
         eliteEnemyBatch.highWaterViews +
         bossEnemyBatch.highWaterViews +
+        rangedEnemyBatch.highWaterViews +
         batches.projectile.highWaterViews +
+        hostileProjectileBatch.highWaterViews +
         batches.pickup.highWaterViews,
       contextLost: contextLost ? 1 : 0,
     };
@@ -413,7 +463,9 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     batches.enemy.dispose();
     eliteEnemyBatch.dispose();
     bossEnemyBatch.dispose();
+    rangedEnemyBatch.dispose();
     batches.projectile.dispose();
+    hostileProjectileBatch.dispose();
     batches.pickup.dispose();
     categoryMesh.destroy();
     eliteEnemyMesh.destroy();
@@ -421,7 +473,9 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     materials.enemy.destroy();
     eliteEnemyMaterial.destroy();
     bossEnemyMaterial.destroy();
+    rangedEnemyMaterial.destroy();
     materials.projectile.destroy();
+    hostileProjectileMaterial.destroy();
     materials.pickup.destroy();
     playerMaterial.destroy();
     traitCommandPresentation.dispose();

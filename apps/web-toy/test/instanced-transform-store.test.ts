@@ -121,8 +121,9 @@ describe('InstancedTransformStore', () => {
       { id: makeId(reusedSlot, 5), x: 100, y: 200, role: RUN_ENEMY_ROLE.regular },
       { id: makeId(13, 1), x: 40, y: 70, role: RUN_ENEMY_ROLE.boss },
       { id: makeId(14, 1), x: 50, y: 80, role: RUN_ENEMY_ROLE.elite },
+      { id: makeId(15, 1), x: 60, y: 90, role: RUN_ENEMY_ROLE.ranged },
     ]);
-    const store = new InstancedTransformStore(3);
+    const store = new InstancedTransformStore(4);
 
     store.update(previous, current, 0.5, 0, 0, 1, RUN_ENEMY_ROLE.boss, 2);
 
@@ -139,6 +140,13 @@ describe('InstancedTransformStore', () => {
     expect(store.roles[0]).toBe(RUN_ENEMY_ROLE.regular);
     expect(matrix(store, 0)[12]).toBe(100);
     expect(matrix(store, 0)[14]).toBe(200);
+
+    store.update(previous, current, 0.5, 0, 0, 1, RUN_ENEMY_ROLE.ranged);
+    expect(store.count).toBe(1);
+    expect(store.ids[0]).toBe(makeId(15, 1));
+    expect(store.roles[0]).toBe(RUN_ENEMY_ROLE.ranged);
+    expect(matrix(store, 0)[12]).toBe(60);
+    expect(matrix(store, 0)[14]).toBe(90);
   });
 
   it('drops removed entries and preserves current snapshot order', () => {

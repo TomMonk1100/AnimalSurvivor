@@ -75,7 +75,7 @@ driver hash, tick, controls, and stop method.
 | **Pause / Resume** | Stops stepping. Press **Esc** during a live desktop run to toggle it; a centered notice explains how to resume, and a paused frame advances no clock, RNG, entity state, trait runtime, or run director. |
 | **Restart run** | Rebuilds the integrated run from the current seed in the compact player-facing controls. |
 | **Restart w/ seed** (debug) | Rebuilds the integrated run from the seed in the debug text box. |
-| **Play again** | Appears on a terminal victory/defeat card and restarts the current seed without requiring debug controls. Pause, Restart run, and Play again have 44px-high touch targets. |
+| **Continue to upgrades** | Appears on a terminal victory/defeat card and returns to the prep screen, where Essence can buy Starting Vitality before **Start next run** creates a fresh run. Pause, Restart run, and this terminal control have 44px-high touch targets. |
 | **Autopilot: ON/OFF** (debug) | Toggles the pure-function-of-tick stress input. |
 | **Renderer: ON/OFF** (debug) | Detaches or attaches GPU rendering while simulation keeps running, so local A/B checks can confirm that rendering does not affect gameplay. |
 
@@ -113,12 +113,15 @@ rendering and never feed back into gameplay, hashing, or replay state.
 
 The authored normal-mode run director drives phase, elite, boss, victory, and
 defeat notices. Enemy role remains authoritative in simulation; the renderer
-reads it to give elites amber cylinder treatments and bosses violet cone
-treatments, without per-enemy material or entity allocation. App-owned enemy
-snapshots also copy current and maximum health, so a live boss gets a persistent,
-accessible **The Final Threat** bar without exposing writable gameplay state.
-When the authoritative run ends, its outcome card includes **Play again** for a
-same-seed restart.
+reads it to give elites amber cylinder treatments, bosses violet cone
+treatments, and normal-plus Spitters cobalt capsule treatments, without
+per-enemy material or entity allocation. Orange hostile projectiles carry their
+enemy faction through snapshots and never trigger Greg's player-attack cue.
+App-owned enemy snapshots also copy current and maximum health, so a live boss
+gets a persistent, accessible **The Final Threat** bar without exposing
+writable gameplay state. When the authoritative run ends, its outcome card
+includes **Continue to upgrades** rather than covering the next run with
+permanent-stat UI.
 
 ## Architecture and renderer/simulation boundary
 
@@ -187,10 +190,12 @@ health, timers, RNG, entity lifetimes, trait state, or director state.
 - **Arena reference:** two static, subtle world-space line meshes give the
   camera-following view a minor/major grid. They are built once, use shared
   materials, and never update or allocate during the render loop.
-- **Instanced swarms:** regular enemies, elite enemies, bosses, projectiles,
-  and pickups use fixed hardware-instanced category batches. A normal enemy is
-  a red sphere, an elite is an amber cylinder, and a boss is a violet cone. The
-  role treatment adds bounded fixed batches, not one mesh or material per enemy.
+- **Instanced swarms:** regular enemies, elite enemies, bosses, Spitters,
+  player projectiles, hostile projectiles, and pickups use fixed
+  hardware-instanced category batches. A normal enemy is a red sphere, an
+  elite is an amber cylinder, a boss is a violet cone, and a Spitter is a cobalt
+  capsule. The role treatment adds bounded fixed batches, not one mesh or
+  material per enemy.
 - **Greg:** an audited local Quaternius fox glTF replaces a resilient cyan
   fallback after loading. A fixed-tick presentation reducer drives Idle, Walk,
   Attack, Hit, and Death behavior; a 45-degree-per-tick visual turn cap and
@@ -221,7 +226,7 @@ Run from apps/web-toy:
 | npm ci | Installs the locked browser-tooling dependency set. |
 | npm run typecheck | Strict TypeScript, including noUncheckedIndexedAccess. |
 | npm run lint | ESLint with --max-warnings 0; app-source Math.random is banned. |
-| npm test | The current suite contains **177 tests** across the driver, input, snapshots, presentation, procedural audio, real integrated run replay, and renderer-facing helpers. |
+| npm test | The current suite contains **195 tests** across the driver, input, snapshots, presentation, procedural audio, real integrated run replay, and renderer-facing helpers. |
 | npm run build | Strict typecheck plus a Vite production build. |
 
 The suite covers accumulator exactness, catch-up and hidden-tab behavior,
@@ -266,7 +271,7 @@ To repeat useful checks locally:
    /?autopilot=1&stress=1&fullrun=1. It raises the stress cap to the 43,200-tick
    normal boundary and makes deterministic upgrade choices until terminal. If
    the normal-health run reaches a live boss, verify the **The Final Threat**
-   health bar appears and the terminal card offers **Play again**. This is an
+   health bar appears and the terminal card offers **Continue to upgrades**. This is an
    engineering UI check, not evidence of normal-balance survival.
 4. **Read-only rendering A/B:** add `?debug=1`, then toggle **Renderer: OFF/ON**
    while autopilot runs. The simulation/hash should continue identically with
@@ -275,7 +280,7 @@ To repeat useful checks locally:
    landscape; check that the lower-left joystick thumb follows a drag and
    resets on release, the persistent adaptation cards stay above the joystick
    in portrait and to its right in landscape, Pause/Restart run and terminal
-   Play again are comfortable 44px targets, and the page has no horizontal
+   Continue to upgrades are comfortable 44px targets, and the page has no horizontal
    overflow.
 6. **Optional sound:** enable **Sound effects** before starting, then toggle
    **Sound: On/Off** during a run. Confirm sparse start/restart, rate-limited

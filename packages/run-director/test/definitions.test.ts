@@ -44,17 +44,45 @@ test('normal phases are contiguous through the terminal boss phase', () => {
   }
 });
 
-test('exactly 3 elite beats, one per pressure/adaptation/mutation', () => {
+test('elite beats become more frequent in later pre-boss phases', () => {
   const def = getDefaultDefinition();
-  assert.equal(def.eliteBeats.length, 3);
-  const phases = def.eliteBeats.map((b) => b.phaseId).sort();
-  assert.deepEqual(phases, ['adaptation', 'mutation', 'pressure']);
+  assert.equal(def.eliteBeats.length, 6);
+  const byPhase = new Map<string, number>();
+  for (const beat of def.eliteBeats) byPhase.set(beat.phaseId, (byPhase.get(beat.phaseId) ?? 0) + 1);
+  assert.deepEqual([...byPhase.entries()].sort(), [
+    ['adaptation', 2],
+    ['mutation', 3],
+    ['pressure', 1],
+  ]);
 });
 
 test('boss requestTick === BOSS_ENTRANCE_TICK (36,000)', () => {
   const def = getDefaultDefinition();
   assert.equal(def.boss.requestTick, BOSS_ENTRANCE_TICK);
   assert.equal(def.boss.requestTick, 36_000);
+});
+
+test('ordinary waves approach from off-screen while the boss enters quickly enough to fight', () => {
+  const def = getDefaultDefinition();
+  const fodder = def.archetypes.find((archetype) => archetype.id === 'enemy:fodder');
+  assert.ok(fodder);
+  assert.deepEqual([fodder.minDistance, fodder.maxDistance], [38, 46]);
+  assert.deepEqual([def.boss.minDistance, def.boss.maxDistance], [20, 24]);
+});
+
+test('normal-plus spitters arrive after the opening and never crowd the boss entrance', () => {
+  const def = getDefaultDefinition();
+  const spitter = def.archetypes.find((archetype) => archetype.id === 'enemy:spitter');
+  assert.ok(spitter);
+  assert.deepEqual(
+    [spitter.cost, spitter.weight, spitter.count, spitter.minDistance, spitter.maxDistance],
+    [3, 2, 1, 38, 46],
+  );
+  assert.equal(def.waves.phaseArchetypes.opening?.includes('enemy:spitter'), false);
+  assert.equal(def.waves.phaseArchetypes.pressure?.includes('enemy:spitter'), true);
+  assert.equal(def.waves.phaseArchetypes.adaptation?.includes('enemy:spitter'), true);
+  assert.equal(def.waves.phaseArchetypes.mutation?.includes('enemy:spitter'), true);
+  assert.equal(def.waves.phaseArchetypes.boss?.includes('enemy:spitter'), false);
 });
 
 test('a mutated copy with a phase gap fails validation', () => {

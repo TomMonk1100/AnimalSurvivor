@@ -16,6 +16,15 @@ test('fingerprint changes when a gameplay value changes', () => {
     weapon: { ...DEFAULT_CONFIG.weapon, damage: DEFAULT_CONFIG.weapon.damage + 1 },
   };
   assert.notEqual(fingerprintConfig(changed), fingerprintConfig(DEFAULT_CONFIG));
+
+  const behaviorChanged: SimConfig = {
+    ...DEFAULT_CONFIG,
+    enemyBehavior: {
+      ...DEFAULT_CONFIG.enemyBehavior,
+      spitterFireIntervalTicks: DEFAULT_CONFIG.enemyBehavior.spitterFireIntervalTicks + 1,
+    },
+  };
+  assert.notEqual(fingerprintConfig(behaviorChanged), fingerprintConfig(DEFAULT_CONFIG));
 });
 
 test('validation rejects capacities that can collide with packed ids', () => {
@@ -30,6 +39,18 @@ test('validation rejects mismatched wave weights and non-finite values', () => {
   };
   assert.throws(() => validateConfig(badWeights), /archetypeWeights/);
   assert.throws(() => validateConfig({ ...DEFAULT_CONFIG, hz: Number.POSITIVE_INFINITY }), /hz/);
+  assert.throws(() => validateConfig({
+    ...DEFAULT_CONFIG,
+    enemyBehavior: { ...DEFAULT_CONFIG.enemyBehavior, runnerWeaveStrength: 2 },
+  }), /runnerWeaveStrength/);
+  assert.throws(() => validateConfig({
+    ...DEFAULT_CONFIG,
+    enemyBehavior: { ...DEFAULT_CONFIG.enemyBehavior, eliteFireIntervalTicks: 0 },
+  }), /eliteFireIntervalTicks/);
+  assert.throws(() => validateConfig({
+    ...DEFAULT_CONFIG,
+    enemyBehavior: { ...DEFAULT_CONFIG.enemyBehavior, spitterProjectileDamage: 0 },
+  }), /spitterProjectileDamage/);
 });
 
 test('simulation rejects non-finite input before recording or mutation', () => {

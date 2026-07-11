@@ -92,11 +92,15 @@ function idsIn(snapshot: CategorySnapshot): Set<number> {
   return ids;
 }
 
-function countNew(current: CategorySnapshot, previous: CategorySnapshot): number {
+function countNew(
+  current: CategorySnapshot,
+  previous: CategorySnapshot,
+  include: (index: number) => boolean = () => true,
+): number {
   const previousIds = idsIn(previous);
   let count = 0;
   for (let index = 0; index < current.count; index++) {
-    if (!previousIds.has(current.id[index]!)) count++;
+    if (!previousIds.has(current.id[index]!) && include(index)) count++;
   }
   return count;
 }
@@ -184,11 +188,15 @@ export function projectCombatFeedback(
     ));
   }
 
-  const newProjectiles = countNew(current.projectiles, previous.projectiles);
+  const newProjectiles = countNew(
+    current.projectiles,
+    previous.projectiles,
+    (index) => current.projectiles.role[index] === 0,
+  );
   if (newProjectiles > 0) {
-    // Snapshot data does not expose projectile ownership. Anchoring the pulse
-    // on Greg gives the existing all-player projectile slice a readable attack
-    // cue without inventing any gameplay provenance in presentation.
+    // Only Greg's faction gets the player-anchored attack pulse. Hostile shots
+    // stay visible in their own renderer batch and resolve through the normal
+    // player-hit cue instead of impersonating an auto-attack.
     add(createCue(
       tick,
       'attack',

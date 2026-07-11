@@ -104,6 +104,14 @@ describe('combat feedback projection', () => {
     })).toThrow('pickupCollectionRadius');
   });
 
+  it('does not turn a newly visible hostile projectile into Greg’s attack cue', () => {
+    const { previous, current } = snapshots();
+    entity(current.projectiles, 0, 99, 15, 10);
+    current.projectiles.role[0] = 1;
+
+    expect(projectCombatFeedback(previous, current).cues.some((cue) => cue.kind === 'attack')).toBe(false);
+  });
+
   it('uses the live snapshot pickup radius so Magnet collections retain feedback', () => {
     const { previous, current } = snapshots();
     previous.playerX = current.playerX = 0;

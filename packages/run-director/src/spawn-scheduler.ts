@@ -82,8 +82,9 @@ export function serviceSpawns(
 ): SpawnDecision[] {
   const liveEnemies = metrics.liveEnemies;
   const caps = resolveLiveEnemyCaps(phase, def.levelPressure, metrics.playerLevel);
+  const phaseInterval = def.waves.phaseIntervalTicks?.[phase.id] ?? def.waves.intervalTicks;
   const intervalTicks = resolveDiscretionaryWaveInterval(
-    def.waves.intervalTicks,
+    phaseInterval,
     def.levelPressure,
     metrics.playerLevel,
   );

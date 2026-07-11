@@ -13,10 +13,21 @@ import type {
   SimEvents,
   SpatialGrid,
 } from './types.js';
-import type { WeaponConfig } from './config.js';
+import type { EnemyBehaviorConfig, WeaponConfig } from './config.js';
+import { ENEMY_BEHAVIOR_KIND, type EnemyBehaviorState } from './enemy-behavior.js';
 
 // Module-level scratch array reused across calls (allocation-light hot path).
 const hitScratch: EntityId[] = [];
+
+/** Optional deterministic behavior layer for the active enemy slice. */
+export interface EnemyBehaviorStepOptions {
+  readonly state: EnemyBehaviorState;
+  readonly config: EnemyBehaviorConfig;
+  /** Current fixed simulation tick, never wall-clock time. */
+  readonly tick: number;
+  readonly projectiles: Pool<ProjectilePool>;
+  readonly events: SimEvents;
+}
 
 function distSq(ax: number, ay: number, bx: number, by: number): number {
   const dx = ax - bx;
@@ -33,6 +44,7 @@ export function stepEnemies(
   worldHeight: number,
   contactCooldownTicks: number,
   invulnTicksOnHit: number,
+  behavior?: EnemyBehaviorStepOptions,
 ): void {
   const data = enemies.data;
   for (let slot = 0; slot < data.capacity; slot++) {
@@ -53,8 +65,82 @@ export function stepEnemies(
       const invDist = 1 / dist;
       const dirX = dx * invDist;
       const dirY = dy * invDist;
-      velX = dirX * data.speed[slot]!;
-      velY = dirY * data.speed[slot]!;
+      let moveDirX = dirX;
+      let moveDirY = dirY;
+
+      if (behavior !== undefined) {
+        const kind = behavior.state.kind[slot]!;
+        const config = behavior.config;
+        const stableSign = (enemies.idOf(slot) & 1) === 0
+          ? -1
+          : 1;
+        const runnerSign = ((Math.floor(behavior.tick / config.runnerWeavePeriodTicks) & 1) === 0)
+          ? stableSign
+          : -stableSign;
+        if (kind === ENEMY_BEHAVIOR_KIND.runnerWeave && dist > config.runnerDirectSeekRange) {
+          // A deterministic, bounded zig-zag reads less like a straight-line
+          // blob while still converging toward the player.
+          const lateral = config.runnerWeaveStrength * runnerSign;
+          moveDirX = dirX - dirY * lateral;
+          moveDirY = dirY + dirX * lateral;
+        } else if (
+          kind === ENEMY_BEHAVIOR_KIND.eliteSkirmish
+          || kind === ENEMY_BEHAVIOR_KIND.spitterSkirmish
+        ) {
+          const eliteSkirmisher = kind === ENEMY_BEHAVIOR_KIND.eliteSkirmish;
+          const innerRange = Math.max(0, config.elitePreferredRange - config.eliteRangeBand);
+          const outerRange = config.elitePreferredRange + config.eliteRangeBand;
+          if (dist < innerRange) {
+            moveDirX = -dirX;
+            moveDirY = -dirY;
+          } else if (dist <= outerRange) {
+            // In-band ranged enemies circle rather than walking straight into Greg.
+            moveDirX = -dirY * stableSign * config.eliteOrbitStrength;
+            moveDirY = dirX * stableSign * config.eliteOrbitStrength;
+          }
+
+          let shotCooldown = behavior.state.hostileShotCooldown[slot]!;
+          // The first-shot delay is gameplay time spent threatening Greg, not
+          // travel time spent approaching from the off-screen perimeter.
+          if (dist <= outerRange) {
+            if (shotCooldown > 0) shotCooldown--;
+            if (shotCooldown === 0 && player.alive) {
+              const fired = spawnProjectileWithStats(
+                behavior.projectiles,
+                x,
+                y,
+                dx,
+                dy,
+                config.eliteProjectileSpeed,
+                eliteSkirmisher ? config.eliteProjectileDamage : config.spitterProjectileDamage,
+                config.eliteProjectileLifetimeTicks,
+                config.eliteProjectileHitRadius,
+                0,
+                1,
+              );
+              if (fired) {
+                behavior.events.enemyProjectilesFired++;
+                shotCooldown = eliteSkirmisher
+                  ? config.eliteFireIntervalTicks
+                  : config.spitterFireIntervalTicks;
+              }
+            }
+          }
+          behavior.state.hostileShotCooldown[slot] = shotCooldown;
+        }
+
+        const moveLength = Math.sqrt(moveDirX * moveDirX + moveDirY * moveDirY);
+        if (moveLength >= 1e-6) {
+          moveDirX /= moveLength;
+          moveDirY /= moveLength;
+        } else {
+          moveDirX = 0;
+          moveDirY = 0;
+        }
+      }
+
+      velX = moveDirX * data.speed[slot]!;
+      velY = moveDirY * data.speed[slot]!;
       x += velX * dt;
       y += velY * dt;
     }
@@ -101,6 +187,8 @@ export function stepProjectiles(
   maxEnemyRadius: number,
   events: SimEvents,
   killEnemy: (enemySlot: number) => void,
+  player?: PlayerState,
+  invulnTicksOnHit = 0,
 ): void {
   const pdata = projectiles.data;
   const edata = enemies.data;
@@ -121,8 +209,22 @@ export function stepProjectiles(
       continue;
     }
 
-    // Only faction 0 (player) projectiles hit enemies; faction 1 is a hook
-    // reserved for future enemy projectiles.
+    if (pdata.faction[slot] === 1) {
+      if (player === undefined) continue;
+      const rSum = pdata.hitRadius[slot]! + player.radius;
+      if (player.alive && distSq(x, y, player.x, player.y) <= rSum * rSum) {
+        if (player.invulnTicks === 0) {
+          player.hp = Math.max(0, player.hp - pdata.damage[slot]!);
+          player.invulnTicks = invulnTicksOnHit;
+          if (player.hp === 0) player.alive = false;
+        }
+        projectiles.despawn(slot);
+      }
+      continue;
+    }
+
+    // Only faction 0 (player) projectiles hit enemies. Unknown factions are
+    // intentionally inert rather than mutating either combat side.
     if (pdata.faction[slot] !== 0) continue;
 
     const queryRadius = pdata.hitRadius[slot]! + maxEnemyRadius;
@@ -265,6 +367,35 @@ export function spawnProjectile(
   weapon: WeaponConfig,
   faction: number,
 ): boolean {
+  return spawnProjectileWithStats(
+    projectiles,
+    x,
+    y,
+    dirX,
+    dirY,
+    weapon.projectileSpeed,
+    weapon.damage,
+    weapon.lifetimeTicks,
+    weapon.hitRadius,
+    weapon.pierce,
+    faction,
+  );
+}
+
+/** Spawn one faction-owned projectile from fully authored scalar stats. */
+export function spawnProjectileWithStats(
+  projectiles: Pool<ProjectilePool>,
+  x: number,
+  y: number,
+  dirX: number,
+  dirY: number,
+  speed: number,
+  damage: number,
+  lifetimeTicks: number,
+  hitRadius: number,
+  pierce: number,
+  faction: number,
+): boolean {
   const len = Math.sqrt(dirX * dirX + dirY * dirY);
   if (len < 1e-6) return false;
   const invLen = 1 / len;
@@ -277,12 +408,12 @@ export function spawnProjectile(
   const data = projectiles.data;
   data.posX[slot] = x;
   data.posY[slot] = y;
-  data.velX[slot] = nx * weapon.projectileSpeed;
-  data.velY[slot] = ny * weapon.projectileSpeed;
-  data.damage[slot] = weapon.damage;
-  data.lifetime[slot] = weapon.lifetimeTicks;
-  data.hitRadius[slot] = weapon.hitRadius;
-  data.pierce[slot] = weapon.pierce;
+  data.velX[slot] = nx * speed;
+  data.velY[slot] = ny * speed;
+  data.damage[slot] = damage;
+  data.lifetime[slot] = lifetimeTicks;
+  data.hitRadius[slot] = hitRadius;
+  data.pierce[slot] = pierce;
   data.faction[slot] = faction;
   return true;
 }

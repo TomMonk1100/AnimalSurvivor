@@ -138,8 +138,15 @@ export interface LevelPressureConfig {
 
 /** Discretionary wave sizing per phase (data-defined, integer-only). */
 export interface WaveConfig {
-  /** Minimum ticks between discretionary spawn attempts. Positive int. */
+  /** Fallback minimum ticks between discretionary spawn attempts. Positive int. */
   readonly intervalTicks: number;
+  /**
+   * Optional authored cadence per phase. When supplied for the active phase it
+   * replaces `intervalTicks` before bounded level-pressure reductions apply.
+   * This lets normal mode visibly escalate through its phases without any
+   * renderer- or wall-clock-owned spawning.
+   */
+  readonly phaseIntervalTicks?: Readonly<Partial<Record<RunPhaseId, number>>>;
   /** Archetype ids eligible for discretionary picks in each phase. */
   readonly phaseArchetypes: Readonly<Partial<Record<RunPhaseId, readonly ArchetypeId[]>>>;
 }

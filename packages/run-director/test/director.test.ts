@@ -22,7 +22,7 @@ test('every required phase starts at its exact boundary, in order', () => {
   ]);
 });
 
-test('three pre-boss elite beats fire exactly once at authored ticks', () => {
+test('increasing pre-boss elite beats fire exactly once at authored ticks', () => {
   const d = new RunDirector({ seed: 2 });
   const events = runEveryTick(d, 0, 36_000);
   const elites = events
@@ -30,15 +30,25 @@ test('three pre-boss elite beats fire exactly once at authored ticks', () => {
     .map((e) => ({ id: (e as { beatId: string }).beatId, tick: e.tick }));
   assert.deepEqual(elites, [
     { id: 'elite:pressure-1', tick: 12_000 },
-    { id: 'elite:adaptation-1', tick: 24_000 },
-    { id: 'elite:mutation-1', tick: 33_600 },
+    { id: 'elite:adaptation-1', tick: 20_400 },
+    { id: 'elite:adaptation-2', tick: 25_200 },
+    { id: 'elite:mutation-1', tick: 29_400 },
+    { id: 'elite:mutation-2', tick: 32_400 },
+    { id: 'elite:mutation-3', tick: 34_200 },
   ]);
 });
 
 test('each elite warning precedes its request in stable order', () => {
   const d = new RunDirector({ seed: 3 });
   const events = runEveryTick(d, 0, 36_000);
-  for (const beatId of ['elite:pressure-1', 'elite:adaptation-1', 'elite:mutation-1']) {
+  for (const beatId of [
+    'elite:pressure-1',
+    'elite:adaptation-1',
+    'elite:adaptation-2',
+    'elite:mutation-1',
+    'elite:mutation-2',
+    'elite:mutation-3',
+  ]) {
     const warn = events.find((e) => e.kind === 'eliteWarning' && (e as { beatId: string }).beatId === beatId);
     const req = events.find((e) => e.kind === 'eliteRequested' && (e as { beatId: string }).beatId === beatId);
     assert.ok(warn && req, `both events for ${beatId}`);

@@ -15,6 +15,12 @@ function openingPhase(): PhaseDefinition {
   return phase;
 }
 
+function phase(id: PhaseDefinition['id']): PhaseDefinition {
+  const found = getDefaultDefinition().phases.find((candidate) => candidate.id === id);
+  if (found === undefined) throw new Error(`default ${id} phase is missing`);
+  return found;
+}
+
 function metrics(playerLevel: number, liveEnemies: number, tick = 120): RunMetrics {
   return {
     tick,
@@ -37,30 +43,38 @@ test('level pressure raises capacity gradually and stops at its authored cap', (
   const phase = openingPhase();
 
   assert.deepEqual(resolveLiveEnemyCaps(phase, rule, 1), {
-    softCap: 4,
-    hardCap: 8,
+    softCap: 10,
+    hardCap: 18,
     levelSteps: 0,
   });
   assert.deepEqual(resolveLiveEnemyCaps(phase, rule, 4), {
-    softCap: 5,
-    hardCap: 10,
+    softCap: 11,
+    hardCap: 20,
     levelSteps: 1,
   });
-  assert.deepEqual(resolveLiveEnemyCaps(phase, rule, 7), {
-    softCap: 6,
-    hardCap: 12,
+  assert.deepEqual(resolveLiveEnemyCaps(phase, rule, 6), {
+    softCap: 12,
+    hardCap: 22,
     levelSteps: 2,
+  });
+  assert.deepEqual(resolveLiveEnemyCaps(phase, rule, 8), {
+    softCap: 13,
+    hardCap: 24,
+    levelSteps: 3,
   });
   assert.deepEqual(resolveLiveEnemyCaps(phase, rule, 99), {
-    softCap: 6,
-    hardCap: 12,
-    levelSteps: 2,
+    softCap: 13,
+    hardCap: 24,
+    levelSteps: 3,
   });
 
-  assert.equal(resolveDiscretionaryWaveInterval(def.waves.intervalTicks, rule, 1), 120);
-  assert.equal(resolveDiscretionaryWaveInterval(def.waves.intervalTicks, rule, 4), 108);
-  assert.equal(resolveDiscretionaryWaveInterval(def.waves.intervalTicks, rule, 7), 96);
-  assert.equal(resolveDiscretionaryWaveInterval(def.waves.intervalTicks, rule, 99), 96);
+  const openingInterval = def.waves.phaseIntervalTicks?.opening;
+  assert.equal(openingInterval, 75);
+  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 1), 75);
+  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 4), 71);
+  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 6), 67);
+  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 8), 63);
+  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 99), 63);
 });
 
 test('higher level unlocks modest extra density capacity without a spawn burst', () => {
@@ -68,16 +82,33 @@ test('higher level unlocks modest extra density capacity without a spawn burst',
   const phase = openingPhase();
   const state = createInitialState(def, 0x1234);
   state.threat.budget = 100;
-  state.threat.ticksSinceSpawn = def.waves.intervalTicks;
+  state.threat.ticksSinceSpawn = def.waves.phaseIntervalTicks?.opening ?? def.waves.intervalTicks;
 
-  // At level 1, four alive enemies meet the opening soft cap and block a wave.
-  assert.deepEqual(serviceSpawns(state, def, phase, metrics(1, 4), 120), []);
+  // At level 1, ten alive enemies meet the opening soft cap and block a wave.
+  assert.deepEqual(serviceSpawns(state, def, phase, metrics(1, 10), 120), []);
 
   // At level 4, the first +1 soft-cap step admits exactly one ordinary wave.
-  const decisions = serviceSpawns(state, def, phase, metrics(4, 4), 120);
+  const decisions = serviceSpawns(state, def, phase, metrics(4, 10), 120);
   assert.equal(decisions.length, 1);
   assert.equal(decisions[0]?.delayed, false);
   assert.equal(state.threat.ticksSinceSpawn, 0);
+});
+
+test('authored phase cadence accelerates ordinary waves independently of level pressure', () => {
+  const def = getDefaultDefinition();
+  const state = createInitialState(def, 0x8bad);
+  state.threat.budget = 1_000;
+
+  const pressure = phase('pressure');
+  const pressureInterval = def.waves.phaseIntervalTicks?.pressure;
+  assert.equal(pressureInterval, 60);
+  state.threat.ticksSinceSpawn = pressureInterval! - 1;
+  assert.deepEqual(serviceSpawns(state, def, pressure, metrics(1, 0, 60), 60), []);
+
+  state.threat.ticksSinceSpawn = pressureInterval!;
+  const decision = serviceSpawns(state, def, pressure, metrics(1, 0, 61), 61);
+  assert.equal(decision.length, 1);
+  assert.equal(decision[0]?.count, 4);
 });
 
 function runBelowCapStream(playerLevel: number): {
@@ -106,13 +137,13 @@ function runBelowCapStream(playerLevel: number): {
   return { ordinaryWaves, maxDecisionsPerTick, stateHash: hashState(state) };
 }
 
-test('level 7 cadence emits more ordinary below-cap waves without same-tick bursts', () => {
+test('level pressure cadence emits more ordinary below-cap waves without same-tick bursts', () => {
   const level1 = runBelowCapStream(1);
   const level7 = runBelowCapStream(7);
   const level7Replay = runBelowCapStream(7);
 
-  assert.equal(level1.ordinaryWaves, 4);
-  assert.equal(level7.ordinaryWaves, 5);
+  assert.equal(level1.ordinaryWaves, 6);
+  assert.equal(level7.ordinaryWaves, 7);
   assert.ok(level7.ordinaryWaves > level1.ordinaryWaves);
   assert.equal(level1.maxDecisionsPerTick, 1);
   assert.equal(level7.maxDecisionsPerTick, 1);
