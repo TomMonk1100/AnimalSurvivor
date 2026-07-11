@@ -36,6 +36,13 @@ movement is the only combat input. Before the first XP gain, a contextual HUD
 line labels visible green motes as XP. When an upgrade card pauses the run,
 choose an adaptation to resume it.
 
+**Sound effects** are opt-in and **Off** by default. Enable them from the
+Start run card or the normal in-run **Sound: Off/On** control. The browser then
+synthesizes a few quiet cues for starting/restarting, rate-limited XP pickups,
+upgrade openings, victory, and defeat. They are presentation-only: neither
+gameplay nor replay changes, and unsupported or unavailable browser audio is a
+nonfatal silent fallback.
+
 For the recommended hands-on check, use the
 [Gate 1 owner playtest guide](../../docs/playtests/gate1-owner-playtest.md).
 
@@ -58,6 +65,7 @@ driver hash, tick, controls, and stop method.
 | ?seed=&lt;number or text&gt; | Start with an explicit seed; text is hashed to a 32-bit seed. The default is 0x1234abcd. |
 | ?debug=1 | Shows the diagnostic HUD and engineering controls. The default presentation keeps those details out of the player-facing view. |
 | **Start run** | Normal manual runs remain at tick 0 until this first-run button is chosen; it starts without a catch-up burst. |
+| **Sound effects** / **Sound: Off/On** | Optional, initially Off sound feedback. Enable it from the Start run card or later from the normal controls. It synthesizes only start/restart, rate-limited pickup, upgrade-open, victory, and defeat cues; unavailable browser audio leaves play unaffected. |
 | ?autopilot=1 | Boot directly into deterministic autopilot and bypass the first-run gate. |
 | ?autopilot=1&stress=1 | Step up to five simulation ticks per rendered frame and auto-pause at tick 18,000. Stress mode selects the first pending upgrade deterministically so it does not stall. |
 | ?autopilot=1&stress=1&fullrun=1 | Keep the same accelerated, first-offer stress path through the 43,200-tick authored boundary instead of stopping at 18,000. It can exercise boss and terminal UI if Greg survives; it is not a normal-balance result. |
@@ -189,6 +197,10 @@ health, timers, RNG, entity lifetimes, trait state, or director state.
   death, and player-death feedback. The trait-command pool shows telegraph,
   directed/radial burst, gather, knockback, area-damage, and trait-cue pulses
   for supported executed commands.
+- **Sound feedback:** an opt-in Web Audio synth creates only sparse, quiet
+  start/restart, rate-limited pickup, upgrade-open, victory, and defeat cues.
+  It is presentation-only, never opens audio before a player enables it, and
+  fails as a harmless silent fallback when browser audio is unavailable.
 - **Context loss:** webglcontextlost sets a visible flag and pauses stepping;
   restoring clears the flag. This path is designed to protect the boundary,
   but forced recovery still needs a manual browser check.
@@ -202,7 +214,7 @@ Run from apps/web-toy:
 | npm ci | Installs the locked browser-tooling dependency set. |
 | npm run typecheck | Strict TypeScript, including noUncheckedIndexedAccess. |
 | npm run lint | ESLint with --max-warnings 0; app-source Math.random is banned. |
-| npm test | The current suite contains **164 tests** across the driver, input, snapshots, presentation, real integrated run replay, and renderer-facing helpers. |
+| npm test | The current suite contains **172 tests** across the driver, input, snapshots, presentation, procedural audio, real integrated run replay, and renderer-facing helpers. |
 | npm run build | Strict typecheck plus a Vite production build. |
 
 The suite covers accumulator exactness, catch-up and hidden-tab behavior,
@@ -210,7 +222,8 @@ renderer-on/off hash parity, interpolation and generation reuse, keyboard and
 touch cancellation, pure autopilot input, upgrade-boundary pausing, live trait
 visual projection, attachment replacement, locomotion/animation behavior,
 combat feedback, trait-command cue retention through catch-up, director notice
-projection, role snapshots, and fixed-pool trait-command presentation.
+projection, role snapshots, fixed-pool trait-command presentation, and opt-in
+audio cue routing/failure handling.
 
 Two intentionally different deterministic checks are useful:
 
@@ -236,8 +249,8 @@ To repeat useful checks locally:
    [Gate 1 owner playtest guide](../../docs/playtests/gate1-owner-playtest.md).
    In particular, check whether the initial **Start run** card explains the
    core loop, then check vertical controls, green-mote XP clarity, upgrade
-   comprehension, Puffer and Thornstorm sequence readability, HUD clutter, and
-   elite/boss recognition.
+   comprehension, Puffer and Thornstorm sequence readability, optional sound
+   feedback, HUD clutter, and elite/boss recognition.
 2. **Deterministic stress:** open
    /?autopilot=1&stress=1&renderstress=1&debug=1&seed=305441741. It accelerates to and
    auto-pauses at tick 18,000; compare the displayed hash with the five-minute
@@ -257,7 +270,11 @@ To repeat useful checks locally:
    in portrait and to its right in landscape, Pause/Restart run and terminal
    Play again are comfortable 44px targets, and the page has no horizontal
    overflow.
-6. **Context loss:** use a browser's WEBGL_lose_context facility if available;
+6. **Optional sound:** enable **Sound effects** before starting, then toggle
+   **Sound: On/Off** during a run. Confirm sparse start/restart, rate-limited
+   pickup, upgrade, and terminal cues feel helpful rather than noisy; if audio
+   cannot start, confirm its message does not block play.
+7. **Context loss:** use a browser's WEBGL_lose_context facility if available;
    confirm the context banner pauses the run and restoration resumes without an
    unexpected hash discontinuity.
 
@@ -288,17 +305,17 @@ Development-only (not shipped in the browser bundle):
 ## Known limitations and open checks
 
 - This is a **first playable Greg slice**, not a finished game. It has no final
-  animal roster, menus, save flow, audio, backend, telemetry, monetization, or
-  production-complete art.
+  animal roster, menus, save flow, authored audio mix or sound library, backend,
+  telemetry, monetization, or production-complete art.
 - The playable catalog is deliberately limited to Porcupine Quills, Puffer
   Pouch, and Thornstorm Mantle. Persistent zone, mark, chain, melee, and shield
   command kinds remain out of player-facing catalogs until their authoritative
   state exists; unsupported commands reject rather than silently inventing
   behavior.
 - Trait attachments and trait-command feedback are bounded primitive
-  presentation, not final VFX, meshes, animation, sound, or accessibility
-  treatment. Their timing, scale, color, and callout clarity need human
-  feedback.
+  presentation, not final VFX, meshes, animation, or accessibility treatment.
+  The current sound feedback is similarly a small optional procedural layer;
+  its volume, timing, and cue clarity need human feedback.
 - Aggregate culling is disabled: each category is arena-wide, and each
   populated category uploads its retained full matrix buffer per frame. Spatial
   chunking and dirty-range uploads are future low-end optimizations if profiling

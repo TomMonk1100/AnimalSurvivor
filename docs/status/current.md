@@ -125,6 +125,11 @@
   persistent Active Adaptations cards stay above that lower-left control in
   portrait and to its right in landscape; Pause, Restart run, and terminal Play
   again use 44px-high touch targets.
+- Sparse procedural sound feedback is now opt-in and **Off** by default. The
+  player can enable it from the Start run card or the in-run **Sound: Off/On**
+  control; only start/restart, rate-limited pickup, upgrade-open, victory, and
+  defeat cues are synthesized. It never changes gameplay or replay, and
+  unavailable browser audio is a nonfatal silent fallback.
 - `?autopilot=1&stress=1&fullrun=1` extends the accelerated, deterministic
   first-offer stress harness from 18,000 to 43,200 ticks for boss/run-flow UI
   checks. It is not evidence of normal-difficulty balance or survival.
@@ -133,7 +138,7 @@
   only `apps/web-toy/dist` through GitHub Pages Actions once the repository
   owner enables Pages.
 - Current package test scripts report 161 headless-simulation, 58 trait-runtime,
-  61 run-director, and 164 web-toy tests: **444 passing tests** in total.
+  61 run-director, and 172 web-toy tests: **452 passing tests** in total.
 - The project is now backed up in the private GitHub repository
   `TomMonk1100/AnimalSurvivor` on `main`.
 
@@ -155,6 +160,8 @@
   Pages**; it is not assumed or hardcoded in project documentation.
 - Trait-command timing and visual readability still need a human playtest; the
   current effects are deliberately bounded primitive cues, not final art.
+- The new optional sound layer is sparse procedural feedback, not a final audio
+  mix or authored foley, and needs hands-on volume/timing feedback.
 - Elite and boss roles are visually distinct primitives, but still need final
   authored meshes, animation, and richer entrance behavior.
 
@@ -175,8 +182,8 @@ evidence is in
    → Pages → Build and deployment → Source: GitHub Actions**, then use the URL
    reported by a green `Publish web-toy preview` deployment from `main`.
 2. Run a second hands-on desktop playtest focused on corrected controls,
-   locomotion feel, upgrade comprehension, combat/trait feedback, and
-   elite/boss readability.
+   locomotion feel, upgrade comprehension, optional sound feedback,
+   combat/trait feedback, and elite/boss readability.
 3. Tune the trait-command cue lifetimes, sizes, and colors from that playtest,
    especially Puffer Pouch and Thornstorm's telegraph-to-exhale sequence.
 4. Decide whether to implement each remaining authored command kind or keep it

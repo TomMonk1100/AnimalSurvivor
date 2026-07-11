@@ -19,6 +19,11 @@ and player-facing; `?debug=1` exposes diagnostics and engineering controls. A
 normal manual run waits at tick 0 on a **Start run** card; the automated URLs
 skip it so their deterministic checks begin immediately.
 
+When browser audio is supported, the **Sound effects** option on that card is
+**Off** by default. If you enable it, the in-run **Sound: On/Off** control
+remains available; browser audio that cannot start is a nonfatal silent fallback
+and must never block the run.
+
 ## Open a shared browser preview
 
 If the repository owner has enabled **Settings → Pages → Build and deployment
@@ -33,6 +38,10 @@ ask the owner to enable Pages first.
 - Move with **WASD** or the **arrow keys** on desktop.
 - On touch devices, use the lower-left virtual joystick.
 - Greg attacks automatically; movement is the only required combat control.
+- **Sound effects** are optional and initially **Off**. Enable them from the
+  Start run card or later with **Sound: Off/On**. They only provide quiet cues
+  for start/restart, rate-limited XP pickups, upgrade openings, victory, and
+  defeat.
 - Until Greg gains the first XP, the player HUD identifies visible green motes
   as XP to collect for levels and upgrade choices.
 - Choose one animal adaptation whenever the upgrade card pauses the run. The
@@ -48,8 +57,8 @@ ask the owner to enable Pages first.
 ## Five-minute test
 
 1. On the opening **Start run** card, can you explain the core loop before
-   starting? After starting, does the green-mote XP hint make it clear what to
-   collect?
+   starting? Is it clear that **Sound effects** are optional and initially Off?
+   After starting, does the green-mote XP hint make it clear what to collect?
 2. Move in every direction and reverse sharply for 20 seconds. Does screen-up
    match pressing Up? Does Greg's facing resolve the reversal across four
    bounded visual turns without making movement feel less responsive?
@@ -68,6 +77,10 @@ ask the owner to enable Pages first.
    **Tab** + **Enter** work as expected? On a touch emulation/device, does the
    joystick thumb follow the drag and disappear on release, while the Active
    Adaptations cards avoid the joystick in both portrait and landscape?
+8. With **Sound effects** enabled, are the sparse start/restart, rate-limited
+   pickup, upgrade-open, and terminal victory/defeat cues useful and quiet
+   enough? Toggle **Sound: On/Off** during the run. If enabling audio cannot
+   start, does its nonfatal status message leave play uninterrupted?
 
 ## Optional accelerated boss/run-flow check
 
@@ -88,6 +101,9 @@ Short answers are enough:
 - Interaction: did keyboard upgrade selection, the joystick thumb, the
   joystick-safe adaptation-card placement, or the 44px Pause/Restart/Play
   again controls feel unclear or awkward?
+- Sound, if enabled: were the few cues helpful, too quiet, too loud, or too
+  frequent? Did switching it on/off or an unavailable-audio message behave
+  clearly without interrupting play?
 - Combat readability: could you tell why enemies moved, died, or were pushed?
 - Boss/end flow, if seen: did the boss bar make progress clear, and was **Play
   again** obvious after the outcome?

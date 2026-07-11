@@ -110,6 +110,17 @@
       #controls button:active {
         background: #263248;
       }
+      #controls button:focus-visible {
+        outline: 2px solid #d7edff;
+        outline-offset: 2px;
+        background: #35527a;
+      }
+      #controls .sound-status {
+        flex-basis: 100%;
+        color: #ffd3ad;
+        font: 600 11px/1.3 system-ui, sans-serif;
+        text-align: right;
+      }
       #joystick {
         position: absolute;
         left: 16px;
@@ -192,6 +203,38 @@
       }
       #run-intro p:not(.run-intro-eyebrow) { margin: 12px 0 0; }
       #run-intro #run-intro-controls { color: #b6d1e5; }
+      #run-intro .run-intro-sound {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        column-gap: 9px;
+        align-items: center;
+        width: min(320px, 100%);
+        min-height: 44px;
+        margin: 15px auto 0;
+        padding: 8px 10px;
+        box-sizing: border-box;
+        color: #d7e8f4;
+        text-align: left;
+        background: rgba(25, 42, 61, 0.72);
+        border: 1px solid #486985;
+        border-radius: 7px;
+        cursor: pointer;
+      }
+      #run-intro .run-intro-sound input {
+        grid-row: span 2;
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        accent-color: #67c99d;
+      }
+      #run-intro .run-intro-sound span { font-weight: 700; }
+      #run-intro .run-intro-sound small { color: #a9c3d7; font-size: 11px; }
+      #run-intro .sound-status {
+        min-height: 16px;
+        margin: 8px 0 0;
+        color: #ffd3ad;
+        font: 600 12px/1.3 system-ui, sans-serif;
+      }
       #run-intro button {
         min-height: 44px;
         margin-top: 18px;
@@ -496,6 +539,12 @@
         <h1 id="run-intro-heading"></h1>
         <p id="run-intro-objective"></p>
         <p id="run-intro-controls"></p>
+        <label id="run-intro-sound" class="run-intro-sound">
+          <input id="run-intro-sound-toggle" type="checkbox" aria-label="Sound effects" aria-describedby="run-intro-sound-help" />
+          <span>Sound effects</span>
+          <small id="run-intro-sound-help">Off by default. Change anytime.</small>
+        </label>
+        <p id="run-intro-sound-status" class="sound-status" role="status" hidden></p>
         <button id="run-intro-start" type="button"></button>
       </div>
     </section>

@@ -24,6 +24,11 @@ Open the local Vite URL printed in the terminal (normally
 - A normal manual run waits at tick 0 behind **Start run**, so you can read the
   core loop before anything moves. The deterministic autopilot and stress URLs
   bypass that first-run gate.
+- **Sound effects** are optional and start **Off**. Enable them on the Start
+  run card or with the in-run **Sound: Off/On** control. The few quiet,
+  procedural cues cover starting/restarting, spaced XP pickups, upgrade
+  openings, victory, and defeat; they never change gameplay or replay, and an
+  unavailable browser audio feature simply leaves the game playable and silent.
 - Move Greg with **WASD** or the **arrow keys**. On touch devices, use the
   bottom-left virtual joystick. His facing is presentation-only: a sharp
   reversal visibly resolves across four bounded turns without changing movement

@@ -31,6 +31,8 @@ import { presentRunSummary } from './presentation/run-summary';
 import { presentUpgrade } from './presentation/upgrade-copy';
 import { upgradeShortcutIndex } from './presentation/upgrade-shortcuts';
 import { presentRunIntro } from './presentation/run-intro';
+import { createAudioCueRouter } from './audio/audio-cue-router';
+import { createProceduralAudio } from './audio/procedural-audio';
 
 /** Deterministic 32-bit seed from a string (djb2). Used only for UI convenience. */
 function seedFromString(s: string): number {
@@ -97,6 +99,9 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const introTitle = document.getElementById('run-intro-heading') as HTMLElement;
   const introObjective = document.getElementById('run-intro-objective') as HTMLElement;
   const introControls = document.getElementById('run-intro-controls') as HTMLElement;
+  const introSoundRoot = document.getElementById('run-intro-sound') as HTMLElement;
+  const introSoundToggle = document.getElementById('run-intro-sound-toggle') as HTMLInputElement;
+  const introSoundStatus = document.getElementById('run-intro-sound-status') as HTMLElement;
   const introStartButton = document.getElementById('run-intro-start') as HTMLButtonElement;
 
   const driver: SimDriver = createSimDriver(config, initialSeed, {
@@ -116,11 +121,18 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     autopilotOn: params.get('autopilot') === '1',
     renderEnabled: true,
   };
+  let controlsSoundButton: HTMLButtonElement | null = null;
+  let controlsSoundStatus: HTMLElement | null = null;
+  const proceduralAudio = createProceduralAudio({
+    onEnableFailure: () => renderSoundControls('Sound couldn’t start; try again.'),
+  });
+  const audioCueRouter = createAudioCueRouter(proceduralAudio);
   const intro = presentRunIntro({
     autoStart: controls.autopilotOn || stressMode || renderStressMode,
   });
   let runStarted = !intro.holdAtStart;
   let currentSeed = initialSeed;
+  let upgradePromptSerial = 0;
   let syntheticDriverNow = performance.now();
   let renderedOfferKey = '';
   let renderedAdaptationsKey = '';
@@ -214,6 +226,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       upgradeRoot.appendChild(choice);
     }
     upgradeRoot.querySelector<HTMLButtonElement>('button')?.focus();
+    upgradePromptSerial++;
+    audioCueRouter.upgradeOpened(upgradePromptSerial);
   }
 
   function onUpgradeShortcut(event: KeyboardEvent): void {
@@ -354,6 +368,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     renderedAdaptationsKey = '';
     renderedBossHealthKey = '';
     renderedOutcomeKey = '';
+    upgradePromptSerial = 0;
+    audioCueRouter.resetForRestart();
     bossHealthRoot.hidden = true;
     renderUpgradeChoices();
     renderAdaptations();
@@ -363,6 +379,10 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     keyboardInput.clear();
     perf.reset();
     setPaused(false);
+    if (runStarted) {
+      proceduralAudio.resumeIfEnabled();
+      audioCueRouter.beginRun();
+    }
   }
   if (diagnosticsMode) {
     const autoBtn = button(controls.autopilotOn ? 'Autopilot: ON' : 'Autopilot: OFF', () => {
@@ -378,6 +398,41 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     button('Restart w/ seed', restartRun);
   } else {
     button('Restart run', restartRun);
+  }
+  if (proceduralAudio.supported) {
+    controlsSoundButton = button('Sound: Off', () => {
+      setSoundEnabled(!proceduralAudio.enabled);
+    });
+    controlsSoundButton.setAttribute('aria-pressed', 'false');
+    controlsSoundStatus = document.createElement('span');
+    controlsSoundStatus.className = 'sound-status';
+    controlsSoundStatus.setAttribute('role', 'status');
+    controlsSoundStatus.hidden = true;
+    controlsRoot.appendChild(controlsSoundStatus);
+  }
+
+  function renderSoundControls(message: string | null = null): void {
+    const enabled = proceduralAudio.enabled;
+    introSoundToggle.checked = enabled;
+    if (controlsSoundButton !== null) {
+      controlsSoundButton.textContent = enabled ? 'Sound: On' : 'Sound: Off';
+      controlsSoundButton.setAttribute('aria-pressed', String(enabled));
+    }
+    const showIntroMessage = message !== null && !runStarted;
+    introSoundStatus.hidden = !showIntroMessage;
+    introSoundStatus.textContent = showIntroMessage ? message : '';
+    if (controlsSoundStatus !== null) {
+      const showControlsMessage = message !== null && runStarted;
+      controlsSoundStatus.hidden = !showControlsMessage;
+      controlsSoundStatus.textContent = showControlsMessage ? message : '';
+    }
+  }
+
+  function setSoundEnabled(enabled: boolean): void {
+    const wasEnabled = proceduralAudio.enabled;
+    const enabledAfterRequest = proceduralAudio.setEnabled(enabled);
+    renderSoundControls(enabled && !enabledAfterRequest ? 'Sound couldn’t start; try again.' : null);
+    if (!wasEnabled && proceduralAudio.enabled && runStarted) proceduralAudio.play('start');
   }
 
   function renderRunIntro(): void {
@@ -396,6 +451,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     // makes the no-catch-up guarantee explicit at the player-controlled gate.
     driver.noteVisible(stressMode ? syntheticDriverNow : performance.now());
     renderRunIntro();
+    proceduralAudio.resumeIfEnabled();
+    audioCueRouter.beginRun();
     surface.focus({ preventScroll: true });
   }
 
@@ -404,13 +461,18 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   introObjective.textContent = intro.objective;
   introControls.textContent = intro.controls;
   introStartButton.textContent = intro.cta;
+  introSoundRoot.hidden = !proceduralAudio.supported;
+  const onIntroSoundToggle = (): void => setSoundEnabled(introSoundToggle.checked);
+  introSoundToggle.addEventListener('change', onIntroSoundToggle);
   introStartButton.addEventListener('click', beginRun);
+  renderSoundControls();
   renderRunIntro();
 
   function setPaused(p: boolean): void {
     controls.paused = p;
     pauseBtn.textContent = p ? 'Resume' : 'Pause';
     if (p) activeInput().clear();
+    else proceduralAudio.resumeIfEnabled();
   }
 
   function activeInput(): InputSource {
@@ -473,6 +535,11 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       const firstOffer = driver.pendingUpgradeOffers[0];
       if (firstOffer !== undefined) driver.selectUpgrade(firstOffer.traitId);
     }
+    audioCueRouter.observe({
+      tick: driver.tick,
+      combatFeedback: driver.combatFeedback,
+      runOutcome: driver.runOutcome,
+    });
     renderUpgradeChoices();
     renderAdaptations();
     renderTraitCallout();
@@ -541,6 +608,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     window.removeEventListener('keydown', onUpgradeShortcut);
     window.removeEventListener('blur', onBlur);
     document.removeEventListener('visibilitychange', onVisibility);
+    introSoundToggle.removeEventListener('change', onIntroSoundToggle);
     introStartButton.removeEventListener('click', beginRun);
     introRoot.hidden = true;
     appRoot.toggleAttribute('inert', false);
@@ -548,6 +616,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     autopilot.dispose();
     renderer.dispose();
     hud.dispose();
+    proceduralAudio.dispose();
   }
 
   // Console-visible note so stress evidence is never mistaken for a threshold.
