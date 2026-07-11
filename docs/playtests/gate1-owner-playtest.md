@@ -44,6 +44,9 @@ ask the owner to enable Pages first.
   defeat.
 - Until Greg gains the first XP, the player HUD identifies visible green motes
   as XP to collect for levels and upgrade choices.
+- The HUD also keeps elapsed run time, the current phase, and the current goal
+  visible. Before the boss, the goal is to survive until **The Final Threat**;
+  during boss/overtime, it is to defeat that threat and finish the run.
 - Choose one animal adaptation whenever the upgrade card pauses the run. The
   first card receives keyboard focus; press **1**, **2**, or **3**, or use
   **Tab** then **Enter**, to select an offer.
@@ -81,6 +84,9 @@ ask the owner to enable Pages first.
    pickup, upgrade-open, and terminal victory/defeat cues useful and quiet
    enough? Toggle **Sound: On/Off** during the run. If enabling audio cannot
    start, does its nonfatal status message leave play uninterrupted?
+9. At any moment, can you say what phase you are in and what ends the run from
+   the persistent HUD? Does the tighter camera make Greg, nearby threats, and
+   green XP motes readable without making the arena feel cramped?
 
 ## Optional accelerated boss/run-flow check
 
@@ -97,6 +103,8 @@ Short answers are enough:
 - Movement: smooth / delayed / backwards / confusing, plus one example.
 - Onboarding: did the **Start run** card and first green-mote XP hint explain
   what to do without outside help?
+- Run context: could you tell the current phase and whether the goal was to
+  survive or defeat **The Final Threat**?
 - Upgrade clarity: which card or active effect was unclear?
 - Interaction: did keyboard upgrade selection, the joystick thumb, the
   joystick-safe adaptation-card placement, or the 44px Pause/Restart/Play

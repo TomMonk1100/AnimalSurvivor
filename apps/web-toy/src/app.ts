@@ -31,6 +31,7 @@ import { presentRunSummary } from './presentation/run-summary';
 import { presentUpgrade } from './presentation/upgrade-copy';
 import { upgradeShortcutIndex } from './presentation/upgrade-shortcuts';
 import { presentRunIntro } from './presentation/run-intro';
+import { presentRunProgress } from './presentation/run-progress';
 import { createAudioCueRouter } from './audio/audio-cue-router';
 import { createProceduralAudio } from './audio/procedural-audio';
 
@@ -111,7 +112,14 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const renderStress = renderStressMode ? createRenderStressHarness(config) : null;
   const renderer: RendererAdapter = createRenderer(canvas, config);
   const perf = createPerformanceMonitor();
-  const hud = createHud(hudRoot, { diagnostics: diagnosticsMode });
+  const hud = createHud(hudRoot, {
+    diagnostics: diagnosticsMode,
+    progress: () => presentRunProgress({
+      tick: driver.tick,
+      hz: config.hz,
+      phase: driver.runPhase,
+    }),
+  });
 
   const keyboardInput: InputSource = createInputController({ surface, joystickZone });
   const autopilot: InputSource = createAutopilot();

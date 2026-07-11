@@ -83,8 +83,12 @@ const RESOLUTION_CAP = 2;
 /** World units above the play plane the follow camera sits at. */
 const CAMERA_HEIGHT = 600;
 
-/** Half-height (world units) of the orthographic camera's visible viewport. */
-const CAMERA_ORTHO_HEIGHT = 480;
+/**
+ * Half-height (world units) of the orthographic camera's visible viewport.
+ * A tighter frame keeps Greg, nearby threats, and XP motes readable at a
+ * glance without introducing a lagging camera or touching simulation space.
+ */
+const CAMERA_ORTHO_HEIGHT = 360;
 
 /** Matches the page background (#0b0e13) so a dropped frame reads as "empty", not broken. */
 const CLEAR_COLOR = new pc.Color(0.043, 0.055, 0.075);

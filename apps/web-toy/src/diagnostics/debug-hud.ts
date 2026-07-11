@@ -1,4 +1,5 @@
 import type { Hud, HudStats } from '../contracts';
+import type { RunProgress } from '../presentation/run-progress';
 
 /**
  * Compact player HUD with optional diagnostics rendered into the app's `#hud`
@@ -15,6 +16,8 @@ const THROTTLE_MS = 100;
 export interface HudOptions {
   /** Keep frame, pool, and hash diagnostics out of a normal player run. */
   readonly diagnostics?: boolean;
+  /** Presentation-only current run context, read when the HUD redraws. */
+  readonly progress?: () => RunProgress;
 }
 
 function now(): number {
@@ -26,7 +29,7 @@ function whole(value: number): number {
 }
 
 /** Pure copy formatter so player and diagnostic HUD variants stay testable. */
-export function formatHud(stats: HudStats, diagnostics = true): string {
+export function formatHud(stats: HudStats, diagnostics = true, progress: RunProgress | null = null): string {
   const fps = stats.fps.toFixed(1);
   const frameTime = stats.frameTimeMs.toFixed(2);
   const dropped = stats.droppedAccumSec.toFixed(4);
@@ -41,6 +44,9 @@ export function formatHud(stats: HudStats, diagnostics = true): string {
   ];
   if (!diagnostics && stats.playerXp === 0 && stats.pickupsLive > 0) {
     playerLines.push('Green motes = XP — collect them to level up.');
+  }
+  if (!diagnostics && progress !== null) {
+    playerLines.push(progress.status, progress.objective);
   }
   if (!diagnostics) return playerLines.join('\n');
 
@@ -70,7 +76,7 @@ export function createHud(root: HTMLElement, options: HudOptions = {}): Hud {
       const t = now();
       if (t - lastWriteMs < THROTTLE_MS) return;
       lastWriteMs = t;
-      textNode.textContent = formatHud(stats, diagnostics);
+      textNode.textContent = formatHud(stats, diagnostics, diagnostics ? null : options.progress?.() ?? null);
     },
     dispose(): void {
       disposed = true;

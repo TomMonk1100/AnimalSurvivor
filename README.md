@@ -36,6 +36,9 @@ Open the local Vite URL printed in the terminal (normally
 - Greg automatically attacks nearby enemies; there is no aiming control.
 - Before Greg earns the first XP, the HUD labels visible green motes as XP so
   it is clear that collecting them creates levels and upgrade choices.
+- The HUD also keeps the elapsed run time, current authored phase, and the
+  phase-appropriate goal visible: survive until **The Final Threat**, then
+  defeat it to finish the run.
 - When Greg levels up, the game pauses at an upgrade choice. Click a card to
   continue the run. The first card receives keyboard focus; press **1**, **2**,
   or **3**, or use **Tab** then **Enter**, to choose without a mouse.
@@ -51,6 +54,9 @@ Open the local Vite URL printed in the terminal (normally
   **Play again** controls use 44px-high touch targets.
 - A live boss exposes a persistent **The Final Threat** health bar. At victory or
   defeat, the outcome card offers **Play again** to restart the same seed.
+- The follow camera uses a deliberately tighter presentation-only frame, making
+  Greg, nearby threats, and green XP motes easier to read without changing
+  movement, simulation space, balance, or replay.
 
 For a deterministic accelerated run, append
 `?autopilot=1&stress=1` to the local URL. Append `&fullrun=1` to extend that

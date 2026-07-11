@@ -96,8 +96,10 @@ select matching offers, while **Tab** + **Enter** follows ordinary button
 navigation. After a choice, the **Active Adaptations** panel remains visible and
 describes the build's effect and cadence. The player-facing HUD leads with
 Greg's health, level, XP, and the movement/auto-fire reminder before diagnostic
-values. Until Greg receives the first XP, it also explains that the green motes
-on screen are XP to collect.
+values. It also retains the elapsed run time, authoritative phase, and a
+phase-appropriate objective—survive until **The Final Threat**, then defeat it
+to finish the run. Until Greg receives the first XP, it explains that the green
+motes on screen are XP to collect.
 
 The simulation emits executed trait commands into a presentation-only stream.
 The renderer turns supported commands into short-lived, fixed-pool ground
@@ -174,9 +176,11 @@ health, timers, RNG, entity lifetimes, trait state, or director state.
 ## Rendering and presentation
 
 - **Device and camera:** a synchronous PlayCanvas WebGL 2 device with a DPR cap
-  of min(devicePixelRatio, 2); the orthographic top-down camera follows Greg.
+  of min(devicePixelRatio, 2); the deliberately tighter orthographic top-down
+  camera follows Greg so Greg, nearby threats, and XP motes remain readable.
   Simulation x-right/y-up maps to XZ as sceneX = simX - worldWidth/2 and
-  sceneZ = worldHeight/2 - simY, so screen-up matches simulation +Y.
+  sceneZ = worldHeight/2 - simY, so screen-up matches simulation +Y. Framing
+  is presentation-only and never alters simulation space, input, or replay.
 - **Arena reference:** two static, subtle world-space line meshes give the
   camera-following view a minor/major grid. They are built once, use shared
   materials, and never update or allocate during the render loop.
@@ -214,7 +218,7 @@ Run from apps/web-toy:
 | npm ci | Installs the locked browser-tooling dependency set. |
 | npm run typecheck | Strict TypeScript, including noUncheckedIndexedAccess. |
 | npm run lint | ESLint with --max-warnings 0; app-source Math.random is banned. |
-| npm test | The current suite contains **172 tests** across the driver, input, snapshots, presentation, procedural audio, real integrated run replay, and renderer-facing helpers. |
+| npm test | The current suite contains **176 tests** across the driver, input, snapshots, presentation, procedural audio, real integrated run replay, and renderer-facing helpers. |
 | npm run build | Strict typecheck plus a Vite production build. |
 
 The suite covers accumulator exactness, catch-up and hidden-tab behavior,

@@ -87,6 +87,10 @@
 - The player-facing HUD now leads with Greg's health, level, cumulative XP,
   and the desktop movement/auto-fire reminder; its original performance data
   remains below that playtest information.
+- That HUD now also persistently projects authoritative elapsed time, current
+  run phase, and the phase-appropriate objective. Before the boss it names the
+  survival goal; during boss/overtime it makes defeating **The Final Threat**
+  explicit, without changing simulation, replay, or balance.
 - Short callouts name real Puffer and Thornstorm actions at the instant they
   execute, making pulls, pushes, gathering, and the radial quill storm legible
   without altering authoritative simulation state.
@@ -96,6 +100,9 @@
   unchanged; repeated automatic attacks no longer restart an active attack clip.
 - A fixed two-layer world-space arena grid now gives movement stable visual
   reference points without touching simulation state or allocating per frame.
+- The renderer's orthographic follow frame is deliberately tighter so Greg,
+  nearby threats, and XP motes have a clearer first-glance scale; it remains a
+  presentation-only camera change with no simulation-space or replay impact.
 - Renderer-only combat cues now persist across fixed-tick catch-up, and fixed
   primitive feedback pools show attacks, hits, pickups, enemy deaths, and player
   death without mutating gameplay.
@@ -138,7 +145,7 @@
   only `apps/web-toy/dist` through GitHub Pages Actions once the repository
   owner enables Pages.
 - Current package test scripts report 161 headless-simulation, 58 trait-runtime,
-  61 run-director, and 172 web-toy tests: **452 passing tests** in total.
+  61 run-director, and 176 web-toy tests: **456 passing tests** in total.
 - The project is now backed up in the private GitHub repository
   `TomMonk1100/AnimalSurvivor` on `main`.
 

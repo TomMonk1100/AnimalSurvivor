@@ -127,12 +127,18 @@ Path: `apps/web-toy/`
   gather, knockback, and burst effects across catch-up frames.
 - The HUD and persistent Active Adaptations panel explain selected effects and
   cadence; short callouts name live Puffer and Thornstorm actions.
+- The player-facing HUD persistently projects authoritative elapsed time,
+  phase, and the current objective. It names survival until **The Final
+  Threat** before the boss and defeating that threat during boss/overtime.
 - Greg has renderer-only locomotion with a 45-degree-per-tick visual turn cap
   and hysteresis. Sharp reversals resolve across four bounded visual turns while
   position, input, simulation, and replay remain unchanged; repeat auto-attacks
   do not restart an active attack clip.
 - A fixed minor/major world-space arena grid gives camera-following movement a
   stable reference without affecting simulation state or per-frame allocation.
+- The orthographic follow camera uses a deliberately tighter presentation-only
+  frame so Greg, nearby threats, and XP motes are readable at a glance; it does
+  not alter simulation space, balance, input, hashing, or replay.
 - Bounded primitive feedback pools show attacks, hits, pickups, deaths, and
   trait effects without mutating gameplay state.
 - Director events present phase, elite, boss, overtime, victory, and defeat
@@ -174,8 +180,8 @@ All checks below ran successfully from
 - Headless simulation: 161/161 tests passed; typecheck and lint passed.
 - Trait runtime: 58/58 tests passed; typecheck and lint passed.
 - Run director: 61/61 tests passed; typecheck and lint passed.
-- Web toy: 172/172 tests passed; typecheck, lint, and production build passed.
-- Total: 452 passing automated tests.
+- Web toy: 176/176 tests passed; typecheck, lint, and production build passed.
+- Total: 456 passing automated tests.
 - Web production build passed: 1,233 modules transformed. The current main
   JavaScript bundle is about 2.03 MB minified (523 kB gzip); Vite reports the
   expected chunk-size warning.
