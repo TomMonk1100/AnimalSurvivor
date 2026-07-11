@@ -124,6 +124,15 @@ const OPACITY: Readonly<Record<EffectMaterial, number>> = Object.freeze({
   'trait-cue': 0.55,
 });
 
+// The geometry's outer radius is deliberately accounted for when applying a
+// command radius below. This keeps an authored radius as the visible outside
+// edge of the hollow pulse, rather than the torus centreline.
+const RING_RADIUS = 0.5;
+const RING_TUBE_RADIUS = 0.025;
+const RING_OUTER_RADIUS = RING_RADIUS + RING_TUBE_RADIUS;
+const RING_SEGMENTS = 48;
+const RING_SIDES = 8;
+
 function finiteOr(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
 }
@@ -214,6 +223,7 @@ function createMaterial(role: EffectMaterial): pc.StandardMaterial {
 
 interface EffectSlot {
   readonly entity: pc.Entity;
+  readonly meshInstance: pc.MeshInstance;
   active: boolean;
   profile: TraitCommandEffectProfile | null;
   material: EffectMaterial;
@@ -242,6 +252,7 @@ function normalizedTick(tick: number): number {
  * The pool owns all PlayCanvas entities/materials at construction time.
  */
 export function createTraitCommandPresentation(
+  device: pc.GraphicsDevice,
   parent: pc.Entity,
   worldHalfWidth: number,
   worldHalfHeight: number,
@@ -253,17 +264,26 @@ export function createTraitCommandPresentation(
 
   const materials = new Map<EffectMaterial, pc.StandardMaterial>();
   for (const role of Object.keys(COLORS) as EffectMaterial[]) materials.set(role, createMaterial(role));
+  // A single narrow torus mesh is shared by every pool slot. Material and
+  // transform remain per-slot, preserving the fixed-pool ownership model.
+  const ringMesh = pc.Mesh.fromGeometry(device, new pc.TorusGeometry({
+    ringRadius: RING_RADIUS,
+    tubeRadius: RING_TUBE_RADIUS,
+    segments: RING_SEGMENTS,
+    sides: RING_SIDES,
+  }));
 
   const slots: EffectSlot[] = [];
   for (let index = 0; index < capacity; index++) {
     const entity = new pc.Entity(`trait-command-effect-${index}`);
+    const meshInstance = new pc.MeshInstance(ringMesh, materials.get('telegraph')!);
     entity.addComponent('render', {
-      type: 'cylinder', material: materials.get('telegraph')!, castShadows: false, receiveShadows: false,
+      meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
     });
     entity.enabled = false;
     parent.addChild(entity);
     slots.push({
-      entity, active: false, profile: null, material: 'telegraph', tick: 0, expiresAtTick: 0,
+      entity, meshInstance, active: false, profile: null, material: 'telegraph', tick: 0, expiresAtTick: 0,
       x: 0, y: 0, radius: 0, aspect: 1, yawDegrees: 0,
     });
   }
@@ -293,10 +313,17 @@ export function createTraitCommandPresentation(
         : 0.72 + Math.sin(progress * Math.PI) * 0.22;
     const radius = Math.max(1, slot.radius * scale);
     const thickness = Math.max(0.7, radius * 0.025);
-    slot.entity.render!.material = materials.get(slot.material)!;
+    // Scale by the torus's outer radius so `radius` stays the authored outer
+    // visual radius, not the centreline radius of the tube.
+    const radialScale = radius / RING_OUTER_RADIUS;
+    slot.meshInstance.material = materials.get(slot.material)!;
     slot.entity.setLocalPosition(slot.x - worldHalfWidth, thickness * 0.5 + 0.1, worldHalfHeight - slot.y);
     slot.entity.setLocalEulerAngles(0, slot.yawDegrees, 0);
-    slot.entity.setLocalScale(radius * 2 * slot.aspect, thickness, radius * 2);
+    slot.entity.setLocalScale(
+      radialScale * slot.aspect,
+      thickness / (RING_TUBE_RADIUS * 2),
+      radialScale,
+    );
     slot.entity.enabled = true;
   }
 
@@ -341,6 +368,8 @@ export function createTraitCommandPresentation(
     reset,
     dispose() {
       for (const slot of slots) slot.entity.destroy();
+      // Each mesh instance decrements the shared mesh's reference count on
+      // entity destruction, so the last one releases this GPU mesh.
       for (const material of materials.values()) material.destroy();
     },
   };

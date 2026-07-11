@@ -195,6 +195,7 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     worldHalfHeight,
   );
   const traitCommandPresentation = createTraitCommandPresentation(
+    app.graphicsDevice,
     entitiesRoot,
     worldHalfWidth,
     worldHalfHeight,
