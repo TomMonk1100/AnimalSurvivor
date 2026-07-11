@@ -29,9 +29,13 @@ export interface TraitRuntimeCommandView {
   readonly speed: number;
   readonly radius: number;
   readonly strength: number;
+  /** Optional for compatibility with minimal runtime fixtures. */
+  readonly durationTicks?: number;
   readonly facing: number;
   readonly spread: number;
   readonly range: number;
+  /** Optional for compatibility with minimal runtime fixtures. */
+  readonly tag?: string;
 }
 
 export interface TraitRuntimeCommandSource {

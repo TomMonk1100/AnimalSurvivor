@@ -291,6 +291,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
         driver.alpha,
         driver.traitVisualState(),
         driver.combatFeedback,
+        driver.traitPresentationEvents,
       );
     }
 

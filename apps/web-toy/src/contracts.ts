@@ -17,7 +17,14 @@
  *   - Views are keyed by generation-guarded EntityId, never by slot alone.
  *   - Exactly one canonical TickInput is produced per simulation tick.
  */
-import type { EntityId, PlayerState, SimEvents, TickInput, TraitVisualAttachmentView } from '@sim';
+import type {
+  EntityId,
+  PlayerState,
+  SimEvents,
+  TickInput,
+  TraitPresentationEventView,
+  TraitVisualAttachmentView,
+} from '@sim';
 import type { CombatFeedbackSnapshot } from './presentation/combat-feedback';
 
 export type { EntityId, PlayerState, SimEvents, TickInput };
@@ -116,6 +123,7 @@ export interface RendererAdapter {
     alpha: number,
     traitVisualState: readonly TraitVisualAttachmentView[],
     combatFeedback: CombatFeedbackSnapshot,
+    traitPresentationEvents: readonly TraitPresentationEventView[],
   ): void;
   /** Resize backing store to CSS size * min(devicePixelRatio, cap). */
   resize(): void;

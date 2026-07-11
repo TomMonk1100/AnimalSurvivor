@@ -93,7 +93,8 @@ function createFeedbackRuntimeFactory(): TraitRuntimeFactory {
             return {
               kind: 'spawnProjectileBurst', sourceId: 'test-feedback', tick: context.tick, targeting: 'none',
               originX: context.playerX, originY: context.playerY, dirX: 1, dirY: 0,
-              count: 1, damage: 0, speed: 1, radius: 0, strength: 0, facing: 0, spread: 0, range: 0,
+              count: 1, damage: 0, speed: 1, radius: 0, strength: 0, durationTicks: 7,
+              facing: 0, spread: 0, range: 0, tag: `test-${context.tick}`,
             };
           },
         };
@@ -117,6 +118,26 @@ describe('createSimDriver: fixed-tick accumulator', () => {
 
     expect(driver.tick).toBe(5);
     expect(driver.combatFeedback.cues.filter((cue) => cue.kind === 'attack').map((cue) => cue.tick)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('retains detached trait command events from every tick in a multi-tick catch-up frame', () => {
+    const driver = createSimDriver(DEFAULT_CONFIG, SEED, { traitRuntimeFactory: createFeedbackRuntimeFactory() });
+    const input = new ConstantInput();
+
+    driver.frame(0, input, false);
+    driver.frame(DT_MS * 5, input, false);
+
+    expect(driver.tick).toBe(5);
+    expect(driver.traitPresentationEvents.map((event) => event.tick)).toEqual([1, 2, 3, 4, 5]);
+    expect(driver.traitPresentationEvents.map((event) => event.tag)).toEqual([
+      'test-1', 'test-2', 'test-3', 'test-4', 'test-5',
+    ]);
+    expect(driver.traitPresentationEvents.every((event) => event.durationTicks === 7)).toBe(true);
+
+    // A zero-tick rendered frame has no new commands; stale event references
+    // cannot accidentally fire a second visual effect.
+    driver.frame(DT_MS * 5 + 1, input, false);
+    expect(driver.traitPresentationEvents).toEqual([]);
   });
 
   it('retains director events from every tick in a multi-tick catch-up frame', () => {

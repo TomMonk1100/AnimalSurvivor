@@ -87,6 +87,11 @@
 - Renderer-only combat cues now persist across fixed-tick catch-up, and fixed
   primitive feedback pools show attacks, hits, pickups, enemy deaths, and player
   death without mutating gameplay.
+- Actual executed trait commands now cross a presentation-only stream from the
+  deterministic simulation through the fixed-tick driver. Puffer Pouch and
+  Thornstorm therefore have distinct pooled telegraph, gather, knockback, and
+  burst effects; catch-up commands reach the bounded renderer pool in order
+  without entering the gameplay hash or replay state.
 - Elites and bosses now have read-only presentation roles and distinct bounded
   instanced treatments: amber cylinder elites and violet cone bosses, while
   gameplay role state remains authoritative and hashed.
@@ -103,10 +108,8 @@
 - Low-end-device rendering remains unknown, but the instanced primitive fixture
   now renders 1,000 enemies, 500 projectiles, and 200 pickups in four draw calls.
 - Physical touch hardware and forced WebGL context-loss recovery remain untested.
-- Rich trait-command presentation is incomplete: current visual cues infer
-  attacks/hits/pickups from snapshots but cannot yet show Puffer pulses,
-  Thornstorm telegraphs, gather, or knockback from an authoritative command
-  presentation stream.
+- Trait-command timing and visual readability still need a human playtest; the
+  current effects are deliberately bounded primitive cues, not final art.
 - Elite and boss roles are visually distinct primitives, but still need final
   authored meshes, animation, and richer entrance behavior.
 
@@ -124,10 +127,10 @@ evidence is in
 ## Next integration sequence
 
 1. Run a second hands-on desktop playtest focused on corrected controls,
-   locomotion feel, upgrade comprehension, combat feedback, and elite/boss
-   readability.
-2. Add a driver-owned trait-command presentation stream so Puffer Pouch and
-   Thornstorm effects communicate their actual timings and areas.
+   locomotion feel, upgrade comprehension, combat/trait feedback, and
+   elite/boss readability.
+2. Tune the trait-command cue lifetimes, sizes, and colors from that playtest,
+   especially Puffer Pouch and Thornstorm's telegraph-to-exhale sequence.
 3. Decide whether to implement each remaining authored command kind or keep it
    out of all player-facing catalogs until its persistent gameplay state exists.
 4. Run physical-touch, low-end-device, and forced-WebGL-context-loss checks.

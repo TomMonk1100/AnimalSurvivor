@@ -59,7 +59,7 @@
  */
 import * as pc from 'playcanvas';
 import type { SimConfig } from '@sim';
-import type { TraitVisualAttachmentView } from '@sim';
+import type { TraitPresentationEventView, TraitVisualAttachmentView } from '@sim';
 import { DEFAULT_CONFIG, RUN_ENEMY_ROLE } from '@sim';
 import type {
   RendererAdapter,
@@ -74,6 +74,7 @@ import { InstancedTransformStore } from './instanced-transform-store';
 import { createGregPresentation } from '../hero/greg-presentation';
 import type { CombatFeedbackSnapshot } from '../presentation/combat-feedback';
 import { createCombatFeedbackPresentation } from './combat-feedback-presentation';
+import { createTraitCommandPresentation } from './trait-command-presentation';
 
 /** Backing-store size cap: CSS size * min(devicePixelRatio, RESOLUTION_CAP). */
 const RESOLUTION_CAP = 2;
@@ -193,6 +194,11 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     worldHalfWidth,
     worldHalfHeight,
   );
+  const traitCommandPresentation = createTraitCommandPresentation(
+    entitiesRoot,
+    worldHalfWidth,
+    worldHalfHeight,
+  );
 
   // --- Hardware-instanced category views ---------------------------------
   // Regular enemies, elites, and bosses use three fixed batches. That gives
@@ -280,6 +286,7 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     alpha: number,
     traitVisualState: readonly TraitVisualAttachmentView[],
     combatFeedback: CombatFeedbackSnapshot,
+    traitPresentationEvents: readonly TraitPresentationEventView[],
   ): void {
     if (contextLost) {
       return;
@@ -293,6 +300,7 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
 
     gregPresentation.update(prev, curr, alpha, traitVisualState);
     combatFeedbackPresentation.update(combatFeedback);
+    traitCommandPresentation.update(curr.tick, traitPresentationEvents);
     // The cyan sphere is a resilient loading/error fallback. Greg takes over
     // asynchronously once the audited glTF has loaded and initialized.
     playerEntity.enabled = curr.playerAlive && !gregPresentation.ready;
@@ -403,6 +411,7 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     materials.projectile.destroy();
     materials.pickup.destroy();
     playerMaterial.destroy();
+    traitCommandPresentation.dispose();
     combatFeedbackPresentation.dispose();
     gregPresentation.dispose();
     app.destroy();

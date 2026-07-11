@@ -24,6 +24,7 @@ import type {
   SimulationOptions,
   TraitUpgradeOfferView,
   TraitVisualAttachmentView,
+  TraitPresentationEventView,
   UpgradeSelection,
   RunDirectorEventView,
   RunOutcomeView,
@@ -84,6 +85,12 @@ export interface SimDriver {
   readonly directorEvents: readonly RunDirectorEventView[];
   /** Presentation cues accumulated on every fixed tick, even during catch-up. */
   readonly combatFeedback: CombatFeedbackSnapshot;
+  /**
+   * Actual trait commands accumulated during the most recent rendered frame.
+   * The array and its records are reused on the next frame, so renderers must
+   * consume it synchronously rather than retaining a reference.
+   */
+  readonly traitPresentationEvents: readonly TraitPresentationEventView[];
   hash(): string;
   selectUpgrade(traitId: string): UpgradeSelection;
   traitVisualState(): readonly TraitVisualAttachmentView[];
@@ -108,6 +115,10 @@ function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 
+type MutableTraitPresentationEvent = {
+  -readonly [Key in keyof TraitPresentationEventView]: TraitPresentationEventView[Key];
+};
+
 export function createSimDriver(
   config: SimConfig,
   seed: number,
@@ -131,6 +142,11 @@ export function createSimDriver(
   let ticksLastFrame = 0;
   let droppedAccumSec = 0;
   const frameDirectorEvents: RunDirectorEventView[] = [];
+  // The simulation's per-step event records are deliberately reused on its
+  // next step. Keep an app-owned frame copy so a catch-up frame retains every
+  // command rather than five aliases of the final tick's mutable records.
+  const traitPresentationEventStorage: MutableTraitPresentationEvent[] = [];
+  const frameTraitPresentationEvents: TraitPresentationEventView[] = [];
   const combatFeedbackPool = createCombatFeedbackPool({ pickupCollectionRadius: config.player.pickupRadius });
   let combatFeedback: CombatFeedbackSnapshot = Object.freeze({ tick: sim.tick, cues: Object.freeze([]) });
   let inFrame = false;
@@ -144,6 +160,56 @@ export function createSimDriver(
   }
   primeSnapshots();
 
+  function captureTraitPresentationEvents(events: readonly TraitPresentationEventView[]): void {
+    for (const event of events) {
+      const index = frameTraitPresentationEvents.length;
+      let copy = traitPresentationEventStorage[index];
+      if (copy === undefined) {
+        copy = {
+          kind: event.kind,
+          sourceId: event.sourceId,
+          tick: event.tick,
+          targeting: event.targeting,
+          originX: event.originX,
+          originY: event.originY,
+          dirX: event.dirX,
+          dirY: event.dirY,
+          count: event.count,
+          damage: event.damage,
+          speed: event.speed,
+          radius: event.radius,
+          strength: event.strength,
+          durationTicks: event.durationTicks,
+          facing: event.facing,
+          spread: event.spread,
+          range: event.range,
+          tag: event.tag,
+        };
+        traitPresentationEventStorage[index] = copy;
+      } else {
+        copy.kind = event.kind;
+        copy.sourceId = event.sourceId;
+        copy.tick = event.tick;
+        copy.targeting = event.targeting;
+        copy.originX = event.originX;
+        copy.originY = event.originY;
+        copy.dirX = event.dirX;
+        copy.dirY = event.dirY;
+        copy.count = event.count;
+        copy.damage = event.damage;
+        copy.speed = event.speed;
+        copy.radius = event.radius;
+        copy.strength = event.strength;
+        copy.durationTicks = event.durationTicks;
+        copy.facing = event.facing;
+        copy.spread = event.spread;
+        copy.range = event.range;
+        copy.tag = event.tag;
+      }
+      frameTraitPresentationEvents.push(copy);
+    }
+  }
+
   function frame(nowMs: number, input: InputSource, paused: boolean): void {
     if (inFrame) {
       throw new Error('SimDriver.frame() called reentrantly');
@@ -156,6 +222,7 @@ export function createSimDriver(
       ticksLastFrame = 0;
       droppedAccumSec = 0;
       frameDirectorEvents.length = 0;
+      frameTraitPresentationEvents.length = 0;
 
       if (paused || sim.upgradeSelectionPending) {
         // Do not accumulate time and do not step gameplay ticks. prev/curr/
@@ -190,6 +257,7 @@ export function createSimDriver(
         const tickInput: TickInput = input.sample(sim.tick, false);
         sim.step(tickInput);
         for (const event of sim.directorEvents) frameDirectorEvents.push(event);
+        captureTraitPresentationEvents(sim.traitPresentationEvents);
         captureSnapshot(currBuf, sim);
         combatFeedback = combatFeedbackPool.advance(prevBuf, currBuf);
         accumulator -= dt;
@@ -234,6 +302,7 @@ export function createSimDriver(
     ticksLastFrame = 0;
     droppedAccumSec = 0;
     frameDirectorEvents.length = 0;
+    frameTraitPresentationEvents.length = 0;
     combatFeedbackPool.reset();
     primeSnapshots();
     combatFeedback = Object.freeze({ tick: sim.tick, cues: Object.freeze([]) });
@@ -293,6 +362,9 @@ export function createSimDriver(
     },
     get combatFeedback() {
       return combatFeedback;
+    },
+    get traitPresentationEvents() {
+      return frameTraitPresentationEvents;
     },
     hash() {
       return sim.hash();

@@ -24,6 +24,7 @@ export {
   runReplay,
   type Simulation,
   type SimulationOptions,
+  type TraitPresentationEventView,
 } from './simulation.js';
 export {
   assertTraitRuntimePort,

@@ -120,6 +120,8 @@ import {
 import { createTraitCommandExecutor } from './trait-command-executor.js';
 import {
   createTraitRuntimePort,
+  type TraitRuntimeCommandSource,
+  type TraitRuntimeCommandView,
   type TraitRuntimeFactory,
   type TraitUpgradeOfferView,
   type TraitVisualAttachmentView,
@@ -150,6 +152,41 @@ export interface SimulationOptions {
 const EMPTY_TRAIT_OFFERS: readonly TraitUpgradeOfferView[] = Object.freeze([]);
 const EMPTY_TRAIT_VISUALS: readonly TraitVisualAttachmentView[] = Object.freeze([]);
 
+/**
+ * A renderer-facing copy of a trait command that was handed to the combat
+ * executor. The simulation reuses both the array and its event objects on
+ * the next step, so consumers must copy any data they need to retain.
+ *
+ * `tag` and `durationTicks` are normalized because the structural runtime
+ * port keeps them optional for compatibility with lightweight runtimes.
+ * This is presentation-only output and is deliberately excluded from hash()
+ * and replay state.
+ */
+export interface TraitPresentationEventView {
+  readonly kind: string;
+  readonly sourceId: string;
+  readonly tick: number;
+  readonly targeting: string;
+  readonly originX: number;
+  readonly originY: number;
+  readonly dirX: number;
+  readonly dirY: number;
+  readonly count: number;
+  readonly damage: number;
+  readonly speed: number;
+  readonly radius: number;
+  readonly strength: number;
+  readonly durationTicks: number;
+  readonly facing: number;
+  readonly spread: number;
+  readonly range: number;
+  readonly tag: string;
+}
+
+type MutableTraitPresentationEvent = {
+  -readonly [Key in keyof TraitPresentationEventView]: TraitPresentationEventView[Key];
+};
+
 export interface Simulation {
   readonly tick: number;
   readonly player: PlayerState;
@@ -168,6 +205,12 @@ export interface Simulation {
   readonly totalKills: number;
   readonly pendingUpgradeOffers: readonly TraitUpgradeOfferView[];
   readonly upgradeSelectionPending: boolean;
+  /**
+   * Renderer-only copies of commands executed during the most recent advancing
+   * tick. This reusable output is empty after a paused step and excluded from
+   * deterministic gameplay state.
+   */
+  readonly traitPresentationEvents: readonly TraitPresentationEventView[];
   /**
    * Read-only presentation classification for a live enemy id. This mirrors
    * the run adapter's already-authoritative role and is intentionally not a
@@ -272,6 +315,71 @@ export function createSimulation(
     enemiesSpawned: 0,
     projectilesFired: 0,
   };
+  const traitPresentationEventStorage: MutableTraitPresentationEvent[] = [];
+  const traitPresentationEvents: MutableTraitPresentationEvent[] = [];
+  let traitPresentationCommandSource: TraitRuntimeCommandSource | null = null;
+  const traitPresentationCommandCapture: TraitRuntimeCommandSource = {
+    get length() {
+      return traitPresentationCommandSource?.length ?? 0;
+    },
+    at(index: number): TraitRuntimeCommandView {
+      const source = traitPresentationCommandSource;
+      if (source === null) {
+        throw new Error('trait presentation command capture is not active');
+      }
+      const command = source.at(index);
+      let event = traitPresentationEventStorage[index];
+      if (event === undefined) {
+        event = {
+          kind: command.kind,
+          sourceId: command.sourceId,
+          tick: command.tick,
+          targeting: command.targeting,
+          originX: command.originX,
+          originY: command.originY,
+          dirX: command.dirX,
+          dirY: command.dirY,
+          count: command.count,
+          damage: command.damage,
+          speed: command.speed,
+          radius: command.radius,
+          strength: command.strength,
+          durationTicks: command.durationTicks ?? 0,
+          facing: command.facing,
+          spread: command.spread,
+          range: command.range,
+          tag: command.tag ?? '',
+        };
+        traitPresentationEventStorage[index] = event;
+      } else {
+        event.kind = command.kind;
+        event.sourceId = command.sourceId;
+        event.tick = command.tick;
+        event.targeting = command.targeting;
+        event.originX = command.originX;
+        event.originY = command.originY;
+        event.dirX = command.dirX;
+        event.dirY = command.dirY;
+        event.count = command.count;
+        event.damage = command.damage;
+        event.speed = command.speed;
+        event.radius = command.radius;
+        event.strength = command.strength;
+        event.durationTicks = command.durationTicks ?? 0;
+        event.facing = command.facing;
+        event.spread = command.spread;
+        event.range = command.range;
+        event.tag = command.tag ?? '';
+      }
+      traitPresentationEvents[index] = event;
+      return command;
+    },
+  };
+
+  function resetTraitPresentationEvents(): void {
+    traitPresentationEvents.length = 0;
+    traitPresentationCommandSource = null;
+  }
 
   let weaponCooldown = 0;
   let lastMoveDirX = 0;
@@ -404,11 +512,13 @@ export function createSimulation(
 
     if (canonicalInput.paused) {
       resetEvents(events);
+      resetTraitPresentationEvents();
       return events;
     }
 
     clock.advance();
     resetEvents(events);
+    resetTraitPresentationEvents();
 
     const dt = clock.dt;
     const playerXBeforeMove = player.x;
@@ -485,18 +595,28 @@ export function createSimulation(
         distanceMovedThisTick,
       });
       if (player.alive) {
-        const traitStats = traitExecutor.execute(commands, {
-          tick: clock.tick,
-          moveDirX: lastMoveDirX,
-          moveDirY: lastMoveDirY,
-          worldWidth,
-          worldHeight,
-          enemies,
-          projectiles,
-          enemyGrid: grid,
-          killEnemy,
-        });
-        events.projectilesFired += traitStats.projectilesSpawned;
+        traitPresentationCommandSource = commands;
+        try {
+          const traitStats = traitExecutor.execute(traitPresentationCommandCapture, {
+            tick: clock.tick,
+            moveDirX: lastMoveDirX,
+            moveDirY: lastMoveDirY,
+            worldWidth,
+            worldHeight,
+            enemies,
+            projectiles,
+            enemyGrid: grid,
+            killEnemy,
+          });
+          events.projectilesFired += traitStats.projectilesSpawned;
+        } catch (error) {
+          // Do not leave a partially captured batch visible when validation
+          // rejects a malformed runtime command source.
+          resetTraitPresentationEvents();
+          throw error;
+        } finally {
+          traitPresentationCommandSource = null;
+        }
       }
     }
 
@@ -708,6 +828,9 @@ export function createSimulation(
     },
     get upgradeSelectionPending() {
       return traitUpgradeQueue?.blocked ?? false;
+    },
+    get traitPresentationEvents() {
+      return traitPresentationEvents;
     },
     get xpLostToFullPickupPool() {
       return xpLostToFullPickupPool;

@@ -16,29 +16,40 @@ class FakeTraitRuntime implements TraitRuntimePort {
   readonly updates: TraitRuntimeUpdateContext[] = [];
   private stage = 0;
   private commands: TraitRuntimeCommandView[] = [];
+  private latestCommand: { originX: number } | null = null;
+
+  constructor(
+    private readonly presentationMetadata: Pick<TraitRuntimeCommandView, 'durationTicks' | 'tag'> = {},
+  ) {}
 
   update(context: TraitRuntimeUpdateContext) {
     this.updates.push({ ...context });
-    this.commands = context.tick === 1
-      ? [{
-          kind: 'radialProjectileBurst',
-          sourceId: 'test-quills',
-          tick: context.tick,
-          targeting: 'radial',
-          originX: context.playerX,
-          originY: context.playerY,
-          dirX: 0,
-          dirY: 0,
-          count: 4,
-          damage: 2,
-          speed: 8,
-          radius: 0,
-          strength: 0,
-          facing: 0,
-          spread: 0,
-          range: 300,
-        }]
-      : [];
+    if (context.tick === 1) {
+      const command = {
+        kind: 'radialProjectileBurst',
+        sourceId: 'test-quills',
+        tick: context.tick,
+        targeting: 'radial',
+        originX: context.playerX,
+        originY: context.playerY,
+        dirX: 0,
+        dirY: 0,
+        count: 4,
+        damage: 2,
+        speed: 8,
+        radius: 0,
+        strength: 0,
+        facing: 0,
+        spread: 0,
+        range: 300,
+        ...this.presentationMetadata,
+      };
+      this.latestCommand = command;
+      this.commands = [command];
+    } else {
+      this.latestCommand = null;
+      this.commands = [];
+    }
     return {
       length: this.commands.length,
       at: (index: number) => {
@@ -47,6 +58,11 @@ class FakeTraitRuntime implements TraitRuntimePort {
         return command;
       },
     };
+  }
+
+  overwriteLatestCommandOriginX(originX: number): void {
+    if (this.latestCommand === null) throw new Error('no command was emitted');
+    this.latestCommand.originX = originX;
   }
 
   offers(count: number) {
@@ -95,9 +111,25 @@ class FakeTraitRuntime implements TraitRuntimePort {
   }
 }
 
-function makeFactory(log: { options?: TraitRuntimeFactoryOptions; runtime?: FakeTraitRuntime } = {}): TraitRuntimeFactory {
+class MalformedTraitRuntime extends FakeTraitRuntime {
+  override update(context: TraitRuntimeUpdateContext) {
+    const source = super.update(context);
+    return {
+      length: source.length,
+      at(index: number): TraitRuntimeCommandView {
+        const command = source.at(index);
+        return { ...command, tick: command.tick + 1 };
+      },
+    };
+  }
+}
+
+function makeFactory(
+  log: { options?: TraitRuntimeFactoryOptions; runtime?: FakeTraitRuntime } = {},
+  presentationMetadata: Pick<TraitRuntimeCommandView, 'durationTicks' | 'tag'> = {},
+): TraitRuntimeFactory {
   return (options) => {
-    const runtime = new FakeTraitRuntime();
+    const runtime = new FakeTraitRuntime(presentationMetadata);
     log.options = options;
     log.runtime = runtime;
     return runtime;
@@ -122,6 +154,74 @@ test('injects the trait runtime at tick zero and executes one update per advanci
   assert.ok(log.runtime!.updates[0]!.distanceMovedThisTick > 0);
   assert.equal(events.projectilesFired, 4);
   assert.equal(sim.projectiles.data.count, 4);
+  assert.equal(sim.traitPresentationEvents[0]!.durationTicks, 0);
+  assert.equal(sim.traitPresentationEvents[0]!.tag, '');
+});
+
+test('publishes detached presentation copies for executed trait commands and clears them when paused', () => {
+  const log: { options?: TraitRuntimeFactoryOptions; runtime?: FakeTraitRuntime } = {};
+  const sim = createSimulation(quietConfig(), 73, {
+    traitRuntimeFactory: makeFactory(log, { durationTicks: 24, tag: 'test-quills-burst' }),
+  });
+  const peer = createSimulation(quietConfig(), 73, { traitRuntimeFactory: makeFactory() });
+
+  sim.step({ moveX: 1, moveY: 0, paused: false });
+  peer.step({ moveX: 1, moveY: 0, paused: false });
+
+  const event = sim.traitPresentationEvents[0];
+  assert.deepEqual(event, {
+    kind: 'radialProjectileBurst',
+    sourceId: 'test-quills',
+    tick: 1,
+    targeting: 'radial',
+    originX: sim.player.x,
+    originY: sim.player.y,
+    dirX: 0,
+    dirY: 0,
+    count: 4,
+    damage: 2,
+    speed: 8,
+    radius: 0,
+    strength: 0,
+    durationTicks: 24,
+    facing: 0,
+    spread: 0,
+    range: 300,
+    tag: 'test-quills-burst',
+  });
+
+  log.runtime!.overwriteLatestCommandOriginX(-999);
+  assert.equal(event!.originX, sim.player.x);
+  assert.equal(sim.hash(), peer.hash());
+
+  sim.step({ moveX: 0, moveY: 0, paused: true });
+  assert.equal(sim.tick, 1);
+  assert.deepEqual(sim.traitPresentationEvents, []);
+  assert.equal(sim.hash(), peer.hash());
+});
+
+test('does not publish trait commands when the player is dead and execution is skipped', () => {
+  const log: { options?: TraitRuntimeFactoryOptions; runtime?: FakeTraitRuntime } = {};
+  const sim = createSimulation(quietConfig(), 73, { traitRuntimeFactory: makeFactory(log) });
+  sim.player.alive = false;
+
+  const events = sim.step({ moveX: 0, moveY: 0, paused: false });
+  assert.equal(log.runtime!.updates.length, 1);
+  assert.equal(events.projectilesFired, 0);
+  assert.equal(sim.projectiles.data.count, 0);
+  assert.deepEqual(sim.traitPresentationEvents, []);
+});
+
+test('clears partially captured presentation events when trait command validation fails', () => {
+  const sim = createSimulation(quietConfig(), 73, {
+    traitRuntimeFactory: () => new MalformedTraitRuntime(),
+  });
+
+  assert.throws(
+    () => sim.step({ moveX: 0, moveY: 0, paused: false }),
+    /does not match execution tick/,
+  );
+  assert.deepEqual(sim.traitPresentationEvents, []);
 });
 
 test('blocks advancement for queued upgrades and applies multiple gained levels in order', () => {
