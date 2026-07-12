@@ -123,3 +123,17 @@ test('movementTrail validates every spawnZone field required by the accepted exe
   behavior.emit = { kind: 'spawnZone', radius: 0, amount: 2, durationTicks: 0, intervalTicks: 0, tag: '' };
   assert.ok(codes(c).includes('invalidMovementTrail'));
 });
+
+test('chainDamage requires a bounded integer hop count and a positive hop range', () => {
+  const c = clone();
+  const coil = c.traits.find((trait) => trait.id === 'electric-eel-coil');
+  assert.ok(coil, 'expected conceptual Electric Eel Coil chain content');
+  const emit = coil!.stages.bud.behavior.emit!;
+  emit.jumps = 8;
+  emit.range = 0;
+  assert.ok(codes(c).includes('invalidChainDamage'));
+
+  delete emit.jumps;
+  emit.range = 120;
+  assert.ok(codes(c).includes('invalidChainDamage'));
+});

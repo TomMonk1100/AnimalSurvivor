@@ -12,7 +12,7 @@
  *   bud:      periodic telegraphed inhale/exhale pulse.
  *   adapted:  wider gather + knockback pulse.
  * electric-eel-coil (socket: tail)
- *   bud/adapted: directed charged-bolt bursts at the nearest enemy.
+ *   bud/adapted: instant, never-miss lightning that chains through nearby foes.
  * firefly-colony (socket: bodyOrbit)
  *   bud/adapted: autonomous radial spark bursts.
  * mantis-scythes (socket: leftShoulder)
@@ -22,7 +22,7 @@
  * razorstep-chimera (recipe: Adapted Mantis + Adapted Gecko; shoulders)
  *   mythic: a stronger, denser moving trail that preserves both ingredients' slots.
  * thunderbug-dynamo (recipe: Adapted Coil + Adapted Colony; sockets tail+bodyOrbit)
- *   mythic charge telegraph followed by a larger radial lightning storm.
+ *   mythic charge telegraph followed by a larger chain-lightning discharge.
  * thornstorm-mantle (recipe: Adapted Quills + Adapted Pouch; sockets head+back)
  *   mythic multiPhase, EXACT order: telegraph -> gather -> radial quill exhale.
  *   visualKey identifies both head and back as one Mythic.
@@ -106,14 +106,16 @@ export const PUFFER_POUCH: TraitDefinition = {
 };
 
 /**
- * A focused ranged option distinct from Quills: fewer, faster bolts seek the
- * nearest threat. It deliberately maps to the supported projectile bridge
- * rather than pretending the future chain-lightning state exists.
+ * A guaranteed, low-damage lightning strike distinct from Greg's Auto-Fire
+ * and Quills. `jumps` means additional unique enemies after the first strike;
+ * `range` is the hop radius between each struck enemy. The executor acquires
+ * the initial target at its standard nearby-enemy range, applies damage in the
+ * same tick, and never creates a projectile that can miss.
  */
 export const ELECTRIC_EEL_COIL: TraitDefinition = {
   id: TRAIT_IDS.electricEelCoil,
   sockets: ['tail'],
-  tags: ['electric', 'projectile'],
+  tags: ['electric', 'chain'],
   stages: {
     bud: {
       visualKey: 'electric-eel-coil:bud',
@@ -121,13 +123,11 @@ export const ELECTRIC_EEL_COIL: TraitDefinition = {
         kind: 'periodicBurst',
         periodTicks: 80,
         emit: {
-          kind: 'spawnProjectileBurst',
+          kind: 'chainDamage',
           targeting: 'nearest',
-          count: 2,
           damage: 4,
-          speed: 8,
-          spread: 0.18,
-          range: 300,
+          jumps: 1,
+          range: 120,
         },
       },
     },
@@ -137,13 +137,11 @@ export const ELECTRIC_EEL_COIL: TraitDefinition = {
         kind: 'periodicBurst',
         periodTicks: 52,
         emit: {
-          kind: 'spawnProjectileBurst',
+          kind: 'chainDamage',
           targeting: 'nearest',
-          count: 4,
-          damage: 6,
-          speed: 10,
-          spread: 0.32,
-          range: 340,
+          damage: 5,
+          jumps: 3,
+          range: 150,
         },
       },
     },
@@ -302,12 +300,11 @@ export const THUNDERBUG_DYNAMO: EvolutionDefinition = {
       {
         durationTicks: 72,
         emit: {
-          kind: 'radialProjectileBurst',
-          targeting: 'none',
-          count: 18,
+          kind: 'chainDamage',
+          targeting: 'nearest',
           damage: 9,
-          speed: 9,
-          facing: 0,
+          jumps: 7,
+          range: 185,
         },
       },
     ],

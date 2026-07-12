@@ -20,6 +20,8 @@
  *   - invalidMovementTrail    : movementTrail lacks a positive fixed-distance
  *                               threshold or a complete executable spawnZone
  *                               emit template.
+ *   - invalidChainDamage      : chainDamage lacks an executable hop count,
+ *                               hop range, or Float32-safe per-hit damage.
  *   - visualKeyCollision      : two definitions share a visualKey.
  *
  * The shipped CATALOG must validate with ok=true and zero issues.
@@ -71,6 +73,8 @@ const INTEGER_FIELDS: readonly (keyof CommandTemplate)[] = [
 ];
 
 const MAX_FLOAT32 = 3.4028234663852886e38;
+/** Mirrors the accepted simulation's fixed chain-lightning work bound. */
+const MAX_EXECUTABLE_CHAIN_JUMPS = 7;
 
 function pushIssue(
   issues: ValidationIssue[],
@@ -165,6 +169,36 @@ function validateMovementTrailZoneTemplate(
   }
 }
 
+/**
+ * chainDamage is now part of the playable Greg slice, so reject templates
+ * that would otherwise survive catalog loading only to fail at execution.
+ */
+function validateChainDamageTemplate(
+  subjectId: string,
+  template: CommandTemplate | undefined,
+  issues: ValidationIssue[],
+): void {
+  if (template?.kind !== 'chainDamage') return;
+  const invalid = (message: string): void => pushIssue(issues, 'invalidChainDamage', message, subjectId);
+  const jumps = template.jumps;
+  if (
+    jumps === undefined
+    || !Number.isSafeInteger(jumps)
+    || jumps < 0
+    || jumps > MAX_EXECUTABLE_CHAIN_JUMPS
+  ) {
+    invalid(`chainDamage requires jumps in [0, ${MAX_EXECUTABLE_CHAIN_JUMPS}].`);
+  }
+  if (!(typeof template.range === 'number' && Number.isFinite(template.range)
+    && template.range > 0 && template.range <= MAX_FLOAT32)) {
+    invalid('chainDamage requires a positive finite Float32-safe hop range.');
+  }
+  if (!(typeof template.damage === 'number' && Number.isFinite(template.damage)
+    && template.damage >= 0 && template.damage <= MAX_FLOAT32)) {
+    invalid('chainDamage requires non-negative finite Float32-safe per-hit damage.');
+  }
+}
+
 function validateBehavior(
   subjectId: string,
   behavior: BehaviorDefinition,
@@ -197,6 +231,7 @@ function validateBehavior(
         pushIssue(issues, 'nonFiniteParam', 'periodTicks must be >= 1.', subjectId);
       }
       validateTemplateNumbers(subjectId, behavior.emit, issues);
+      validateChainDamageTemplate(subjectId, behavior.emit, issues);
       break;
     }
     case 'multiPhase': {
@@ -230,6 +265,7 @@ function validateBehavior(
             );
           }
           validateTemplateNumbers(phaseSubject, phase.emit, issues);
+          validateChainDamageTemplate(phaseSubject, phase.emit, issues);
         }
       }
       break;
@@ -253,6 +289,7 @@ function validateBehavior(
       }
       validateTemplateNumbers(subjectId, behavior.emit, issues);
       validateMovementTrailZoneTemplate(subjectId, behavior.emit, issues);
+      validateChainDamageTemplate(subjectId, behavior.emit, issues);
       break;
     }
   }

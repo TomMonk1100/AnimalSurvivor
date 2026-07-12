@@ -82,7 +82,7 @@ total:
 | --- | --- | --- |
 | **Porcupine Quills** | Targeted quill burst | More, faster quills |
 | **Puffer Pouch** | Gather nearby enemies | Wider push pulse |
-| **Electric Eel Coil** | Two charged bolts at the nearest threat | Four faster charged bolts |
+| **Electric Eel Coil** | Instant strike on the nearest threat, then chain to 1 nearby unhit foe | Instant strike on the nearest threat, then chain to 3 nearby unhit foes |
 | **Firefly Colony** | Six radial sparks | Ten stronger radial sparks |
 | **Mantis Scythes** | Short-range damaging pulse | Wider, stronger close-range pulse |
 | **Gecko Pads** | After traveling 150 units, create a damaging pad at Greg's feet; it does not slow enemies | After traveling 110 units, create a stronger damaging pad at Greg's feet; it does not slow enemies |
@@ -91,8 +91,8 @@ Every attack has Bud and Adapted forms. Three paired evolutions are available:
 
 - **Thornstorm Mantle** combines Adapted Quills and Adapted Pouch: telegraph,
   gather, then radial quill storm.
-- **Thunderbug Dynamo** combines Adapted Coil and Adapted Colony: charge, then
-  radial lightning storm.
+- **Thunderbug Dynamo** combines Adapted Coil and Adapted Colony: telegraph,
+  then release a larger chain discharge across nearby enemies.
 - **Razorstep Chimera** combines Adapted Mantis Scythes and Adapted Gecko Pads:
   moving leaves stronger scythe pads every 90 units.
 

@@ -40,6 +40,8 @@ export interface TraitCombatCommand {
   readonly amount?: number;
   readonly facing: number;
   readonly spread: number;
+  /** Additional unique enemies after the initial chain-lightning strike. */
+  readonly jumps?: number;
   readonly range: number;
   /** Required by spawnZone; mapped to a compact numeric pool role. */
   readonly tag?: string;
@@ -63,6 +65,16 @@ export interface TraitCommandExecutionContext {
   readonly enemyGrid: SpatialGrid;
   /** Simulation-owned cleanup so direct trait damage preserves drops/boss state. */
   readonly killEnemy: (slot: number) => void;
+  /**
+   * Presentation-only observer for actual chain victims. Coordinates are sent
+   * before damage cleanup so a fatal strike still has a renderable endpoint.
+   */
+  readonly onChainDamageHit?: (
+    commandIndex: number,
+    hitIndex: number,
+    x: number,
+    y: number,
+  ) => void;
 }
 
 export interface TraitCommandExecutorOptions {
@@ -74,6 +86,8 @@ export interface TraitCommandExecutorOptions {
   readonly projectileHitRadius: number;
   readonly projectilePierce: number;
   readonly maxBurstCount: number;
+  /** Chain commands may hit at most maxChainJumps + 1 distinct enemies. */
+  readonly maxChainJumps: number;
   /** Cadence used only by legacy spawnZone commands that omit intervalTicks. */
   readonly defaultZoneIntervalTicks: number;
 }
@@ -90,6 +104,10 @@ export interface TraitCommandExecutionStats {
   /** Newest zone request is rejected when the fixed pool is full; no eviction. */
   zonesRejected: number;
   burstsSkippedNoTarget: number;
+  chainDamageCommands: number;
+  /** Total immediate chain victims, including the first acquired target. */
+  chainDamageHits: number;
+  chainsSkippedNoTarget: number;
   enemiesGathered: number;
   enemiesKnockedBack: number;
   areaDamageHits: number;
@@ -104,6 +122,13 @@ export interface TraitCommandExecutor {
   execute(source: TraitCommandSource, context: TraitCommandExecutionContext): TraitCommandExecutionStats;
 }
 
+/**
+ * Combat and presentation share this bound: seven extra hops plus the first
+ * strike fit the fixed eight-endpoint presentation event without silently
+ * hiding authoritative damage from the player.
+ */
+export const MAX_CHAIN_JUMPS = 7;
+
 const DEFAULT_OPTIONS: Readonly<TraitCommandExecutorOptions> = Object.freeze({
   defaultTargetRange: 350,
   clusterRadius: 60,
@@ -112,6 +137,7 @@ const DEFAULT_OPTIONS: Readonly<TraitCommandExecutorOptions> = Object.freeze({
   projectileHitRadius: 6,
   projectilePierce: 0,
   maxBurstCount: 512,
+  maxChainJumps: MAX_CHAIN_JUMPS,
   defaultZoneIntervalTicks: 30,
 });
 
@@ -122,13 +148,13 @@ const SUPPORTED_KINDS = new Set([
   'areaKnockback',
   'applyAreaDamage',
   'spawnZone',
+  'chainDamage',
   'telegraph',
   'playTraitCue',
 ]);
 /** These need state/pools not yet owned by the accepted simulation. */
 export const REJECTED_TRAIT_COMMAND_KINDS = Object.freeze([
   'markTargets',
-  'chainDamage',
   'meleeArc',
   'grantShield',
 ] as const);
@@ -172,6 +198,9 @@ function validateOptions(options: TraitCommandExecutorOptions): void {
   }
   if (!Number.isSafeInteger(options.maxBurstCount) || options.maxBurstCount < 1) {
     throw new RangeError('maxBurstCount must be a positive safe integer');
+  }
+  if (!Number.isSafeInteger(options.maxChainJumps) || options.maxChainJumps < 0 || options.maxChainJumps > MAX_CHAIN_JUMPS) {
+    throw new RangeError(`maxChainJumps must be an integer in [0, ${MAX_CHAIN_JUMPS}]`);
   }
   if (
     !Number.isSafeInteger(options.defaultZoneIntervalTicks) ||
@@ -263,6 +292,17 @@ function validateCommand(
       }
       break;
     }
+    case 'chainDamage': {
+      const jumps = command.jumps ?? 0;
+      if (!Number.isSafeInteger(jumps) || jumps < 0 || jumps > options.maxChainJumps) {
+        throw new RangeError(`command.jumps must be an integer in [0, ${options.maxChainJumps}]`);
+      }
+      nonNegative('command.damage', command.damage);
+      float32('command.damage', command.damage);
+      positive('command.range', command.range);
+      float32('command.range', command.range);
+      break;
+    }
   }
 }
 
@@ -277,6 +317,9 @@ function resetStats(stats: TraitCommandExecutionStats): void {
   stats.zonesSpawned = 0;
   stats.zonesRejected = 0;
   stats.burstsSkippedNoTarget = 0;
+  stats.chainDamageCommands = 0;
+  stats.chainDamageHits = 0;
+  stats.chainsSkippedNoTarget = 0;
   stats.enemiesGathered = 0;
   stats.enemiesKnockedBack = 0;
   stats.areaDamageHits = 0;
@@ -443,6 +486,101 @@ function executeAreaDamage(
   }
 }
 
+function hasVisited(visited: readonly EntityId[], id: EntityId): boolean {
+  for (let index = 0; index < visited.length; index++) {
+    if (visited[index] === id) return true;
+  }
+  return false;
+}
+
+/**
+ * Pick the closest live, unvisited enemy around the most recent strike.
+ * queryRadius returns sorted ids, but tie-breaking remains explicit here so
+ * every SpatialGrid implementation has the same deterministic contract.
+ */
+function selectChainHop(
+  x: number,
+  y: number,
+  range: number,
+  context: TraitCommandExecutionContext,
+  scratch: EntityId[],
+  visited: readonly EntityId[],
+): EntityId {
+  const count = context.enemyGrid.queryRadius(x, y, range, scratch);
+  let bestId = NO_ENTITY;
+  let bestDistanceSq = Infinity;
+  for (let index = 0; index < count; index++) {
+    const id = scratch[index]!;
+    if (hasVisited(visited, id)) continue;
+    const slot = context.enemies.slotOf(id);
+    if (slot < 0) continue;
+    const dx = context.enemies.data.posX[slot]! - x;
+    const dy = context.enemies.data.posY[slot]! - y;
+    const distanceSq = dx * dx + dy * dy;
+    if (distanceSq < bestDistanceSq || (distanceSq === bestDistanceSq && (bestId === NO_ENTITY || id < bestId))) {
+      bestId = id;
+      bestDistanceSq = distanceSq;
+    }
+  }
+  return bestId;
+}
+
+/**
+ * Resolves an instantaneous, never-miss chain. First acquisition uses the
+ * normal nearby-target selector; every following hop originates at the prior
+ * victim. Victims are recorded before kill cleanup and can never repeat.
+ */
+function executeChainDamage(
+  command: TraitCombatCommand,
+  commandIndex: number,
+  context: TraitCommandExecutionContext,
+  options: TraitCommandExecutorOptions,
+  scratch: EntityId[],
+  visited: EntityId[],
+  stats: TraitCommandExecutionStats,
+): void {
+  const initial = selectTarget(
+    targetingPolicy(command.targeting),
+    {
+      originX: command.originX,
+      originY: command.originY,
+      range: options.defaultTargetRange,
+      moveDirX: context.moveDirX,
+      moveDirY: context.moveDirY,
+    },
+    context.enemies,
+    context.enemyGrid,
+    options.clusterRadius,
+  );
+  if (initial === NO_ENTITY) {
+    stats.chainsSkippedNoTarget++;
+    return;
+  }
+
+  visited.length = 0;
+  let target = initial;
+  const maximumHits = (command.jumps ?? 0) + 1;
+  for (let hitIndex = 0; hitIndex < maximumHits; hitIndex++) {
+    const slot = context.enemies.slotOf(target);
+    if (slot < 0) break;
+    // Preserve the victim position before cleanup removes a lethal target from
+    // the spatial grid; this same coordinate is the next hop's origin.
+    const x = context.enemies.data.posX[slot]!;
+    const y = context.enemies.data.posY[slot]!;
+    visited.push(target);
+    context.onChainDamageHit?.(commandIndex, hitIndex, x, y);
+    context.enemies.data.hp[slot] = context.enemies.data.hp[slot]! - command.damage;
+    stats.chainDamageHits++;
+    if (context.enemies.data.hp[slot]! <= 0) {
+      context.killEnemy(slot);
+      stats.enemiesKilled++;
+    }
+    if (hitIndex + 1 >= maximumHits) break;
+    target = selectChainHop(x, y, command.range, context, scratch, visited);
+    if (target === NO_ENTITY) break;
+  }
+}
+
 /**
  * Adds one stationary, damaging pad. The pool deliberately never evicts a
  * live zone: source-order requests beyond capacity are rejected as the newest
@@ -484,6 +622,7 @@ export function createTraitCommandExecutor(
   const options: TraitCommandExecutorOptions = { ...DEFAULT_OPTIONS, ...overrides };
   validateOptions(options);
   const scratch: EntityId[] = [];
+  const chainVisited: EntityId[] = [];
   const validatedCommands: TraitCombatCommand[] = [];
   const stats: TraitCommandExecutionStats = {
     commandsProcessed: 0,
@@ -496,6 +635,9 @@ export function createTraitCommandExecutor(
     zonesSpawned: 0,
     zonesRejected: 0,
     burstsSkippedNoTarget: 0,
+    chainDamageCommands: 0,
+    chainDamageHits: 0,
+    chainsSkippedNoTarget: 0,
     enemiesGathered: 0,
     enemiesKnockedBack: 0,
     areaDamageHits: 0,
@@ -544,6 +686,10 @@ export function createTraitCommandExecutor(
             break;
           case 'spawnZone':
             executeSpawnZone(command, context, options, stats);
+            break;
+          case 'chainDamage':
+            stats.chainDamageCommands++;
+            executeChainDamage(command, index, context, options, scratch, chainVisited, stats);
             break;
           case 'telegraph':
             stats.telegraphs++;

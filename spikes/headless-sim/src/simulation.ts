@@ -122,7 +122,7 @@ import {
   stepEnemies,
   stepProjectiles,
 } from './combat.js';
-import { createTraitCommandExecutor } from './trait-command-executor.js';
+import { MAX_CHAIN_JUMPS, createTraitCommandExecutor } from './trait-command-executor.js';
 import { createZoneStepper } from './zones.js';
 import {
   createTraitRuntimePort,
@@ -171,6 +171,8 @@ export interface SimulationOptions {
 const EMPTY_RUN_OFFERS: readonly RunUpgradeOfferView[] = Object.freeze([]);
 const EMPTY_TRAIT_VISUALS: readonly TraitVisualAttachmentView[] = Object.freeze([]);
 const EMPTY_UNIVERSAL_RANKS: readonly number[] = Object.freeze([]);
+/** Kept in lockstep with the executor so every authoritative hit can render. */
+export const MAX_TRAIT_PRESENTATION_CHAIN_HITS = MAX_CHAIN_JUMPS + 1;
 
 /**
  * A renderer-facing copy of a trait command that was handed to the combat
@@ -201,8 +203,15 @@ export interface TraitPresentationEventView {
   readonly amount: number;
   readonly facing: number;
   readonly spread: number;
+  /** Additional chain targets requested by authored content. */
+  readonly jumps: number;
   readonly range: number;
   readonly tag: string;
+  /** Actual chain victims captured before any simulation-owned kill cleanup. */
+  readonly resolvedHitCount: number;
+  /** Fixed-capacity endpoint arrays; only [0, resolvedHitCount) are meaningful. */
+  readonly resolvedHitX: Float32Array;
+  readonly resolvedHitY: Float32Array;
 }
 
 type MutableTraitPresentationEvent = {
@@ -407,8 +416,12 @@ export function createSimulation(
           amount: command.amount ?? 0,
           facing: command.facing,
           spread: command.spread,
+          jumps: command.jumps ?? 0,
           range: command.range,
           tag: command.tag ?? '',
+          resolvedHitCount: 0,
+          resolvedHitX: new Float32Array(MAX_TRAIT_PRESENTATION_CHAIN_HITS),
+          resolvedHitY: new Float32Array(MAX_TRAIT_PRESENTATION_CHAIN_HITS),
         };
         traitPresentationEventStorage[index] = event;
       } else {
@@ -430,8 +443,10 @@ export function createSimulation(
         event.amount = command.amount ?? 0;
         event.facing = command.facing;
         event.spread = command.spread;
+        event.jumps = command.jumps ?? 0;
         event.range = command.range;
         event.tag = command.tag ?? '';
+        event.resolvedHitCount = 0;
       }
       traitPresentationEvents[index] = event;
       return command;
@@ -745,6 +760,20 @@ export function createSimulation(
             zones,
             enemyGrid: grid,
             killEnemy,
+            onChainDamageHit(commandIndex, hitIndex, x, y): void {
+              const event = traitPresentationEvents[commandIndex];
+              if (
+                event === undefined
+                || event.kind !== 'chainDamage'
+                || hitIndex < 0
+                || hitIndex >= MAX_TRAIT_PRESENTATION_CHAIN_HITS
+              ) {
+                return;
+              }
+              event.resolvedHitX[hitIndex] = x;
+              event.resolvedHitY[hitIndex] = y;
+              event.resolvedHitCount = hitIndex + 1;
+            },
           });
           events.projectilesFired += traitStats.projectilesSpawned;
         } catch (error) {

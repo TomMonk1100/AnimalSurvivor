@@ -20,7 +20,10 @@ describe('upgrade card copy', () => {
   it('explains the second attack pair and its Thunderbug evolution', () => {
     const coil = presentUpgrade({ traitId: 'electric-eel-coil', resultStage: 'bud' }, []);
     expect(coil).toMatchObject({ title: 'Electric Eel Coil', badge: 'NEW ATTACK', socket: 'Tail attachment' });
-    expect(coil.description).toMatch(/two charged bolts/i);
+    expect(coil.description).toBe('Instantly strikes the nearest enemy, then chains to 1 nearby unhit foe.');
+
+    const adaptedCoil = presentUpgrade({ traitId: 'electric-eel-coil', resultStage: 'adapted' }, []);
+    expect(adaptedCoil.description).toBe('Instantly strikes the nearest enemy, then chains to 3 nearby unhit foes.');
 
     const colony = presentUpgrade({ traitId: 'firefly-colony', resultStage: 'adapted' }, [
       { sourceId: 'electric-eel-coil', stage: 'adapted', sockets: ['tail'], visualKey: 'electric-eel-coil:adapted', enabled: true },

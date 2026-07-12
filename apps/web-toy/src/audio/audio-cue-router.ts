@@ -6,7 +6,18 @@
 import type { RunOutcomeView } from '@sim';
 import type { CombatFeedbackSnapshot } from '../presentation/combat-feedback';
 
-export type AudioCue = 'start' | 'pickup' | 'upgrade' | 'damage' | 'attack' | 'victory' | 'defeat';
+export type AudioCue = 'start' | 'pickup' | 'upgrade' | 'damage' | 'lightning' | 'attack' | 'victory' | 'defeat';
+
+/**
+ * The audio layer only needs enough of a trait presentation event to identify
+ * a resolved chain strike. Keeping this structural prevents presentation audio
+ * from depending on simulation internals or retaining mutable event buffers.
+ */
+export interface TraitCommandAudioEvent {
+  readonly kind: string;
+  readonly tick: number;
+  readonly resolvedHitCount?: number;
+}
 
 export interface AudioCueSink {
   /** May safely be a no-op while the player has sound disabled. */
@@ -16,6 +27,8 @@ export interface AudioCueSink {
 export interface AudioCueFrame {
   readonly tick: number;
   readonly combatFeedback: CombatFeedbackSnapshot;
+  /** Actual trait commands emitted during this rendered frame, if any. */
+  readonly traitPresentationEvents?: readonly TraitCommandAudioEvent[];
   readonly runOutcome: RunOutcomeView | null;
 }
 
@@ -43,6 +56,12 @@ export const PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS = 45;
  */
 export const ATTACK_AUDIO_MIN_INTERVAL_TICKS = 45;
 
+/**
+ * A lightning strike may chain through several enemies but remains one concise
+ * cue. Two pulses per second is legible without covering danger feedback.
+ */
+export const LIGHTNING_AUDIO_MIN_INTERVAL_TICKS = 30;
+
 type TerminalCue = 'victory' | 'defeat' | null;
 
 function terminalCue(outcome: RunOutcomeView | null): TerminalCue {
@@ -61,6 +80,23 @@ function freshFeedbackTicks(
   return feedback.cues
     .filter((cue) => cue.kind === kind && Number.isFinite(cue.tick) && cue.tick > lastObservedTick)
     .map((cue) => Math.trunc(cue.tick))
+    .sort((left, right) => left - right);
+}
+
+function freshLightningTicks(
+  events: readonly TraitCommandAudioEvent[] | undefined,
+  lastObservedTick: number,
+): number[] {
+  if (events === undefined) return [];
+  return events
+    .filter((event) => (
+      event.kind === 'chainDamage'
+      && Number.isFinite(event.tick)
+      && event.tick > lastObservedTick
+      && Number.isFinite(event.resolvedHitCount)
+      && event.resolvedHitCount! > 0
+    ))
+    .map((event) => Math.trunc(event.tick))
     .sort((left, right) => left - right);
 }
 
@@ -88,6 +124,8 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
   let lastPlayedPickupTick = Number.NEGATIVE_INFINITY;
   let lastObservedAttackTick = Number.NEGATIVE_INFINITY;
   let lastPlayedAttackTick = Number.NEGATIVE_INFINITY;
+  let lastObservedLightningTick = Number.NEGATIVE_INFINITY;
+  let lastPlayedLightningTick = Number.NEGATIVE_INFINITY;
   let lastUpgradeSerial = 0;
   let terminal: TerminalCue = null;
 
@@ -100,6 +138,8 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
     lastPlayedPickupTick = Number.NEGATIVE_INFINITY;
     lastObservedAttackTick = Number.NEGATIVE_INFINITY;
     lastPlayedAttackTick = Number.NEGATIVE_INFINITY;
+    lastObservedLightningTick = Number.NEGATIVE_INFINITY;
+    lastPlayedLightningTick = Number.NEGATIVE_INFINITY;
     lastUpgradeSerial = 0;
     terminal = null;
   }
@@ -149,6 +189,26 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
       lastObservedDamageTick = freshDamageTicks[freshDamageTicks.length - 1]!;
     }
 
+    const freshLightning = freshLightningTicks(
+      frame.traitPresentationEvents,
+      lastObservedLightningTick,
+    );
+    const lightningTick = firstRateLimitedTick(
+      freshLightning,
+      lastPlayedLightningTick,
+      LIGHTNING_AUDIO_MIN_INTERVAL_TICKS,
+    );
+    // Danger must always cut through. A successful chain then reads ahead of
+    // ordinary auto-fire, so the new attack identity is never mistaken for
+    // another projectile punctuation.
+    if (lightningTick !== null && damageTick === null) {
+      sink.play('lightning');
+      lastPlayedLightningTick = lightningTick;
+    }
+    if (freshLightning.length > 0) {
+      lastObservedLightningTick = freshLightning[freshLightning.length - 1]!;
+    }
+
     const freshAttackTicks = freshFeedbackTicks(
       frame.combatFeedback,
       'attack',
@@ -159,10 +219,11 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
       lastPlayedAttackTick,
       ATTACK_AUDIO_MIN_INTERVAL_TICKS,
     );
-    // Damage remains the most urgent signal. Otherwise an eligible attack
-    // punctuates pickup-heavy play: the former pickup-first ordering could
-    // suppress auto-fire forever once XP began arriving steadily.
-    if (attackTick !== null && damageTick === null) {
+    // Damage remains the most urgent signal, followed by an eligible resolved
+    // lightning strike. Otherwise an eligible attack punctuates pickup-heavy
+    // play: the former pickup-first ordering could suppress auto-fire forever
+    // once XP began arriving steadily.
+    if (attackTick !== null && damageTick === null && lightningTick === null) {
       sink.play('attack');
       lastPlayedAttackTick = attackTick;
     }
@@ -182,10 +243,10 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
       lastPlayedPickupTick,
       PICKUP_AUDIO_MIN_INTERVAL_TICKS,
     );
-    // Never stack an XP ping over a just-routed danger warning or attack
+    // Never stack an XP ping over a just-routed danger warning, lightning, or attack
     // punctuation. Its observation latch still advances, so this is a
     // deliberate omission rather than a stale chime later in the run.
-    if (pickupTick !== null && damageTick === null && attackTick === null) {
+    if (pickupTick !== null && damageTick === null && lightningTick === null && attackTick === null) {
       sink.play('pickup');
       lastPlayedPickupTick = pickupTick;
     }

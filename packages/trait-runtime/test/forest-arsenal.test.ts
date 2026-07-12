@@ -48,11 +48,24 @@ test('Forest Arsenal exposes six real non-starter attack candidates and three su
   assert.deepEqual(
     {
       kind: coilCommands.at(0).kind,
-      count: coilCommands.at(0).count,
       damage: coilCommands.at(0).damage,
-      speed: coilCommands.at(0).speed,
+      jumps: coilCommands.at(0).jumps,
+      range: coilCommands.at(0).range,
     },
-    { kind: 'spawnProjectileBurst', count: 2, damage: 4, speed: 8 },
+    { kind: 'chainDamage', damage: 4, jumps: 1, range: 120 },
+  );
+  const adaptedCoilRuntime = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
+  upgrade(adaptedCoilRuntime, 'electric-eel-coil');
+  upgrade(adaptedCoilRuntime, 'electric-eel-coil');
+  const adaptedCoil = adaptedCoilRuntime.update(context(1));
+  assert.deepEqual(
+    {
+      kind: adaptedCoil.at(0).kind,
+      damage: adaptedCoil.at(0).damage,
+      jumps: adaptedCoil.at(0).jumps,
+      range: adaptedCoil.at(0).range,
+    },
+    { kind: 'chainDamage', damage: 5, jumps: 3, range: 150 },
   );
 
   const colony = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
@@ -83,9 +96,16 @@ test('Forest Arsenal exposes six real non-starter attack candidates and three su
   assert.equal(result.evolved, 'thunderbug-dynamo');
   assert.equal(mythic.update(context(1)).at(0).tag, 'thunderbug-charge');
   for (let tick = 2; tick <= 18; tick++) assert.equal(mythic.update(context(tick)).length, 0);
-  const radial = mythic.update(context(19));
-  assert.equal(radial.at(0).kind, 'radialProjectileBurst');
-  assert.equal(radial.at(0).count, 18);
+  const discharge = mythic.update(context(19));
+  assert.deepEqual(
+    {
+      kind: discharge.at(0).kind,
+      damage: discharge.at(0).damage,
+      jumps: discharge.at(0).jumps,
+      range: discharge.at(0).range,
+    },
+    { kind: 'chainDamage', damage: 9, jumps: 7, range: 185 },
+  );
 });
 
 test('six candidates make the four-attack cap a real choice while existing upgrades stay legal', () => {
@@ -125,6 +145,8 @@ test('neutral damage and attack-speed multipliers apply to trait commands', () =
     weaponCooldownMultiplier: 0.92,
   }));
   assert.equal(first.at(0).damage, 4.48);
+  assert.equal(first.at(0).jumps, 1, 'neutral damage never fabricates extra lightning hops');
+  assert.equal(first.at(0).range, 120, 'neutral attack speed never changes hop range');
   for (let tick = 2; tick <= 74; tick++) {
     assert.equal(runtime.update(context(tick, {
       weaponDamageMultiplier: 1.12,

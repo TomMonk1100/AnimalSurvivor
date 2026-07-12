@@ -24,6 +24,22 @@ describe('trait command presentation profiles', () => {
     expect(projectTraitCommandEffect(command({ kind: 'applyAreaDamage' }))?.kind).toBe('area-damage');
     expect(projectTraitCommandEffect(command({ kind: 'spawnZone' }))?.kind).toBe('zone-spawn');
     expect(projectTraitCommandEffect(command({ kind: 'playTraitCue' }))?.kind).toBe('trait-cue');
+    expect(projectTraitCommandEffect(command({
+      kind: 'chainDamage',
+      resolvedHitCount: 2,
+      resolvedHitX: new Float32Array([52, 78]),
+      resolvedHitY: new Float32Array([61, 83]),
+    }))?.kind).toBe('chain-lightning');
+  });
+
+  it('does not create a chain-lightning effect before simulation resolves a hit', () => {
+    expect(projectTraitCommandEffect(command({ kind: 'chainDamage', resolvedHitCount: 0 }))).toBeNull();
+    expect(projectTraitCommandEffect(command({
+      kind: 'chainDamage',
+      resolvedHitCount: 2,
+      resolvedHitX: new Float32Array([52]),
+      resolvedHitY: new Float32Array([61]),
+    }))?.kind).toBe('chain-lightning');
   });
 
   it('uses the authored thornstorm telegraph treatment when its tag is available', () => {

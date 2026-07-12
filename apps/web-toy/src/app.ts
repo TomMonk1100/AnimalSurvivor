@@ -689,6 +689,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     audioCueRouter.observe({
       tick: driver.tick,
       combatFeedback: driver.combatFeedback,
+      traitPresentationEvents: driver.traitPresentationEvents,
       runOutcome: driver.runOutcome,
     });
     renderUpgradeChoices();

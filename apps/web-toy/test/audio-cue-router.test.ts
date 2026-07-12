@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CombatFeedbackCue, CombatFeedbackSnapshot } from '../src/presentation/combat-feedback';
 import {
   ATTACK_AUDIO_MIN_INTERVAL_TICKS,
+  LIGHTNING_AUDIO_MIN_INTERVAL_TICKS,
   PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS,
   PICKUP_AUDIO_MIN_INTERVAL_TICKS,
   createAudioCueRouter,
@@ -46,6 +47,10 @@ function attack(tick: number): CombatFeedbackCue {
 
 function feedback(tick: number, cues: readonly CombatFeedbackCue[] = []): CombatFeedbackSnapshot {
   return { tick, cues };
+}
+
+function lightning(tick: number, resolvedHitCount = 1) {
+  return { kind: 'chainDamage', tick, resolvedHitCount };
 }
 
 describe('audio cue router', () => {
@@ -114,6 +119,75 @@ describe('audio cue router', () => {
     router.observe({ tick: 11, combatFeedback: feedback(11, [attack(10), pickup(10), playerHit(10)]), runOutcome: 'running' });
 
     expect(played).toEqual(['damage']);
+  });
+
+  it('gives a resolved lightning chain priority after damage and before ordinary attack feedback', () => {
+    const played: AudioCue[] = [];
+    const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
+
+    router.observe({
+      tick: 10,
+      combatFeedback: feedback(10, [attack(10), pickup(10), playerHit(10)]),
+      traitPresentationEvents: [lightning(10)],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: 10 + PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS,
+      combatFeedback: feedback(10 + PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS, [
+        attack(10 + PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS),
+        pickup(10 + PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS),
+      ]),
+      traitPresentationEvents: [lightning(10 + PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS)],
+      runOutcome: 'running',
+    });
+
+    expect(played).toEqual(['damage', 'lightning']);
+  });
+
+  it('rate-limits resolved lightning without replaying suppressed history later', () => {
+    const played: AudioCue[] = [];
+    const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
+
+    router.observe({
+      tick: 0,
+      combatFeedback: feedback(0),
+      traitPresentationEvents: [lightning(0)],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: LIGHTNING_AUDIO_MIN_INTERVAL_TICKS - 1,
+      combatFeedback: feedback(LIGHTNING_AUDIO_MIN_INTERVAL_TICKS - 1, [attack(LIGHTNING_AUDIO_MIN_INTERVAL_TICKS - 1)]),
+      traitPresentationEvents: [lightning(LIGHTNING_AUDIO_MIN_INTERVAL_TICKS - 1)],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: LIGHTNING_AUDIO_MIN_INTERVAL_TICKS,
+      combatFeedback: feedback(LIGHTNING_AUDIO_MIN_INTERVAL_TICKS),
+      traitPresentationEvents: [lightning(LIGHTNING_AUDIO_MIN_INTERVAL_TICKS - 1)],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: LIGHTNING_AUDIO_MIN_INTERVAL_TICKS * 2,
+      combatFeedback: feedback(LIGHTNING_AUDIO_MIN_INTERVAL_TICKS * 2),
+      traitPresentationEvents: [lightning(LIGHTNING_AUDIO_MIN_INTERVAL_TICKS * 2)],
+      runOutcome: 'running',
+    });
+
+    expect(played).toEqual(['lightning', 'attack', 'lightning']);
+  });
+
+  it('does not route a lightning cue when the chain resolved no targets', () => {
+    const played: AudioCue[] = [];
+    const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
+
+    router.observe({
+      tick: 10,
+      combatFeedback: feedback(10, [attack(10)]),
+      traitPresentationEvents: [lightning(10, 0)],
+      runOutcome: 'running',
+    });
+
+    expect(played).toEqual(['attack']);
   });
 
   it('lets sparse attack punctuation through a steady pickup stream', () => {

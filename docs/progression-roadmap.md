@@ -22,7 +22,8 @@ choose up to four of six available trait families:
 
 1. **Porcupine Quills** — targeted quill bursts.
 2. **Puffer Pouch** — gather, then Adapted knockback control.
-3. **Electric Eel Coil** — charged bolts toward the nearest threat.
+3. **Electric Eel Coil** — an instant strike on the nearest threat that chains
+   to nearby unhit foes (1 chain at Bud, 3 at Adapted).
 4. **Firefly Colony** — radial spark bursts.
 5. **Mantis Scythes** — a short-range damaging pulse around Greg.
 6. **Gecko Pads** — after Greg travels 150 units, create a damaging pad at his
@@ -32,7 +33,8 @@ Each animal attack can progress from Bud to Adapted. The current three Mythics
 combine a pair of Adapted attacks:
 
 - **Thornstorm Mantle**: Quills + Pouch; telegraph, gather, then radial quills.
-- **Thunderbug Dynamo**: Coil + Colony; charge, then radial lightning storm.
+- **Thunderbug Dynamo**: Coil + Colony; telegraph, then release a larger chain
+  discharge across nearby enemies.
 - **Razorstep Chimera**: Adapted Mantis Scythes + Adapted Gecko Pads; movement
   leaves stronger scythe pads every 90 units.
 

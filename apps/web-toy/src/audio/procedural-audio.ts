@@ -85,6 +85,13 @@ const TONES: Readonly<Record<AudioCue, ToneProfile>> = Object.freeze({
   // This short square pulse is intentionally more present than XP, but the
   // router allows it only as sparse combat punctuation rather than per shot.
   attack: [{ shape: 'square', frequency: 261.63, peakGain: 0.04, durationSeconds: 0.05 }],
+  // A bright, tightly spaced pair reads as an instantaneous electric chain,
+  // not another launched projectile. Router priority and rate limiting keep
+  // this high-frequency cue from masking damage feedback.
+  lightning: [
+    { shape: 'square', frequency: 1046.5, peakGain: 0.042, durationSeconds: 0.045 },
+    { shape: 'triangle', frequency: 1567.98, peakGain: 0.034, durationSeconds: 0.08, startOffsetSeconds: 0.022 },
+  ],
   victory: [
     { shape: 'triangle', frequency: 523.25, peakGain: 0.06, durationSeconds: 0.13 },
     { shape: 'triangle', frequency: 659.25, peakGain: 0.072, durationSeconds: 0.15, startOffsetSeconds: 0.1 },
@@ -125,8 +132,8 @@ function finiteTime(value: number): number {
 /**
  * Builds a small bounded voice profile per routed cue. There are intentionally
  * no enemy-death sounds. The router permits only low-volume, rate-limited
- * auto-attack texture and player-damage feedback, so the synth stays readable
- * in crowded fights.
+ * auto-attack texture, resolved lightning, and player-damage feedback, so the
+ * synth stays readable in crowded fights.
  */
 export function createProceduralAudio(options: ProceduralAudioOptions = {}): ProceduralAudio {
   const createContext = options.createContext ?? createBrowserContext;

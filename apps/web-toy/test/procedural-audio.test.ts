@@ -98,23 +98,24 @@ describe('procedural audio', () => {
     expect(context.gains[1]!.gain.values).toContainEqual(['ramp', 0.0001, 2.33]);
   });
 
-  it('keeps startup, player damage, and audible sparse auto-attack feedback distinct from the upgrade cue', () => {
+  it('keeps startup, damage, lightning, and sparse auto-attack feedback distinct from the upgrade cue', () => {
     const context = new FakeAudioContext();
     const audio = createProceduralAudio({ createContext: () => context });
 
     audio.setEnabled(true);
     audio.play('start');
     audio.play('damage');
+    audio.play('lightning');
     audio.play('attack');
 
     expect(context.oscillators.map((oscillator) => oscillator.frequency.values[0]?.[1])).toEqual([
-      392, 587.33, 155.56, 261.63,
+      392, 587.33, 155.56, 1046.5, 1567.98, 261.63,
     ]);
     expect(context.oscillators.map((oscillator) => oscillator.type)).toEqual([
-      'triangle', 'triangle', 'sawtooth', 'square',
+      'triangle', 'triangle', 'sawtooth', 'square', 'triangle', 'square',
     ]);
     expect(context.gains.map((gain) => gain.gain.values[1]?.[1])).toEqual([
-      0.07, 0.086, 0.055, 0.04,
+      0.07, 0.086, 0.055, 0.042, 0.034, 0.04,
     ]);
   });
 

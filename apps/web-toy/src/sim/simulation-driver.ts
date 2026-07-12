@@ -206,8 +206,12 @@ export function createSimDriver(
           amount: event.amount,
           facing: event.facing,
           spread: event.spread,
+          jumps: event.jumps,
           range: event.range,
           tag: event.tag,
+          resolvedHitCount: event.resolvedHitCount,
+          resolvedHitX: new Float32Array(event.resolvedHitX),
+          resolvedHitY: new Float32Array(event.resolvedHitY),
         };
         traitPresentationEventStorage[index] = copy;
       } else {
@@ -229,8 +233,12 @@ export function createSimDriver(
         copy.amount = event.amount;
         copy.facing = event.facing;
         copy.spread = event.spread;
+        copy.jumps = event.jumps;
         copy.range = event.range;
         copy.tag = event.tag;
+        copy.resolvedHitCount = event.resolvedHitCount;
+        copy.resolvedHitX.set(event.resolvedHitX);
+        copy.resolvedHitY.set(event.resolvedHitY);
       }
       frameTraitPresentationEvents.push(copy);
     }

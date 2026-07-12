@@ -64,14 +64,16 @@ families:
 
 - **Porcupine Quills** — targeted quill bursts.
 - **Puffer Pouch** — gather, then Adapted push control.
-- **Electric Eel Coil** — charged bolts toward the nearest threat.
+- **Electric Eel Coil** — instant strike on the nearest threat, then chains to
+  nearby unhit foes (1 at Bud, 3 at Adapted).
 - **Firefly Colony** — radial sparks.
 - **Mantis Scythes** — a short-range damaging pulse around Greg.
 - **Gecko Pads** — after Greg travels 150 units, creates a damaging pad at his
   feet; Adapted pads recur after 110 units. The pads damage but do not slow.
 
 Adapted Quills + Pouch can become **Thornstorm Mantle**. Adapted Coil + Colony
-can become **Thunderbug Dynamo**. A Mythic keeps both of its ingredient slots:
+can become **Thunderbug Dynamo**, which telegraphs a larger chain discharge.
+A Mythic keeps both of its ingredient slots:
 the loadout remains a five-active-attack build, not six. Adapted Mantis Scythes
 + Adapted Gecko Pads can become **Razorstep Chimera**, which leaves stronger
 scythe pads every 90 units of movement.

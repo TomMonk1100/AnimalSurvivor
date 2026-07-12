@@ -41,6 +41,8 @@ export interface TraitRuntimeCommandView {
   readonly amount?: number;
   readonly facing: number;
   readonly spread: number;
+  /** Optional while lightweight runtime fixtures adopt chain-lightning hops. */
+  readonly jumps?: number;
   readonly range: number;
   /** Optional for compatibility with minimal runtime fixtures. */
   readonly tag?: string;

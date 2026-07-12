@@ -42,8 +42,15 @@ export interface GregPresentation {
     current: RenderSnapshot,
     alpha: number,
     traitVisualState: readonly TraitVisualAttachmentView[],
+    traitPresentationEvents?: readonly GregTraitPresentationEvent[],
   ): void;
   dispose(): void;
+}
+
+/** Minimal, structural view used only for a presentation animation pulse. */
+export interface GregTraitPresentationEvent {
+  readonly kind: string;
+  readonly resolvedHitCount?: number;
 }
 
 export function hasFreshProjectile(previous: RenderSnapshot, current: RenderSnapshot): boolean {
@@ -63,16 +70,26 @@ export function hasFreshProjectile(previous: RenderSnapshot, current: RenderSnap
   return false;
 }
 
+/** A chain only counts when simulation resolved at least one target. */
+export function hasResolvedChainDamage(events: readonly GregTraitPresentationEvent[]): boolean {
+  return events.some((event) => (
+    event.kind === 'chainDamage'
+    && Number.isFinite(event.resolvedHitCount)
+    && event.resolvedHitCount! > 0
+  ));
+}
+
 export function deriveGregAnimationInput(
   previous: RenderSnapshot,
   current: RenderSnapshot,
+  traitPresentationEvents: readonly GregTraitPresentationEvent[] = [],
 ): GregAnimationInput {
   const dx = current.playerX - previous.playerX;
   const dy = current.playerY - previous.playerY;
   return {
     alive: current.playerAlive,
     movementMagnitude: Math.sqrt(dx * dx + dy * dy),
-    attackPulse: hasFreshProjectile(previous, current),
+    attackPulse: hasFreshProjectile(previous, current) || hasResolvedChainDamage(traitPresentationEvents),
     hitPulse: current.playerHp < previous.playerHp,
   };
 }
@@ -238,7 +255,7 @@ export function createGregPresentation(
     get error() {
       return loader.error;
     },
-    update(previous, current, alpha, traitVisualState) {
+    update(previous, current, alpha, traitVisualState, traitPresentationEvents = []) {
       if (entity === null) return;
       traitVisualProjector?.sync(traitVisualState);
       entity.enabled = current.playerAlive;
@@ -253,7 +270,7 @@ export function createGregPresentation(
       entity.setLocalEulerAngles(0, pose.headingDegrees, 0);
 
       if (current.tick !== lastAnimationTick) {
-        const baseInput = deriveGregAnimationInput(previous, current);
+        const baseInput = deriveGregAnimationInput(previous, current, traitPresentationEvents);
         animation = advanceGregAnimation(animation, {
           ...baseInput,
           movementMagnitude: pose.movementMagnitude,

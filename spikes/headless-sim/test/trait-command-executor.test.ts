@@ -237,6 +237,83 @@ test('applies area damage once per in-range enemy and uses simulation-owned kill
   assert.equal(grid.nearest(5, 0, 0.1), -1);
 });
 
+test('resolves chain lightning immediately without spawning a projectile and reports its real endpoint', () => {
+  const { context, grid } = setup();
+  const target = spawnEnemy(context, grid, 20, 0);
+  const hits: Array<[number, number, number, number]> = [];
+  const stats = createTraitCommandExecutor().execute(source(command({
+    kind: 'chainDamage', targeting: 'nearest', damage: 4, jumps: 0, range: 30,
+  })), {
+    ...context,
+    onChainDamageHit(commandIndex, hitIndex, x, y): void {
+      hits.push([commandIndex, hitIndex, x, y]);
+    },
+  });
+
+  assert.equal(stats.chainDamageCommands, 1);
+  assert.equal(stats.chainDamageHits, 1);
+  assert.equal(stats.projectilesSpawned, 0);
+  assert.equal(context.projectiles.data.count, 0, 'lightning never enters the projectile pool or collision path');
+  assert.equal(context.enemies.data.hp[target], 6, 'the acquired target takes damage in this same tick');
+  assert.deepEqual(hits, [[0, 0, 20, 0]]);
+});
+
+test('chains from each struck enemy, including a lethal first strike, instead of repeatedly searching from Greg', () => {
+  const { context, grid } = setup();
+  const first = spawnEnemy(context, grid, 20, 0);
+  const second = spawnEnemy(context, grid, 48, 0);
+  const third = spawnEnemy(context, grid, 76, 0);
+  const outside = spawnEnemy(context, grid, 125, 0);
+  context.enemies.data.hp[first] = 2;
+
+  const stats = createTraitCommandExecutor({ defaultTargetRange: 25 }).execute(source(command({
+    kind: 'chainDamage', targeting: 'nearest', damage: 3, jumps: 2, range: 30,
+  })), context);
+
+  assert.equal(stats.chainDamageHits, 3);
+  assert.equal(stats.enemiesKilled, 1);
+  assert.equal(context.enemies.data.count, 3, 'lethal first victim used simulation cleanup');
+  assert.equal(grid.nearest(20, 0, 0.1), -1, 'killed victim no longer occupies the grid');
+  assert.equal(context.enemies.data.hp[second], 7);
+  assert.equal(context.enemies.data.hp[third], 7);
+  assert.equal(context.enemies.data.hp[outside], 10, 'a target outside the previous-hop range remains untouched');
+});
+
+test('chain lightning picks lowest-id equal-distance hops and never visits a durable target twice', () => {
+  const { context, grid } = setup();
+  const first = spawnEnemy(context, grid, 20, 0);
+  const lowerIdTie = spawnEnemy(context, grid, 30, 0);
+  const higherIdTie = spawnEnemy(context, grid, 20, 10);
+
+  const tieStats = createTraitCommandExecutor().execute(source(command({
+    kind: 'chainDamage', targeting: 'nearest', damage: 2, jumps: 1, range: 12,
+  })), context);
+  assert.equal(tieStats.chainDamageHits, 2);
+  assert.equal(context.enemies.data.hp[first], 8);
+  assert.equal(context.enemies.data.hp[lowerIdTie], 8, 'equal distances resolve to the lower entity id');
+  assert.equal(context.enemies.data.hp[higherIdTie], 10);
+
+  const noRepeat = createTraitCommandExecutor().execute(source(command({
+    kind: 'chainDamage', targeting: 'nearest', damage: 1, jumps: 7, range: 20,
+  })), context);
+  assert.equal(noRepeat.chainDamageHits, 3, 'extra jump budget cannot bounce between the same enemies');
+  assert.equal(context.enemies.data.hp[first], 7);
+  assert.equal(context.enemies.data.hp[lowerIdTie], 7);
+  assert.equal(context.enemies.data.hp[higherIdTie], 9);
+});
+
+test('chain lightning cleanly skips when no initial target is in acquisition range', () => {
+  const { context, grid } = setup();
+  spawnEnemy(context, grid, 40, 0);
+  const stats = createTraitCommandExecutor({ defaultTargetRange: 20 }).execute(source(command({
+    kind: 'chainDamage', targeting: 'nearest', damage: 4, jumps: 3, range: 30,
+  })), context);
+
+  assert.equal(stats.chainsSkippedNoTarget, 1);
+  assert.equal(stats.chainDamageHits, 0);
+  assert.equal(context.projectiles.data.count, 0);
+});
+
 test('counts renderer-only trait cues without mutating combat state', () => {
   const { context } = setup();
   const stats = createTraitCommandExecutor().execute(source(command({ kind: 'playTraitCue' })), context);
@@ -293,12 +370,35 @@ test('zone requests reject the newest command deterministically when the fixed p
 
 test('explicitly rejects authored commands that still require unsupported persistent state', () => {
   const { context } = setup();
-  for (const kind of ['markTargets', 'chainDamage', 'meleeArc', 'grantShield']) {
+  for (const kind of ['markTargets', 'meleeArc', 'grantShield']) {
     assert.throws(
       () => createTraitCommandExecutor().execute(source(command({ kind })), context),
       new RegExp(`unsupported simulation state: ${kind}`),
     );
   }
+});
+
+test('rejects malformed chain data before any command in the batch mutates combat state', () => {
+  const { context, grid } = setup();
+  const target = spawnEnemy(context, grid, 10, 0);
+  const executor = createTraitCommandExecutor({ maxChainJumps: 3 });
+
+  assert.throws(
+    () => executor.execute(source(
+      command({ kind: 'chainDamage', targeting: 'nearest', damage: 4, jumps: 1, range: 20 }),
+      command({ kind: 'chainDamage', targeting: 'nearest', damage: 4, jumps: 4, range: 20 }),
+    ), context),
+    /command\.jumps must be an integer/,
+  );
+  assert.equal(context.enemies.data.hp[target], 10, 'the valid first chain cannot partially resolve');
+  assert.equal(context.projectiles.data.count, 0);
+});
+
+test('never permits an execution chain longer than the fixed presentation endpoint budget', () => {
+  assert.throws(
+    () => createTraitCommandExecutor({ maxChainJumps: 8 }),
+    /maxChainJumps must be an integer in \[0, 7\]/,
+  );
 });
 
 test('degrades gracefully when the projectile pool fills mid-burst', () => {

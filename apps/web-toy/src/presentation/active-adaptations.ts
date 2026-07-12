@@ -100,7 +100,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     'bud',
     'Electric Eel Coil',
     'Bud',
-    'Fires two charged bolts at the nearest enemy.',
+    'Instantly strikes the nearest enemy, then chains to 1 nearby unhit foe.',
     'Every 1.3 seconds',
   ),
   'electric-eel-coil:adapted': definition(
@@ -109,7 +109,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     'adapted',
     'Electric Eel Coil',
     'Adapted',
-    'Fires four faster charged bolts at the nearest enemy.',
+    'Instantly strikes the nearest enemy, then chains to 3 nearby unhit foes.',
     'Every 0.9 seconds',
   ),
   'firefly-colony:bud': definition(
@@ -136,8 +136,8 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     'mythic',
     'Thunderbug Dynamo',
     'Mythic',
-    'Charges up, then releases an eighteen-bolt lightning storm.',
-    'Cycles every 1.5 seconds: charge → radial lightning storm',
+    'Telegraphs, then releases a larger chain discharge across nearby enemies.',
+    'Cycles: telegraph → larger chain discharge',
   ),
   'mantis-scythes:bud': definition(
     'mantis-scythes:bud',

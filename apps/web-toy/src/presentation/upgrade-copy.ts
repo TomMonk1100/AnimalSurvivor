@@ -58,10 +58,10 @@ export function presentUpgrade(
       badge: thunderbugReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
       socket: 'Tail attachment',
       description: offer.resultStage === 'bud'
-        ? 'Fires two charged bolts at the nearest enemy.'
+        ? 'Instantly strikes the nearest enemy, then chains to 1 nearby unhit foe.'
         : thunderbugReady
-          ? 'Completes Thunderbug Dynamo: charge briefly, then unleash a radial lightning storm.'
-          : 'Fires four faster charged bolts at the nearest enemy.',
+          ? 'Completes Thunderbug Dynamo: telegraph a larger chain discharge across nearby enemies.'
+          : 'Instantly strikes the nearest enemy, then chains to 3 nearby unhit foes.',
       pairingHint: thunderbugReady ? null : 'Adapt Firefly Colony too to evolve both into Thunderbug Dynamo.',
     };
   }
@@ -73,7 +73,7 @@ export function presentUpgrade(
       description: offer.resultStage === 'bud'
         ? 'Releases six sparks in every direction.'
         : thunderbugReady
-          ? 'Completes Thunderbug Dynamo: charge briefly, then unleash a radial lightning storm.'
+          ? 'Completes Thunderbug Dynamo: telegraph a larger chain discharge across nearby enemies.'
           : 'Releases ten stronger sparks in every direction.',
       pairingHint: thunderbugReady ? null : 'Adapt Electric Eel Coil too to evolve both into Thunderbug Dynamo.',
     };

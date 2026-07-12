@@ -389,7 +389,7 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     // Camera-up is world -Z, so simulation +Y must map to scene -Z.
     const playerSceneZ = worldHalfHeight - playerWorldY;
 
-    gregPresentation.update(prev, curr, alpha, traitVisualState);
+    gregPresentation.update(prev, curr, alpha, traitVisualState, traitPresentationEvents);
     combatFeedbackPresentation.update(combatFeedback);
     traitCommandPresentation.update(curr.tick, traitPresentationEvents);
     // The cyan sphere is a resilient loading/error fallback. Greg takes over

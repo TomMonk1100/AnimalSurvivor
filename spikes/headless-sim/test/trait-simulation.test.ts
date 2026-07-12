@@ -179,6 +179,53 @@ class ZoneTraitRuntime implements TraitRuntimePort {
   fingerprint(): string { return TRAIT_FINGERPRINT; }
 }
 
+/** Emits one real direct-damage chain each tick for the simulation bridge test. */
+class ChainTraitRuntime implements TraitRuntimePort {
+  update(context: TraitRuntimeUpdateContext) {
+    const command: TraitRuntimeCommandView = {
+      kind: 'chainDamage',
+      sourceId: 'electric-eel-coil',
+      tick: context.tick,
+      targeting: 'nearest',
+      originX: context.playerX,
+      originY: context.playerY,
+      dirX: 0,
+      dirY: 0,
+      count: 0,
+      damage: 3,
+      speed: 0,
+      radius: 0,
+      strength: 0,
+      facing: 0,
+      spread: 0,
+      jumps: 1,
+      range: 30,
+    };
+    return {
+      length: 1,
+      at(index: number): TraitRuntimeCommandView {
+        if (index !== 0) throw new RangeError('command index out of range');
+        return command;
+      },
+    };
+  }
+
+  offers(_count: number) { return []; }
+
+  applyUpgrade(traitId: string) {
+    return {
+      outcome: { ok: false as const, kind: 'unknownTrait' as const, traitId },
+      evolved: null,
+    };
+  }
+
+  visualState() { return []; }
+
+  hash(): string { return '0000000000000000'; }
+
+  fingerprint(): string { return TRAIT_FINGERPRINT; }
+}
+
 function makeFactory(
   log: { options?: TraitRuntimeFactoryOptions; runtime?: FakeTraitRuntime } = {},
   presentationMetadata: Pick<TraitRuntimeCommandView, 'durationTicks' | 'tag'> = {},
@@ -247,8 +294,12 @@ test('publishes detached presentation copies for executed trait commands and cle
     amount: 0,
     facing: 0,
     spread: 0,
+    jumps: 0,
     range: 300,
     tag: 'test-quills-burst',
+    resolvedHitCount: 0,
+    resolvedHitX: new Float32Array(8),
+    resolvedHitY: new Float32Array(8),
   });
 
   log.runtime!.overwriteLatestCommandOriginX(-999);
@@ -259,6 +310,64 @@ test('publishes detached presentation copies for executed trait commands and cle
   assert.equal(sim.tick, 1);
   assert.deepEqual(sim.traitPresentationEvents, []);
   assert.equal(sim.hash(), peer.hash());
+});
+
+test('captures actual chain endpoints before lethal cleanup for a renderer-facing event', () => {
+  const sim = createSimulation(quietConfig(), 73, { traitRuntimeFactory: () => new ChainTraitRuntime() });
+  const first = sim.enemies.spawn();
+  const second = sim.enemies.spawn();
+  assert.notEqual(first, -1);
+  assert.notEqual(second, -1);
+  const enemies = sim.enemies.data;
+  enemies.posX[first] = sim.player.x + 10;
+  enemies.posY[first] = sim.player.y;
+  enemies.hp[first] = 2;
+  enemies.maxHp[first] = 2;
+  enemies.speed[first] = 0;
+  enemies.radius[first] = 1;
+  enemies.touchDamage[first] = 0;
+  enemies.archetype[first] = 0;
+  enemies.xpDrop[first] = 1;
+  enemies.posX[second] = sim.player.x + 35;
+  enemies.posY[second] = sim.player.y;
+  enemies.hp[second] = 10;
+  enemies.maxHp[second] = 10;
+  enemies.speed[second] = 0;
+  enemies.radius[second] = 1;
+  enemies.touchDamage[second] = 0;
+  enemies.archetype[second] = 0;
+  enemies.xpDrop[second] = 1;
+  sim.grid.insert(sim.enemies.idOf(first), enemies.posX[first]!, enemies.posY[first]!);
+  sim.grid.insert(sim.enemies.idOf(second), enemies.posX[second]!, enemies.posY[second]!);
+
+  sim.step({ moveX: 0, moveY: 0, paused: false });
+
+  const event = sim.traitPresentationEvents[0]!;
+  assert.equal(event.kind, 'chainDamage');
+  assert.equal(event.jumps, 1);
+  assert.equal(event.resolvedHitCount, 2);
+  assert.deepEqual(
+    Array.from(event.resolvedHitX.slice(0, event.resolvedHitCount)),
+    [sim.player.x + 10, sim.player.x + 35],
+  );
+  assert.deepEqual(
+    Array.from(event.resolvedHitY.slice(0, event.resolvedHitCount)),
+    [sim.player.y, sim.player.y],
+  );
+  assert.equal(sim.enemies.data.count, 1, 'the lethal first target was cleaned up after its endpoint was captured');
+  assert.equal(sim.grid.nearest(sim.player.x + 10, sim.player.y, 0.1), -1);
+  assert.equal(sim.enemies.data.hp[second], 7);
+
+  // The simulation reuses this presentation record on the next command at
+  // the same source index. Once the remaining target disappears, its stale
+  // endpoints must be ignored rather than replayed as a ghost lightning bolt.
+  const reusedEvent = event;
+  const secondId = sim.enemies.idOf(second);
+  sim.grid.remove(secondId);
+  sim.enemies.despawn(second);
+  sim.step({ moveX: 0, moveY: 0, paused: false });
+  assert.strictEqual(sim.traitPresentationEvents[0], reusedEvent);
+  assert.equal(sim.traitPresentationEvents[0]!.resolvedHitCount, 0);
 });
 
 test('persistent zone commands damage through simulation-owned cleanup, hash, and replay deterministically', () => {

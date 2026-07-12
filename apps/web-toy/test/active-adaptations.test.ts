@@ -87,7 +87,35 @@ describe('active adaptation presentation', () => {
       'thornstorm-mantle:mythic',
       'thunderbug-dynamo:mythic',
     ]);
-    expect(mythics[1]?.effect).toMatch(/lightning storm/i);
+    expect(mythics[1]?.effect).toMatch(/larger chain discharge/i);
+  });
+
+  it('describes Coil as a guaranteed strike-and-chain attack, not projectiles', () => {
+    const bud = presentActiveAdaptations([
+      visual({
+        sourceId: 'electric-eel-coil',
+        stage: 'bud',
+        sockets: ['tail'],
+        visualKey: 'electric-eel-coil:bud',
+      }),
+    ]);
+    const adapted = presentActiveAdaptations([
+      visual({
+        sourceId: 'electric-eel-coil',
+        stage: 'adapted',
+        sockets: ['tail'],
+        visualKey: 'electric-eel-coil:adapted',
+      }),
+    ]);
+
+    expect(bud[0]).toMatchObject({
+      effect: 'Instantly strikes the nearest enemy, then chains to 1 nearby unhit foe.',
+      cadence: 'Every 1.3 seconds',
+    });
+    expect(adapted[0]).toMatchObject({
+      effect: 'Instantly strikes the nearest enemy, then chains to 3 nearby unhit foes.',
+      cadence: 'Every 0.9 seconds',
+    });
   });
 
   it('shows Mantis Scythes as a truthful close-range attack', () => {
