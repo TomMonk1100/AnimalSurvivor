@@ -3,6 +3,7 @@ import type { CombatFeedbackCue, CombatFeedbackSnapshot } from '../src/presentat
 import {
   ATTACK_AUDIO_MIN_INTERVAL_TICKS,
   LIGHTNING_AUDIO_MIN_INTERVAL_TICKS,
+  MELEE_AUDIO_MIN_INTERVAL_TICKS,
   PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS,
   PICKUP_AUDIO_MIN_INTERVAL_TICKS,
   createAudioCueRouter,
@@ -51,6 +52,10 @@ function feedback(tick: number, cues: readonly CombatFeedbackCue[] = []): Combat
 
 function lightning(tick: number, resolvedHitCount = 1) {
   return { kind: 'chainDamage', tick, resolvedHitCount };
+}
+
+function melee(tick: number, meleeArcResolved = true, dirX = 1, dirY = 0) {
+  return { kind: 'meleeArc', tick, meleeArcResolved, dirX, dirY };
 }
 
 describe('audio cue router', () => {
@@ -128,7 +133,7 @@ describe('audio cue router', () => {
     router.observe({
       tick: 10,
       combatFeedback: feedback(10, [attack(10), pickup(10), playerHit(10)]),
-      traitPresentationEvents: [lightning(10)],
+      traitPresentationEvents: [lightning(10), melee(10)],
       runOutcome: 'running',
     });
     router.observe({
@@ -137,7 +142,7 @@ describe('audio cue router', () => {
         attack(10 + PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS),
         pickup(10 + PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS),
       ]),
-      traitPresentationEvents: [lightning(10 + PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS)],
+      traitPresentationEvents: [lightning(10 + PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS), melee(10 + PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS)],
       runOutcome: 'running',
     });
 
@@ -184,6 +189,48 @@ describe('audio cue router', () => {
       tick: 10,
       combatFeedback: feedback(10, [attack(10)]),
       traitPresentationEvents: [lightning(10, 0)],
+      runOutcome: 'running',
+    });
+
+    expect(played).toEqual(['attack']);
+  });
+
+  it('routes a resolved Mantis swish ahead of ordinary attack and pickup, with its own rate limit', () => {
+    const played: AudioCue[] = [];
+    const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
+
+    router.observe({
+      tick: 10,
+      combatFeedback: feedback(10, [attack(10), pickup(10)]),
+      traitPresentationEvents: [melee(10)],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: 10 + MELEE_AUDIO_MIN_INTERVAL_TICKS - 1,
+      combatFeedback: feedback(10 + MELEE_AUDIO_MIN_INTERVAL_TICKS - 1, [attack(10 + MELEE_AUDIO_MIN_INTERVAL_TICKS - 1)]),
+      traitPresentationEvents: [melee(10 + MELEE_AUDIO_MIN_INTERVAL_TICKS - 1)],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: 10 + MELEE_AUDIO_MIN_INTERVAL_TICKS,
+      combatFeedback: feedback(10 + MELEE_AUDIO_MIN_INTERVAL_TICKS, [attack(10 + MELEE_AUDIO_MIN_INTERVAL_TICKS)]),
+      traitPresentationEvents: [melee(10 + MELEE_AUDIO_MIN_INTERVAL_TICKS)],
+      runOutcome: 'running',
+    });
+
+    expect(played).toEqual(['melee', 'attack', 'melee']);
+  });
+
+  it('does not route a Mantis swish when the executor acquired no target', () => {
+    const played: AudioCue[] = [];
+    const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
+
+    router.observe({
+      tick: 10,
+      combatFeedback: feedback(10, [attack(10)]),
+      // Non-zero authored/fallback direction must not cause a targetless arc
+      // to play as if it struck an enemy.
+      traitPresentationEvents: [melee(10, false, 1, 0)],
       runOutcome: 'running',
     });
 

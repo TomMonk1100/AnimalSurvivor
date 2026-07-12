@@ -137,3 +137,13 @@ test('chainDamage requires a bounded integer hop count and a positive hop range'
   emit.range = 120;
   assert.ok(codes(c).includes('invalidChainDamage'));
 });
+
+test('meleeArc requires an authored sector width and positive reach', () => {
+  const c = clone();
+  const mantis = c.traits.find((trait) => trait.id === 'mantis-scythes');
+  assert.ok(mantis, 'expected conceptual Mantis Scythes melee content');
+  const emit = mantis!.stages.bud.behavior.emit!;
+  emit.arc = 0;
+  emit.range = 0;
+  assert.ok(codes(c).includes('invalidMeleeArc'));
+});

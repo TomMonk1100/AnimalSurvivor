@@ -25,7 +25,7 @@ choose up to four of six available trait families:
 3. **Electric Eel Coil** — an instant strike on the nearest threat that chains
    to nearby unhit foes (1 chain at Bud, 3 at Adapted).
 4. **Firefly Colony** — radial spark bursts.
-5. **Mantis Scythes** — a short-range damaging pulse around Greg.
+5. **Mantis Scythes** — a close-range, auto-aimed directional scythe sweep.
 6. **Gecko Pads** — after Greg travels 150 units, create a damaging pad at his
    feet; Adapted pads recur after 110 units. They damage but do not slow.
 

@@ -22,6 +22,8 @@
  *                               emit template.
  *   - invalidChainDamage      : chainDamage lacks an executable hop count,
  *                               hop range, or Float32-safe per-hit damage.
+ *   - invalidMeleeArc         : meleeArc lacks an executable sweep width,
+ *                               reach, or Float32-safe per-hit damage.
  *   - visualKeyCollision      : two definitions share a visualKey.
  *
  * The shipped CATALOG must validate with ok=true and zero issues.
@@ -199,6 +201,28 @@ function validateChainDamageTemplate(
   }
 }
 
+/** Reject directional sweeps that the accepted melee executor cannot run. */
+function validateMeleeArcTemplate(
+  subjectId: string,
+  template: CommandTemplate | undefined,
+  issues: ValidationIssue[],
+): void {
+  if (template?.kind !== 'meleeArc') return;
+  const invalid = (message: string): void => pushIssue(issues, 'invalidMeleeArc', message, subjectId);
+  if (!(typeof template.arc === 'number' && Number.isFinite(template.arc)
+    && template.arc > 0 && template.arc <= Math.PI * 2)) {
+    invalid('meleeArc requires an arc in (0, 2π].');
+  }
+  if (!(typeof template.range === 'number' && Number.isFinite(template.range)
+    && template.range > 0 && template.range <= MAX_FLOAT32)) {
+    invalid('meleeArc requires a positive finite Float32-safe range.');
+  }
+  if (!(typeof template.damage === 'number' && Number.isFinite(template.damage)
+    && template.damage >= 0 && template.damage <= MAX_FLOAT32)) {
+    invalid('meleeArc requires non-negative finite Float32-safe damage.');
+  }
+}
+
 function validateBehavior(
   subjectId: string,
   behavior: BehaviorDefinition,
@@ -232,6 +256,7 @@ function validateBehavior(
       }
       validateTemplateNumbers(subjectId, behavior.emit, issues);
       validateChainDamageTemplate(subjectId, behavior.emit, issues);
+      validateMeleeArcTemplate(subjectId, behavior.emit, issues);
       break;
     }
     case 'multiPhase': {
@@ -266,6 +291,7 @@ function validateBehavior(
           }
           validateTemplateNumbers(phaseSubject, phase.emit, issues);
           validateChainDamageTemplate(phaseSubject, phase.emit, issues);
+          validateMeleeArcTemplate(phaseSubject, phase.emit, issues);
         }
       }
       break;
@@ -290,6 +316,7 @@ function validateBehavior(
       validateTemplateNumbers(subjectId, behavior.emit, issues);
       validateMovementTrailZoneTemplate(subjectId, behavior.emit, issues);
       validateChainDamageTemplate(subjectId, behavior.emit, issues);
+      validateMeleeArcTemplate(subjectId, behavior.emit, issues);
       break;
     }
   }

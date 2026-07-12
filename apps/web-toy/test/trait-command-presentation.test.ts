@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  hasResolvedMeleeArc,
   projectTraitCommandEffect,
+  resolveMeleeArcVariantIndex,
   resolveTraitCommandEffectRadius,
   type TraitCommandPresentationEvent,
 } from '../src/render/trait-command-presentation';
@@ -22,6 +24,9 @@ describe('trait command presentation profiles', () => {
     expect(projectTraitCommandEffect(command({ kind: 'areaGather' }))?.kind).toBe('gather');
     expect(projectTraitCommandEffect(command({ kind: 'areaKnockback' }))?.kind).toBe('knockback');
     expect(projectTraitCommandEffect(command({ kind: 'applyAreaDamage' }))?.kind).toBe('area-damage');
+    expect(projectTraitCommandEffect(command({
+      kind: 'meleeArc', dirX: 1, dirY: 0, arc: 1.2, range: 68, meleeArcResolved: true,
+    }))?.kind).toBe('melee-arc');
     expect(projectTraitCommandEffect(command({ kind: 'spawnZone' }))?.kind).toBe('zone-spawn');
     expect(projectTraitCommandEffect(command({ kind: 'playTraitCue' }))?.kind).toBe('trait-cue');
     expect(projectTraitCommandEffect(command({
@@ -40,6 +45,34 @@ describe('trait command presentation profiles', () => {
       resolvedHitX: new Float32Array([52]),
       resolvedHitY: new Float32Array([61]),
     }))?.kind).toBe('chain-lightning');
+  });
+
+  it('shows a Mantis sector only after authoritative auto-aim resolves a real target', () => {
+    // A targetless nearest attack may still carry an authored/fallback direction.
+    // That direction alone must never render a false forward slash.
+    expect(hasResolvedMeleeArc(command({
+      kind: 'meleeArc', dirX: 1, dirY: 0, arc: 1.2, meleeArcResolved: false,
+    }))).toBe(false);
+    expect(projectTraitCommandEffect(command({
+      kind: 'meleeArc', dirX: 1, dirY: 0, arc: 1.2, meleeArcResolved: false,
+    }))).toBeNull();
+
+    const resolved = command({
+      kind: 'meleeArc', dirX: -0.5, dirY: 0.5, arc: 1.6, range: 88, meleeArcResolved: true,
+    });
+    expect(hasResolvedMeleeArc(resolved)).toBe(true);
+    const profile = projectTraitCommandEffect(resolved)!;
+    expect(profile.kind).toBe('melee-arc');
+    expect(resolveTraitCommandEffectRadius(command({
+      kind: 'meleeArc', dirX: 1, dirY: 0, arc: 1.6, range: 88, radius: 999, meleeArcResolved: true,
+    }), profile)).toBe(88);
+  });
+
+  it('uses exact fixed Mantis sectors and safely routes arbitrary arcs to the generic slash fallback', () => {
+    expect(resolveMeleeArcVariantIndex(1.2)).toBe(0);
+    expect(resolveMeleeArcVariantIndex(1.6)).toBe(1);
+    expect(resolveMeleeArcVariantIndex(2.4)).toBeNull();
+    expect(resolveMeleeArcVariantIndex(Number.NaN)).toBeNull();
   });
 
   it('uses the authored thornstorm telegraph treatment when its tag is available', () => {

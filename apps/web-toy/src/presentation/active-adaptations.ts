@@ -145,8 +145,8 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     'bud',
     'Mantis Scythes',
     'Bud',
-    'Sweeps nearby enemies with a close-range damaging pulse.',
-    'Every 0.9 seconds',
+    'Auto-aims a narrow scythe sweep through nearby enemies.',
+    'Every 0.75 seconds',
   ),
   'mantis-scythes:adapted': definition(
     'mantis-scythes:adapted',
@@ -154,8 +154,8 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     'adapted',
     'Mantis Scythes',
     'Adapted',
-    'Sweeps a wider area for stronger close-range damage.',
-    'Every 0.6 seconds',
+    'Auto-aims a wider, stronger scythe sweep through nearby enemies.',
+    'Every 0.5 seconds',
   ),
   'gecko-pads:bud': definition(
     'gecko-pads:bud',

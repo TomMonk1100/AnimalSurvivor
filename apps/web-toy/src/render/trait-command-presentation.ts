@@ -19,9 +19,19 @@ export interface TraitCommandPresentationEvent {
   readonly speed: number;
   readonly radius: number;
   readonly strength: number;
+  /**
+   * Angular width in radians for an authoritative melee sweep. Optional while
+   * older command producers are still structurally compatible.
+   */
+  readonly arc?: number;
   readonly facing: number;
   readonly spread: number;
   readonly range: number;
+  /**
+   * True only after the authoritative executor acquired and resolved a real
+   * melee target. This must not be inferred from authored fallback direction.
+   */
+  readonly meleeArcResolved?: boolean;
   /**
    * Authoritative chain-lightning impact endpoints. They are optional so this
    * renderer remains compatible with older command producers, but a
@@ -43,6 +53,7 @@ export type TraitCommandEffectKind =
   | 'gather'
   | 'knockback'
   | 'area-damage'
+  | 'melee-arc'
   | 'zone-spawn'
   | 'trait-cue'
   | 'chain-lightning';
@@ -114,6 +125,10 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
     kind: 'area-damage', material: 'area-damage', motion: 'expand', lifetimeTicks: 10,
     fallbackRadius: 52, minimumRadius: 14, maximumRadius: 220, directed: false,
   },
+  'melee-arc': {
+    kind: 'melee-arc', material: 'melee-arc', motion: 'expand', lifetimeTicks: 8,
+    fallbackRadius: 68, minimumRadius: 20, maximumRadius: 150, directed: true,
+  },
   'gecko-zone-spawn': {
     kind: 'zone-spawn', material: 'gecko-zone-spawn', motion: 'pulse', lifetimeTicks: 18,
     fallbackRadius: 38, minimumRadius: 14, maximumRadius: 160, directed: false,
@@ -141,6 +156,9 @@ const COLORS: Readonly<Record<EffectMaterial, pc.Color>> = Object.freeze({
   gather: new pc.Color(0.18, 0.85, 1),
   knockback: new pc.Color(1, 0.3, 0.12),
   'area-damage': new pc.Color(1, 0.16, 0.26),
+  // Mantis needs a strong, unmistakable identity apart from red area pulses
+  // and gold projectile bursts: a high-contrast leaf-green scythe sweep.
+  'melee-arc': new pc.Color(0.72, 1, 0.3),
   'gecko-zone-spawn': new pc.Color(0.28, 1, 0.62),
   'razorstep-zone-spawn': new pc.Color(0.84, 1, 0.4),
   'trait-cue': new pc.Color(0.34, 1, 0.58),
@@ -156,6 +174,7 @@ const OPACITY: Readonly<Record<EffectMaterial, number>> = Object.freeze({
   gather: 0.42,
   knockback: 0.5,
   'area-damage': 0.66,
+  'melee-arc': 0.9,
   'gecko-zone-spawn': 0.58,
   'razorstep-zone-spawn': 0.66,
   'trait-cue': 0.55,
@@ -173,6 +192,25 @@ const RING_SIDES = 8;
 const CHAIN_LIGHTNING_LIFETIME_TICKS = 8;
 const CHAIN_LIGHTNING_THICKNESS = 1.7;
 const CHAIN_LIGHTNING_HEIGHT = 1.05;
+
+/**
+ * These exactly mirror the authored Bud/Adapted Mantis widths. They are not a
+ * generic arc quantizer: other valid combat arcs deliberately use the fixed
+ * directional-slash fallback below, so a future weapon is never silently
+ * shown as one of Mantis's narrower/wider hit sectors.
+ */
+const MELEE_ARC_VARIANTS = Object.freeze([
+  Object.freeze({ arcRadians: 1.2, sectorAngleDegrees: 68.75 }),
+  Object.freeze({ arcRadians: 1.6, sectorAngleDegrees: 91.67 }),
+] as const);
+const MELEE_ARC_VARIANT_TOLERANCE = 0.025;
+const MELEE_ARC_TUBE_RADIUS = 0.04;
+const MELEE_ARC_OUTER_RADIUS = RING_RADIUS + MELEE_ARC_TUBE_RADIUS;
+const MELEE_ARC_HEIGHT = 1.18;
+const MELEE_ARC_SEGMENTS = 18;
+const MELEE_ARC_SIDES = 6;
+const GENERIC_MELEE_SLASH_HEIGHT = 1.22;
+const GENERIC_MELEE_SLASH_THICKNESS = 0.22;
 
 /**
  * Each complete current chain needs at most eight segments (Greg → first hit,
@@ -201,6 +239,15 @@ function resolvedChainHitCount(event: TraitCommandPresentationEvent): number {
   return Math.min(count, hitX.length, hitY.length);
 }
 
+/**
+ * A `meleeArc` is only shown after the authoritative executor has resolved a
+ * real target. A non-zero direction alone is not proof: a targetless command
+ * can retain authored/fallback direction and must never create a false slash.
+ */
+export function hasResolvedMeleeArc(event: TraitCommandPresentationEvent): boolean {
+  return event.kind === 'meleeArc' && event.meleeArcResolved === true;
+}
+
 /** Returns a stable visual profile for the supported simulation command kinds. */
 export function projectTraitCommandEffect(event: TraitCommandPresentationEvent): TraitCommandEffectProfile | null {
   switch (event.kind) {
@@ -215,6 +262,7 @@ export function projectTraitCommandEffect(event: TraitCommandPresentationEvent):
     case 'areaGather': return PROFILES.gather;
     case 'areaKnockback': return PROFILES.knockback;
     case 'applyAreaDamage': return PROFILES['area-damage'];
+    case 'meleeArc': return hasResolvedMeleeArc(event) ? PROFILES['melee-arc'] : null;
     case 'spawnZone':
       return event.tag === 'razorstep-scythe-pad'
         ? PROFILES['razorstep-zone-spawn']
@@ -235,7 +283,9 @@ export function resolveTraitCommandEffectRadius(
   event: TraitCommandPresentationEvent,
   profile: TraitCommandEffectProfile,
 ): number {
-  let radius = event.radius;
+  // Mantis uses `range` as its authoritative wedge reach. Do not accidentally
+  // render its unused generic `radius` field as a full-radius hit area.
+  let radius = profile.kind === 'melee-arc' ? event.range : event.radius;
   if (!(Number.isFinite(radius) && radius > 0)) {
     switch (profile.kind) {
       case 'directed-burst':
@@ -267,6 +317,38 @@ function resolveYawDegrees(event: TraitCommandPresentationEvent): number {
     return Math.atan2(dirX, -dirY) * 180 / Math.PI;
   }
   return (Math.PI / 2 + finiteOr(event.facing, 0)) * 180 / Math.PI;
+}
+
+/**
+ * Resolve an exact Mantis sector only. `null` intentionally selects the
+ * generic directional-slash geometry for another valid melee arc, avoiding a
+ * misleading nearest-sector substitution.
+ */
+export function resolveMeleeArcVariantIndex(arc: number | undefined): number | null {
+  if (!(Number.isFinite(arc) && arc! > 0)) return null;
+  const requested = arc!;
+  let winner = 0;
+  let bestDelta = Math.abs(requested - MELEE_ARC_VARIANTS[0]!.arcRadians);
+  for (let index = 1; index < MELEE_ARC_VARIANTS.length; index++) {
+    const delta = Math.abs(requested - MELEE_ARC_VARIANTS[index]!.arcRadians);
+    if (delta < bestDelta) {
+      winner = index;
+      bestDelta = delta;
+    }
+  }
+  return bestDelta <= MELEE_ARC_VARIANT_TOLERANCE ? winner : null;
+}
+
+/**
+ * Torus sectors begin on local +X. The normal directed-effect yaw points local
+ * +Z at the resolved enemy, so offset it until the sector's middle points at
+ * that same target rather than one of its open ends.
+ */
+function resolveMeleeArcYawDegrees(
+  event: TraitCommandPresentationEvent,
+  sectorAngleDegrees: number,
+): number {
+  return resolveYawDegrees(event) + sectorAngleDegrees * 0.5 - 90;
 }
 
 function resolveAspect(event: TraitCommandPresentationEvent, profile: TraitCommandEffectProfile): number {
@@ -314,6 +396,36 @@ interface ChainLightningSegmentSlot {
   toY: number;
 }
 
+interface MeleeArcSlot {
+  readonly entity: pc.Entity;
+  readonly meshInstance: pc.MeshInstance;
+  active: boolean;
+  tick: number;
+  expiresAtTick: number;
+  x: number;
+  y: number;
+  radius: number;
+  yawDegrees: number;
+}
+
+/**
+ * A generic forward blade streak is deliberately not a sector/hitbox preview.
+ * It is the safe bounded fallback for arbitrary valid `meleeArc` widths.
+ */
+interface GenericMeleeSlashSlot {
+  readonly entity: pc.Entity;
+  readonly meshInstance: pc.MeshInstance;
+  active: boolean;
+  tick: number;
+  expiresAtTick: number;
+  x: number;
+  y: number;
+  dirX: number;
+  dirY: number;
+  radius: number;
+  yawDegrees: number;
+}
+
 function resetSlot(slot: EffectSlot): void {
   slot.active = false;
   slot.profile = null;
@@ -321,6 +433,16 @@ function resetSlot(slot: EffectSlot): void {
 }
 
 function resetChainLightningSlot(slot: ChainLightningSegmentSlot): void {
+  slot.active = false;
+  slot.entity.enabled = false;
+}
+
+function resetMeleeArcSlot(slot: MeleeArcSlot): void {
+  slot.active = false;
+  slot.entity.enabled = false;
+}
+
+function resetGenericMeleeSlashSlot(slot: GenericMeleeSlashSlot): void {
   slot.active = false;
   slot.entity.enabled = false;
 }
@@ -347,13 +469,32 @@ export function createTraitCommandPresentation(
 
   const materials = new Map<EffectMaterial, pc.StandardMaterial>();
   for (const role of Object.keys(COLORS) as EffectMaterial[]) materials.set(role, createMaterial(role));
-  // A single narrow torus mesh is shared by every pool slot. Material and
-  // transform remain per-slot, preserving the fixed-pool ownership model.
+  // A single narrow torus mesh is shared by every ordinary pulse slot.
+  // Materials and transforms remain per-slot, preserving fixed-pool ownership.
   const ringMesh = pc.Mesh.fromGeometry(device, new pc.TorusGeometry({
     ringRadius: RING_RADIUS,
     tubeRadius: RING_TUBE_RADIUS,
     segments: RING_SEGMENTS,
     sides: RING_SIDES,
+  }));
+  // Mantis uses separate, prebuilt sector meshes. This avoids a full ring
+  // falsely communicating 360-degree damage, without constructing geometry
+  // or entities when an attack fires.
+  const meleeArcMeshes: pc.Mesh[] = MELEE_ARC_VARIANTS.map((variant) => pc.Mesh.fromGeometry(
+    device,
+    new pc.TorusGeometry({
+      ringRadius: RING_RADIUS,
+      tubeRadius: MELEE_ARC_TUBE_RADIUS,
+      sectorAngle: variant.sectorAngleDegrees,
+      segments: MELEE_ARC_SEGMENTS,
+      sides: MELEE_ARC_SIDES,
+    }),
+  ));
+  // This narrow forward slash is intentionally generic: future valid arc
+  // widths fall back here instead of being misrepresented by Mantis's two
+  // authored sector meshes. It is an attack cue, not a fake coverage preview.
+  const genericMeleeSlashMesh = pc.Mesh.fromGeometry(device, new pc.BoxGeometry({
+    halfExtents: new pc.Vec3(0.5, 0.5, 0.5),
   }));
   // A low, narrow box gives each resolved hit-to-hit segment a crisp, bright
   // cyan-white read from the top-down camera. Every segment shares this one
@@ -374,6 +515,39 @@ export function createTraitCommandPresentation(
     slots.push({
       entity, meshInstance, active: false, profile: null, material: 'telegraph', tick: 0, expiresAtTick: 0,
       x: 0, y: 0, radius: 0, aspect: 1, yawDegrees: 0,
+    });
+  }
+
+  const meleeArcSlotsPerVariant = Math.max(2, Math.min(8, Math.ceil(capacity / 4)));
+  const meleeArcSlots: MeleeArcSlot[][] = MELEE_ARC_VARIANTS.map(() => []);
+  for (let variantIndex = 0; variantIndex < MELEE_ARC_VARIANTS.length; variantIndex++) {
+    const variantSlots = meleeArcSlots[variantIndex]!;
+    for (let index = 0; index < meleeArcSlotsPerVariant; index++) {
+      const entity = new pc.Entity(`mantis-scythe-arc-${variantIndex}-${index}`);
+      const meshInstance = new pc.MeshInstance(meleeArcMeshes[variantIndex]!, materials.get('melee-arc')!);
+      entity.addComponent('render', {
+        meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
+      });
+      entity.enabled = false;
+      parent.addChild(entity);
+      variantSlots.push({
+        entity, meshInstance, active: false, tick: 0, expiresAtTick: 0,
+        x: 0, y: 0, radius: 0, yawDegrees: 0,
+      });
+    }
+  }
+  const genericMeleeSlashSlots: GenericMeleeSlashSlot[] = [];
+  for (let index = 0; index < meleeArcSlotsPerVariant; index++) {
+    const entity = new pc.Entity(`generic-melee-slash-${index}`);
+    const meshInstance = new pc.MeshInstance(genericMeleeSlashMesh, materials.get('melee-arc')!);
+    entity.addComponent('render', {
+      meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
+    });
+    entity.enabled = false;
+    parent.addChild(entity);
+    genericMeleeSlashSlots.push({
+      entity, meshInstance, active: false, tick: 0, expiresAtTick: 0,
+      x: 0, y: 0, dirX: 1, dirY: 0, radius: 0, yawDegrees: 0,
     });
   }
 
@@ -401,6 +575,10 @@ export function createTraitCommandPresentation(
 
   function reset(): void {
     for (const slot of slots) resetSlot(slot);
+    for (const variantSlots of meleeArcSlots) {
+      for (const slot of variantSlots) resetMeleeArcSlot(slot);
+    }
+    for (const slot of genericMeleeSlashSlots) resetGenericMeleeSlashSlot(slot);
     for (const slot of chainLightningSlots) resetChainLightningSlot(slot);
     overflowCount = 0;
     lastTick = -1;
@@ -433,6 +611,58 @@ export function createTraitCommandPresentation(
       thickness / (RING_TUBE_RADIUS * 2),
       radialScale,
     );
+    slot.entity.enabled = true;
+  }
+
+  function updateMeleeArcSlot(slot: MeleeArcSlot, tick: number): void {
+    if (!slot.active) return;
+    if (tick >= slot.expiresAtTick) {
+      resetMeleeArcSlot(slot);
+      return;
+    }
+    const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    // A quick outward sweep reads like a claw cut rather than a stationary
+    // defensive aura. The authoritative damage itself remains instantaneous.
+    const radius = Math.max(1, slot.radius * (0.32 + progress * 0.68));
+    const thickness = Math.max(0.8, radius * 0.032 * (1 - progress * 0.28));
+    const radialScale = radius / MELEE_ARC_OUTER_RADIUS;
+    slot.meshInstance.material = materials.get('melee-arc')!;
+    slot.entity.setLocalPosition(
+      slot.x - worldHalfWidth,
+      MELEE_ARC_HEIGHT + thickness * 0.5,
+      worldHalfHeight - slot.y,
+    );
+    slot.entity.setLocalEulerAngles(0, slot.yawDegrees, 0);
+    slot.entity.setLocalScale(
+      radialScale,
+      thickness / (MELEE_ARC_TUBE_RADIUS * 2),
+      radialScale,
+    );
+    slot.entity.enabled = true;
+  }
+
+  function updateGenericMeleeSlashSlot(slot: GenericMeleeSlashSlot, tick: number): void {
+    if (!slot.active) return;
+    if (tick >= slot.expiresAtTick) {
+      resetGenericMeleeSlashSlot(slot);
+      return;
+    }
+    const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    const length = Math.max(2, slot.radius * (0.26 + progress * 0.62));
+    const width = Math.max(1.1, slot.radius * 0.03 * (1 - progress * 0.25));
+    // Position the streak forward from Greg. Unlike a sector mesh it claims
+    // no exact angular coverage, which keeps arbitrary future arc values
+    // visually honest while preserving a readable directional attack cue.
+    const centerX = slot.x + slot.dirX * length * 0.42;
+    const centerY = slot.y + slot.dirY * length * 0.42;
+    slot.meshInstance.material = materials.get('melee-arc')!;
+    slot.entity.setLocalPosition(
+      centerX - worldHalfWidth,
+      GENERIC_MELEE_SLASH_HEIGHT,
+      worldHalfHeight - centerY,
+    );
+    slot.entity.setLocalEulerAngles(0, slot.yawDegrees, 0);
+    slot.entity.setLocalScale(width, GENERIC_MELEE_SLASH_THICKNESS, length);
     slot.entity.enabled = true;
   }
 
@@ -487,6 +717,60 @@ export function createTraitCommandPresentation(
     slot.yawDegrees = resolveYawDegrees(event);
   }
 
+  function startMeleeArc(
+    event: TraitCommandPresentationEvent,
+    profile: TraitCommandEffectProfile,
+    currentTick: number,
+  ): void {
+    if (!hasResolvedMeleeArc(event)) return;
+    const emittedTick = normalizedTick(event.tick);
+    const lifetimeTicks = resolveLifetime(event, profile);
+    if (emittedTick + lifetimeTicks <= currentTick) return;
+    const variantIndex = resolveMeleeArcVariantIndex(event.arc);
+    if (variantIndex === null) {
+      startGenericMeleeSlash(event, profile, emittedTick, lifetimeTicks);
+      return;
+    }
+    const slot = meleeArcSlots[variantIndex]!.find((candidate) => !candidate.active);
+    if (slot === undefined) {
+      overflowCount++;
+      return;
+    }
+    const variant = MELEE_ARC_VARIANTS[variantIndex]!;
+    slot.active = true;
+    slot.tick = emittedTick;
+    slot.expiresAtTick = emittedTick + lifetimeTicks;
+    slot.x = finiteOr(event.originX, 0);
+    slot.y = finiteOr(event.originY, 0);
+    slot.radius = resolveTraitCommandEffectRadius(event, profile);
+    slot.yawDegrees = resolveMeleeArcYawDegrees(event, variant.sectorAngleDegrees);
+  }
+
+  function startGenericMeleeSlash(
+    event: TraitCommandPresentationEvent,
+    profile: TraitCommandEffectProfile,
+    emittedTick: number,
+    lifetimeTicks: number,
+  ): void {
+    const slot = genericMeleeSlashSlots.find((candidate) => !candidate.active);
+    if (slot === undefined) {
+      overflowCount++;
+      return;
+    }
+    const rawDirX = finiteOr(event.dirX, 0);
+    const rawDirY = finiteOr(event.dirY, 0);
+    const length = Math.sqrt(rawDirX * rawDirX + rawDirY * rawDirY);
+    slot.active = true;
+    slot.tick = emittedTick;
+    slot.expiresAtTick = emittedTick + lifetimeTicks;
+    slot.x = finiteOr(event.originX, 0);
+    slot.y = finiteOr(event.originY, 0);
+    slot.dirX = length > 1e-8 ? rawDirX / length : 1;
+    slot.dirY = length > 1e-8 ? rawDirY / length : 0;
+    slot.radius = resolveTraitCommandEffectRadius(event, profile);
+    slot.yawDegrees = resolveYawDegrees(event);
+  }
+
   function startChainLightning(event: TraitCommandPresentationEvent, currentTick: number): void {
     const hitCount = resolvedChainHitCount(event);
     if (hitCount === 0) return;
@@ -533,24 +817,38 @@ export function createTraitCommandPresentation(
       const tick = normalizedTick(currentTick);
       if (tick < lastTick) reset();
       for (const slot of slots) updateSlot(slot, tick);
+      for (const variantSlots of meleeArcSlots) {
+        for (const slot of variantSlots) updateMeleeArcSlot(slot, tick);
+      }
+      for (const slot of genericMeleeSlashSlots) updateGenericMeleeSlashSlot(slot, tick);
       for (const slot of chainLightningSlots) updateChainLightningSlot(slot, tick);
       for (const event of events) {
         const profile = projectTraitCommandEffect(event);
         if (profile === null) continue;
         if (profile.kind === 'chain-lightning') {
           startChainLightning(event, tick);
+        } else if (profile.kind === 'melee-arc') {
+          startMeleeArc(event, profile, tick);
         } else {
           start(event, profile, tick);
         }
       }
       // Newly started slots need their first transform in the same render.
       for (const slot of slots) updateSlot(slot, tick);
+      for (const variantSlots of meleeArcSlots) {
+        for (const slot of variantSlots) updateMeleeArcSlot(slot, tick);
+      }
+      for (const slot of genericMeleeSlashSlots) updateGenericMeleeSlashSlot(slot, tick);
       for (const slot of chainLightningSlots) updateChainLightningSlot(slot, tick);
       lastTick = tick;
     },
     reset,
     dispose() {
       for (const slot of slots) slot.entity.destroy();
+      for (const variantSlots of meleeArcSlots) {
+        for (const slot of variantSlots) slot.entity.destroy();
+      }
+      for (const slot of genericMeleeSlashSlots) slot.entity.destroy();
       for (const slot of chainLightningSlots) slot.entity.destroy();
       // Each mesh instance decrements the shared mesh's reference count on
       // entity destruction, so the last one releases each shared GPU mesh.

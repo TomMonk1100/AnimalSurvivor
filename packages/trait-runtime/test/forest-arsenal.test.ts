@@ -82,10 +82,24 @@ test('Forest Arsenal exposes six real non-starter attack candidates and three su
     {
       sourceId: mantisCommands.at(0).sourceId,
       kind: mantisCommands.at(0).kind,
-      radius: mantisCommands.at(0).radius,
       damage: mantisCommands.at(0).damage,
+      arc: mantisCommands.at(0).arc,
+      range: mantisCommands.at(0).range,
     },
-    { sourceId: 'mantis-scythes', kind: 'applyAreaDamage', radius: 68, damage: 5 },
+    { sourceId: 'mantis-scythes', kind: 'meleeArc', damage: 6, arc: 1.2, range: 68 },
+  );
+  const adaptedMantis = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
+  upgrade(adaptedMantis, 'mantis-scythes');
+  upgrade(adaptedMantis, 'mantis-scythes');
+  const adaptedMantisCommand = adaptedMantis.update(context(1)).at(0);
+  assert.deepEqual(
+    {
+      kind: adaptedMantisCommand.kind,
+      damage: adaptedMantisCommand.damage,
+      arc: adaptedMantisCommand.arc,
+      range: adaptedMantisCommand.range,
+    },
+    { kind: 'meleeArc', damage: 10, arc: 1.6, range: 88 },
   );
 
   const mythic = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });

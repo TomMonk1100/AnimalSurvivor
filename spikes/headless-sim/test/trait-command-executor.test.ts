@@ -237,6 +237,52 @@ test('applies area damage once per in-range enemy and uses simulation-owned kill
   assert.equal(grid.nearest(5, 0, 0.1), -1);
 });
 
+test('resolves an auto-aimed melee arc as a real front-sector cleave with deterministic target direction', () => {
+  const { context, grid } = setup();
+  const anchor = spawnEnemy(context, grid, 20, 0);
+  const front = spawnEnemy(context, grid, 40, 0);
+  const side = spawnEnemy(context, grid, 0, 20);
+  const behind = spawnEnemy(context, grid, -20, 0);
+  context.enemies.data.hp[anchor] = 3;
+  const resolvedDirections: Array<[number, number, number]> = [];
+
+  const stats = createTraitCommandExecutor().execute(source(command({
+    kind: 'meleeArc', targeting: 'nearest', damage: 4, arc: 1.2, range: 60,
+  })), {
+    ...context,
+    onMeleeArcResolved(commandIndex, dirX, dirY): void {
+      resolvedDirections.push([commandIndex, dirX, dirY]);
+    },
+  });
+
+  assert.equal(stats.meleeArcCommands, 1);
+  assert.equal(stats.meleeArcHits, 2, 'only the anchor and enemy inside the 69° sector are cut');
+  assert.equal(stats.enemiesKilled, 1);
+  assert.equal(context.enemies.data.count, 3);
+  assert.equal(context.enemies.data.hp[front], 6);
+  assert.equal(context.enemies.data.hp[side], 10);
+  assert.equal(context.enemies.data.hp[behind], 10);
+  assert.deepEqual(resolvedDirections, [[0, 1, 0]]);
+  assert.equal(grid.nearest(20, 0, 0.1), -1, 'lethal anchor uses the shared simulation cleanup');
+});
+
+test('supports an authored untargeted melee direction and skips targeted arcs with no enemy in range', () => {
+  const { context, grid } = setup();
+  const north = spawnEnemy(context, grid, 0, 20);
+
+  const untargeted = createTraitCommandExecutor().execute(source(command({
+    kind: 'meleeArc', targeting: 'none', dirX: 0, dirY: 1, damage: 3, arc: 0.8, range: 30,
+  })), context);
+  assert.equal(untargeted.meleeArcHits, 1);
+  assert.equal(context.enemies.data.hp[north], 7);
+
+  const skipped = createTraitCommandExecutor().execute(source(command({
+    kind: 'meleeArc', targeting: 'nearest', damage: 3, arc: 0.8, range: 10,
+  })), context);
+  assert.equal(skipped.meleeArcsSkippedNoTarget, 1);
+  assert.equal(skipped.meleeArcHits, 0);
+});
+
 test('resolves chain lightning immediately without spawning a projectile and reports its real endpoint', () => {
   const { context, grid } = setup();
   const target = spawnEnemy(context, grid, 20, 0);
@@ -370,7 +416,7 @@ test('zone requests reject the newest command deterministically when the fixed p
 
 test('explicitly rejects authored commands that still require unsupported persistent state', () => {
   const { context } = setup();
-  for (const kind of ['markTargets', 'meleeArc', 'grantShield']) {
+  for (const kind of ['markTargets', 'grantShield']) {
     assert.throws(
       () => createTraitCommandExecutor().execute(source(command({ kind })), context),
       new RegExp(`unsupported simulation state: ${kind}`),
@@ -392,6 +438,20 @@ test('rejects malformed chain data before any command in the batch mutates comba
   );
   assert.equal(context.enemies.data.hp[target], 10, 'the valid first chain cannot partially resolve');
   assert.equal(context.projectiles.data.count, 0);
+});
+
+test('rejects malformed melee arcs before an earlier valid command can mutate combat state', () => {
+  const { context, grid } = setup();
+  const target = spawnEnemy(context, grid, 10, 0);
+
+  assert.throws(
+    () => createTraitCommandExecutor().execute(source(
+      command({ kind: 'meleeArc', targeting: 'nearest', damage: 4, arc: 1, range: 20 }),
+      command({ kind: 'meleeArc', targeting: 'nearest', damage: 4, arc: 0, range: 20 }),
+    ), context),
+    /command\.arc must be finite/,
+  );
+  assert.equal(context.enemies.data.hp[target], 10);
 });
 
 test('never permits an execution chain longer than the fixed presentation endpoint budget', () => {

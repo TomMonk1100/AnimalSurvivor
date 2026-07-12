@@ -119,6 +119,21 @@ describe('procedural audio', () => {
     ]);
   });
 
+  it('gives the Mantis swish its own descending two-tone profile', () => {
+    const context = new FakeAudioContext();
+    const audio = createProceduralAudio({ createContext: () => context });
+
+    audio.setEnabled(true);
+    audio.play('melee');
+
+    expect(context.oscillators.map((oscillator) => oscillator.frequency.values[0])).toEqual([
+      ['set', 440, 2],
+      ['set', 293.66, 2.018],
+    ]);
+    expect(context.oscillators.map((oscillator) => oscillator.type)).toEqual(['sawtooth', 'triangle']);
+    expect(context.gains.map((gain) => gain.gain.values[1]?.[1])).toEqual([0.038, 0.026]);
+  });
+
   it('uses unmistakably distinct terminal fanfare and defeat stinger profiles', () => {
     const context = new FakeAudioContext();
     const audio = createProceduralAudio({ createContext: () => context });

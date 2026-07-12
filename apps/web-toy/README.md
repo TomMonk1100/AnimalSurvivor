@@ -84,7 +84,7 @@ total:
 | **Puffer Pouch** | Gather nearby enemies | Wider push pulse |
 | **Electric Eel Coil** | Instant strike on the nearest threat, then chain to 1 nearby unhit foe | Instant strike on the nearest threat, then chain to 3 nearby unhit foes |
 | **Firefly Colony** | Six radial sparks | Ten stronger radial sparks |
-| **Mantis Scythes** | Short-range damaging pulse | Wider, stronger close-range pulse |
+| **Mantis Scythes** | Auto-aimed narrow scythe sweep | Wider, stronger auto-aimed scythe sweep |
 | **Gecko Pads** | After traveling 150 units, create a damaging pad at Greg's feet; it does not slow enemies | After traveling 110 units, create a stronger damaging pad at Greg's feet; it does not slow enemies |
 
 Every attack has Bud and Adapted forms. Three paired evolutions are available:

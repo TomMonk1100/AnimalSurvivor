@@ -32,17 +32,17 @@ describe('upgrade card copy', () => {
     expect(colony.description).toMatch(/Thunderbug Dynamo/);
   });
 
-  it('explains Mantis Scythes as a distinct close-range attack', () => {
+  it('explains Mantis Scythes as a distinct auto-aimed directional attack', () => {
     const mantis = presentUpgrade({ traitId: 'mantis-scythes', resultStage: 'bud' }, []);
     expect(mantis).toMatchObject({
       title: 'Mantis Scythes',
       badge: 'NEW ATTACK',
       socket: 'Left shoulder attachment',
     });
-    expect(mantis.description).toMatch(/close-range damaging pulse/i);
+    expect(mantis.description).toMatch(/auto-aims a narrow scythe sweep/i);
 
     const adapted = presentUpgrade({ traitId: 'mantis-scythes', resultStage: 'adapted' }, []);
-    expect(adapted.description).toMatch(/wider area/i);
+    expect(adapted.description).toMatch(/auto-aims a wider.*scythe sweep/i);
   });
 
   it('explains Gecko Pads as damaging movement trails and advertises Razorstep', () => {

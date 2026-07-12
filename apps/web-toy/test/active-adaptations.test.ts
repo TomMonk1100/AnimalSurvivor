@@ -118,7 +118,7 @@ describe('active adaptation presentation', () => {
     });
   });
 
-  it('shows Mantis Scythes as a truthful close-range attack', () => {
+  it('shows Mantis Scythes as a truthful auto-aimed directional attack', () => {
     const cards = presentActiveAdaptations([
       visual({
         sourceId: 'mantis-scythes',
@@ -133,10 +133,10 @@ describe('active adaptation presentation', () => {
         id: 'mantis-scythes:adapted',
         title: 'Mantis Scythes',
         stageLabel: 'Adapted',
-        cadence: 'Every 0.6 seconds',
+        cadence: 'Every 0.5 seconds',
       }),
     ]);
-    expect(cards[0]?.effect).toMatch(/wider area/i);
+    expect(cards[0]?.effect).toMatch(/auto-aims a wider.*scythe sweep/i);
   });
 
   it('shows Gecko Pads as movement-trail damage at each authored threshold', () => {

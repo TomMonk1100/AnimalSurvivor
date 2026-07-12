@@ -204,6 +204,8 @@ export function createSimDriver(
           durationTicks: event.durationTicks,
           intervalTicks: event.intervalTicks,
           amount: event.amount,
+          arc: event.arc,
+          meleeArcResolved: event.meleeArcResolved,
           facing: event.facing,
           spread: event.spread,
           jumps: event.jumps,
@@ -231,6 +233,8 @@ export function createSimDriver(
         copy.durationTicks = event.durationTicks;
         copy.intervalTicks = event.intervalTicks;
         copy.amount = event.amount;
+        copy.arc = event.arc;
+        copy.meleeArcResolved = event.meleeArcResolved;
         copy.facing = event.facing;
         copy.spread = event.spread;
         copy.jumps = event.jumps;

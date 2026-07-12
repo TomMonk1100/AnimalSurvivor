@@ -226,6 +226,53 @@ class ChainTraitRuntime implements TraitRuntimePort {
   fingerprint(): string { return TRAIT_FINGERPRINT; }
 }
 
+/** Emits a directional scythe command for the presentation-resolution bridge test. */
+class MeleeArcTraitRuntime implements TraitRuntimePort {
+  update(context: TraitRuntimeUpdateContext) {
+    const command: TraitRuntimeCommandView = {
+      kind: 'meleeArc',
+      sourceId: 'mantis-scythes',
+      tick: context.tick,
+      targeting: 'nearest',
+      originX: context.playerX,
+      originY: context.playerY,
+      dirX: 0,
+      dirY: 0,
+      count: 0,
+      damage: 4,
+      speed: 0,
+      radius: 0,
+      strength: 0,
+      arc: 1.2,
+      facing: 0,
+      spread: 0,
+      range: 50,
+    };
+    return {
+      length: 1,
+      at(index: number): TraitRuntimeCommandView {
+        if (index !== 0) throw new RangeError('command index out of range');
+        return command;
+      },
+    };
+  }
+
+  offers(_count: number) { return []; }
+
+  applyUpgrade(traitId: string) {
+    return {
+      outcome: { ok: false as const, kind: 'unknownTrait' as const, traitId },
+      evolved: null,
+    };
+  }
+
+  visualState() { return []; }
+
+  hash(): string { return '0000000000000000'; }
+
+  fingerprint(): string { return TRAIT_FINGERPRINT; }
+}
+
 function makeFactory(
   log: { options?: TraitRuntimeFactoryOptions; runtime?: FakeTraitRuntime } = {},
   presentationMetadata: Pick<TraitRuntimeCommandView, 'durationTicks' | 'tag'> = {},
@@ -292,6 +339,8 @@ test('publishes detached presentation copies for executed trait commands and cle
     durationTicks: 24,
     intervalTicks: 0,
     amount: 0,
+    arc: 0,
+    meleeArcResolved: false,
     facing: 0,
     spread: 0,
     jumps: 0,
@@ -368,6 +417,76 @@ test('captures actual chain endpoints before lethal cleanup for a renderer-facin
   sim.step({ moveX: 0, moveY: 0, paused: false });
   assert.strictEqual(sim.traitPresentationEvents[0], reusedEvent);
   assert.equal(sim.traitPresentationEvents[0]!.resolvedHitCount, 0);
+});
+
+test('captures a resolved melee direction on the detached presentation command without affecting hash state', () => {
+  const sim = createSimulation(quietConfig(), 73, { traitRuntimeFactory: () => new MeleeArcTraitRuntime() });
+  const slot = sim.enemies.spawn();
+  assert.notEqual(slot, -1);
+  const enemy = sim.enemies.data;
+  enemy.posX[slot] = sim.player.x;
+  enemy.posY[slot] = sim.player.y - 20;
+  enemy.hp[slot] = 10;
+  enemy.maxHp[slot] = 10;
+  enemy.speed[slot] = 0;
+  enemy.radius[slot] = 1;
+  enemy.touchDamage[slot] = 0;
+  enemy.archetype[slot] = 0;
+  enemy.xpDrop[slot] = 1;
+  sim.grid.insert(sim.enemies.idOf(slot), enemy.posX[slot]!, enemy.posY[slot]!);
+
+  const peer = createSimulation(quietConfig(), 73, { traitRuntimeFactory: () => new MeleeArcTraitRuntime() });
+  const peerSlot = peer.enemies.spawn();
+  assert.notEqual(peerSlot, -1);
+  const peerEnemy = peer.enemies.data;
+  peerEnemy.posX[peerSlot] = peer.player.x;
+  peerEnemy.posY[peerSlot] = peer.player.y - 20;
+  peerEnemy.hp[peerSlot] = 10;
+  peerEnemy.maxHp[peerSlot] = 10;
+  peerEnemy.speed[peerSlot] = 0;
+  peerEnemy.radius[peerSlot] = 1;
+  peerEnemy.touchDamage[peerSlot] = 0;
+  peerEnemy.archetype[peerSlot] = 0;
+  peerEnemy.xpDrop[peerSlot] = 1;
+  peer.grid.insert(peer.enemies.idOf(peerSlot), peerEnemy.posX[peerSlot]!, peerEnemy.posY[peerSlot]!);
+
+  sim.step({ moveX: 0, moveY: 0, paused: false });
+  peer.step({ moveX: 0, moveY: 0, paused: false });
+  const event = sim.traitPresentationEvents[0]!;
+  assert.equal(event.kind, 'meleeArc');
+  assert.equal(event.arc, 1.2);
+  assert.equal(event.meleeArcResolved, true);
+  assert.equal(event.dirX, 0);
+  assert.equal(event.dirY, -1);
+  assert.equal(sim.enemies.data.hp[slot], 6);
+  assert.equal(sim.hash(), peer.hash(), 'presentation-resolved aim never joins canonical state');
+});
+
+test('does not mark a targeted melee arc resolved when it has no valid target', () => {
+  class TargetlessMeleeArcRuntime extends MeleeArcTraitRuntime {
+    override update(context: TraitRuntimeUpdateContext) {
+      const commands = super.update(context);
+      const command = commands.at(0);
+      return {
+        length: 1,
+        at(index: number): TraitRuntimeCommandView {
+          if (index !== 0) throw new RangeError('command index out of range');
+          return { ...command, dirX: 1, dirY: 0 };
+        },
+      };
+    }
+  }
+
+  const sim = createSimulation(quietConfig(), 73, {
+    traitRuntimeFactory: () => new TargetlessMeleeArcRuntime(),
+  });
+
+  sim.step({ moveX: 0, moveY: 0, paused: false });
+  const event = sim.traitPresentationEvents[0]!;
+  assert.equal(event.kind, 'meleeArc');
+  assert.equal(event.dirX, 1, 'authored fallback direction remains available to the runtime');
+  assert.equal(event.dirY, 0);
+  assert.equal(event.meleeArcResolved, false, 'presentation must distinguish an acquisition miss');
 });
 
 test('persistent zone commands damage through simulation-owned cleanup, hash, and replay deterministically', () => {

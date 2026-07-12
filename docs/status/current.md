@@ -20,7 +20,7 @@ Greg has a deterministic browser survival loop with:
   choices from six trait families;
 - Quills, Puffer, **Electric Eel Coil** (an instant nearest-target strike that
   chains to nearby unhit foes), Firefly Colony, and **Mantis Scythes**
-  (a short-range pulse), plus **Gecko Pads** (damaging pads at Greg's feet
+  (an auto-aimed directional scythe sweep), plus **Gecko Pads** (damaging pads at Greg's feet
   after he travels 150 units at Bud or 110 units at Adapted; they do not slow), with the
   **Thornstorm Mantle**, **Thunderbug Dynamo**, and **Razorstep Chimera**
   two-slot Mythics;

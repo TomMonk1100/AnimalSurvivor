@@ -40,6 +40,8 @@ export interface TraitCombatCommand {
   readonly amount?: number;
   readonly facing: number;
   readonly spread: number;
+  /** Directional melee sweep width in radians. */
+  readonly arc?: number;
   /** Additional unique enemies after the initial chain-lightning strike. */
   readonly jumps?: number;
   readonly range: number;
@@ -75,6 +77,12 @@ export interface TraitCommandExecutionContext {
     x: number,
     y: number,
   ) => void;
+  /** Presentation-only direction resolved from a successful melee acquisition. */
+  readonly onMeleeArcResolved?: (
+    commandIndex: number,
+    dirX: number,
+    dirY: number,
+  ) => void;
 }
 
 export interface TraitCommandExecutorOptions {
@@ -104,6 +112,9 @@ export interface TraitCommandExecutionStats {
   /** Newest zone request is rejected when the fixed pool is full; no eviction. */
   zonesRejected: number;
   burstsSkippedNoTarget: number;
+  meleeArcCommands: number;
+  meleeArcHits: number;
+  meleeArcsSkippedNoTarget: number;
   chainDamageCommands: number;
   /** Total immediate chain victims, including the first acquired target. */
   chainDamageHits: number;
@@ -149,13 +160,13 @@ const SUPPORTED_KINDS = new Set([
   'applyAreaDamage',
   'spawnZone',
   'chainDamage',
+  'meleeArc',
   'telegraph',
   'playTraitCue',
 ]);
 /** These need state/pools not yet owned by the accepted simulation. */
 export const REJECTED_TRAIT_COMMAND_KINDS = Object.freeze([
   'markTargets',
-  'meleeArc',
   'grantShield',
 ] as const);
 const REJECTED_KINDS = new Set<string>(REJECTED_TRAIT_COMMAND_KINDS);
@@ -264,6 +275,17 @@ function validateCommand(
       nonNegative('command.damage', command.damage);
       float32('command.damage', command.damage);
       break;
+    case 'meleeArc': {
+      const arc = command.arc;
+      if (!(typeof arc === 'number' && Number.isFinite(arc) && arc > 0 && arc <= Math.PI * 2)) {
+        throw new RangeError('command.arc must be finite and in (0, 2π] for meleeArc');
+      }
+      positive('command.range', command.range);
+      float32('command.range', command.range);
+      nonNegative('command.damage', command.damage);
+      float32('command.damage', command.damage);
+      break;
+    }
     case 'spawnZone': {
       positive('command.radius', command.radius);
       float32('command.radius', command.radius);
@@ -317,6 +339,9 @@ function resetStats(stats: TraitCommandExecutionStats): void {
   stats.zonesSpawned = 0;
   stats.zonesRejected = 0;
   stats.burstsSkippedNoTarget = 0;
+  stats.meleeArcCommands = 0;
+  stats.meleeArcHits = 0;
+  stats.meleeArcsSkippedNoTarget = 0;
   stats.chainDamageCommands = 0;
   stats.chainDamageHits = 0;
   stats.chainsSkippedNoTarget = 0;
@@ -486,6 +511,97 @@ function executeAreaDamage(
   }
 }
 
+/**
+ * Resolves a targeted cleave direction before applying a deterministic sector
+ * query. Targeted arcs select their anchor inside authored range; untargeted
+ * future commands retain a sensible authored/facing/+X fallback.
+ */
+function executeMeleeArc(
+  command: TraitCombatCommand,
+  commandIndex: number,
+  context: TraitCommandExecutionContext,
+  options: TraitCommandExecutorOptions,
+  scratch: EntityId[],
+  stats: TraitCommandExecutionStats,
+): void {
+  let dirX = 0;
+  let dirY = 0;
+  let hasDirection = false;
+  if (command.targeting !== 'none') {
+    const target = selectTarget(
+      targetingPolicy(command.targeting),
+      {
+        originX: command.originX,
+        originY: command.originY,
+        range: command.range,
+        moveDirX: context.moveDirX,
+        moveDirY: context.moveDirY,
+      },
+      context.enemies,
+      context.enemyGrid,
+      options.clusterRadius,
+    );
+    if (target === NO_ENTITY) {
+      stats.meleeArcsSkippedNoTarget++;
+      return;
+    }
+    const targetSlot = context.enemies.slotOf(target);
+    if (targetSlot < 0) {
+      stats.meleeArcsSkippedNoTarget++;
+      return;
+    }
+    const towardX = context.enemies.data.posX[targetSlot]! - command.originX;
+    const towardY = context.enemies.data.posY[targetSlot]! - command.originY;
+    const length = Math.sqrt(towardX * towardX + towardY * towardY);
+    if (length > 1e-9) {
+      dirX = towardX / length;
+      dirY = towardY / length;
+      hasDirection = true;
+    }
+  }
+  if (!hasDirection) {
+    const length = Math.sqrt(command.dirX * command.dirX + command.dirY * command.dirY);
+    if (length > 1e-9) {
+      dirX = command.dirX / length;
+      dirY = command.dirY / length;
+      hasDirection = true;
+    }
+  }
+  if (!hasDirection) {
+    const facingX = Math.cos(command.facing);
+    const facingY = Math.sin(command.facing);
+    const length = Math.sqrt(facingX * facingX + facingY * facingY);
+    if (length > 1e-9) {
+      dirX = facingX / length;
+      dirY = facingY / length;
+      hasDirection = true;
+    }
+  }
+  // A finite zero facing gives (+X, 0); retain this final fallback for hostile
+  // structural inputs where all authored direction sources were non-finite.
+  if (!hasDirection) {
+    dirX = 1;
+    dirY = 0;
+  }
+  context.onMeleeArcResolved?.(commandIndex, dirX, dirY);
+  const cosHalfArc = Math.cos(command.arc! / 2);
+  const count = context.enemyGrid.queryRadius(command.originX, command.originY, command.range, scratch);
+  for (let index = 0; index < count; index++) {
+    const slot = context.enemies.slotOf(scratch[index]!);
+    if (slot < 0) continue;
+    const dx = context.enemies.data.posX[slot]! - command.originX;
+    const dy = context.enemies.data.posY[slot]! - command.originY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance > 1e-9 && (dx * dirX + dy * dirY) / distance < cosHalfArc) continue;
+    context.enemies.data.hp[slot] = context.enemies.data.hp[slot]! - command.damage;
+    stats.meleeArcHits++;
+    if (context.enemies.data.hp[slot]! <= 0) {
+      context.killEnemy(slot);
+      stats.enemiesKilled++;
+    }
+  }
+}
+
 function hasVisited(visited: readonly EntityId[], id: EntityId): boolean {
   for (let index = 0; index < visited.length; index++) {
     if (visited[index] === id) return true;
@@ -635,6 +751,9 @@ export function createTraitCommandExecutor(
     zonesSpawned: 0,
     zonesRejected: 0,
     burstsSkippedNoTarget: 0,
+    meleeArcCommands: 0,
+    meleeArcHits: 0,
+    meleeArcsSkippedNoTarget: 0,
     chainDamageCommands: 0,
     chainDamageHits: 0,
     chainsSkippedNoTarget: 0,
@@ -683,6 +802,10 @@ export function createTraitCommandExecutor(
             break;
           case 'applyAreaDamage':
             executeAreaDamage(command, context, scratch, stats);
+            break;
+          case 'meleeArc':
+            stats.meleeArcCommands++;
+            executeMeleeArc(command, index, context, options, scratch, stats);
             break;
           case 'spawnZone':
             executeSpawnZone(command, context, options, stats);

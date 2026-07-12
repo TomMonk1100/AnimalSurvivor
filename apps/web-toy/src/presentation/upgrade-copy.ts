@@ -84,10 +84,10 @@ export function presentUpgrade(
       badge: razorstepReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
       socket: 'Left shoulder attachment',
       description: offer.resultStage === 'bud'
-        ? 'Sweeps nearby enemies with a close-range damaging pulse.'
+        ? 'Auto-aims a narrow scythe sweep through nearby enemies.'
         : razorstepReady
           ? "Completes Razorstep Chimera: movement leaves stronger scythe pads at Greg's feet."
-          : 'Sweeps a wider area for stronger close-range damage.',
+          : 'Auto-aims a wider, stronger scythe sweep through nearby enemies.',
       pairingHint: razorstepReady ? null : 'Adapt Gecko Pads too to evolve both into Razorstep Chimera.',
     };
   }

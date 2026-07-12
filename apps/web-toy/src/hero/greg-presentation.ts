@@ -51,6 +51,11 @@ export interface GregPresentation {
 export interface GregTraitPresentationEvent {
   readonly kind: string;
   readonly resolvedHitCount?: number;
+  /** Set only after the authoritative melee executor acquired a real target. */
+  readonly meleeArcResolved?: boolean;
+  /** Presentation direction only; a non-zero fallback cannot imply a hit. */
+  readonly dirX?: number;
+  readonly dirY?: number;
 }
 
 export function hasFreshProjectile(previous: RenderSnapshot, current: RenderSnapshot): boolean {
@@ -79,6 +84,11 @@ export function hasResolvedChainDamage(events: readonly GregTraitPresentationEve
   ));
 }
 
+/** A Mantis swing is an attack pulse only after authoritative auto-aim resolves a target. */
+export function hasResolvedMeleeArc(events: readonly GregTraitPresentationEvent[]): boolean {
+  return events.some((event) => event.kind === 'meleeArc' && event.meleeArcResolved === true);
+}
+
 export function deriveGregAnimationInput(
   previous: RenderSnapshot,
   current: RenderSnapshot,
@@ -89,7 +99,9 @@ export function deriveGregAnimationInput(
   return {
     alive: current.playerAlive,
     movementMagnitude: Math.sqrt(dx * dx + dy * dy),
-    attackPulse: hasFreshProjectile(previous, current) || hasResolvedChainDamage(traitPresentationEvents),
+    attackPulse: hasFreshProjectile(previous, current)
+      || hasResolvedChainDamage(traitPresentationEvents)
+      || hasResolvedMeleeArc(traitPresentationEvents),
     hitPulse: current.playerHp < previous.playerHp,
   };
 }

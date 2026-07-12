@@ -8,10 +8,10 @@ combat design audit for **AnimalSurvivor**. This is a research and design task:
 do not need repository or GitHub access, and do not write code.
 
 The immediate playtest problem is clear: several attacks read as variations of
-Greg's basic aimed projectile. In particular, **Electric Eel Coil** currently
-fires two/four physical bolts which can miss. It must become a reliable,
-low-damage lightning strike that never misses its acquired target and chains to
-more targets as it upgrades.
+Greg's basic aimed projectile. **Electric Eel Coil has now been converted** to
+a reliable, low-damage lightning strike that never misses its acquired target
+and chains to more targets as it upgrades. Audit that choice, then focus the
+report on the remaining overlap and the smallest next set of distinct families.
 
 ## Product context
 
@@ -39,11 +39,23 @@ more targets as it upgrades.
 | Starter Auto-Fire | aimed physical projectile at a nearby enemy | reliable basic ranged damage |
 | Porcupine Quills | aimed fan of 5/9 physical projectiles | defensive forward cone / crowd pressure |
 | Puffer Pouch | gather pulse at Bud; knockback pulse at Adapted | positioning and crowd control |
-| Electric Eel Coil | 2/4 fast aimed physical projectiles | currently overlaps badly with starter and Quills |
+| Electric Eel Coil | instant nearest-target strike; Bud chains once, Adapted chains three times | guaranteed strike / chain damage |
 | Firefly Colony | 6/10 radial physical sparks | all-direction escape pressure |
-| Mantis Scythes | close radius damage pulse | proximity risk/reward |
+| Mantis Scythes | instant nearest-target directional scythe arc | proximity risk/reward / front-sector cleave |
 | Gecko Pads | damaging zones deposited only after player movement | kiting / route control |
-| Thunderbug Dynamo | telegraph then radial lightning storm | Coil + Firefly Mythic payoff |
+| Thunderbug Dynamo | telegraph then an eight-target chain discharge | Coil + Firefly Mythic payoff |
+
+### Current Coil implementation to audit
+
+- Initial acquisition: nearest live enemy within the standard 350-unit combat
+  range; no projectile is spawned.
+- Bud: 4 damage, one extra unique hop, 120-unit hop radius, every 80 ticks.
+- Adapted: 5 damage, three extra unique hops, 150-unit hop radius, every 52
+  ticks.
+- Thunderbug: 18-tick telegraph, then 9 damage across up to eight distinct
+  targets with a 185-unit hop radius.
+- Chain order is deterministic: closest valid target from the previous victim,
+  with entity-ID tie breaking. A target cannot repeat in a cast.
 
 ## Questions to answer
 
@@ -60,9 +72,10 @@ more targets as it upgrades.
    should eventually be represented, which of our current six already cover
    them, and which 2–4 should be built next. Split recommendations into
    **build now**, **next after that**, and **later / avoid for now**.
-4. Provide an exact Electric Eel Coil spec. It must include:
+4. Review and refine the Electric Eel Coil spec. It must include:
    - target policy and acquisition range;
-   - a never-miss, instantaneous hit (not a travelling projectile);
+   - a never-miss, instantaneous hit (not a travelling projectile), which is
+     already implemented in the current build;
    - low per-target damage;
    - Bud, Adapted, and Mythic-friendly progression where later stages chain to
      more *distinct* targets;

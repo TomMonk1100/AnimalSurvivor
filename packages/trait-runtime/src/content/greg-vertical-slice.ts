@@ -16,7 +16,7 @@
  * firefly-colony (socket: bodyOrbit)
  *   bud/adapted: autonomous radial spark bursts.
  * mantis-scythes (socket: leftShoulder)
- *   bud/adapted: close-range sweeping damage pulse around Greg.
+ *   bud/adapted: auto-aimed directional scythe sweeps at nearby threats.
  * gecko-pads (socket: rightShoulder)
  *   bud/adapted: leave damaging pads only while Greg travels through the forest.
  * razorstep-chimera (recipe: Adapted Mantis + Adapted Gecko; shoulders)
@@ -192,9 +192,9 @@ export const FIREFLY_COLONY: TraitDefinition = {
 };
 
 /**
- * A deliberately close-range damage option. It uses the already-executable
- * area-damage bridge instead of the catalog's future melee-arc command, so
- * selecting it changes the playable run today rather than only its visuals.
+ * A close, auto-aimed cleave: unlike an aura, it only cuts enemies inside the
+ * resolved scythe sector. That makes crowd positioning matter and gives Greg
+ * a true melee family instead of another all-direction damage pulse.
  */
 export const MANTIS_SCYTHES: TraitDefinition = {
   id: TRAIT_IDS.mantisScythes,
@@ -205,12 +205,13 @@ export const MANTIS_SCYTHES: TraitDefinition = {
       visualKey: 'mantis-scythes:bud',
       behavior: {
         kind: 'periodicPulse',
-        periodTicks: 54,
+        periodTicks: 45,
         emit: {
-          kind: 'applyAreaDamage',
-          targeting: 'none',
-          radius: 68,
-          damage: 5,
+          kind: 'meleeArc',
+          targeting: 'nearest',
+          damage: 6,
+          arc: 1.2,
+          range: 68,
         },
       },
     },
@@ -218,12 +219,13 @@ export const MANTIS_SCYTHES: TraitDefinition = {
       visualKey: 'mantis-scythes:adapted',
       behavior: {
         kind: 'periodicPulse',
-        periodTicks: 38,
+        periodTicks: 30,
         emit: {
-          kind: 'applyAreaDamage',
-          targeting: 'none',
-          radius: 88,
-          damage: 8,
+          kind: 'meleeArc',
+          targeting: 'nearest',
+          damage: 10,
+          arc: 1.6,
+          range: 88,
         },
       },
     },

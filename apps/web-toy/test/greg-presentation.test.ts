@@ -5,6 +5,7 @@ import {
   deriveGregAnimationInput,
   hasFreshProjectile,
   hasResolvedChainDamage,
+  hasResolvedMeleeArc,
 } from '../src/hero/greg-presentation';
 
 describe('Greg presentation cues', () => {
@@ -50,6 +51,21 @@ describe('Greg presentation cues', () => {
     expect(hasResolvedChainDamage([{ kind: 'chainDamage', resolvedHitCount: 2 }])).toBe(true);
     expect(deriveGregAnimationInput(previous, current, [
       { kind: 'chainDamage', resolvedHitCount: 2 },
+    ]).attackPulse).toBe(true);
+  });
+
+  it('pulses Greg for an authoritative Mantis swing but not a targetless directional command', () => {
+    const previous = createSnapshot(DEFAULT_CONFIG);
+    const current = createSnapshot(DEFAULT_CONFIG);
+    previous.playerAlive = true;
+    current.playerAlive = true;
+
+    expect(hasResolvedMeleeArc([{
+      kind: 'meleeArc', meleeArcResolved: false, dirX: 0.6, dirY: -0.8,
+    }])).toBe(false);
+    expect(hasResolvedMeleeArc([{ kind: 'meleeArc', meleeArcResolved: true }])).toBe(true);
+    expect(deriveGregAnimationInput(previous, current, [
+      { kind: 'meleeArc', meleeArcResolved: true },
     ]).attackPulse).toBe(true);
   });
 });

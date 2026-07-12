@@ -92,6 +92,12 @@ const TONES: Readonly<Record<AudioCue, ToneProfile>> = Object.freeze({
     { shape: 'square', frequency: 1046.5, peakGain: 0.042, durationSeconds: 0.045 },
     { shape: 'triangle', frequency: 1567.98, peakGain: 0.034, durationSeconds: 0.08, startOffsetSeconds: 0.022 },
   ],
+  // A descending, short sawtooth sweep makes the close-range Mantis cut read
+  // separately from the square auto-fire pop and the bright lightning pair.
+  melee: [
+    { shape: 'sawtooth', frequency: 440, peakGain: 0.038, durationSeconds: 0.075 },
+    { shape: 'triangle', frequency: 293.66, peakGain: 0.026, durationSeconds: 0.095, startOffsetSeconds: 0.018 },
+  ],
   victory: [
     { shape: 'triangle', frequency: 523.25, peakGain: 0.06, durationSeconds: 0.13 },
     { shape: 'triangle', frequency: 659.25, peakGain: 0.072, durationSeconds: 0.15, startOffsetSeconds: 0.1 },
@@ -132,8 +138,8 @@ function finiteTime(value: number): number {
 /**
  * Builds a small bounded voice profile per routed cue. There are intentionally
  * no enemy-death sounds. The router permits only low-volume, rate-limited
- * auto-attack texture, resolved lightning, and player-damage feedback, so the
- * synth stays readable in crowded fights.
+ * auto-attack texture, resolved lightning, resolved Mantis sweeps, and
+ * player-damage feedback, so the synth stays readable in crowded fights.
  */
 export function createProceduralAudio(options: ProceduralAudioOptions = {}): ProceduralAudio {
   const createContext = options.createContext ?? createBrowserContext;

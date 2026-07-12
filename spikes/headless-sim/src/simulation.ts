@@ -201,6 +201,10 @@ export interface TraitPresentationEventView {
   readonly durationTicks: number;
   readonly intervalTicks: number;
   readonly amount: number;
+  /** Authored directional sweep width; zero for non-arc commands. */
+  readonly arc: number;
+  /** True only when a targeted melee arc acquired an authoritative aim. */
+  readonly meleeArcResolved: boolean;
   readonly facing: number;
   readonly spread: number;
   /** Additional chain targets requested by authored content. */
@@ -414,6 +418,8 @@ export function createSimulation(
           durationTicks: command.durationTicks ?? 0,
           intervalTicks: command.intervalTicks ?? 0,
           amount: command.amount ?? 0,
+          arc: command.arc ?? 0,
+          meleeArcResolved: false,
           facing: command.facing,
           spread: command.spread,
           jumps: command.jumps ?? 0,
@@ -441,6 +447,8 @@ export function createSimulation(
         event.durationTicks = command.durationTicks ?? 0;
         event.intervalTicks = command.intervalTicks ?? 0;
         event.amount = command.amount ?? 0;
+        event.arc = command.arc ?? 0;
+        event.meleeArcResolved = false;
         event.facing = command.facing;
         event.spread = command.spread;
         event.jumps = command.jumps ?? 0;
@@ -773,6 +781,13 @@ export function createSimulation(
               event.resolvedHitX[hitIndex] = x;
               event.resolvedHitY[hitIndex] = y;
               event.resolvedHitCount = hitIndex + 1;
+            },
+            onMeleeArcResolved(commandIndex, dirX, dirY): void {
+              const event = traitPresentationEvents[commandIndex];
+              if (event === undefined || event.kind !== 'meleeArc') return;
+              event.dirX = dirX;
+              event.dirY = dirY;
+              event.meleeArcResolved = true;
             },
           });
           events.projectilesFired += traitStats.projectilesSpawned;
