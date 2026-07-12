@@ -19,7 +19,7 @@ Greg has a deterministic browser survival loop with:
 - five active-attack slots: Greg’s starter Auto-Fire plus up to four acquired
   choices from six trait families;
 - Quills, Puffer, **Electric Eel Coil** (an instant nearest-target strike that
-  chains to nearby unhit foes), Firefly Colony, and **Mantis Scythes**
+  chains to nearby unhit foes), **Firefly Colony** (orbiting contact fireflies), and **Mantis Scythes**
   (an auto-aimed directional scythe sweep), plus **Gecko Pads** (damaging pads at Greg's feet
   after he travels 150 units at Bud or 110 units at Adapted; they do not slow), with the
   **Thornstorm Mantle**, **Thunderbug Dynamo**, and **Razorstep Chimera**
@@ -48,7 +48,7 @@ not only starter fire.
 
 - A fresh human playtest of the compressed eight-minute curve: is pressure
   urgent, fair, and readable from opening through boss?
-- Attack clarity: can a player distinguish Quills, Puffer, Coil, Firefly,
+- Attack clarity: can a player distinguish Quills, Puffer, Coil, orbiting Firefly,
   Mantis Scythes, and Gecko Pads; understand each Mythic; and find build
   details naturally in the pause panel?
 - Forest readability: does the clearing improve movement and threat awareness

@@ -71,8 +71,11 @@ test('Forest Arsenal exposes six real non-starter attack candidates and three su
   const colony = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
   upgrade(colony, 'firefly-colony');
   const colonyCommands = colony.update(context(1));
-  assert.equal(colonyCommands.at(0).kind, 'radialProjectileBurst');
-  assert.equal(colonyCommands.at(0).count, 6);
+  assert.equal(colonyCommands.at(0).kind, 'orbitingDamage');
+  assert.equal(colonyCommands.at(0).count, 2);
+  assert.equal(colonyCommands.at(0).damage, 3);
+  assert.equal(colonyCommands.at(0).radius, 50);
+  assert.equal(colonyCommands.at(0).range, 18);
 
   const mantis = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
   upgrade(mantis, 'mantis-scythes');

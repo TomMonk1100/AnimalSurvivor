@@ -21,6 +21,9 @@ describe('trait command presentation profiles', () => {
     expect(projectTraitCommandEffect(command({ kind: 'telegraph' }))?.kind).toBe('telegraph');
     expect(projectTraitCommandEffect(command({ kind: 'spawnProjectileBurst' }))?.kind).toBe('directed-burst');
     expect(projectTraitCommandEffect(command({ kind: 'radialProjectileBurst' }))?.kind).toBe('radial-burst');
+    expect(projectTraitCommandEffect(command({
+      kind: 'orbitingDamage', count: 2, radius: 50, range: 18, speed: 0.05,
+    }))?.kind).toBe('orbiting-damage');
     expect(projectTraitCommandEffect(command({ kind: 'areaGather' }))?.kind).toBe('gather');
     expect(projectTraitCommandEffect(command({ kind: 'areaKnockback' }))?.kind).toBe('knockback');
     expect(projectTraitCommandEffect(command({ kind: 'applyAreaDamage' }))?.kind).toBe('area-damage');

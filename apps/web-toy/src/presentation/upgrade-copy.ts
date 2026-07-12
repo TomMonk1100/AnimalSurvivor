@@ -71,10 +71,10 @@ export function presentUpgrade(
       badge: thunderbugReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
       socket: 'Orbiting body attachment',
       description: offer.resultStage === 'bud'
-        ? 'Releases six sparks in every direction.'
+        ? 'Two fireflies orbit Greg and zap the nearest enemy they touch.'
         : thunderbugReady
           ? 'Completes Thunderbug Dynamo: telegraph a larger chain discharge across nearby enemies.'
-          : 'Releases ten stronger sparks in every direction.',
+          : 'Four fireflies orbit wider and zap nearby enemies on contact.',
       pairingHint: thunderbugReady ? null : 'Adapt Electric Eel Coil too to evolve both into Thunderbug Dynamo.',
     };
   }

@@ -6,7 +6,7 @@
 import type { RunOutcomeView } from '@sim';
 import type { CombatFeedbackSnapshot } from '../presentation/combat-feedback';
 
-export type AudioCue = 'start' | 'pickup' | 'upgrade' | 'damage' | 'lightning' | 'melee' | 'attack' | 'victory' | 'defeat';
+export type AudioCue = 'start' | 'pickup' | 'upgrade' | 'damage' | 'lightning' | 'melee' | 'orbit' | 'attack' | 'victory' | 'defeat';
 
 /**
  * The audio layer only needs enough of a trait presentation event to identify
@@ -70,6 +70,9 @@ export const LIGHTNING_AUDIO_MIN_INTERVAL_TICKS = 30;
 /** A close-range sweep can be heard more often than sparse auto-fire, but not every frame. */
 export const MELEE_AUDIO_MIN_INTERVAL_TICKS = 24;
 
+/** Orbit contact is a persistent defensive identity, but remains sparse enough to avoid a hum. */
+export const ORBIT_AUDIO_MIN_INTERVAL_TICKS = 30;
+
 type TerminalCue = 'victory' | 'defeat' | null;
 
 function terminalCue(outcome: RunOutcomeView | null): TerminalCue {
@@ -124,6 +127,21 @@ function freshMeleeTicks(
     .sort((left, right) => left - right);
 }
 
+function freshOrbitTicks(
+  events: readonly TraitCommandAudioEvent[] | undefined,
+  lastObservedTick: number,
+): number[] {
+  if (events === undefined) return [];
+  return events
+    .filter((event) => (
+      event.kind === 'orbitingDamage'
+      && Number.isFinite(event.tick)
+      && event.tick > lastObservedTick
+    ))
+    .map((event) => Math.trunc(event.tick))
+    .sort((left, right) => left - right);
+}
+
 function firstRateLimitedTick(
   ticks: readonly number[],
   lastPlayedTick: number,
@@ -152,6 +170,8 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
   let lastPlayedLightningTick = Number.NEGATIVE_INFINITY;
   let lastObservedMeleeTick = Number.NEGATIVE_INFINITY;
   let lastPlayedMeleeTick = Number.NEGATIVE_INFINITY;
+  let lastObservedOrbitTick = Number.NEGATIVE_INFINITY;
+  let lastPlayedOrbitTick = Number.NEGATIVE_INFINITY;
   let lastUpgradeSerial = 0;
   let terminal: TerminalCue = null;
 
@@ -168,6 +188,8 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
     lastPlayedLightningTick = Number.NEGATIVE_INFINITY;
     lastObservedMeleeTick = Number.NEGATIVE_INFINITY;
     lastPlayedMeleeTick = Number.NEGATIVE_INFINITY;
+    lastObservedOrbitTick = Number.NEGATIVE_INFINITY;
+    lastPlayedOrbitTick = Number.NEGATIVE_INFINITY;
     lastUpgradeSerial = 0;
     terminal = null;
   }
@@ -256,6 +278,25 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
       lastObservedMeleeTick = freshMelee[freshMelee.length - 1]!;
     }
 
+    const freshOrbit = freshOrbitTicks(
+      frame.traitPresentationEvents,
+      lastObservedOrbitTick,
+    );
+    const orbitTick = firstRateLimitedTick(
+      freshOrbit,
+      lastPlayedOrbitTick,
+      ORBIT_AUDIO_MIN_INTERVAL_TICKS,
+    );
+    // Orbit contact is less urgent than a confirmed strike or melee hit, but
+    // it still deserves its own identity before ordinary auto-fire texture.
+    if (orbitTick !== null && damageTick === null && lightningTick === null && meleeTick === null) {
+      sink.play('orbit');
+      lastPlayedOrbitTick = orbitTick;
+    }
+    if (freshOrbit.length > 0) {
+      lastObservedOrbitTick = freshOrbit[freshOrbit.length - 1]!;
+    }
+
     const freshAttackTicks = freshFeedbackTicks(
       frame.combatFeedback,
       'attack',
@@ -270,7 +311,7 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
     // lightning strike. Otherwise an eligible attack punctuates pickup-heavy
     // play: the former pickup-first ordering could suppress auto-fire forever
     // once XP began arriving steadily.
-    if (attackTick !== null && damageTick === null && lightningTick === null && meleeTick === null) {
+    if (attackTick !== null && damageTick === null && lightningTick === null && meleeTick === null && orbitTick === null) {
       sink.play('attack');
       lastPlayedAttackTick = attackTick;
     }
@@ -293,7 +334,7 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
     // Never stack an XP ping over a just-routed danger warning, lightning, melee, or attack
     // punctuation. Its observation latch still advances, so this is a
     // deliberate omission rather than a stale chime later in the run.
-    if (pickupTick !== null && damageTick === null && lightningTick === null && meleeTick === null && attackTick === null) {
+    if (pickupTick !== null && damageTick === null && lightningTick === null && meleeTick === null && orbitTick === null && attackTick === null) {
       sink.play('pickup');
       lastPlayedPickupTick = pickupTick;
     }

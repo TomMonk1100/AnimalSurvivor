@@ -147,3 +147,17 @@ test('meleeArc requires an authored sector width and positive reach', () => {
   emit.range = 0;
   assert.ok(codes(c).includes('invalidMeleeArc'));
 });
+
+test('orbitingDamage requires bounded firefly count, orbit radius, contact range, and speed', () => {
+  const c = clone();
+  const emit = c.traits[0]!.stages.bud.behavior.emit!;
+  Object.assign(emit, {
+    kind: 'orbitingDamage',
+    count: 17,
+    damage: 3,
+    radius: 0,
+    range: 0,
+    speed: 0,
+  });
+  assert.ok(codes(c).includes('invalidOrbitingDamage'));
+});

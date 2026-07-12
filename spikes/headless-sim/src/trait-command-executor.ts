@@ -104,6 +104,8 @@ export interface TraitCommandExecutionStats {
   commandsProcessed: number;
   projectileBursts: number;
   radialBursts: number;
+  orbitingDamageCommands: number;
+  orbitingDamageHits: number;
   projectilesRequested: number;
   projectilesSpawned: number;
   projectilesRejected: number;
@@ -139,6 +141,8 @@ export interface TraitCommandExecutor {
  * hiding authoritative damage from the player.
  */
 export const MAX_CHAIN_JUMPS = 7;
+/** Fixed work bound for one orbit/contact pulse. */
+export const MAX_ORBITING_DAMAGE_COUNT = 16;
 
 const DEFAULT_OPTIONS: Readonly<TraitCommandExecutorOptions> = Object.freeze({
   defaultTargetRange: 350,
@@ -155,6 +159,7 @@ const DEFAULT_OPTIONS: Readonly<TraitCommandExecutorOptions> = Object.freeze({
 const SUPPORTED_KINDS = new Set([
   'spawnProjectileBurst',
   'radialProjectileBurst',
+  'orbitingDamage',
   'areaGather',
   'areaKnockback',
   'applyAreaDamage',
@@ -265,6 +270,20 @@ function validateCommand(
       finite('command.dirX', command.dirX);
       finite('command.dirY', command.dirY);
       break;
+    case 'orbitingDamage':
+      if (!Number.isSafeInteger(command.count) || command.count < 1 || command.count > MAX_ORBITING_DAMAGE_COUNT) {
+        throw new RangeError(`command.count must be an integer in [1, ${MAX_ORBITING_DAMAGE_COUNT}] for orbitingDamage`);
+      }
+      nonNegative('command.damage', command.damage);
+      float32('command.damage', command.damage);
+      positive('command.radius', command.radius);
+      float32('command.radius', command.radius);
+      positive('command.range', command.range);
+      float32('command.range', command.range);
+      positive('command.speed', command.speed);
+      float32('command.speed', command.speed);
+      finite('command.facing', command.facing);
+      break;
     case 'areaGather':
     case 'areaKnockback':
       nonNegative('command.radius', command.radius);
@@ -332,6 +351,8 @@ function resetStats(stats: TraitCommandExecutionStats): void {
   stats.commandsProcessed = 0;
   stats.projectileBursts = 0;
   stats.radialBursts = 0;
+  stats.orbitingDamageCommands = 0;
+  stats.orbitingDamageHits = 0;
   stats.projectilesRequested = 0;
   stats.projectilesSpawned = 0;
   stats.projectilesRejected = 0;
@@ -454,6 +475,69 @@ function executeRadialBurst(
       stats.projectilesSpawned++;
     } else {
       stats.projectilesRejected++;
+    }
+  }
+}
+
+/** Select the nearest live enemy to one deterministic firefly position. */
+function selectOrbitContact(
+  x: number,
+  y: number,
+  range: number,
+  context: TraitCommandExecutionContext,
+  scratch: EntityId[],
+  visited: readonly EntityId[],
+): EntityId {
+  const count = context.enemyGrid.queryRadius(x, y, range, scratch);
+  let bestId = NO_ENTITY;
+  let bestDistanceSq = Infinity;
+  for (let index = 0; index < count; index++) {
+    const id = scratch[index]!;
+    if (hasVisited(visited, id)) continue;
+    const slot = context.enemies.slotOf(id);
+    if (slot < 0) continue;
+    const dx = context.enemies.data.posX[slot]! - x;
+    const dy = context.enemies.data.posY[slot]! - y;
+    const distanceSq = dx * dx + dy * dy;
+    if (distanceSq < bestDistanceSq || (distanceSq === bestDistanceSq && (bestId === NO_ENTITY || id < bestId))) {
+      bestId = id;
+      bestDistanceSq = distanceSq;
+    }
+  }
+  return bestId;
+}
+
+/**
+ * Resolves a pure orbit/contact pulse. Firefly positions are derived from the
+ * authoritative command tick, so there is no companion state to serialize or
+ * synchronize. Each pulse may hit an enemy once at most, even when multiple
+ * fireflies overlap the same target.
+ */
+function executeOrbitingDamage(
+  command: TraitCombatCommand,
+  context: TraitCommandExecutionContext,
+  scratch: EntityId[],
+  visited: EntityId[],
+  stats: TraitCommandExecutionStats,
+): void {
+  visited.length = 0;
+  const angularStep = Math.PI * 2 / command.count;
+  const angularTick = (command.speed % (Math.PI * 2)) * (command.tick % 1_000_000);
+  const baseAngle = command.facing + angularTick;
+  for (let index = 0; index < command.count; index++) {
+    const angle = baseAngle + angularStep * index;
+    const flyX = command.originX + Math.cos(angle) * command.radius;
+    const flyY = command.originY + Math.sin(angle) * command.radius;
+    const target = selectOrbitContact(flyX, flyY, command.range, context, scratch, visited);
+    if (target === NO_ENTITY) continue;
+    const slot = context.enemies.slotOf(target);
+    if (slot < 0) continue;
+    visited.push(target);
+    context.enemies.data.hp[slot] = context.enemies.data.hp[slot]! - command.damage;
+    stats.orbitingDamageHits++;
+    if (context.enemies.data.hp[slot]! <= 0) {
+      context.killEnemy(slot);
+      stats.enemiesKilled++;
     }
   }
 }
@@ -744,6 +828,8 @@ export function createTraitCommandExecutor(
     commandsProcessed: 0,
     projectileBursts: 0,
     radialBursts: 0,
+    orbitingDamageCommands: 0,
+    orbitingDamageHits: 0,
     projectilesRequested: 0,
     projectilesSpawned: 0,
     projectilesRejected: 0,
@@ -793,6 +879,10 @@ export function createTraitCommandExecutor(
           case 'radialProjectileBurst':
             stats.radialBursts++;
             executeRadialBurst(command, context, options, stats);
+            break;
+          case 'orbitingDamage':
+            stats.orbitingDamageCommands++;
+            executeOrbitingDamage(command, context, scratch, chainVisited, stats);
             break;
           case 'areaGather':
             stats.enemiesGathered += executeAreaMove(command, context, scratch, true);

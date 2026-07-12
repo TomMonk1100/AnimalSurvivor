@@ -24,6 +24,8 @@
  *                               hop range, or Float32-safe per-hit damage.
  *   - invalidMeleeArc         : meleeArc lacks an executable sweep width,
  *                               reach, or Float32-safe per-hit damage.
+ *   - invalidOrbitingDamage  : orbitingDamage lacks a bounded fly count,
+ *                               positive orbit/contact radii, speed, or damage.
  *   - visualKeyCollision      : two definitions share a visualKey.
  *
  * The shipped CATALOG must validate with ok=true and zero issues.
@@ -77,6 +79,8 @@ const INTEGER_FIELDS: readonly (keyof CommandTemplate)[] = [
 const MAX_FLOAT32 = 3.4028234663852886e38;
 /** Mirrors the accepted simulation's fixed chain-lightning work bound. */
 const MAX_EXECUTABLE_CHAIN_JUMPS = 7;
+/** Keeps one orbit pulse bounded even if future content adds more fireflies. */
+const MAX_EXECUTABLE_ORBITING_DAMAGE_COUNT = 16;
 
 function pushIssue(
   issues: ValidationIssue[],
@@ -223,6 +227,42 @@ function validateMeleeArcTemplate(
   }
 }
 
+/** Reject orbit/contact commands that cannot execute in bounded fixed work. */
+function validateOrbitingDamageTemplate(
+  subjectId: string,
+  template: CommandTemplate | undefined,
+  issues: ValidationIssue[],
+): void {
+  if (template?.kind !== 'orbitingDamage') return;
+  const invalid = (message: string): void => pushIssue(issues, 'invalidOrbitingDamage', message, subjectId);
+  if (
+    template.count === undefined
+    || !Number.isSafeInteger(template.count)
+    || template.count < 1
+    || template.count > MAX_EXECUTABLE_ORBITING_DAMAGE_COUNT
+  ) {
+    invalid(`orbitingDamage requires count in [1, ${MAX_EXECUTABLE_ORBITING_DAMAGE_COUNT}].`);
+  }
+  if (!(typeof template.damage === 'number' && Number.isFinite(template.damage)
+    && template.damage >= 0 && template.damage <= MAX_FLOAT32)) {
+    invalid('orbitingDamage requires non-negative finite Float32-safe damage.');
+  }
+  if (!(typeof template.radius === 'number' && Number.isFinite(template.radius)
+    && template.radius > 0 && template.radius <= MAX_FLOAT32)) {
+    invalid('orbitingDamage requires a positive finite Float32-safe orbit radius.');
+  }
+  if (!(typeof template.range === 'number' && Number.isFinite(template.range)
+    && template.range > 0 && template.range <= MAX_FLOAT32)) {
+    invalid('orbitingDamage requires a positive finite Float32-safe contact range.');
+  }
+  if (!(typeof template.speed === 'number' && Number.isFinite(template.speed) && template.speed > 0)) {
+    invalid('orbitingDamage requires a positive finite angular speed.');
+  }
+  if (template.speed !== undefined && Math.abs(template.speed) > MAX_FLOAT32) {
+    invalid('orbitingDamage angular speed must be Float32-safe.');
+  }
+}
+
 function validateBehavior(
   subjectId: string,
   behavior: BehaviorDefinition,
@@ -257,6 +297,7 @@ function validateBehavior(
       validateTemplateNumbers(subjectId, behavior.emit, issues);
       validateChainDamageTemplate(subjectId, behavior.emit, issues);
       validateMeleeArcTemplate(subjectId, behavior.emit, issues);
+      validateOrbitingDamageTemplate(subjectId, behavior.emit, issues);
       break;
     }
     case 'multiPhase': {
@@ -292,6 +333,7 @@ function validateBehavior(
           validateTemplateNumbers(phaseSubject, phase.emit, issues);
           validateChainDamageTemplate(phaseSubject, phase.emit, issues);
           validateMeleeArcTemplate(phaseSubject, phase.emit, issues);
+          validateOrbitingDamageTemplate(phaseSubject, phase.emit, issues);
         }
       }
       break;
@@ -317,6 +359,7 @@ function validateBehavior(
       validateMovementTrailZoneTemplate(subjectId, behavior.emit, issues);
       validateChainDamageTemplate(subjectId, behavior.emit, issues);
       validateMeleeArcTemplate(subjectId, behavior.emit, issues);
+      validateOrbitingDamageTemplate(subjectId, behavior.emit, issues);
       break;
     }
   }

@@ -83,7 +83,7 @@ total:
 | **Porcupine Quills** | Targeted quill burst | More, faster quills |
 | **Puffer Pouch** | Gather nearby enemies | Wider push pulse |
 | **Electric Eel Coil** | Instant strike on the nearest threat, then chain to 1 nearby unhit foe | Instant strike on the nearest threat, then chain to 3 nearby unhit foes |
-| **Firefly Colony** | Six radial sparks | Ten stronger radial sparks |
+| **Firefly Colony** | Two fireflies orbit Greg and zap enemies on contact | Four fireflies orbit wider and zap nearby enemies |
 | **Mantis Scythes** | Auto-aimed narrow scythe sweep | Wider, stronger auto-aimed scythe sweep |
 | **Gecko Pads** | After traveling 150 units, create a damaging pad at Greg's feet; it does not slow enemies | After traveling 110 units, create a stronger damaging pad at Greg's feet; it does not slow enemies |
 

@@ -14,7 +14,7 @@
  * electric-eel-coil (socket: tail)
  *   bud/adapted: instant, never-miss lightning that chains through nearby foes.
  * firefly-colony (socket: bodyOrbit)
- *   bud/adapted: autonomous radial spark bursts.
+ *   bud/adapted: orbiting fireflies that damage enemies on contact.
  * mantis-scythes (socket: leftShoulder)
  *   bud/adapted: auto-aimed directional scythe sweeps at nearby threats.
  * gecko-pads (socket: rightShoulder)
@@ -149,26 +149,30 @@ export const ELECTRIC_EEL_COIL: TraitDefinition = {
 };
 
 /**
- * A radial attack which keeps pressure off Greg without duplicating Quills'
- * targeted spread. Its simple supported burst can later graduate to orbiting
- * projectiles without changing the acquisition or evolution rules.
+ * A true orbit/contact family: the fireflies occupy Greg's space, damage the
+ * nearest enemy at each contact pulse, and never become another aimed bolt.
+ * `speed` is angular radians per tick; the executor derives each firefly's
+ * position from the authoritative command tick, so replay never needs a
+ * persistent companion pool.
  */
 export const FIREFLY_COLONY: TraitDefinition = {
   id: TRAIT_IDS.fireflyColony,
   sockets: ['bodyOrbit'],
-  tags: ['light', 'projectile'],
+  tags: ['light', 'orbit', 'defensive'],
   stages: {
     bud: {
       visualKey: 'firefly-colony:bud',
       behavior: {
         kind: 'periodicBurst',
-        periodTicks: 120,
+        periodTicks: 30,
         emit: {
-          kind: 'radialProjectileBurst',
+          kind: 'orbitingDamage',
           targeting: 'none',
-          count: 6,
+          count: 2,
           damage: 3,
-          speed: 6,
+          speed: (Math.PI * 2) / 120,
+          radius: 50,
+          range: 18,
           facing: 0,
         },
       },
@@ -177,13 +181,15 @@ export const FIREFLY_COLONY: TraitDefinition = {
       visualKey: 'firefly-colony:adapted',
       behavior: {
         kind: 'periodicBurst',
-        periodTicks: 80,
+        periodTicks: 24,
         emit: {
-          kind: 'radialProjectileBurst',
+          kind: 'orbitingDamage',
           targeting: 'none',
-          count: 10,
-          damage: 5,
-          speed: 8,
+          count: 4,
+          damage: 4,
+          speed: (Math.PI * 2) / 96,
+          radius: 64,
+          range: 20,
           facing: 0,
         },
       },

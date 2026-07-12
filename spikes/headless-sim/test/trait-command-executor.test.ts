@@ -154,6 +154,40 @@ test('executes an evenly spaced sixteen-shot radial burst', () => {
   }
 });
 
+test('orbiting damage derives firefly positions from the command tick and never double-hits one target', () => {
+  const { context, grid } = setup();
+  const north = spawnEnemy(context, grid, 0, 10);
+  const south = spawnEnemy(context, grid, 0, -10);
+  const stats = createTraitCommandExecutor().execute(source(command({
+    kind: 'orbitingDamage',
+    tick: 7,
+    count: 2,
+    damage: 4,
+    radius: 10,
+    range: 1,
+    speed: Math.PI / 2,
+  })), context);
+
+  assert.equal(stats.orbitingDamageCommands, 1);
+  assert.equal(stats.orbitingDamageHits, 2);
+  assert.equal(context.enemies.data.hp[north], 6);
+  assert.equal(context.enemies.data.hp[south], 6);
+
+  const repeat = setup();
+  const single = spawnEnemy(repeat.context, repeat.grid, 0, 0);
+  const repeatStats = createTraitCommandExecutor().execute(source(command({
+    kind: 'orbitingDamage',
+    tick: 7,
+    count: 4,
+    damage: 3,
+    radius: 5,
+    range: 6,
+    speed: Math.PI / 2,
+  })), repeat.context);
+  assert.equal(repeatStats.orbitingDamageHits, 1, 'one pulse cannot hit a target twice');
+  assert.equal(repeat.context.enemies.data.hp[single], 7);
+});
+
 test('gather pulls only enemies in radius toward the origin and refreshes the grid', () => {
   const { context, grid } = setup();
   const near = spawnEnemy(context, grid, 10, 0);

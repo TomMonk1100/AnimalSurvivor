@@ -66,7 +66,7 @@ families:
 - **Puffer Pouch** — gather, then Adapted push control.
 - **Electric Eel Coil** — instant strike on the nearest threat, then chains to
   nearby unhit foes (1 at Bud, 3 at Adapted).
-- **Firefly Colony** — radial sparks.
+- **Firefly Colony** — orbiting fireflies that zap enemies when they make contact.
 - **Mantis Scythes** — an auto-aimed narrow scythe sweep; Adapted widens and strengthens it.
 - **Gecko Pads** — after Greg travels 150 units, creates a damaging pad at his
   feet; Adapted pads recur after 110 units. The pads damage but do not slow.
@@ -96,7 +96,7 @@ read as upgrades to every attack.
    and the immediate goal? Is the lack of repeated “what just fired” text a
    relief, or do you miss important information?
 4. **Attack choices.** Pick at least two different attacks if offered. Can you
-   tell what Quills, Puffer, Coil, Firefly, Mantis Scythes, and Gecko Pads are
+   tell what Quills, Puffer, Coil, orbiting Firefly, Mantis Scythes, and Gecko Pads are
    meant to do from their cards and their first use? Does Mantis visibly sweep
    toward its target without implying damage behind Greg? Does Gecko Pads clearly
    read as damaging movement trail rather than a slow? Circle tightly around a

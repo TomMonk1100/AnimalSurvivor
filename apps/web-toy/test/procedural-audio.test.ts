@@ -134,6 +134,20 @@ describe('procedural audio', () => {
     expect(context.gains.map((gain) => gain.gain.values[1]?.[1])).toEqual([0.038, 0.026]);
   });
 
+  it('gives orbiting fireflies a soft defensive shimmer distinct from Mantis and lightning', () => {
+    const context = new FakeAudioContext();
+    const audio = createProceduralAudio({ createContext: () => context });
+
+    audio.setEnabled(true);
+    audio.play('orbit');
+
+    expect(context.oscillators.map((oscillator) => oscillator.frequency.values[0])).toEqual([
+      ['set', 523.25, 2],
+      ['set', 783.99, 2.024],
+    ]);
+    expect(context.oscillators.map((oscillator) => oscillator.type)).toEqual(['sine', 'triangle']);
+  });
+
   it('uses unmistakably distinct terminal fanfare and defeat stinger profiles', () => {
     const context = new FakeAudioContext();
     const audio = createProceduralAudio({ createContext: () => context });

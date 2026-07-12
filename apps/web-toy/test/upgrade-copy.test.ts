@@ -25,6 +25,9 @@ describe('upgrade card copy', () => {
     const adaptedCoil = presentUpgrade({ traitId: 'electric-eel-coil', resultStage: 'adapted' }, []);
     expect(adaptedCoil.description).toBe('Instantly strikes the nearest enemy, then chains to 3 nearby unhit foes.');
 
+    const firefly = presentUpgrade({ traitId: 'firefly-colony', resultStage: 'bud' }, []);
+    expect(firefly.description).toMatch(/orbit Greg.*touch/i);
+
     const colony = presentUpgrade({ traitId: 'firefly-colony', resultStage: 'adapted' }, [
       { sourceId: 'electric-eel-coil', stage: 'adapted', sockets: ['tail'], visualKey: 'electric-eel-coil:adapted', enabled: true },
     ]);

@@ -98,6 +98,12 @@ const TONES: Readonly<Record<AudioCue, ToneProfile>> = Object.freeze({
     { shape: 'sawtooth', frequency: 440, peakGain: 0.038, durationSeconds: 0.075 },
     { shape: 'triangle', frequency: 293.66, peakGain: 0.026, durationSeconds: 0.095, startOffsetSeconds: 0.018 },
   ],
+  // A soft paired shimmer gives orbiting fireflies a defensive identity that
+  // is lighter than Mantis's cut and less urgent than the lightning crack.
+  orbit: [
+    { shape: 'sine', frequency: 523.25, peakGain: 0.026, durationSeconds: 0.06 },
+    { shape: 'triangle', frequency: 783.99, peakGain: 0.02, durationSeconds: 0.08, startOffsetSeconds: 0.024 },
+  ],
   victory: [
     { shape: 'triangle', frequency: 523.25, peakGain: 0.06, durationSeconds: 0.13 },
     { shape: 'triangle', frequency: 659.25, peakGain: 0.072, durationSeconds: 0.15, startOffsetSeconds: 0.1 },

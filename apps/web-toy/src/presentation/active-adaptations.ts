@@ -118,8 +118,8 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     'bud',
     'Firefly Colony',
     'Bud',
-    'Releases a six-spark burst in every direction.',
-    'Every 2 seconds',
+    'Two fireflies orbit Greg and zap the nearest enemy they touch.',
+    'Every 0.5 seconds',
   ),
   'firefly-colony:adapted': definition(
     'firefly-colony:adapted',
@@ -127,8 +127,8 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     'adapted',
     'Firefly Colony',
     'Adapted',
-    'Releases ten stronger sparks in every direction.',
-    'Every 1.3 seconds',
+    'Four fireflies orbit wider and zap nearby enemies on contact.',
+    'Every 0.4 seconds',
   ),
   'thunderbug-dynamo:mythic': definition(
     'thunderbug-dynamo:mythic',

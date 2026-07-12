@@ -50,6 +50,7 @@ export type TraitCommandEffectKind =
   | 'telegraph'
   | 'directed-burst'
   | 'radial-burst'
+  | 'orbiting-damage'
   | 'gather'
   | 'knockback'
   | 'area-damage'
@@ -113,6 +114,10 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
     kind: 'radial-burst', material: 'radial-burst', motion: 'expand', lifetimeTicks: 14,
     fallbackRadius: 62, minimumRadius: 16, maximumRadius: 180, directed: false,
   },
+  'orbiting-damage': {
+    kind: 'orbiting-damage', material: 'orbiting-damage', motion: 'pulse', lifetimeTicks: 30,
+    fallbackRadius: 50, minimumRadius: 20, maximumRadius: 120, directed: false,
+  },
   gather: {
     kind: 'gather', material: 'gather', motion: 'contract', lifetimeTicks: 15,
     fallbackRadius: 80, minimumRadius: 18, maximumRadius: 260, directed: false,
@@ -153,6 +158,7 @@ const COLORS: Readonly<Record<EffectMaterial, pc.Color>> = Object.freeze({
   'thunderbug-telegraph': new pc.Color(0.3, 0.66, 1),
   'directed-burst': new pc.Color(1, 0.8, 0.16),
   'radial-burst': new pc.Color(0.92, 0.48, 1),
+  'orbiting-damage': new pc.Color(0.42, 1, 0.3),
   gather: new pc.Color(0.18, 0.85, 1),
   knockback: new pc.Color(1, 0.3, 0.12),
   'area-damage': new pc.Color(1, 0.16, 0.26),
@@ -171,6 +177,7 @@ const OPACITY: Readonly<Record<EffectMaterial, number>> = Object.freeze({
   'thunderbug-telegraph': 0.34,
   'directed-burst': 0.72,
   'radial-burst': 0.62,
+  'orbiting-damage': 0.9,
   gather: 0.42,
   knockback: 0.5,
   'area-damage': 0.66,
@@ -209,6 +216,9 @@ const MELEE_ARC_OUTER_RADIUS = RING_RADIUS + MELEE_ARC_TUBE_RADIUS;
 const MELEE_ARC_HEIGHT = 1.18;
 const MELEE_ARC_SEGMENTS = 18;
 const MELEE_ARC_SIDES = 6;
+const FIREFLY_ORBIT_HEIGHT = 2.35;
+const FIREFLY_ORBIT_SIZE = 1.7;
+const FIREFLY_ORBIT_MAX_COUNT = 16;
 const GENERIC_MELEE_SLASH_HEIGHT = 1.22;
 const GENERIC_MELEE_SLASH_THICKNESS = 0.22;
 
@@ -259,6 +269,7 @@ export function projectTraitCommandEffect(event: TraitCommandPresentationEvent):
           : PROFILES.telegraph;
     case 'spawnProjectileBurst': return PROFILES['directed-burst'];
     case 'radialProjectileBurst': return PROFILES['radial-burst'];
+    case 'orbitingDamage': return PROFILES['orbiting-damage'];
     case 'areaGather': return PROFILES.gather;
     case 'areaKnockback': return PROFILES.knockback;
     case 'applyAreaDamage': return PROFILES['area-damage'];
@@ -426,6 +437,21 @@ interface GenericMeleeSlashSlot {
   yawDegrees: number;
 }
 
+interface OrbitingDamageSlot {
+  readonly entity: pc.Entity;
+  readonly meshInstance: pc.MeshInstance;
+  active: boolean;
+  tick: number;
+  expiresAtTick: number;
+  originX: number;
+  originY: number;
+  count: number;
+  index: number;
+  radius: number;
+  speed: number;
+  facing: number;
+}
+
 function resetSlot(slot: EffectSlot): void {
   slot.active = false;
   slot.profile = null;
@@ -443,6 +469,11 @@ function resetMeleeArcSlot(slot: MeleeArcSlot): void {
 }
 
 function resetGenericMeleeSlashSlot(slot: GenericMeleeSlashSlot): void {
+  slot.active = false;
+  slot.entity.enabled = false;
+}
+
+function resetOrbitingDamageSlot(slot: OrbitingDamageSlot): void {
   slot.active = false;
   slot.entity.enabled = false;
 }
@@ -502,6 +533,13 @@ export function createTraitCommandPresentation(
   const chainLightningMesh = pc.Mesh.fromGeometry(device, new pc.BoxGeometry({
     halfExtents: new pc.Vec3(0.5, 0.5, 0.5),
   }));
+  // Fireflies stay above the ground plane so their orbit reads as a defensive
+  // ring of companions instead of another radial projectile burst.
+  const orbitingDamageMesh = pc.Mesh.fromGeometry(device, new pc.SphereGeometry({
+    radius: 0.5,
+    latitudeBands: 8,
+    longitudeBands: 8,
+  }));
 
   const slots: EffectSlot[] = [];
   for (let index = 0; index < capacity; index++) {
@@ -551,6 +589,22 @@ export function createTraitCommandPresentation(
     });
   }
 
+  const orbitingDamageSlots: OrbitingDamageSlot[] = [];
+  const orbitingDamageCapacity = Math.max(4, Math.min(FIREFLY_ORBIT_MAX_COUNT, capacity));
+  for (let index = 0; index < orbitingDamageCapacity; index++) {
+    const entity = new pc.Entity(`firefly-orbit-${index}`);
+    const meshInstance = new pc.MeshInstance(orbitingDamageMesh, materials.get('orbiting-damage')!);
+    entity.addComponent('render', {
+      meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
+    });
+    entity.enabled = false;
+    parent.addChild(entity);
+    orbitingDamageSlots.push({
+      entity, meshInstance, active: false, tick: 0, expiresAtTick: 0,
+      originX: 0, originY: 0, count: 1, index: 0, radius: 0, speed: 0, facing: 0,
+    });
+  }
+
   const chainSegmentCapacity = Math.min(
     DEFAULT_CHAIN_LIGHTNING_SEGMENT_CAPACITY,
     Math.max(8, capacity * 8),
@@ -579,6 +633,7 @@ export function createTraitCommandPresentation(
       for (const slot of variantSlots) resetMeleeArcSlot(slot);
     }
     for (const slot of genericMeleeSlashSlots) resetGenericMeleeSlashSlot(slot);
+    for (const slot of orbitingDamageSlots) resetOrbitingDamageSlot(slot);
     for (const slot of chainLightningSlots) resetChainLightningSlot(slot);
     overflowCount = 0;
     lastTick = -1;
@@ -663,6 +718,29 @@ export function createTraitCommandPresentation(
     );
     slot.entity.setLocalEulerAngles(0, slot.yawDegrees, 0);
     slot.entity.setLocalScale(width, GENERIC_MELEE_SLASH_THICKNESS, length);
+    slot.entity.enabled = true;
+  }
+
+  function updateOrbitingDamageSlot(slot: OrbitingDamageSlot, tick: number): void {
+    if (!slot.active) return;
+    if (tick >= slot.expiresAtTick) {
+      resetOrbitingDamageSlot(slot);
+      return;
+    }
+    const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    const angle = slot.facing
+      + (slot.speed % (Math.PI * 2)) * (tick % 1_000_000)
+      + Math.PI * 2 * slot.index / slot.count;
+    const x = slot.originX + Math.cos(angle) * slot.radius;
+    const y = slot.originY + Math.sin(angle) * slot.radius;
+    const scale = FIREFLY_ORBIT_SIZE * (0.86 + Math.sin(progress * Math.PI) * 0.18);
+    slot.meshInstance.material = materials.get('orbiting-damage')!;
+    slot.entity.setLocalPosition(
+      x - worldHalfWidth,
+      FIREFLY_ORBIT_HEIGHT + Math.sin(progress * Math.PI * 2) * 0.12,
+      worldHalfHeight - y,
+    );
+    slot.entity.setLocalScale(scale, scale, scale);
     slot.entity.enabled = true;
   }
 
@@ -771,6 +849,43 @@ export function createTraitCommandPresentation(
     slot.yawDegrees = resolveYawDegrees(event);
   }
 
+  function startOrbitingDamage(
+    event: TraitCommandPresentationEvent,
+    profile: TraitCommandEffectProfile,
+    currentTick: number,
+  ): void {
+    const emittedTick = normalizedTick(event.tick);
+    const lifetimeTicks = resolveLifetime(event, profile);
+    if (emittedTick + lifetimeTicks <= currentTick) return;
+    const count = Math.max(1, Math.min(
+      FIREFLY_ORBIT_MAX_COUNT,
+      Math.floor(finiteOr(event.count, 1)),
+    ));
+    let free = 0;
+    for (const slot of orbitingDamageSlots) {
+      if (!slot.active) free++;
+    }
+    if (free < count) {
+      overflowCount++;
+      return;
+    }
+    let assigned = 0;
+    for (const slot of orbitingDamageSlots) {
+      if (slot.active) continue;
+      slot.active = true;
+      slot.tick = emittedTick;
+      slot.expiresAtTick = emittedTick + lifetimeTicks;
+      slot.originX = finiteOr(event.originX, 0);
+      slot.originY = finiteOr(event.originY, 0);
+      slot.count = count;
+      slot.index = assigned++;
+      slot.radius = resolveTraitCommandEffectRadius(event, profile);
+      slot.speed = finiteOr(event.speed, 0);
+      slot.facing = finiteOr(event.facing, 0);
+      if (assigned >= count) break;
+    }
+  }
+
   function startChainLightning(event: TraitCommandPresentationEvent, currentTick: number): void {
     const hitCount = resolvedChainHitCount(event);
     if (hitCount === 0) return;
@@ -821,6 +936,7 @@ export function createTraitCommandPresentation(
         for (const slot of variantSlots) updateMeleeArcSlot(slot, tick);
       }
       for (const slot of genericMeleeSlashSlots) updateGenericMeleeSlashSlot(slot, tick);
+      for (const slot of orbitingDamageSlots) updateOrbitingDamageSlot(slot, tick);
       for (const slot of chainLightningSlots) updateChainLightningSlot(slot, tick);
       for (const event of events) {
         const profile = projectTraitCommandEffect(event);
@@ -829,6 +945,8 @@ export function createTraitCommandPresentation(
           startChainLightning(event, tick);
         } else if (profile.kind === 'melee-arc') {
           startMeleeArc(event, profile, tick);
+        } else if (profile.kind === 'orbiting-damage') {
+          startOrbitingDamage(event, profile, tick);
         } else {
           start(event, profile, tick);
         }
@@ -839,6 +957,7 @@ export function createTraitCommandPresentation(
         for (const slot of variantSlots) updateMeleeArcSlot(slot, tick);
       }
       for (const slot of genericMeleeSlashSlots) updateGenericMeleeSlashSlot(slot, tick);
+      for (const slot of orbitingDamageSlots) updateOrbitingDamageSlot(slot, tick);
       for (const slot of chainLightningSlots) updateChainLightningSlot(slot, tick);
       lastTick = tick;
     },
@@ -849,6 +968,7 @@ export function createTraitCommandPresentation(
         for (const slot of variantSlots) slot.entity.destroy();
       }
       for (const slot of genericMeleeSlashSlots) slot.entity.destroy();
+      for (const slot of orbitingDamageSlots) slot.entity.destroy();
       for (const slot of chainLightningSlots) slot.entity.destroy();
       // Each mesh instance decrements the shared mesh's reference count on
       // entity destruction, so the last one releases each shared GPU mesh.

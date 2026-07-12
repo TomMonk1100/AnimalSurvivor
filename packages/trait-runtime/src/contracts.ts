@@ -46,6 +46,7 @@ export interface SeededRng {
 export type CommandKind =
   | 'spawnProjectileBurst'
   | 'radialProjectileBurst'
+  | 'orbitingDamage'
   | 'areaGather'
   | 'areaKnockback'
   | 'applyAreaDamage'
@@ -60,6 +61,7 @@ export type CommandKind =
 export const COMMAND_KINDS: readonly CommandKind[] = [
   'spawnProjectileBurst',
   'radialProjectileBurst',
+  'orbitingDamage',
   'areaGather',
   'areaKnockback',
   'applyAreaDamage',

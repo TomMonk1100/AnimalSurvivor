@@ -40,7 +40,7 @@ report on the remaining overlap and the smallest next set of distinct families.
 | Porcupine Quills | aimed fan of 5/9 physical projectiles | defensive forward cone / crowd pressure |
 | Puffer Pouch | gather pulse at Bud; knockback pulse at Adapted | positioning and crowd control |
 | Electric Eel Coil | instant nearest-target strike; Bud chains once, Adapted chains three times | guaranteed strike / chain damage |
-| Firefly Colony | 6/10 radial physical sparks | all-direction escape pressure |
+| Firefly Colony | 2/4 orbiting contact fireflies | defensive space control while moving |
 | Mantis Scythes | instant nearest-target directional scythe arc | proximity risk/reward / front-sector cleave |
 | Gecko Pads | damaging zones deposited only after player movement | kiting / route control |
 | Thunderbug Dynamo | telegraph then an eight-target chain discharge | Coil + Firefly Mythic payoff |

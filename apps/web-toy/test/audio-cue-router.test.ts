@@ -4,6 +4,7 @@ import {
   ATTACK_AUDIO_MIN_INTERVAL_TICKS,
   LIGHTNING_AUDIO_MIN_INTERVAL_TICKS,
   MELEE_AUDIO_MIN_INTERVAL_TICKS,
+  ORBIT_AUDIO_MIN_INTERVAL_TICKS,
   PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS,
   PICKUP_AUDIO_MIN_INTERVAL_TICKS,
   createAudioCueRouter,
@@ -56,6 +57,10 @@ function lightning(tick: number, resolvedHitCount = 1) {
 
 function melee(tick: number, meleeArcResolved = true, dirX = 1, dirY = 0) {
   return { kind: 'meleeArc', tick, meleeArcResolved, dirX, dirY };
+}
+
+function orbit(tick: number) {
+  return { kind: 'orbitingDamage', tick };
 }
 
 describe('audio cue router', () => {
@@ -235,6 +240,32 @@ describe('audio cue router', () => {
     });
 
     expect(played).toEqual(['attack']);
+  });
+
+  it('routes orbiting firefly contact after urgent strikes and rate-limits its shimmer', () => {
+    const played: AudioCue[] = [];
+    const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
+
+    router.observe({
+      tick: 10,
+      combatFeedback: feedback(10, [attack(10), pickup(10)]),
+      traitPresentationEvents: [orbit(10)],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: 10 + ORBIT_AUDIO_MIN_INTERVAL_TICKS - 1,
+      combatFeedback: feedback(10 + ORBIT_AUDIO_MIN_INTERVAL_TICKS - 1),
+      traitPresentationEvents: [orbit(10 + ORBIT_AUDIO_MIN_INTERVAL_TICKS - 1)],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: 10 + ORBIT_AUDIO_MIN_INTERVAL_TICKS,
+      combatFeedback: feedback(10 + ORBIT_AUDIO_MIN_INTERVAL_TICKS),
+      traitPresentationEvents: [orbit(10 + ORBIT_AUDIO_MIN_INTERVAL_TICKS)],
+      runOutcome: 'running',
+    });
+
+    expect(played).toEqual(['orbit', 'orbit']);
   });
 
   it('lets sparse attack punctuation through a steady pickup stream', () => {
