@@ -17,6 +17,18 @@ describe('upgrade card copy', () => {
     expect(pouch.description).toMatch(/Thornstorm Mantle/);
   });
 
+  it('explains the second attack pair and its Thunderbug evolution', () => {
+    const coil = presentUpgrade({ traitId: 'electric-eel-coil', resultStage: 'bud' }, []);
+    expect(coil).toMatchObject({ title: 'Electric Eel Coil', badge: 'NEW ATTACK', socket: 'Tail attachment' });
+    expect(coil.description).toMatch(/two charged bolts/i);
+
+    const colony = presentUpgrade({ traitId: 'firefly-colony', resultStage: 'adapted' }, [
+      { sourceId: 'electric-eel-coil', stage: 'adapted', sockets: ['tail'], visualKey: 'electric-eel-coil:adapted', enabled: true },
+    ]);
+    expect(colony.badge).toBe('MYTHIC READY');
+    expect(colony.description).toMatch(/Thunderbug Dynamo/);
+  });
+
   it('describes truthful neutral and Essence fallback cards without pretending they are body traits', () => {
     expect(presentRunUpgrade({
       kind: 'universal', id: 'universal:xp-magnet', upgradeId: 'xp-magnet', currentRank: 1, nextRank: 2, maxRank: 5,

@@ -5,10 +5,10 @@
 import type { EnemyArchetype, WaveSegment } from './types.js';
 import { createHashWriter } from './state-hash.js';
 
-// Version 7 changes authoritative run behavior: tick-zero director spawns
-// execute immediately, dead players cannot acquire XP, and idle cooldowns
-// clamp at zero. Old records must reject rather than silently diverge.
-export const CONFIG_VERSION = 7;
+// Version 8 changes authoritative run behavior: five-passive build locking,
+// Forest Arsenal trait commands, and universal damage/cadence now apply to
+// every active attack. Old records must reject rather than silently diverge.
+export const CONFIG_VERSION = 8;
 
 export interface WeaponConfig {
   /** Ticks between automatic shots. */

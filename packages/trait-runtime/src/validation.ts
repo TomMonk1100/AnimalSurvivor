@@ -204,6 +204,17 @@ export function validateCatalog(_catalog: Catalog): ValidationResult {
   const issues: ValidationIssue[] = [];
   const visualKeyOwners: Map<string, string[]> = new Map();
 
+  if (
+    _catalog.maxActiveTraits !== undefined
+    && (!Number.isSafeInteger(_catalog.maxActiveTraits) || _catalog.maxActiveTraits < 1)
+  ) {
+    pushIssue(
+      issues,
+      'invalidLoadoutLimit',
+      'maxActiveTraits must be a positive safe integer when provided.',
+    );
+  }
+
   function recordVisualKey(key: string, owner: string): void {
     const owners = visualKeyOwners.get(key);
     if (owners) {

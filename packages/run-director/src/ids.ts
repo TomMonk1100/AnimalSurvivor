@@ -92,7 +92,7 @@ export const CONTENT_VERSION = 2 as const;
 
 /** Frozen run timing constants. Tests lock these exactly. */
 export const TICKS_PER_SECOND = 60 as const;
-/** 12 minutes @ 60Hz. Authored run duration boundary. */
-export const RUN_DURATION_TICKS = 43_200 as const;
-/** 10 minutes @ 60Hz. Gives normal mode a two-minute boss-fight runway. */
-export const BOSS_ENTRANCE_TICK = 36_000 as const;
+/** 8 minutes @ 60Hz. Authored run duration boundary. */
+export const RUN_DURATION_TICKS = 28_800 as const;
+/** 6:30 @ 60Hz. Gives normal mode a focused 90-second boss-fight runway. */
+export const BOSS_ENTRANCE_TICK = 23_400 as const;

@@ -12,7 +12,7 @@
  */
 import { DEFAULT_CONFIG, UNIVERSAL_UPGRADE_CATALOG, xpRequiredForNextLevel } from '@sim';
 import type { RunDirectorFactory, SimConfig, TraitRuntimeFactory } from '@sim';
-import { GREG_VERTICAL_SLICE_CATALOG, TraitRuntime } from '@traits';
+import { GREG_FOREST_ARSENAL_CATALOG, TraitRuntime } from '@traits';
 import { RunDirector } from '@director';
 import type { HudStats, InputSource } from './contracts';
 import { createSimDriver, MAX_CATCHUP_TICKS, type SimDriver } from './sim/simulation-driver';
@@ -24,7 +24,7 @@ import { createPerformanceMonitor } from './diagnostics/performance-monitor';
 import { createHud } from './diagnostics/debug-hud';
 import type { RendererAdapter } from './contracts';
 import { projectDirectorEvent, type DirectorNotice } from './presentation/director-notices';
-import { presentActiveAdaptations } from './presentation/active-adaptations';
+import { presentActiveAttackLoadout } from './presentation/active-attacks';
 import { presentBossHealth } from './presentation/boss-health';
 import { presentRunSummary } from './presentation/run-summary';
 import { presentRunUpgrade } from './presentation/upgrade-copy';
@@ -66,7 +66,7 @@ export interface AppHandle {
 const HUD_INTERVAL_MS = 250;
 const RESOLUTION_NOTE = 'local hardware evidence — not a universal pass threshold';
 const traitRuntimeFactory: TraitRuntimeFactory = ({ seed, initialTick }) =>
-  new TraitRuntime({ seed, initialTick, catalog: GREG_VERTICAL_SLICE_CATALOG });
+  new TraitRuntime({ seed, initialTick, catalog: GREG_FOREST_ARSENAL_CATALOG });
 const runDirectorFactory: RunDirectorFactory = ({ seed }) => new RunDirector({ seed });
 
 /** Defers browser-storage access so restricted/private modes stay non-fatal. */
@@ -93,10 +93,10 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const renderStressMode = params.get('renderstress') === '1';
   const diagnosticsMode = params.get('debug') === '1';
   // The default stress pass stays a quick five simulated minutes. `fullrun=1`
-  // continues until a terminal outcome, no later than the 12-minute normal
+  // continues until a terminal outcome, no later than the 8-minute normal
   // boundary, so the boss encounter can be checked through the same harness.
   const fullRunStressMode = params.get('fullrun') === '1';
-  const stressStopTicks = config.hz * 60 * (fullRunStressMode ? 12 : 5);
+  const stressStopTicks = config.hz * 60 * (fullRunStressMode ? 8 : 5);
   const seedParam = params.get('seed');
   const initialSeed = seedParam
     ? /^\d+$/.test(seedParam)
@@ -131,6 +131,11 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const introSoundToggle = document.getElementById('run-intro-sound-toggle') as HTMLInputElement;
   const introSoundStatus = document.getElementById('run-intro-sound-status') as HTMLElement;
   const introStartButton = document.getElementById('run-intro-start') as HTMLButtonElement;
+
+  // Build details belong in the pause panel. Keeping this legacy mount empty
+  // prevents the repeated on-screen move descriptions from obscuring play.
+  adaptationsRoot.replaceChildren();
+  adaptationsRoot.hidden = true;
 
   const profileStore = createProfileStore(browserProfileStorage());
   function simulationOptions() {
@@ -179,14 +184,14 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   let upgradePromptSerial = 0;
   let syntheticDriverNow = performance.now();
   let renderedOfferKey = '';
-  let renderedAdaptationsKey = '';
   let activeDirectorNotice: DirectorNotice | null = null;
   let renderedDirectorKey = '';
   let renderedBossHealthKey = '';
   let renderedOutcomeKey = '';
 
   function renderPauseNotice(): void {
-    const notice = presentPauseNotice(controls.paused, presentActiveAdaptations(driver.traitVisualState()));
+    const attacks = presentActiveAttackLoadout(driver.traitVisualState());
+    const notice = presentPauseNotice(controls.paused, attacks.cards);
     const universalUpgrades = presentActiveUniversalUpgrades(driver.universalUpgradeRanks);
     pauseNoticeRoot.hidden = notice === null;
     pauseNoticeRoot.replaceChildren();
@@ -200,18 +205,19 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     upgradesTitle.className = 'pause-upgrades-title';
     upgradesTitle.textContent = 'Active upgrades';
     pauseNoticeRoot.appendChild(upgradesTitle);
-    if (notice.upgrades.length === 0 && universalUpgrades.length === 0) {
+    if (attacks.cards.length === 0 && universalUpgrades.length === 0) {
       const empty = document.createElement('span');
       empty.className = 'pause-upgrades-empty';
       empty.textContent = 'No upgrades selected yet.';
       pauseNoticeRoot.appendChild(empty);
       return;
     }
-    for (const upgrade of notice.upgrades) {
+    upgradesTitle.textContent = `Active attacks · ${attacks.slotsUsed}/${attacks.slotCapacity}`;
+    for (const upgrade of attacks.cards) {
       const card = document.createElement('section');
       card.className = 'pause-upgrade-card';
       const cardTitle = document.createElement('strong');
-      cardTitle.textContent = `${upgrade.title} — ${upgrade.stageLabel}`;
+      cardTitle.textContent = `${upgrade.title} — ${upgrade.stageLabel}${upgrade.slotCost > 1 ? ` · ${upgrade.slotCost} slots` : ''}`;
       const effect = document.createElement('span');
       effect.textContent = upgrade.effect;
       const cadence = document.createElement('small');
@@ -222,7 +228,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     if (universalUpgrades.length > 0) {
       const neutralTitle = document.createElement('strong');
       neutralTitle.className = 'pause-upgrades-title';
-      neutralTitle.textContent = 'Neutral run upgrades';
+      neutralTitle.textContent = `Neutral run upgrades · ${driver.universalUpgradeSlotsUsed}/${driver.universalUpgradeSlotCapacity}`;
       pauseNoticeRoot.appendChild(neutralTitle);
       for (const upgrade of universalUpgrades) {
         const card = document.createElement('section');
@@ -350,36 +356,6 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     onUpgradeShortcut(event);
   }
 
-  /** Rebuild only when a deterministic upgrade changes the active build. */
-  function renderAdaptations(): void {
-    const cards = presentActiveAdaptations(driver.traitVisualState());
-    const key = cards.map((card) => `${card.id}:${card.stageLabel}:${card.effect}:${card.cadence}`).join('|');
-    const hidden = cards.length === 0;
-    if (key === renderedAdaptationsKey && adaptationsRoot.hidden === hidden) return;
-    renderedAdaptationsKey = key;
-    adaptationsRoot.replaceChildren();
-    adaptationsRoot.hidden = hidden;
-    if (hidden) return;
-
-    const heading = document.createElement('strong');
-    heading.className = 'adaptations-title';
-    heading.textContent = 'Active adaptations';
-    adaptationsRoot.appendChild(heading);
-    for (const card of cards) {
-      const root = document.createElement('section');
-      root.className = 'adaptation-card';
-      root.dataset.stage = card.stageLabel;
-      const title = document.createElement('strong');
-      title.textContent = `${card.title} — ${card.stageLabel}`;
-      const effect = document.createElement('span');
-      effect.textContent = card.effect;
-      const cadence = document.createElement('small');
-      cadence.textContent = card.cadence;
-      root.append(title, effect, cadence);
-      adaptationsRoot.appendChild(root);
-    }
-  }
-
   /**
    * Boss health is presentation-only and reads the app-owned current snapshot.
    * The key keeps this static DOM treatment quiet between the HUD's 4 Hz updates.
@@ -470,14 +446,12 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     activeDirectorNotice = null;
     renderedDirectorKey = '';
     renderedOfferKey = '';
-    renderedAdaptationsKey = '';
     renderedBossHealthKey = '';
     renderedOutcomeKey = '';
     upgradePromptSerial = 0;
     audioCueRouter.resetForRestart();
     bossHealthRoot.hidden = true;
     renderUpgradeChoices();
-    renderAdaptations();
     renderRunOutcome();
     renderProfile();
     syntheticDriverNow = performance.now();
@@ -604,13 +578,11 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     activeDirectorNotice = null;
     renderedDirectorKey = '';
     renderedOfferKey = '';
-    renderedAdaptationsKey = '';
     renderedBossHealthKey = '';
     renderedOutcomeKey = '';
     upgradePromptSerial = 0;
     bossHealthRoot.hidden = true;
     renderUpgradeChoices();
-    renderAdaptations();
     renderRunOutcome();
     runStarted = true;
     keyboardInput.clear();
@@ -720,7 +692,6 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       runOutcome: driver.runOutcome,
     });
     renderUpgradeChoices();
-    renderAdaptations();
     renderDirectorNotice();
     renderRunOutcome();
     if (stressMode && driver.tick >= stressStopTicks && !controls.paused) {

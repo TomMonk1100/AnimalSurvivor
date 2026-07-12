@@ -224,6 +224,10 @@ export interface Simulation {
   readonly runEssenceEarned: number;
   /** Immutable universal ranks in the active catalog's canonical order. */
   readonly universalUpgradeRanks: readonly number[];
+  /** Five for a neutral-enabled run; zero when neutral upgrades are disabled. */
+  readonly universalUpgradeSlotCapacity: number;
+  /** Distinct neutral upgrades selected into the current run build. */
+  readonly universalUpgradeSlotsUsed: number;
   readonly pendingUpgradeOffers: readonly RunUpgradeOfferView[];
   readonly upgradeSelectionPending: boolean;
   /**
@@ -439,6 +443,8 @@ export function createSimulation(
   let pickupAttractionRadius = 0;
   let pickupAttractionSpeed = 0;
   let xpGainMultiplier = 1;
+  let traitDamageMultiplier = 1;
+  let traitCooldownMultiplier = 1;
 
   /** Synchronize concrete authoritative stats after a universal card selection. */
   function applyUniversalStats(): void {
@@ -451,6 +457,8 @@ export function createSimulation(
     pickupAttractionSpeed = stats.pickupAttractionSpeed;
     weapon.damage = config.weapon.damage * stats.weaponDamageMultiplier;
     weapon.cooldownTicks = Math.max(1, Math.round(config.weapon.cooldownTicks * stats.weaponCooldownMultiplier));
+    traitDamageMultiplier = stats.weaponDamageMultiplier;
+    traitCooldownMultiplier = stats.weaponCooldownMultiplier;
     xpGainMultiplier = stats.xpMultiplier;
 
     const nextMaxHp = basePlayerMaxHp + stats.maxHpBonus;
@@ -704,6 +712,8 @@ export function createSimulation(
         moveDirX: lastMoveDirX,
         moveDirY: lastMoveDirY,
         distanceMovedThisTick,
+        weaponDamageMultiplier: traitDamageMultiplier,
+        weaponCooldownMultiplier: traitCooldownMultiplier,
       });
       if (player.alive) {
         traitPresentationCommandSource = commands;
@@ -842,6 +852,8 @@ export function createSimulation(
     writer.f32(pickupAttractionRadius);
     writer.f32(pickupAttractionSpeed);
     writer.f64(xpGainMultiplier);
+    writer.f32(traitDamageMultiplier);
+    writer.f32(traitCooldownMultiplier);
     writer.f32(lastMoveDirX);
     writer.f32(lastMoveDirY);
 
@@ -920,6 +932,8 @@ export function createSimulation(
       writer.f64(runUpgradeQueue.selectionCount);
       writer.f64(runUpgradeQueue.essenceEarned);
       writer.f64(runUpgradeQueue.universalOfferCursor);
+      writer.u32(runUpgradeQueue.universalSlotCapacity ?? 0);
+      writer.u32(runUpgradeQueue.universalSlotsUsed ?? 0);
       writer.u32(runUpgradeQueue.pendingOfferCount);
       for (const offer of runUpgradeQueue.pendingOffers) {
         writer.str(offer.kind);
@@ -1003,6 +1017,12 @@ export function createSimulation(
     },
     get universalUpgradeRanks() {
       return runUpgradeQueue?.universalState?.ranks ?? EMPTY_UNIVERSAL_RANKS;
+    },
+    get universalUpgradeSlotCapacity() {
+      return runUpgradeQueue?.universalSlotCapacity ?? 0;
+    },
+    get universalUpgradeSlotsUsed() {
+      return runUpgradeQueue?.universalSlotsUsed ?? 0;
     },
     get pendingUpgradeOffers() {
       return runUpgradeQueue?.pendingOffers ?? EMPTY_RUN_OFFERS;

@@ -32,10 +32,10 @@ export function presentActiveUniversalUpgrades(ranks: readonly number[]): readon
         effect = `+${definition.effect.bonusPerRank * rank} maximum health.`;
         break;
       case 'weaponDamageMultiplier':
-        effect = `+${percent(definition.effect.bonusPerRank * rank)}% base weapon damage.`;
+        effect = `+${percent(definition.effect.bonusPerRank * rank)}% damage for every attack.`;
         break;
       case 'weaponCooldownMultiplier':
-        effect = `-${percent(definition.effect.reductionPerRank * rank)}% base auto-fire cooldown (rounded to fixed ticks).`;
+        effect = `-${percent(definition.effect.reductionPerRank * rank)}% cooldown for every attack (rounded to fixed ticks).`;
         break;
       case 'xpMultiplier':
         effect = `+${percent(definition.effect.bonusPerRank * rank)}% XP gained.`;

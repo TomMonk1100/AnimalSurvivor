@@ -76,6 +76,7 @@ import type { CombatFeedbackSnapshot } from '../presentation/combat-feedback';
 import { createCombatFeedbackPresentation } from './combat-feedback-presentation';
 import { createTraitCommandPresentation } from './trait-command-presentation';
 import { createArenaGridPresentation } from './arena-grid-presentation';
+import { createForestClearingPresentation } from './forest-clearing-presentation';
 
 /** Backing-store size cap: CSS size * min(devicePixelRatio, RESOLUTION_CAP). */
 const RESOLUTION_CAP = 2;
@@ -90,8 +91,8 @@ const CAMERA_HEIGHT = 600;
  */
 const CAMERA_ORTHO_HEIGHT = 360;
 
-/** Matches the page background (#0b0e13) so a dropped frame reads as "empty", not broken. */
-const CLEAR_COLOR = new pc.Color(0.043, 0.055, 0.075);
+/** Matches the forest floor so a dropped frame still reads as intentional terrain. */
+const CLEAR_COLOR = new pc.Color(0.09, 0.17, 0.1);
 
 const PLAYER_COLOR = new pc.Color(0.2, 0.9, 0.95); // cyan
 const CATEGORY_COLORS: Record<ViewCategory, pc.Color> = {
@@ -148,14 +149,25 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
   canvas.addEventListener('webglcontextrestored', onContextRestored, false);
 
   // --- Scene root, camera, materials -----------------------------------
-  const entitiesRoot = new pc.Entity('entities');
-  app.root.addChild(entitiesRoot);
-  const arenaGridPresentation = createArenaGridPresentation(
+  // Environmental art lives in a separate, static root beneath all gameplay
+  // meshes. It has no colliders or render-loop updates, so it cannot affect
+  // deterministic simulation state or compete with pooled entity ownership.
+  const environmentRoot = new pc.Entity('environment');
+  app.root.addChild(environmentRoot);
+  const forestClearingPresentation = createForestClearingPresentation(
     app.graphicsDevice,
-    entitiesRoot,
+    environmentRoot,
     config.worldWidth,
     config.worldHeight,
   );
+  const arenaGridPresentation = createArenaGridPresentation(
+    app.graphicsDevice,
+    environmentRoot,
+    config.worldWidth,
+    config.worldHeight,
+  );
+  const entitiesRoot = new pc.Entity('entities');
+  app.root.addChild(entitiesRoot);
 
   const camera = new pc.Entity('camera');
   camera.addComponent('camera', {
@@ -482,6 +494,7 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     combatFeedbackPresentation.dispose();
     gregPresentation.dispose();
     arenaGridPresentation.dispose();
+    forestClearingPresentation.dispose();
     app.destroy();
   }
 

@@ -12,11 +12,22 @@ export const GREG_ATTACHMENT_VISUAL_KEYS = Object.freeze([
   'puffer-pouch:bud',
   'puffer-pouch:adapted',
   'thornstorm-mantle:mythic',
+  'electric-eel-coil:bud',
+  'electric-eel-coil:adapted',
+  'firefly-colony:bud',
+  'firefly-colony:adapted',
+  'thunderbug-dynamo:mythic',
 ] as const);
 
 export type GregAttachmentVisualKey = (typeof GREG_ATTACHMENT_VISUAL_KEYS)[number];
 export type GregAttachmentStage = 'bud' | 'adapted' | 'mythic';
-export type GregAttachmentFamily = 'porcupine-quills' | 'puffer-pouch' | 'thornstorm-mantle';
+export type GregAttachmentFamily =
+  | 'porcupine-quills'
+  | 'puffer-pouch'
+  | 'thornstorm-mantle'
+  | 'electric-eel-coil'
+  | 'firefly-colony'
+  | 'thunderbug-dynamo';
 export type GregPrimitiveShape = 'sphere' | 'cone' | 'cylinder';
 export type GregMaterialRole =
   | 'quillPrimary'
@@ -24,7 +35,12 @@ export type GregMaterialRole =
   | 'pufferPrimary'
   | 'pufferAccent'
   | 'mythicThorn'
-  | 'mythicGlow';
+  | 'mythicGlow'
+  | 'coilPrimary'
+  | 'coilGlow'
+  | 'fireflyPrimary'
+  | 'fireflyGlow'
+  | 'thunderbugCore';
 
 export interface GregPrimitiveTransform {
   readonly position: readonly [x: number, y: number, z: number];
@@ -50,6 +66,7 @@ export interface GregAttachmentVisualRecipe {
 const SHAPES: readonly GregPrimitiveShape[] = ['sphere', 'cone', 'cylinder'];
 const MATERIAL_ROLES: readonly GregMaterialRole[] = [
   'quillPrimary', 'quillAccent', 'pufferPrimary', 'pufferAccent', 'mythicThorn', 'mythicGlow',
+  'coilPrimary', 'coilGlow', 'fireflyPrimary', 'fireflyGlow', 'thunderbugCore',
 ];
 
 function transform(
@@ -107,6 +124,47 @@ const RAW_RECIPES: readonly GregAttachmentVisualRecipe[] = [
       part('spike-top', 'cone', 'pufferAccent', [0, 0.92, 0.78], [0, 0, 0], [0.1, 0.34, 0.1]),
       part('spike-left', 'cone', 'pufferAccent', [-0.82, 0.34, 0.78], [0, 0, -78], [0.1, 0.34, 0.1]),
       part('spike-right', 'cone', 'pufferAccent', [0.82, 0.34, 0.78], [0, 0, 78], [0.1, 0.34, 0.1]),
+    ],
+  },
+  {
+    key: 'electric-eel-coil:bud', family: 'electric-eel-coil', stage: 'bud', parts: [
+      part('coil-base', 'cylinder', 'coilPrimary', [0, 0.08, -0.14], [0, 0, 90], [0.18, 0.5, 0.18]),
+      part('coil-loop-left', 'cylinder', 'coilPrimary', [-0.18, 0.08, -0.04], [90, 0, 0], [0.22, 0.05, 0.22]),
+      part('coil-glow', 'sphere', 'coilGlow', [0.15, 0.18, 0.02], [0, 0, 0], [0.12, 0.12, 0.12]),
+    ],
+  },
+  {
+    key: 'electric-eel-coil:adapted', family: 'electric-eel-coil', stage: 'adapted', parts: [
+      part('coil-base', 'cylinder', 'coilPrimary', [0, 0.08, -0.14], [0, 0, 90], [0.22, 0.62, 0.22]),
+      part('coil-loop-left', 'cylinder', 'coilPrimary', [-0.24, 0.09, -0.04], [90, 0, 0], [0.28, 0.05, 0.28]),
+      part('coil-loop-right', 'cylinder', 'coilPrimary', [0.24, 0.09, -0.04], [90, 0, 0], [0.28, 0.05, 0.28]),
+      part('coil-glow-left', 'sphere', 'coilGlow', [-0.32, 0.2, 0.03], [0, 0, 0], [0.13, 0.13, 0.13]),
+      part('coil-glow-right', 'sphere', 'coilGlow', [0.32, 0.2, 0.03], [0, 0, 0], [0.13, 0.13, 0.13]),
+    ],
+  },
+  {
+    key: 'firefly-colony:bud', family: 'firefly-colony', stage: 'bud', parts: [
+      part('lantern-core', 'sphere', 'fireflyPrimary', [0, 0.18, 0], [0, 0, 0], [0.2, 0.2, 0.2]),
+      part('spark-left', 'sphere', 'fireflyGlow', [-0.42, 0.26, 0.08], [0, 0, 0], [0.11, 0.11, 0.11]),
+      part('spark-right', 'sphere', 'fireflyGlow', [0.42, 0.26, -0.08], [0, 0, 0], [0.11, 0.11, 0.11]),
+    ],
+  },
+  {
+    key: 'firefly-colony:adapted', family: 'firefly-colony', stage: 'adapted', parts: [
+      part('lantern-core', 'sphere', 'fireflyPrimary', [0, 0.2, 0], [0, 0, 0], [0.26, 0.26, 0.26]),
+      part('spark-north', 'sphere', 'fireflyGlow', [0, 0.31, -0.48], [0, 0, 0], [0.12, 0.12, 0.12]),
+      part('spark-east', 'sphere', 'fireflyGlow', [0.48, 0.27, 0], [0, 0, 0], [0.12, 0.12, 0.12]),
+      part('spark-south', 'sphere', 'fireflyGlow', [0, 0.31, 0.48], [0, 0, 0], [0.12, 0.12, 0.12]),
+      part('spark-west', 'sphere', 'fireflyGlow', [-0.48, 0.27, 0], [0, 0, 0], [0.12, 0.12, 0.12]),
+    ],
+  },
+  {
+    key: 'thunderbug-dynamo:mythic', family: 'thunderbug-dynamo', stage: 'mythic', parts: [
+      part('dynamo-core', 'sphere', 'thunderbugCore', [0, 0.15, 0], [0, 0, 0], [0.32, 0.32, 0.32]),
+      part('dynamo-ring', 'cylinder', 'coilPrimary', [0, 0.14, 0], [90, 0, 0], [0.48, 0.05, 0.48]),
+      part('bolt-left', 'cone', 'coilGlow', [-0.42, 0.22, 0], [0, 0, 82], [0.08, 0.42, 0.08]),
+      part('bolt-right', 'cone', 'coilGlow', [0.42, 0.22, 0], [0, 0, -82], [0.08, 0.42, 0.08]),
+      part('dynamo-spark', 'sphere', 'fireflyGlow', [0, 0.5, 0], [0, 0, 0], [0.12, 0.12, 0.12]),
     ],
   },
   {

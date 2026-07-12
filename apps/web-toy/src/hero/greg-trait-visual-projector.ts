@@ -19,6 +19,11 @@ const ANCHOR_BY_VISUAL_KEY: Readonly<Record<string, GregSocketName>> = Object.fr
   'puffer-pouch:bud': 'head',
   'puffer-pouch:adapted': 'head',
   'thornstorm-mantle:mythic': 'back',
+  'electric-eel-coil:bud': 'tail',
+  'electric-eel-coil:adapted': 'tail',
+  'firefly-colony:bud': 'bodyOrbit',
+  'firefly-colony:adapted': 'bodyOrbit',
+  'thunderbug-dynamo:mythic': 'tail',
 });
 
 interface MountedVisual {

@@ -46,6 +46,35 @@ export function presentUpgrade(
       pairingHint: mythicReady ? null : 'Adapt Porcupine Quills too to evolve both into Thornstorm Mantle.',
     };
   }
+  const thunderbugReady = offer.resultStage === 'adapted'
+    && ((offer.traitId === 'electric-eel-coil' && hasAdapted(visualState, 'firefly-colony'))
+      || (offer.traitId === 'firefly-colony' && hasAdapted(visualState, 'electric-eel-coil')));
+  if (offer.traitId === 'electric-eel-coil') {
+    return {
+      title: 'Electric Eel Coil',
+      badge: thunderbugReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
+      socket: 'Tail attachment',
+      description: offer.resultStage === 'bud'
+        ? 'Fires two charged bolts at the nearest enemy.'
+        : thunderbugReady
+          ? 'Completes Thunderbug Dynamo: charge briefly, then unleash a radial lightning storm.'
+          : 'Fires four faster charged bolts at the nearest enemy.',
+      pairingHint: thunderbugReady ? null : 'Adapt Firefly Colony too to evolve both into Thunderbug Dynamo.',
+    };
+  }
+  if (offer.traitId === 'firefly-colony') {
+    return {
+      title: 'Firefly Colony',
+      badge: thunderbugReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
+      socket: 'Orbiting body attachment',
+      description: offer.resultStage === 'bud'
+        ? 'Releases six sparks in every direction.'
+        : thunderbugReady
+          ? 'Completes Thunderbug Dynamo: charge briefly, then unleash a radial lightning storm.'
+          : 'Releases ten stronger sparks in every direction.',
+      pairingHint: thunderbugReady ? null : 'Adapt Electric Eel Coil too to evolve both into Thunderbug Dynamo.',
+    };
+  }
   return {
     title: offer.traitId.split('-').map((part) => part[0]?.toUpperCase() + part.slice(1)).join(' '),
     badge: offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE', socket: 'Body attachment',

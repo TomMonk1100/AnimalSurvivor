@@ -345,7 +345,7 @@ export function xpRequiredForNextLevel(
     : finalThreshold - xpThresholds[authoredCount - 2]!;
   // `tailLevel` starts at 1 for the first threshold after the authored table.
   // The 8-XP triangular increase keeps later levels meaningful without the
-  // sudden wall that a pure exponential curve creates in a twelve-minute run.
+  // sudden wall that a pure exponential curve creates in a long survival run.
   const tailLevel = currentLevel - authoredCount;
   return finalThreshold
     + tailLevel * lastIncrement

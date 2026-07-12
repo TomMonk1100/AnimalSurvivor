@@ -65,4 +65,28 @@ describe('active adaptation presentation', () => {
     expect(cards[0]?.effect).toMatch(/radial quill storm/i);
     expect(cards[0]?.cadence).toContain('telegraph → gather → radial quill storm');
   });
+
+  it('keeps unrelated attacks visible beside a Mythic and supports a second Mythic', () => {
+    const cards = presentActiveAdaptations([
+      visual({ sourceId: 'thornstorm-mantle', stage: 'mythic', sockets: ['head', 'back'], visualKey: 'thornstorm-mantle:mythic' }),
+      visual({ sourceId: 'electric-eel-coil', stage: 'adapted', sockets: ['tail'], visualKey: 'electric-eel-coil:adapted' }),
+      visual({ sourceId: 'firefly-colony', stage: 'bud', sockets: ['bodyOrbit'], visualKey: 'firefly-colony:bud' }),
+    ]);
+
+    expect(cards.map((card) => card.id)).toEqual([
+      'thornstorm-mantle:mythic',
+      'electric-eel-coil:adapted',
+      'firefly-colony:bud',
+    ]);
+
+    const mythics = presentActiveAdaptations([
+      visual({ sourceId: 'thornstorm-mantle', stage: 'mythic', sockets: ['head', 'back'], visualKey: 'thornstorm-mantle:mythic' }),
+      visual({ sourceId: 'thunderbug-dynamo', stage: 'mythic', sockets: ['tail', 'bodyOrbit'], visualKey: 'thunderbug-dynamo:mythic' }),
+    ]);
+    expect(mythics.map((card) => card.id)).toEqual([
+      'thornstorm-mantle:mythic',
+      'thunderbug-dynamo:mythic',
+    ]);
+    expect(mythics[1]?.effect).toMatch(/lightning storm/i);
+  });
 });

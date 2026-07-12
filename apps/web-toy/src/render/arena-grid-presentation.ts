@@ -13,14 +13,17 @@ export interface ArenaGridPresentation {
 export const ARENA_GRID_MINOR_SPACING = 50;
 export const ARENA_GRID_MAJOR_EVERY = 5;
 
-const MINOR_COLOR = new pc.Color(0.075, 0.11, 0.15);
-const MAJOR_COLOR = new pc.Color(0.12, 0.19, 0.26);
-const MINOR_OPACITY = 0.38;
-const MAJOR_OPACITY = 0.58;
-// A small negative world Y keeps the grid beneath gameplay meshes while the
-// top-down camera looks down the -Y axis.
-const MINOR_HEIGHT = -0.42;
-const MAJOR_HEIGHT = -0.4;
+// The forest floor is now the primary movement reference. These lines remain
+// available as a quiet diagnostic aid, but should never read like the arena's
+// main surface during a normal run.
+const MINOR_COLOR = new pc.Color(0.24, 0.33, 0.2);
+const MAJOR_COLOR = new pc.Color(0.34, 0.42, 0.24);
+const MINOR_OPACITY = 0.07;
+const MAJOR_OPACITY = 0.13;
+// A small negative world Y keeps the grid under forest-floor details and
+// gameplay meshes while the top-down camera looks down the -Y axis.
+const MINOR_HEIGHT = -0.66;
+const MAJOR_HEIGHT = -0.65;
 
 interface GridLineBuffers {
   readonly minor: Float32Array;
@@ -165,9 +168,10 @@ function addGridLayer(
 }
 
 /**
- * Creates two fixed world-space line meshes: a quiet 50-unit minor grid and
- * a slightly clearer five-cell major grid. It deliberately has no `update`
- * method, so it cannot allocate or mutate simulation state per rendered frame.
+ * Creates two fixed world-space line meshes: a deliberately subordinate
+ * 50-unit diagnostic grid and a slightly clearer five-cell major cadence. It
+ * deliberately has no `update` method, so it cannot allocate or mutate
+ * simulation state per rendered frame.
  */
 export function createArenaGridPresentation(
   device: pc.GraphicsDevice,

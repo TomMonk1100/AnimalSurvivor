@@ -5,7 +5,7 @@ import type {
   TraitUpgradeApplyResultView,
   TraitUpgradeOfferView,
 } from '../src/trait-runtime-port.js';
-import { createRunUpgradeQueue } from '../src/run-upgrade-queue.js';
+import { PASSIVE_SLOT_CAPACITY, createRunUpgradeQueue } from '../src/run-upgrade-queue.js';
 import { UNIVERSAL_UPGRADE_CATALOG } from '../src/universal-upgrades.js';
 
 const SUCCESS: TraitUpgradeApplyResultView = {
@@ -74,16 +74,16 @@ test('reserves a neutral card when the animal runtime can fill every chooser slo
   ]);
 });
 
-test('rotates universal offers fairly and falls back to repeatable Essence after finite choices', () => {
+test('locks a five-passive build, rotates its ranks fairly, then falls back to Essence', () => {
   const queue = createRunUpgradeQueue(null, {
     universalCatalog: UNIVERSAL_UPGRADE_CATALOG,
     offerCount: 1,
     essenceCacheAmount: 7,
   });
 
-  queue.enqueueLevels(31);
+  queue.enqueueLevels(PASSIVE_SLOT_CAPACITY * 5 + 1);
   const seen = new Set<string>();
-  for (let index = 0; index < 30; index++) {
+  for (let index = 0; index < PASSIVE_SLOT_CAPACITY * 5; index++) {
     const offer = queue.pendingOffers[0]!;
     assert.equal(offer.kind, 'universal');
     if (offer.kind !== 'universal') throw new Error('expected a universal card');
@@ -91,10 +91,16 @@ test('rotates universal offers fairly and falls back to repeatable Essence after
     queue.select(offer.id, index);
   }
   assert.deepEqual([...seen].sort(), [
-    'growth', 'rapid-instinct', 'sharpened-instinct', 'sturdy-hide', 'swift-paws', 'xp-magnet',
+    'rapid-instinct', 'sharpened-instinct', 'sturdy-hide', 'swift-paws', 'xp-magnet',
   ]);
+  assert.equal(queue.universalSlotCapacity, PASSIVE_SLOT_CAPACITY);
+  assert.equal(queue.universalSlotsUsed, PASSIVE_SLOT_CAPACITY);
   assert.deepEqual(queue.pendingOffers, [{ kind: 'essence', id: 'essence-cache', amount: 7 }]);
-  assert.deepEqual(queue.select('essence-cache', 30), { tick: 30, kind: 'essence', id: 'essence-cache' });
+  assert.deepEqual(queue.select('essence-cache', PASSIVE_SLOT_CAPACITY * 5), {
+    tick: PASSIVE_SLOT_CAPACITY * 5,
+    kind: 'essence',
+    id: 'essence-cache',
+  });
   assert.equal(queue.essenceEarned, 7);
   assert.equal(queue.queuedLevels, 0);
   assert.equal(queue.drainedLevels, 0);

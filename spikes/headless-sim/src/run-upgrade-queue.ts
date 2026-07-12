@@ -16,6 +16,14 @@ import {
   type UniversalUpgradeStats,
 } from './universal-upgrades.js';
 
+/**
+ * A normal run can carry five distinct neutral upgrades. Further ranks in an
+ * already selected passive remain legal, but a sixth passive can never crowd
+ * out that build's final Essence fallback. This is a game rule owned by the
+ * run chooser, not by the reusable catalog/rank-state module.
+ */
+export const PASSIVE_SLOT_CAPACITY = 5;
+
 export interface TraitRunUpgradeOffer {
   readonly kind: 'trait';
   /** Stable selection key; kept distinct from universal ids. */
@@ -74,6 +82,10 @@ export interface RunUpgradeQueue {
   readonly universalCatalogFingerprint: string | null;
   readonly universalState: UniversalUpgradeState | null;
   readonly universalStats: UniversalUpgradeStats | null;
+  /** Five for a neutral-enabled normal run; null in trait-only mode. */
+  readonly universalSlotCapacity: number | null;
+  /** Number of distinct neutral upgrades which have claimed a passive slot. */
+  readonly universalSlotsUsed: number | null;
   /** Deterministic fair-rotation cursor for universal card candidates. */
   readonly universalOfferCursor: number;
 
@@ -89,6 +101,29 @@ function traitOfferId(traitId: string): string {
 
 function universalOfferId(upgradeId: string): string {
   return `universal:${upgradeId}`;
+}
+
+function usedUniversalSlots(state: UniversalUpgradeState): number {
+  let used = 0;
+  for (const rank of state.ranks) {
+    if (rank > 0) used++;
+  }
+  return used;
+}
+
+/**
+ * Once five passive families have been selected, retain rank-up offers for
+ * those families while filtering any untouched sixth family. This keeps a
+ * slot occupied even after that passive reaches max rank, matching a
+ * deliberate five-passive build rather than a rotating allowance.
+ */
+function availableRunUniversalOffers(
+  catalog: UniversalUpgradeCatalog,
+  state: UniversalUpgradeState,
+) {
+  const candidates = availableUniversalUpgradeOffers(catalog, state);
+  if (usedUniversalSlots(state) < PASSIVE_SLOT_CAPACITY) return candidates;
+  return candidates.filter((candidate) => candidate.currentRank > 0);
 }
 
 function requirePositiveSafeInteger(name: string, value: number): void {
@@ -131,6 +166,12 @@ class RuntimeRunUpgradeQueue implements RunUpgradeQueue {
     return this.catalog === null || this.universal === null
       ? null
       : resolveUniversalUpgradeStats(this.catalog, this.universal);
+  }
+  get universalSlotCapacity(): number | null {
+    return this.catalog === null ? null : PASSIVE_SLOT_CAPACITY;
+  }
+  get universalSlotsUsed(): number | null {
+    return this.universal === null ? null : usedUniversalSlots(this.universal);
   }
 
   enqueueLevels(count: number): void {
@@ -194,7 +235,7 @@ class RuntimeRunUpgradeQueue implements RunUpgradeQueue {
     const nextOffers: RunUpgradeOfferView[] = [];
     const universalCandidates = this.catalog === null || this.universal === null
       ? []
-      : availableUniversalUpgradeOffers(this.catalog, this.universal);
+      : availableRunUniversalOffers(this.catalog, this.universal);
 
     // With both sources live, reserve a neutral card whenever the chooser has
     // room. Otherwise a full trait offer set would starve universally useful

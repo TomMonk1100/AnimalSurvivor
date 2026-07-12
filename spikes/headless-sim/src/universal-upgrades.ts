@@ -167,7 +167,7 @@ export const STURDY_HIDE: UniversalUpgradeDefinition = frozenDefinition({
 export const SHARPENED_INSTINCT: UniversalUpgradeDefinition = frozenDefinition({
   id: 'sharpened-instinct',
   title: 'Sharpened Instinct',
-  description: '+12% base weapon damage per rank.',
+  description: '+12% damage for every attack per rank.',
   repeatable: true,
   maxRank: 5,
   effect: { kind: 'weaponDamageMultiplier', bonusPerRank: 0.12 },
@@ -176,7 +176,7 @@ export const SHARPENED_INSTINCT: UniversalUpgradeDefinition = frozenDefinition({
 export const RAPID_INSTINCT: UniversalUpgradeDefinition = frozenDefinition({
   id: 'rapid-instinct',
   title: 'Rapid Instinct',
-  description: 'Reduces base auto-fire cooldown by 8% per rank.',
+  description: 'Reduces every attack cooldown by 8% per rank.',
   repeatable: true,
   maxRank: 5,
   effect: { kind: 'weaponCooldownMultiplier', reductionPerRank: 0.08 },

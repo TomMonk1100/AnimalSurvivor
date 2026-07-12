@@ -264,6 +264,12 @@ export interface EvolutionDefinition {
 export interface Catalog {
   traits: readonly TraitDefinition[];
   evolutions: readonly EvolutionDefinition[];
+  /**
+   * Optional cap on independently acquired traits. Disabled Mythic
+   * ingredients remain in state and continue counting, so an evolution never
+   * creates a free active-attack slot.
+   */
+  maxActiveTraits?: number;
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -345,6 +351,10 @@ export interface RuntimeContext {
   moveDirX: number;
   moveDirY: number;
   distanceMovedThisTick: number;
+  /** Optional run-wide neutral multiplier; omitted retains 1x behavior. */
+  weaponDamageMultiplier?: number;
+  /** Optional run-wide attack cadence multiplier; omitted retains 1x behavior. */
+  weaponCooldownMultiplier?: number;
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -357,6 +367,7 @@ export type ApplyOutcome =
   | { ok: false; kind: 'unknownTrait'; traitId: TraitId }
   | { ok: false; kind: 'maxed'; traitId: TraitId }
   | { ok: false; kind: 'alreadyMythic'; traitId: TraitId }
+  | { ok: false; kind: 'loadoutFull'; traitId: TraitId; capacity: number }
   | {
       ok: false;
       kind: 'socketConflict';

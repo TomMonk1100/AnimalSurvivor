@@ -19,8 +19,8 @@ test('identical seed + metrics yield byte-identical event streams and hashes', (
 test('different seeds change only discretionary spawns, never authored timing', () => {
   const a = new RunDirector({ seed: 1 });
   const b = new RunDirector({ seed: 999 });
-  const ea = runEveryTick(a, 0, 36_000);
-  const eb = runEveryTick(b, 0, 36_000);
+  const ea = runEveryTick(a, 0, 23_400);
+  const eb = runEveryTick(b, 0, 23_400);
   // Authored phase/elite/boss events must be identical.
   const norm = (e: (typeof ea)[number]) => `${e.kind}@${e.tick}#${e.seq}`;
   assert.deepEqual(authoredOnly(ea).map(norm), authoredOnly(eb).map(norm));
@@ -38,11 +38,11 @@ test('serialization round-trip preserves the future event stream and final hash'
   const snapshot = original.serialize();
 
   // Continue the original to the end.
-  const tailOriginal = runEveryTick(original, 20_001, 43_200);
+  const tailOriginal = runEveryTick(original, 20_001, 28_800);
 
   // Restore from snapshot and continue identically.
   const restored = RunDirector.deserialize(snapshot);
-  const tailRestored = runEveryTick(restored, 20_001, 43_200);
+  const tailRestored = runEveryTick(restored, 20_001, 28_800);
 
   assert.equal(JSON.stringify(tailOriginal), JSON.stringify(tailRestored));
   assert.equal(original.stateHash(), restored.stateHash());
@@ -70,11 +70,11 @@ test('RunDirector saves are bound to the exact authored content fingerprint', ()
   );
 });
 
-test('an independent 43,200-tick run ends at the expected phase/outcome/hash', () => {
+test('an independent 28,800-tick run ends at the expected phase/outcome/hash', () => {
   const run1 = new RunDirector({ seed: 2024 });
   const run2 = new RunDirector({ seed: 2024 });
-  runEveryTick(run1, 0, 43_200);
-  runEveryTick(run2, 0, 43_200);
+  runEveryTick(run1, 0, 28_800);
+  runEveryTick(run2, 0, 28_800);
 
   assert.equal(run1.outcome, 'defeat');
   assert.equal(run1.phase, 'boss');
@@ -85,22 +85,22 @@ test('an independent 43,200-tick run ends at the expected phase/outcome/hash', (
 
 test('a normal terminal state serializes and restores after the deadline', () => {
   const original = new RunDirector({ seed: 0xface });
-  runEveryTick(original, 0, 43_200);
+  runEveryTick(original, 0, 28_800);
   const restored = RunDirector.deserialize(original.serialize());
 
   assert.equal(restored.outcome, 'defeat');
   assert.equal(restored.phase, 'boss');
   assert.equal(restored.stateHash(), original.stateHash());
-  assert.deepEqual(restored.step(metricsAt(43_201)), []);
+  assert.deepEqual(restored.step(metricsAt(28_801)), []);
 });
 
 test('boss request fires exactly once across serialization and the normal cap', () => {
   const d = new RunDirector({ seed: 3 });
-  runEveryTick(d, 0, 35_000);
+  runEveryTick(d, 0, 22_999);
   const mid = d.serialize();
   const restored = RunDirector.deserialize(mid);
-  const events = runEveryTick(restored, 35_001, 43_200);
+  const events = runEveryTick(restored, 23_000, 28_800);
   const reqs = events.filter((e) => e.kind === 'bossRequested');
   assert.equal(reqs.length, 1);
-  assert.equal(reqs[0]!.tick, 36_000);
+  assert.equal(reqs[0]!.tick, 23_400);
 });

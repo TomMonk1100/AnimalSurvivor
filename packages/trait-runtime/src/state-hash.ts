@@ -60,7 +60,7 @@ function canonicalCatalog(catalog: Catalog): string {
           .join(',')}|vk=${e.visualKey}|${JSON.stringify(e.behavior)}`,
     )
     .join('\n');
-  return `CATALOG\n${traits}\n--\n${evolutions}`;
+  return `CATALOG|maxActiveTraits=${catalog.maxActiveTraits ?? 'unbounded'}\n${traits}\n--\n${evolutions}`;
 }
 
 /** Content fingerprint of the catalog. */

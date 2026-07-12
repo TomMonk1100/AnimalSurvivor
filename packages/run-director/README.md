@@ -12,14 +12,14 @@ benchmarks.
 
 ## What it does
 
-Drives a 12-minute (43,200-tick @ 60 Hz) authored Greg run:
+Drives an 8-minute (28,800-tick @ 60 Hz) authored Greg run:
 
 - readable opening, then escalating pressure across authored phases;
 - six deterministic pre-boss elite beats that become more frequent late-run;
-- a single boss entrance at tick 36,000 (10:00);
+- a single boss entrance at tick 23,400 (6:30);
 - **victory** when the boss is defeated after its entrance;
 - **defeat** the instant the player dies (permanent);
-- **defeat** at tick 43,200 if the boss still lives — normal mode has no hidden
+- **defeat** at tick 28,800 if the boss still lives — normal mode has no hidden
   overtime;
 - replay/save-safe state with canonical content and state hashes;
 - stable pacing regardless of renderer FPS or device speed.
@@ -71,7 +71,7 @@ intents and owns all world mutation.
 
 `overtimeStarted` is part of the generic director vocabulary for an explicitly
 authored endless definition. The default Greg normal definition never emits it:
-it ends in victory or defeat at the 12:00 boundary.
+it ends in victory or defeat at the 8:00 boundary.
 
 Every event carries an absolute fixed `tick`, a monotonic `seq`, its source
 `phase`, and all numeric parameters the simulation needs — no renderer object,
@@ -83,7 +83,7 @@ callback, promise, or wall-clock timestamp.
 - No ambient randomness; a single injected seeded RNG (xorshift128) drives the
   only discretionary choices (which archetype a discretionary wave picks).
 - Threat budget accrues in integer units — no floating-point drift over
-  43,200+ ticks.
+  28,800+ ticks.
 - Stable ordering never depends on object property iteration order.
 - Equivalent independent runs produce **byte-identical** serialized state, event
   streams, and final hashes. Serialization round-trip preserves the *future*
@@ -114,18 +114,19 @@ callback, promise, or wall-clock timestamp.
 
 | Phase ID     | Tick range       | Cadence | Soft/hard cap | Purpose |
 | ------------ | ---------------: | ------: | ------------: | ------- |
-| `opening`    | 0 – 7,199        | 75 ticks | 10 / 18 | Off-screen fodder approaches at the readable opening cadence. |
-| `pressure`   | 7,200 – 17,999   | 60 ticks | 18 / 30 | Faster pressure, runners, and the first Spitters. |
-| `adaptation` | 18,000 – 28,799  | 45 ticks | 30 / 48 | Higher density, brutes, Spitters, and two elite beats. |
-| `mutation`   | 28,800 – 35,999  | 30 ticks | 46 / 72 | Sustained mixed pressure and three elite beats. |
-| `boss`       | 36,000 – 43,199  | 36 ticks | 36 / 56 | Boss spawned once; normal mode ends at 12:00. |
+| `opening`    | 0 – 3,599        | 75 ticks | 10 / 18 | Off-screen fodder approaches at the readable opening cadence. |
+| `pressure`   | 3,600 – 10,799   | 60 ticks | 18 / 30 | Faster pressure, runners, and the first Spitters. |
+| `adaptation` | 10,800 – 17,999  | 45 ticks | 30 / 48 | Higher density, brutes, Spitters, and two elite beats. |
+| `mutation`   | 18,000 – 23,399  | 30 ticks | 46 / 72 | Sustained mixed pressure and three elite beats. |
+| `boss`       | 23,400 – 28,799  | 36 ticks | 36 / 56 | Boss spawned once; normal mode ends at 8:00. |
 
 At player levels **4, 6, and 8**, bounded level pressure adds +1 soft / +2 hard
 capacity and subtracts four ticks from the active phase cadence per earned step.
-Elite beats occur at 12,000; 20,400; 25,200; 29,400; 32,400; and 34,200 (each
-warned 300 ticks earlier). Boss request is 36,000 (warn 34,800). Fodder,
+Elite beats occur at 7,200; 13,200; 16,200; 18,900; 20,700; and 21,900 (each
+warned 300 ticks earlier). Boss request is 23,400 (warn 22,200, a 20-second
+warning). Fodder,
 runners, and Spitters author 38–46 distance units; brutes and elites author
-40–48; the boss deliberately authors 20–24 so the 10:00 encounter reaches Greg
+40–48; the boss deliberately authors 20–24 so the 6:30 encounter reaches Greg
 promptly. The simulation adapter applies its documented distance scale and
 keeps a formation at that authored radius or rejects it at a world edge rather
 than clamping it nearby. Generic archetype ids: `enemy:fodder`, `enemy:runner`,

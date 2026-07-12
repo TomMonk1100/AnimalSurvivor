@@ -58,6 +58,7 @@ export {
 } from './trait-upgrade-queue.js';
 export {
   createRunUpgradeQueue,
+  PASSIVE_SLOT_CAPACITY,
   type EssenceRunUpgradeOffer,
   type RunUpgradeOfferView,
   type RunUpgradeQueue,

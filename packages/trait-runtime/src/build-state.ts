@@ -89,6 +89,16 @@ export function applyUpgrade(
   let didMutate = false;
 
   if (!owned) {
+    const capacity = _catalog.maxActiveTraits;
+    // `owned` intentionally retains disabled Mythic ingredients. A resolved
+    // evolution therefore still occupies the two acquisition footprints that
+    // created it instead of silently freeing active-attack slots.
+    if (capacity !== undefined && _state.owned.length >= capacity) {
+      return {
+        outcome: { ok: false, kind: 'loadoutFull', traitId: _traitId, capacity },
+        evolved: null,
+      };
+    }
     // Check every required socket is free.
     const conflictSockets: SocketId[] = [];
     const heldBySeen = new Set<string>();

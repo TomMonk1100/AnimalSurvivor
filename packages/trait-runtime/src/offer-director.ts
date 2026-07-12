@@ -23,11 +23,13 @@ import { socketOwner, stageOf } from './build-state.js';
 
 function eligibleOffers(catalog: Catalog, state: RuntimeState): UpgradeOffer[] {
   const offers: UpgradeOffer[] = [];
+  const mayAcquireTrait = catalog.maxActiveTraits === undefined
+    || state.owned.length < catalog.maxActiveTraits;
   for (const trait of catalog.traits) {
     const stage = stageOf(state, trait.id);
     if (stage === 'locked') {
       const allFree = trait.sockets.every((s) => socketOwner(state, s) === undefined);
-      if (allFree) offers.push({ traitId: trait.id, resultStage: 'bud' });
+      if (mayAcquireTrait && allFree) offers.push({ traitId: trait.id, resultStage: 'bud' });
     } else if (stage === 'bud') {
       offers.push({ traitId: trait.id, resultStage: 'adapted' });
     }

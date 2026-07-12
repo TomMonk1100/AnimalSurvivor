@@ -10,14 +10,14 @@ import {
   type TraitRuntimeFactory,
 } from '@sim';
 import { RunDirector } from '@director';
-import { GREG_VERTICAL_SLICE_CATALOG, TraitRuntime } from '@traits';
+import { GREG_FOREST_ARSENAL_CATALOG, TraitRuntime } from '@traits';
 import { createAutopilot } from '../src/stress/autopilot';
 
-const RUN_TICKS = 43_200;
+const RUN_TICKS = 28_800;
 const SEED = 0x1234abcd;
 
 const traitRuntimeFactory: TraitRuntimeFactory = ({ seed, initialTick }) =>
-  new TraitRuntime({ seed, initialTick, catalog: GREG_VERTICAL_SLICE_CATALOG });
+  new TraitRuntime({ seed, initialTick, catalog: GREG_FOREST_ARSENAL_CATALOG });
 const runDirectorFactory: RunDirectorFactory = ({ seed }) => new RunDirector({ seed });
 const options: SimulationOptions = {
   traitRuntimeFactory,
@@ -33,7 +33,7 @@ function enduranceConfig(): SimConfig {
 }
 
 describe('full authored run replay', () => {
-  it('advances the real integrated stack to its terminal outcome no later than 12 minutes and reproduces its exact hash', () => {
+  it('advances the real integrated stack to its terminal outcome no later than 8 minutes and reproduces its exact hash', () => {
     const config = enduranceConfig();
     const sim = createSimulation(config, SEED, options);
     const autopilot = createAutopilot();
@@ -41,7 +41,7 @@ describe('full authored run replay', () => {
     const phases = new Set<string>();
 
     // The simulation freezes at either victory or defeat. A strong build may
-    // defeat the 10:00 boss before the normal 12:00 deadline, so do not keep
+    // defeat the 6:30 boss before the normal 8:00 deadline, so do not keep
     // feeding inputs into an already-terminal run just to reach the cap.
     while (sim.tick < RUN_TICKS && sim.runOutcome === 'running') {
       if (sim.upgradeSelectionPending) {

@@ -6,6 +6,7 @@
  * bench/ is exempt from the timer lint rule; it measures wall time by design.
  */
 import { RunDirector, type DirectorEvent, type RunMetrics } from '../src/index.js';
+import { BOSS_ENTRANCE_TICK, RUN_DURATION_TICKS } from '../src/ids.js';
 
 /** Pure director-independent metrics stream (see test/helpers.ts). */
 function metricsAt(
@@ -23,7 +24,7 @@ function metricsAt(
     playerLevel: 1 + Math.floor(tick / 3600),
     liveEnemies: live,
     killsTotal: Math.floor(tick / 10),
-    bossAlive: tick >= 39_600 && (bd < 0 || tick < bd),
+    bossAlive: tick >= BOSS_ENTRANCE_TICK && (bd < 0 || tick < bd),
     bossDefeatedThisTick: bd >= 0 && tick === bd,
   };
 }
@@ -137,21 +138,23 @@ function report(name: string, r: RunResult): void {
 function main(): void {
   console.log('run-director benchmark (diagnostic, not a hardware gate)');
 
-  // 1. One complete 43,200-tick run.
-  const full = runScenario('full', 2024, 0, 43_200, undefined, -1, 3_600);
-  report('full 43,200-tick run', full);
+  // 1. One complete authored normal run.
+  const full = runScenario('full', 2024, 0, RUN_DURATION_TICKS, undefined, -1, 3_600);
+  report(`full ${RUN_DURATION_TICKS.toLocaleString()}-tick run`, full);
 
   // 2. Congested / high-live-enemy scenario.
   const congested = runScenario('congested', 2024, 0, 20_000, 999, -1, 2_000);
   report('congested (liveEnemies=999)', congested);
 
-  // 3. Overtime scenario extending to at least tick 54,000.
-  const overtime = runScenario('overtime', 2024, 0, 54_000, undefined, -1, 6_000);
-  report('overtime to 54,000', overtime);
+  // 3. Continue past the normal deadline to prove terminal normal mode stays
+  // a no-op; overtime belongs only to an explicit endless definition.
+  const postTerminalTick = RUN_DURATION_TICKS * 2;
+  const postTerminal = runScenario('post-terminal', 2024, 0, postTerminalTick, undefined, -1, 6_000);
+  report(`post-terminal no-op to ${postTerminalTick.toLocaleString()}`, postTerminal);
 
   // 4. Determinism assertion: two independent identical runs => identical hash.
-  const a = runScenario('detA', 777, 0, 43_200, undefined, -1, 0);
-  const b = runScenario('detB', 777, 0, 43_200, undefined, -1, 0);
+  const a = runScenario('detA', 777, 0, RUN_DURATION_TICKS, undefined, -1, 0);
+  const b = runScenario('detB', 777, 0, RUN_DURATION_TICKS, undefined, -1, 0);
   console.log('\n=== determinism check ===');
   console.log(`  hash A: ${a.finalHash}`);
   console.log(`  hash B: ${b.finalHash}`);

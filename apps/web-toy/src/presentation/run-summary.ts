@@ -7,7 +7,7 @@ function formatDuration(tick: number, hz: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-const NORMAL_RUN_SECONDS = 12 * 60;
+const NORMAL_RUN_SECONDS = 8 * 60;
 
 /** Formats only existing authoritative run facts; it never invents score data. */
 export function presentRunSummary(outcome: RunOutcomeView | null, tick: number, hz: number, phase: RunPhaseView | null): RunSummary | null {

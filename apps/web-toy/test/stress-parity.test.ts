@@ -15,7 +15,7 @@ import { createSimDriver } from '../src/sim/simulation-driver';
 const HZ = DEFAULT_CONFIG.hz;
 const DT_MS = 1000 / HZ;
 const FIVE_MIN_TICKS = HZ * 60 * 5; // 18000 ticks @ 60hz
-const EXPECTED_FIVE_MINUTE_HASH = '1e4715bcc24cc0ee';
+const EXPECTED_FIVE_MINUTE_HASH = '45b1c6cd377daad1';
 
 /** Headless control: step a bare simulation with autopilot inputs keyed on pre-step tick. */
 function headlessControl(seed: number, ticks: number): string {

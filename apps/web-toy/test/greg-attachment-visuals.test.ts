@@ -7,13 +7,18 @@ import {
 } from '../src/hero/greg-attachment-visuals';
 
 describe('Greg attachment visual recipes', () => {
-  it('covers exactly the five required stage-aware keys', () => {
+  it('covers every Forest Arsenal stage-aware key', () => {
     expect(GREG_ATTACHMENT_VISUAL_KEYS).toEqual([
       'porcupine-quills:bud',
       'porcupine-quills:adapted',
       'puffer-pouch:bud',
       'puffer-pouch:adapted',
       'thornstorm-mantle:mythic',
+      'electric-eel-coil:bud',
+      'electric-eel-coil:adapted',
+      'firefly-colony:bud',
+      'firefly-colony:adapted',
+      'thunderbug-dynamo:mythic',
     ]);
     for (const key of GREG_ATTACHMENT_VISUAL_KEYS) {
       const recipe = getGregAttachmentVisualRecipe(key);
@@ -31,6 +36,10 @@ describe('Greg attachment visual recipes', () => {
       .toBeGreaterThan(getGregAttachmentVisualRecipe('porcupine-quills:bud').parts.length);
     expect(getGregAttachmentVisualRecipe('puffer-pouch:adapted').parts.length)
       .toBeGreaterThan(getGregAttachmentVisualRecipe('puffer-pouch:bud').parts.length);
+    expect(getGregAttachmentVisualRecipe('electric-eel-coil:adapted').parts.length)
+      .toBeGreaterThan(getGregAttachmentVisualRecipe('electric-eel-coil:bud').parts.length);
+    expect(getGregAttachmentVisualRecipe('firefly-colony:adapted').parts.length)
+      .toBeGreaterThan(getGregAttachmentVisualRecipe('firefly-colony:bud').parts.length);
     expect(getGregAttachmentVisualRecipe('thornstorm-mantle:mythic').parts.length)
       .toBeGreaterThan(getGregAttachmentVisualRecipe('porcupine-quills:adapted').parts.length);
   });

@@ -74,6 +74,14 @@ function validateRuntimeContext(ctx: RuntimeContext, expectedTick: number): void
   if (ctx.distanceMovedThisTick < 0) {
     throw new RangeError('RuntimeContext.distanceMovedThisTick must be non-negative');
   }
+  for (const [name, value] of [
+    ['weaponDamageMultiplier', ctx.weaponDamageMultiplier],
+    ['weaponCooldownMultiplier', ctx.weaponCooldownMultiplier],
+  ] as const) {
+    if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
+      throw new RangeError(`RuntimeContext.${name} must be finite and positive when provided`);
+    }
+  }
 }
 
 export class TraitRuntime {
@@ -212,4 +220,7 @@ export { generateOffers } from './offer-director.js';
 export { visualState, stageOf, socketOwner, applyUpgrade, createInitialState } from './build-state.js';
 export { ensureTimers, stepBehaviors } from './behavior-runtime.js';
 export { createCommandBuffer } from './command-buffer.js';
-export { GREG_VERTICAL_SLICE_CATALOG } from './content/greg-vertical-slice.js';
+export {
+  GREG_FOREST_ARSENAL_CATALOG,
+  GREG_VERTICAL_SLICE_CATALOG,
+} from './content/greg-vertical-slice.js';

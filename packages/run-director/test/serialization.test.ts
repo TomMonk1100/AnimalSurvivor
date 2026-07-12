@@ -27,32 +27,32 @@ import { serializeState, deserializeState } from '../src/serialization.js';
 import { hashState, fingerprintDefinition } from '../src/state-hash.js';
 
 /* ============================================================================
- * Minimal inline RunDefinition (mirrors the frozen phase-boundary ticks).
+ * Minimal inline RunDefinition (mirrors the frozen eight-minute phase-boundary ticks).
  * ==========================================================================*/
 
 const PHASES: readonly PhaseDefinition[] = [
-  { id: 'opening', startTick: 0, endTick: 7_199, softCap: 4, hardCap: 8, threatPerTick: 2 },
-  { id: 'pressure', startTick: 7_200, endTick: 17_999, softCap: 6, hardCap: 12, threatPerTick: 4 },
+  { id: 'opening', startTick: 0, endTick: 3_599, softCap: 4, hardCap: 8, threatPerTick: 2 },
+  { id: 'pressure', startTick: 3_600, endTick: 10_799, softCap: 6, hardCap: 12, threatPerTick: 4 },
   {
     id: 'adaptation',
-    startTick: 18_000,
-    endTick: 28_799,
+    startTick: 10_800,
+    endTick: 17_999,
     softCap: 8,
     hardCap: 14,
     threatPerTick: 6,
   },
   {
     id: 'mutation',
-    startTick: 28_800,
-    endTick: 35_999,
+    startTick: 18_000,
+    endTick: 23_399,
     softCap: 10,
     hardCap: 16,
     threatPerTick: 8,
   },
-  { id: 'boss', startTick: 36_000, endTick: 43_199, softCap: 6, hardCap: 10, threatPerTick: 3 },
+  { id: 'boss', startTick: 23_400, endTick: 28_799, softCap: 6, hardCap: 10, threatPerTick: 3 },
   {
     id: 'overtime',
-    startTick: 43_200,
+    startTick: 28_800,
     endTick: OPEN_END,
     softCap: 6,
     hardCap: 10,
@@ -100,8 +100,8 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
   {
     id: 'elite:pressure-1',
     phaseId: 'pressure',
-    warningTick: 11_700,
-    requestTick: 12_000,
+    warningTick: 6_900,
+    requestTick: 7_200,
     archetypeId: 'enemy:elite',
     count: 1,
     formation: 'arc',
@@ -111,8 +111,8 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
 ];
 
 const BOSS: BossDefinition = {
-  warningTick: 34_800,
-  requestTick: 36_000,
+  warningTick: 22_200,
+  requestTick: 23_400,
   archetypeId: 'enemy:boss',
   formation: 'ring',
   minDistance: 15,
@@ -147,7 +147,7 @@ function makeDefinition(overrides?: Partial<RunDefinition>): RunDefinition {
   const base: RunDefinition = {
     contentVersion: CONTENT_VERSION,
     mode: 'endless',
-    durationTicks: 43_200,
+    durationTicks: 28_800,
     phases: PHASES,
     archetypes: ARCHETYPES,
     eliteBeats: ELITE_BEATS,
@@ -216,12 +216,12 @@ test('cloneState produces a deep, reference-free copy', () => {
 
 test('phaseAt returns correct phases at boundary ticks', () => {
   assert.equal(phaseAt(DEF, 0).id, 'opening');
-  assert.equal(phaseAt(DEF, 7_199).id, 'opening');
-  assert.equal(phaseAt(DEF, 7_200).id, 'pressure');
-  assert.equal(phaseAt(DEF, 35_999).id, 'mutation');
-  assert.equal(phaseAt(DEF, 36_000).id, 'boss');
-  assert.equal(phaseAt(DEF, 43_199).id, 'boss');
-  assert.equal(phaseAt(DEF, 43_200).id, 'overtime');
+  assert.equal(phaseAt(DEF, 3_599).id, 'opening');
+  assert.equal(phaseAt(DEF, 3_600).id, 'pressure');
+  assert.equal(phaseAt(DEF, 23_399).id, 'mutation');
+  assert.equal(phaseAt(DEF, 23_400).id, 'boss');
+  assert.equal(phaseAt(DEF, 28_799).id, 'boss');
+  assert.equal(phaseAt(DEF, 28_800).id, 'overtime');
   assert.equal(phaseAt(DEF, 100_000).id, 'overtime');
 });
 
@@ -249,7 +249,7 @@ test('evaluateOutcome: no victory before boss.requested, even if bossDefeatedThi
 test('evaluateOutcome: victory when boss.requested && bossDefeatedThisTick', () => {
   const state = createInitialState(DEF, 1);
   state.boss.requested = true;
-  const result = evaluateOutcome(state, aliveMetrics(36_000, { bossDefeatedThisTick: true }));
+  const result = evaluateOutcome(state, aliveMetrics(23_400, { bossDefeatedThisTick: true }));
   assert.deepEqual(result, { outcome: 'victory', terminalKind: 'victory' });
 });
 
@@ -258,7 +258,7 @@ test('evaluateOutcome: defeat wins over simultaneous victory signal', () => {
   state.boss.requested = true;
   const result = evaluateOutcome(
     state,
-    aliveMetrics(36_000, { playerAlive: false, bossDefeatedThisTick: true }),
+    aliveMetrics(23_400, { playerAlive: false, bossDefeatedThisTick: true }),
   );
   assert.deepEqual(result, { outcome: 'defeat', terminalKind: 'defeat' });
 });
@@ -276,7 +276,7 @@ test('evaluateOutcome: terminal outcome is sticky', () => {
 
 test('deserializeState rejects a forged victory-without-boss-requested state', () => {
   const state = createInitialState(DEF, 1);
-  state.tick = 36_000;
+  state.tick = 23_400;
   state.phase = 'boss';
   state.outcome = 'victory';
   // boss.requested left false — forged.

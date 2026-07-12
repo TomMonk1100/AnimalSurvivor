@@ -202,7 +202,7 @@ function makeDef(intervalTicks: number): RunDefinition {
   return {
     contentVersion: 1,
     mode: 'normal',
-    durationTicks: 43_200,
+    durationTicks: 28_800,
     phases: [makePhase()],
     archetypes: [FODDER, RUNNER],
     eliteBeats: [],

@@ -177,6 +177,9 @@ export function createGregPresentation(
   const brass = attachmentMaterial(new pc.Color(0.95, 0.66, 0.16));
   const cream = attachmentMaterial(new pc.Color(1, 0.9, 0.62));
   const teal = attachmentMaterial(new pc.Color(0.12, 0.78, 0.68));
+  const cobalt = attachmentMaterial(new pc.Color(0.2, 0.45, 1));
+  const electric = attachmentMaterial(new pc.Color(0.68, 0.9, 1));
+  const firefly = attachmentMaterial(new pc.Color(0.5, 1, 0.3));
   const attachmentMaterials: Readonly<Record<GregMaterialRole, pc.StandardMaterial>> = {
     quillPrimary: brass,
     quillAccent: cream,
@@ -184,6 +187,11 @@ export function createGregPresentation(
     pufferAccent: cream,
     mythicThorn: brass,
     mythicGlow: teal,
+    coilPrimary: cobalt,
+    coilGlow: electric,
+    fireflyPrimary: teal,
+    fireflyGlow: firefly,
+    thunderbugCore: electric,
   };
 
   let entity: pc.Entity | null = null;
@@ -259,6 +267,9 @@ export function createGregPresentation(
       brass.destroy();
       cream.destroy();
       teal.destroy();
+      cobalt.destroy();
+      electric.destroy();
+      firefly.destroy();
     },
   };
 }

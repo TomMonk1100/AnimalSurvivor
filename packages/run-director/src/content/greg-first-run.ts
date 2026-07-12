@@ -26,31 +26,31 @@ const PHASES: readonly PhaseDefinition[] = [
   {
     id: 'opening',
     startTick: 0,
-    endTick: 7_199,
+    endTick: 3_599,
     softCap: 10,
     hardCap: 18,
     threatPerTick: 2,
   },
   {
     id: 'pressure',
-    startTick: 7_200,
-    endTick: 17_999,
+    startTick: 3_600,
+    endTick: 10_799,
     softCap: 18,
     hardCap: 30,
     threatPerTick: 4,
   },
   {
     id: 'adaptation',
-    startTick: 18_000,
-    endTick: 28_799,
+    startTick: 10_800,
+    endTick: 17_999,
     softCap: 30,
     hardCap: 48,
     threatPerTick: 6,
   },
   {
     id: 'mutation',
-    startTick: 28_800,
-    endTick: 35_999,
+    startTick: 18_000,
+    endTick: 23_399,
     softCap: 46,
     hardCap: 72,
     threatPerTick: 8,
@@ -58,7 +58,7 @@ const PHASES: readonly PhaseDefinition[] = [
   {
     id: 'boss',
     startTick: BOSS_ENTRANCE_TICK,
-    endTick: 43_199,
+    endTick: 28_799,
     softCap: 36,
     hardCap: 56,
     threatPerTick: 3,
@@ -147,8 +147,8 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
   {
     id: 'elite:pressure-1',
     phaseId: 'pressure',
-    warningTick: 11_700,
-    requestTick: 12_000,
+    warningTick: 6_900,
+    requestTick: 7_200,
     archetypeId: 'enemy:elite',
     count: 1,
     formation: 'arc',
@@ -158,8 +158,8 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
   {
     id: 'elite:adaptation-1',
     phaseId: 'adaptation',
-    warningTick: 20_100,
-    requestTick: 20_400,
+    warningTick: 12_900,
+    requestTick: 13_200,
     archetypeId: 'enemy:elite',
     count: 1,
     formation: 'arc',
@@ -169,8 +169,8 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
   {
     id: 'elite:adaptation-2',
     phaseId: 'adaptation',
-    warningTick: 24_900,
-    requestTick: 25_200,
+    warningTick: 15_900,
+    requestTick: 16_200,
     archetypeId: 'enemy:elite',
     count: 1,
     formation: 'arc',
@@ -180,8 +180,8 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
   {
     id: 'elite:mutation-1',
     phaseId: 'mutation',
-    warningTick: 29_100,
-    requestTick: 29_400,
+    warningTick: 18_600,
+    requestTick: 18_900,
     archetypeId: 'enemy:elite',
     count: 1,
     formation: 'arc',
@@ -191,8 +191,8 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
   {
     id: 'elite:mutation-2',
     phaseId: 'mutation',
-    warningTick: 32_100,
-    requestTick: 32_400,
+    warningTick: 20_400,
+    requestTick: 20_700,
     archetypeId: 'enemy:elite',
     count: 1,
     formation: 'arc',
@@ -202,8 +202,8 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
   {
     id: 'elite:mutation-3',
     phaseId: 'mutation',
-    warningTick: 33_900,
-    requestTick: 34_200,
+    warningTick: 21_600,
+    requestTick: 21_900,
     archetypeId: 'enemy:elite',
     count: 1,
     formation: 'arc',
@@ -217,12 +217,12 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
  * ==========================================================================*/
 
 const BOSS: BossDefinition = {
-  warningTick: 34_800,
+  warningTick: 22_200,
   requestTick: BOSS_ENTRANCE_TICK,
   archetypeId: 'enemy:boss',
   formation: 'ring',
   // Ordinary waves approach from beyond the camera. The boss is deliberately
-  // closer so its 10:00 entrance becomes a fight within a few seconds rather
+  // closer so its 6:30 entrance becomes a fight within a few seconds rather
   // than spending most of its short response period walking into range.
   minDistance: 20,
   maxDistance: 24,

@@ -23,10 +23,10 @@ test('each required phase starts at its exact boundary', () => {
   const def = getDefaultDefinition();
   const byId = new Map(def.phases.map((p) => [p.id, p]));
   assert.equal(byId.get('opening')?.startTick, 0);
-  assert.equal(byId.get('pressure')?.startTick, 7_200);
-  assert.equal(byId.get('adaptation')?.startTick, 18_000);
-  assert.equal(byId.get('mutation')?.startTick, 28_800);
-  assert.equal(byId.get('boss')?.startTick, 36_000);
+  assert.equal(byId.get('pressure')?.startTick, 3_600);
+  assert.equal(byId.get('adaptation')?.startTick, 10_800);
+  assert.equal(byId.get('mutation')?.startTick, 18_000);
+  assert.equal(byId.get('boss')?.startTick, 23_400);
   assert.equal(byId.has('overtime'), false);
   assert.equal(def.mode, 'normal');
   assert.equal(def.overtime, undefined);
@@ -56,10 +56,10 @@ test('elite beats become more frequent in later pre-boss phases', () => {
   ]);
 });
 
-test('boss requestTick === BOSS_ENTRANCE_TICK (36,000)', () => {
+test('boss requestTick === BOSS_ENTRANCE_TICK (23,400 / 6:30)', () => {
   const def = getDefaultDefinition();
   assert.equal(def.boss.requestTick, BOSS_ENTRANCE_TICK);
-  assert.equal(def.boss.requestTick, 36_000);
+  assert.equal(def.boss.requestTick, 23_400);
 });
 
 test('ordinary waves approach from off-screen while the boss enters quickly enough to fight', () => {

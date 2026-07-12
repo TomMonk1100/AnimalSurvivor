@@ -3,8 +3,8 @@ import { presentRunSummary } from '../src/presentation/run-summary';
 
 describe('run summary', () => {
   it('uses authoritative tick time for victory', () => {
-    expect(presentRunSummary('victory', 43_200, 60, 'boss')).toEqual({
-      headline: 'Greg survives!', detail: 'The final threat fell after 12:00.', tone: 'victory',
+    expect(presentRunSummary('victory', 28_800, 60, 'boss')).toEqual({
+      headline: 'Greg survives!', detail: 'The final threat fell after 8:00.', tone: 'victory',
     });
   });
 
@@ -15,8 +15,8 @@ describe('run summary', () => {
   });
 
   it('states the normal time expiry truthfully instead of calling it an overwhelm', () => {
-    expect(presentRunSummary('defeat', 43_200, 60, 'boss')).toEqual({
-      headline: 'Time ran out', detail: 'The boss was still standing at 12:00.', tone: 'defeat',
+    expect(presentRunSummary('defeat', 28_800, 60, 'boss')).toEqual({
+      headline: 'Time ran out', detail: 'The boss was still standing at 8:00.', tone: 'defeat',
     });
   });
 });

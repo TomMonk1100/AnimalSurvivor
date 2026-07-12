@@ -1,15 +1,15 @@
 # Animal Survivor
 
 Animal Survivor is a web-first, low-poly 3D animal bullet-heaven game in active
-Gate 1 development. The repository now contains a playable Greg the fox vertical
-slice: a deterministic simulation drives a browser game with visible hero
-adaptations, automatic attacks, upgrades, elites, and a boss encounter.
+Gate 1 development. The current playable alpha stars Greg the fox in the
+**Forest Arsenal**: a deterministic survival run with automatic attacks,
+level-up choices, evolving animal traits, enemy pressure, a boss, and
+between-run Essence progression.
 
-This is a playtest build, not a finished game. Its current purpose is to make
-the core movement, combat, upgrade, progression, and visual-feedback loop easy
-to evaluate.
+It is an early playtest build, not a finished game. Feedback on clarity,
+movement, attacks, pacing, and pressure is especially useful.
 
-## Play the Gate 1 slice
+## Play locally
 
 From the repository root:
 
@@ -19,102 +19,92 @@ npm ci
 npm run dev
 ```
 
-Open the local Vite URL printed in the terminal (normally
-`http://localhost:5173`).
+Open the local Vite address printed in the terminal, normally
+`http://localhost:5173`.
 
-- A normal manual run waits at tick 0 behind **Start run**, so you can read the
-  core loop before anything moves. The deterministic autopilot and stress URLs
-  bypass that first-run gate.
-- **Sound effects** are optional and start **Off**. Enable them on the Start
-  run card or with the in-run **Sound: Off/On** control. The stronger but still
-  sparse procedural cues confirm starting/restarting and upgrade choices, give
-  spaced XP pickups, a quiet rate-limited auto-attack texture, and player-hit
-  feedback, and mark victory or defeat. They never change gameplay or replay;
-  an unavailable browser audio feature simply leaves the game playable and
-  silent.
-- Move Greg with **WASD** or the **arrow keys**. On touch devices, use the
-  bottom-left virtual joystick. His facing is presentation-only: a sharp
-  reversal visibly resolves across four bounded turns without changing movement
-  input or simulation state.
-- Greg automatically attacks nearby enemies; there is no aiming control.
-- Short additive rings now mark ordinary shots, XP pickups, enemy deaths, and
-  player hits. They are renderer-only feedback and never change combat,
-  balance, or replay.
-- Before Greg earns the first XP, the HUD labels visible green motes as XP so
-  it is clear that collecting them creates levels and upgrade choices.
-- The HUD also keeps the elapsed run time, current authored phase, and the
-  phase-appropriate goal visible: survive until **The Final Threat**, then
-  defeat it to finish the run.
-- Normal mode has a hard **12:00** end. **The Final Threat** enters at **10:00**;
-  defeat it before 12:00 to win. Normal mode does not enter hidden overtime.
-- Ordinary fodder, runners, and Spitters enter from beyond the camera rather
-  than materializing beside Greg (760–920 world units in the current adapter).
-  Brutes and elites enter at 800–960, while the 10:00 boss deliberately starts
-  nearer at 400–480 so its fight begins within seconds. Phase cadence ramps
-  through **75 / 60 / 45 / 30 / 36** ticks (opening through boss), with base
-  soft/hard caps of **10/18, 18/30, 30/48, 46/72, and 36/56**. Levels **4**,
-  **6**, and **8** add a bounded **+1 soft / +2 hard** enemy capacity and remove
-  four cadence ticks per step; no same-tick burst is allowed.
-- Runners weave while approaching. The cobalt **Spitter** is a normal-plus
-  ranged enemy that arrives after the opening, holds distance, and fires slow,
-  dodgeable orange shots; elites are tougher ranged skirmishers with 24-XP
-  reward motes.
-- Greg has no player-visible level cap. When he levels up, the game pauses at an
-  upgrade choice. The mixed chooser presents animal adaptations alongside six
-  neutral run upgrades—**Swift Paws**, **XP Magnet**, **Sturdy Hide**,
-  **Sharpened Instinct**, **Rapid Instinct**, and **Growth**—and reserves room
-  for a neutral card when animal offers would otherwise fill the row. Once every
-  finite run upgrade is complete, **Essence Cache** remains as a legal fallback.
-  Click a card to continue; the first card receives keyboard focus, and **1**,
-  **2**, or **3** (or **Tab** then **Enter**) choose without a mouse.
-- **Porcupine Quills** fires quill bursts. **Puffer Pouch** pulls nearby enemies
-  in, then upgrades into a wider knockback pulse. Adapt both paths to evolve
-  them into **Thornstorm Mantle**, which gathers enemies before a radial quill
-  storm.
-- The normal interface stays compact and player-facing. Press **Esc** to pause
-  or resume a live desktop run; the centered pause panel explains both owned
-  animal adaptations and neutral run-upgrade ranks instead of cycling action
-  copy above active combat. Append `?debug=1` to expose the diagnostic HUD and
-  engineering controls for repeatable checks.
-- On touch, the floating joystick thumb follows each drag. The persistent
-  **Active Adaptations** cards stay above the lower-left joystick in portrait
-  and clear to its right in landscape. **Pause**, **Restart run**, and terminal
-  **Continue to upgrades** controls use 44px-high touch targets.
-- A live boss exposes a persistent **The Final Threat** health bar. At victory or
-  defeat, the outcome card banks the earned **Essence** once for that run and
-  sends Greg back to the prep screen. Spend saved Essence on the capped
-  **Starting Vitality** purchase there; each rank adds starting maximum health
-  on the next run, without leaving permanent-stat UI over active play.
-- The follow camera uses a deliberately tighter presentation-only frame, making
-  Greg, nearby threats, and green XP motes easier to read without changing
-  movement, simulation space, balance, or replay.
+- Select **Start run** to begin. Manual runs wait at tick 0 so the intro can be
+  read first.
+- Move with **WASD** or the **arrow keys**. On touch devices, drag in the
+  lower-left virtual joystick.
+- Greg attacks automatically; movement and positioning are the combat input.
+- When a level-up pauses the run, choose a card with the mouse, **1**, **2**,
+  or **3**, or ordinary **Tab** + **Enter** navigation.
+- Press **Esc** on desktop, or use the visible Pause control, to pause and
+  resume. The pause panel is the home for your current attacks and passive
+  upgrades; combat itself deliberately stays free of repeating build text.
 
-For a deterministic accelerated run, append
-`?autopilot=1&stress=1` to the local URL. Append `&fullrun=1` to extend that
-engineering harness to a terminal outcome no later than the 12-minute normal
-boundary, including the boss encounter if Greg survives. It auto-selects
-upgrades and is not a normal-balance playtest. The browser-specific README has
-the full control list, diagnostics,
-and stress procedure:
-[`apps/web-toy/README.md`](apps/web-toy/README.md).
-For a short nontechnical hands-on test, use the
-[Gate 1 owner playtest guide](docs/playtests/gate1-owner-playtest.md).
+The arena is a readable forest clearing. Its trees, ground treatment, and
+landmarks are presentation-only: they make movement and threat direction easier
+to read without changing deterministic gameplay.
 
-## Share a hosted playtest
+## Eight-minute normal run
 
-`Publish web-toy preview` is a GitHub Actions workflow for relevant pushes to
-`main`. It tests, lints, and builds the browser slice, then publishes only
-`apps/web-toy/dist` through GitHub Pages Actions.
+Normal mode has a hard **8:00** boundary and no hidden overtime. Survive and
+defeat **The Final Threat** before that boundary to win.
 
-Before the first deployment, the repository owner must enable GitHub Pages in
-**Settings → Pages → Build and deployment → Source: GitHub Actions**. After a
-green workflow run, open its deployment link in **Actions**, or **Settings →
-Pages**, to get the GitHub-assigned playtest URL. The URL is intentionally not
-hardcoded in this repository.
+| Time | Phase | What changes |
+| --- | --- | --- |
+| 0:00–1:00 | Opening | A readable first wave of off-screen approaches. |
+| 1:00–3:00 | Pressure | Faster waves, runners, and ranged threats begin. |
+| 3:00–5:00 | Adaptation | Density and mixed threats rise. |
+| 5:00–6:30 | Mutation | The most sustained pre-boss pressure. |
+| 6:30–8:00 | Boss | **The Final Threat** enters; end the run before 8:00. |
 
-## Automated verification
+Elite requests arrive at **2:00**, **3:40**, **4:30**, **5:15**, **5:45**, and
+**6:05**. Each gets a five-second warning. The boss warning starts at **6:10**.
+Ordinary threats approach from outside the camera rather than spawning within
+attack range. Runners weave, Spitters and elites use ranged pressure, and elite
+kills award a noticeably larger XP pickup.
 
-Run the browser-slice checks from `apps/web-toy/`:
+## Forest Arsenal loadout
+
+Greg always begins with **Auto-Fire**, the first of five active-attack slots.
+He can acquire up to four additional attack families, for a five-attack build.
+
+| Attack | Role |
+| --- | --- |
+| **Greg’s Auto-Fire** | Starter fire at the nearest enemy. |
+| **Porcupine Quills** | Automatic targeted quill bursts. |
+| **Puffer Pouch** | Pulls nearby enemies; its Adapted form pushes them back. |
+| **Electric Eel Coil** | Fires charged bolts at the nearest enemy. |
+| **Firefly Colony** | Releases sparks in every direction. |
+
+Each animal attack can be improved from Bud to Adapted. Two pairs can become
+Mythics:
+
+- **Thornstorm Mantle** — Adapted Quills + Adapted Pouch: telegraph, gather,
+  then a radial quill storm.
+- **Thunderbug Dynamo** — Adapted Coil + Adapted Colony: charge, then a radial
+  lightning storm.
+
+An evolution keeps both of its ingredient attack slots. A Mythic makes a more
+powerful combined attack; it never creates a free sixth weapon slot.
+
+There is no player-visible level cap. Alongside attacks, level-ups offer neutral
+passives: **Swift Paws**, **XP Magnet**, **Sturdy Hide**, **Sharpened Instinct**,
+**Rapid Instinct**, and **Growth**. A build can claim five distinct neutral
+passives. Chosen passives can still gain ranks; a sixth untouched passive cannot
+replace one of those choices. **Sharpened Instinct** increases damage for every
+attack, and **Rapid Instinct** reduces cooldown for every attack. When no finite
+upgrade remains, **Essence Cache** is the repeatable fallback.
+
+## Between runs
+
+At victory or defeat, the outcome settles earned **Essence** once and returns
+to the prep screen. Spend Essence there on **Starting Vitality**; it affects the
+next fresh run only and does not clutter the active HUD.
+
+## Hosted playtest
+
+`Publish web-toy preview` deploys the browser build through GitHub Pages for
+relevant pushes to `main`. GitHub Pages must first use **Settings → Pages →
+Build and deployment → Source: GitHub Actions**. After a green deployment, use
+the link in **Actions** or **Settings → Pages** to open the assigned preview
+URL.
+
+## Development checks
+
+From `apps/web-toy/`:
 
 ```bash
 npm run typecheck
@@ -123,25 +113,7 @@ npm test
 npm run build
 ```
 
-The deterministic simulation, trait runtime, and encounter director each have
-their own focused test suites and commands in their package READMEs:
-[`spikes/headless-sim/README.md`](spikes/headless-sim/README.md),
-[`packages/trait-runtime/README.md`](packages/trait-runtime/README.md), and
-[`packages/run-director/README.md`](packages/run-director/README.md).
-
-## Current state
-
-The current universal-progression and local-profile alpha has passed its full
-deterministic and browser package gates, but human balance testing is still
-pending. Hands-on play is needed to tune movement feel, pacing, upgrade
-comprehension, trait readability, and the elite/boss experience before this can
-advance beyond Gate 1. **Luck**, player-selectable difficulties, Hardcore
-Endless, additional animal traits, and further player attack families are
-deliberately deferred rather than implied by this small alpha catalog.
-
-For the up-to-date milestone, known gaps, and next work, see
-[`docs/status/current.md`](docs/status/current.md). The original product
-definition and execution plan remain in
-[`docs/greenlight-and-swarm-plan.md`](docs/greenlight-and-swarm-plan.md), and
-the AI-assisted operating rules are in
-[`docs/ai-native-operating-model.md`](docs/ai-native-operating-model.md).
+The deterministic simulation, trait runtime, and run director have focused
+checks in their own package READMEs. For a hands-on test, use the
+[Gate 1 owner playtest guide](docs/playtests/gate1-owner-playtest.md). Current
+milestone status and next work are in [docs/status/current.md](docs/status/current.md).

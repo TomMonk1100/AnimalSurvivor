@@ -1,354 +1,155 @@
-# web-toy — Gate 1 playable Greg vertical slice
+# Animal Survivor browser playtest
 
-This browser app presents the deterministic simulation in spikes/headless-sim as
-a small, locally playable WebGL 2 game. It deliberately keeps simulation,
-rendering, input, and diagnostics on separate sides of a read-only boundary:
-frame rate, rendering, and input-device details cannot change authoritative
-gameplay state.
+`apps/web-toy` is the playable browser presentation for Greg’s deterministic
+**Forest Arsenal** alpha. It owns input, DOM UI, audio controls, WebGL
+presentation, and the local prep/profile surface. The authoritative simulation,
+trait runtime, and run director live in their respective packages.
 
-The current app boots the real Greg vertical-slice trait runtime and the
-authored run director. It is a focused trait/evolution playtest slice, not a
-complete or balance-approved game: Greg moves and auto-fires, levels create
-deterministic choices, traits execute real simulation commands, and the run
-director supplies phases, elites, and a boss.
+This is an early playtest build. It is meant to answer whether moving,
+surviving, choosing attacks, and building a loadout feel good—not to claim final
+balance, art, or content completeness.
 
-Everything browser-specific lives under apps/web-toy. The authoritative sim,
-trait runtime, and run director are consumed through their package aliases;
-their source is not copied into the app.
+## Run it
 
-## Quick start
+```bash
+cd apps/web-toy
+npm ci
+npm run dev
+```
 
-    cd apps/web-toy
-    npm ci
-    npm run typecheck
-    npm run lint
-    npm test
-    npm run build
+Vite normally serves the game at `http://localhost:5173`.
 
-    # Vite dev server, normally http://localhost:5173
-    npm run dev
+Run the local checks from the same directory:
 
-A normal manual run opens at tick 0 behind **Start run**, giving a new player
-time to read the core loop before anything moves. Autopilot and stress URLs
-skip that first-run gate. Move with **WASD / arrow keys** on desktop or the
-**bottom-left virtual joystick** on touch. Greg auto-attacks nearby enemies;
-movement is the only combat input. Before the first XP gain, a contextual HUD
-line labels visible green motes as XP. When an upgrade card pauses the run,
-choose an adaptation to resume it.
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
 
-**Sound effects** are opt-in and **Off** by default. Enable them from the
-Start run card or the normal in-run **Sound: Off/On** control. The browser then
-synthesizes a few quiet cues for starting/restarting, rate-limited XP pickups,
-upgrade openings, victory, and defeat. They are presentation-only: neither
-gameplay nor replay changes, and unsupported or unavailable browser audio is a
-nonfatal silent fallback.
+## Player controls
 
-For the recommended hands-on check, use the
-[Gate 1 owner playtest guide](../../docs/playtests/gate1-owner-playtest.md).
+- **Start run** begins a manual run. Until it is chosen, the game remains at
+  tick 0 behind the intro card.
+- **WASD** or **arrow keys** move Greg. On touch, drag in the lower-left virtual
+  joystick.
+- Greg attacks automatically. There is no aiming input.
+- An upgrade card pauses the run. The first card receives focus; choose with
+  the mouse, **1**, **2**, or **3**, or **Tab** + **Enter**.
+- **Esc** toggles pause/resume on desktop. The visible pause control supports
+  pointer and touch play.
+- **Sound effects** are optional and off by default. They never affect gameplay
+  or replay; browser audio being unavailable is a silent, nonfatal fallback.
 
-## Hosted GitHub Pages preview
+The live HUD focuses on health, level, XP, time, phase, and the immediate goal.
+It intentionally does not repeat a description every time an attack fires.
+Pause to inspect the current attack and passive build. The prep screen, not
+combat, shows Essence and Starting Vitality.
 
-For sharing a build, relevant pushes to `main` run the `Publish web-toy
-preview` workflow: it tests, lints, builds, and deploys `dist/` through GitHub
-Pages Actions. The repository owner must first choose **Settings → Pages → Build
-and deployment → Source: GitHub Actions**. Once a run is green, use its
-deployment link in **Actions**, or **Settings → Pages**, to find the
-GitHub-assigned URL; no live URL is hardcoded here.
+## Forest Arsenal gameplay
 
-The app handle is exposed at window.__webToy for local checks, including its
-driver hash, tick, controls, and stop method.
+The arena is a forest clearing with presentation-only landmarks and terrain
+treatment for movement readability. It is not part of the deterministic world
+state or replay hash.
 
-### URL controls and debug buttons
+### Eight-minute normal mode
+
+Normal mode ends at **8:00**. Kill **The Final Threat** after it enters at
+**6:30** and before 8:00 to win; a living boss at the boundary is a defeat.
+There is no hidden overtime.
+
+| Time | Phase |
+| --- | --- |
+| 0:00–1:00 | Opening |
+| 1:00–3:00 | Pressure |
+| 3:00–5:00 | Adaptation |
+| 5:00–6:30 | Mutation |
+| 6:30–8:00 | Boss |
+
+The elite requests are at **2:00**, **3:40**, **4:30**, **5:15**, **5:45**, and
+**6:05**, each with a five-second warning. The boss warning is at **6:10**.
+Normal waves approach from outside the camera. Runners weave, Spitters and
+elites add ranged pressure, and elites give larger XP rewards.
+
+### Attacks and evolutions
+
+Greg’s starter **Auto-Fire** occupies one active-attack slot. A normal run can
+add four acquired trait families, for five active attack slots total:
+
+| Attack | Bud effect | Adapted effect |
+| --- | --- | --- |
+| **Porcupine Quills** | Targeted quill burst | More, faster quills |
+| **Puffer Pouch** | Gather nearby enemies | Wider push pulse |
+| **Electric Eel Coil** | Two charged bolts at the nearest threat | Four faster charged bolts |
+| **Firefly Colony** | Six radial sparks | Ten stronger radial sparks |
+
+Two paired evolutions are available:
+
+- **Thornstorm Mantle** combines Adapted Quills and Adapted Pouch: telegraph,
+  gather, then radial quill storm.
+- **Thunderbug Dynamo** combines Adapted Coil and Adapted Colony: charge, then
+  radial lightning storm.
+
+Each Mythic retains its two ingredient slots. Evolving is a power conversion,
+not a way to open a sixth active-attack slot.
+
+### Neutral passives and Essence
+
+Level-up offers mix attacks with neutral passives. A run can select five
+distinct passives: **Swift Paws**, **XP Magnet**, **Sturdy Hide**, **Sharpened
+Instinct**, **Rapid Instinct**, and **Growth** are the current candidates.
+
+After a passive has claimed one of the five slots, it can continue gaining ranks
+until its individual cap. Once all five slots are committed, untouched passives
+are no longer legal choices. **Sharpened Instinct** improves damage for every
+attack and **Rapid Instinct** reduces cooldown for every attack. If no finite
+upgrade remains, the chooser offers repeatable **Essence Cache**.
+
+Terminal Essence is settled once per run. **Continue to upgrades** returns to
+the prep surface, where saved Essence can buy capped Starting Vitality for the
+next fresh run only.
+
+## Local URL controls
 
 | Control | Effect |
 | --- | --- |
-| ?seed=&lt;number or text&gt; | Start with an explicit seed; text is hashed to a 32-bit seed. The default is 0x1234abcd. |
-| ?debug=1 | Shows the diagnostic HUD and engineering controls. The default presentation keeps those details out of the player-facing view. |
-| **Start run** | Normal manual runs remain at tick 0 until this first-run button is chosen; it starts without a catch-up burst. |
-| **Sound effects** / **Sound: Off/On** | Optional, initially Off sound feedback. Enable it from the Start run card or later from the normal controls. It synthesizes stronger start/restart and upgrade cues, rate-limited pickup, player-hit, and quiet auto-attack texture cues, plus victory/defeat; unavailable browser audio leaves play unaffected. |
-| ?autopilot=1 | Boot directly into deterministic autopilot and bypass the first-run gate. |
-| ?autopilot=1&stress=1 | Step up to five simulation ticks per rendered frame and auto-pause at tick 18,000. Stress mode selects the first pending upgrade deterministically so it does not stall. |
-| ?autopilot=1&stress=1&fullrun=1 | Keep the same accelerated, first-offer stress path until terminal, no later than the 43,200-tick normal boundary instead of stopping at 18,000. It can exercise boss and terminal UI; it is not a normal-balance result. |
-| ?autopilot=1&stress=1&renderstress=1 | Also feed a renderer-only fixture of 1,000 enemies, 500 projectiles, and 200 pickups to the GPU; it does not alter simulation state or hash. |
-| **Upgrade choices** | The first card receives focus when the run pauses. Press **1**, **2**, or **3** for the matching offered card, or use normal **Tab** + **Enter** button navigation. |
-| **Virtual joystick** | Drag inside the lower-left zone to move. A floating thumb follows the clamped drag and disappears on release, cancel, or focus loss. On narrow screens, persistent adaptation cards stay above it in portrait and to its right in landscape. |
-| **Pause / Resume** | Stops stepping. Press **Esc** during a live desktop run to toggle it; a centered notice explains how to resume, and a paused frame advances no clock, RNG, entity state, trait runtime, or run director. |
-| **Restart run** | Rebuilds the integrated run from the current seed in the compact player-facing controls. |
-| **Restart w/ seed** (debug) | Rebuilds the integrated run from the seed in the debug text box. |
-| **Continue to upgrades** | Appears on a terminal victory/defeat card and returns to the prep screen, where Essence can buy Starting Vitality before **Start next run** creates a fresh run. Pause, Restart run, and this terminal control have 44px-high touch targets. |
-| **Autopilot: ON/OFF** (debug) | Toggles the pure-function-of-tick stress input. |
-| **Renderer: ON/OFF** (debug) | Detaches or attaches GPU rendering while simulation keeps running, so local A/B checks can confirm that rendering does not affect gameplay. |
+| `?seed=<number or text>` | Starts with an explicit deterministic seed. Text is hashed to a 32-bit seed. |
+| `?debug=1` | Shows diagnostics and engineering controls; the default view remains player-facing. |
+| `?autopilot=1` | Boots into deterministic autopilot and skips the Start run gate. |
+| `?autopilot=1&stress=1` | Advances up to five simulation ticks per frame, auto-selects the first pending upgrade, and stops at five simulated minutes. |
+| `?autopilot=1&stress=1&fullrun=1` | Keeps the same deterministic stress path until terminal, no later than the 28,800-tick (8:00) normal boundary. This is an engineering flow check, not a balance playtest. |
+| `?autopilot=1&stress=1&renderstress=1` | Adds a renderer-only stress fixture without changing simulation state or hash. |
 
-## What is playable now
+`window.__webToy` exposes the local app handle for engineering checks, including
+the driver hash, tick, controls, and stop method.
 
-The intentionally small Greg catalog contains two animal adaptations and their
-combined Mythic. They are real runtime content rather than display-only cards.
+## Presentation and determinism boundaries
 
-| Choice | Live visual state | Actual effect |
-| --- | --- | --- |
-| **Porcupine Quills** | Bud and Adapted back attachments | Automatically fires directed quill bursts; Adapted is wider and faster. |
-| **Puffer Pouch** | Bud and Adapted head attachments | Bud inhales/gathers nearby enemies; Adapted releases a wider knockback pulse. |
-| **Thornstorm Mantle** | Mythic mantle that replaces its ingredients | Telegraphs, gathers enemies, then emits a radial quill storm. |
+- The browser consumes authoritative simulation snapshots and command cues; it
+  does not author combat outcomes, loot, timing, or upgrade selection results.
+- The forest clearing, hero facing, trait attachments, attack cues, world
+  effects, HUD, boss bar, and sound are read-only presentation.
+- A pause frame advances no simulation clock, RNG, entity state, trait runtime,
+  or run director state.
+- The renderer uses bounded, reusable presentation pools and fixed instanced
+  batches rather than per-frame gameplay allocation.
+- The browser build makes no runtime telemetry, analytics, key, backend, or
+  paid-service calls.
 
-The upgrade cards name the socket, stage, practical effect, and Mythic pairing.
-They also mix in six rank-capped neutral choices—Swift Paws, XP Magnet, Sturdy
-Hide, Sharpened Instinct, Rapid Instinct, and Growth—with a reserved neutral
-slot and an Essence Cache fallback after finite cards are complete. When cards
-appear, the first takes keyboard focus: **1**, **2**, and **3** select matching
-offers, while **Tab** + **Enter** follows ordinary button navigation. After a
-choice, the **Active Adaptations** panel remains visible and the pause panel
-lists both animal and neutral build effects. The player-facing HUD leads with
-Greg's health, level, XP, and the movement/auto-fire reminder before diagnostic
-values. It also retains elapsed time, authoritative phase, and a phase-appropriate
-objective—survive until **The Final Threat**, then defeat it by the 12:00 normal
-cap. Until Greg receives the first XP, it explains that the green motes on
-screen are XP to collect.
+## Share a preview
 
-The simulation emits executed trait commands into a presentation-only stream.
-The renderer turns supported commands into short-lived, fixed-pool ground
-pulses. The persistent **Active Adaptations** panel—and the central pause
-panel—explain the selected build and cadence without repeatedly covering play
-with per-action text. These cues are copied across fixed-tick catch-up before
-rendering and never feed back into gameplay, hashing, or replay state.
+Relevant pushes to `main` run `Publish web-toy preview`, which tests, lints,
+builds, and deploys `dist/` through GitHub Pages Actions. Enable **Settings →
+Pages → Build and deployment → Source: GitHub Actions** once, then use the
+green deployment link in **Actions** or **Settings → Pages**.
 
-The authored normal-mode run director drives phase, elite, boss, victory, and
-defeat notices. Enemy role remains authoritative in simulation; the renderer
-reads it to give elites amber cylinder treatments, bosses violet cone
-treatments, and normal-plus Spitters cobalt capsule treatments, without
-per-enemy material or entity allocation. Orange hostile projectiles carry their
-enemy faction through snapshots and never trigger Greg's player-attack cue.
-Ordinary waves approach from beyond the current camera, density ramps through
-75 / 60 / 45 / 30 / 36-tick phase cadence, and the Spitter joins pressure,
-adaptation, and mutation—not opening or boss—waves.
-App-owned enemy snapshots also copy current and maximum health, so a live boss
-gets a persistent, accessible **The Final Threat** bar without exposing
-writable gameplay state. When the authoritative run ends, its outcome card
-includes **Continue to upgrades** rather than covering the next run with
-permanent-stat UI.
+For a structured manual pass, follow the
+[Gate 1 owner playtest guide](../../docs/playtests/gate1-owner-playtest.md).
 
-## Architecture and renderer/simulation boundary
+## Current boundary
 
-    wall-clock rAF
-             |
-      +------v---------------- app.ts (integration) ---------------------+
-      |                                                                   |
-      | InputSource --sample(tick)--> SimDriver --fixed dt--> @sim       |
-      | (keyboard/joystick/           (accumulator,        Simulation    |
-      |  autopilot)                    catch-up cap)         + real      |
-      |                                                   TraitRuntime +   |
-      |                                                   RunDirector      |
-      |                                      |                            |
-      |                         read-only app-owned outputs              |
-      |          +---------------------------+------------------------+  |
-      |          | snapshots | trait visuals | director/trait events  |  |
-      |          +---------------------------+------------------------+  |
-      |                                      v                            |
-      | RendererAdapter.render(...) -- PlayCanvas WebGL 2 (reads only)    |
-      | Hud / upgrade UI / notices -- presentation projections (read only) |
-      +-------------------------------------------------------------------+
-
-The frozen browser boundary is src/contracts.ts: InputSource,
-RenderSnapshot/CategorySnapshot, RendererAdapter, PerformanceMonitor, and Hud.
-Rendering, interpolation, UI projections, and diagnostics only read app-owned
-snapshots or copied presentation events. They do not write simulation positions,
-health, timers, RNG, entity lifetimes, trait state, or director state.
-
-### How the integration rules are met
-
-1. **Authoritative packages, no copied sim source.** @sim resolves to the
-   accepted simulation; app boot supplies real TraitRuntime and RunDirector
-   factories through their package aliases.
-2. **Fixed-tick stepping.** SimDriver steps at config.hz behind an accumulator.
-   Wall-clock delta is never given to simulation logic. Catch-up is capped at
-   MAX_CATCHUP_TICKS = 5; discarded excess is surfaced as droppedAccumSec.
-3. **One canonical input per tick.** Keyboard, joystick, and autopilot all
-   implement InputSource; the driver calls sample(tick, paused) once for every
-   stepped tick. There is no aiming path.
-4. **Deterministic choices stop advancement.** A pending level-up choice blocks
-   stepping atomically. The browser asks the player to choose; stress mode makes
-   its explicit, deterministic first-offer choice.
-5. **Reusable events are copied at the boundary.** Director events and actual
-   trait command records are copied into frame-owned arrays so a multi-tick
-   catch-up frame preserves every cue. Renderer feedback is similarly derived
-   from adjacent snapshots, never by mutating sim state.
-6. **Generation-guarded transforms.** InstancedTransformStore matches the packed
-   entity ID, not only the slot. A reused slot with a new generation snaps to
-   its new transform rather than interpolating from stale state.
-7. **App-owned interpolation.** render(prev, curr, alpha) lerps two app-owned
-   snapshots; entities appearing only in curr snap to curr.
-8. **No re-entrancy.** SimDriver.frame() and restart() reject re-entrant calls.
-9. **Hidden-tab safety.** visibilitychange rebaselines wall-clock time; a hard
-   0.25-second frame clamp is a defensive backstop against stall bursts.
-10. **No runtime service dependency.** The browser build makes no runtime
-    network, telemetry, analytics, key, backend, or paid-service calls.
-
-## Rendering and presentation
-
-- **Device and camera:** a synchronous PlayCanvas WebGL 2 device with a DPR cap
-  of min(devicePixelRatio, 2); the deliberately tighter orthographic top-down
-  camera follows Greg so Greg, nearby threats, and XP motes remain readable.
-  Simulation x-right/y-up maps to XZ as sceneX = simX - worldWidth/2 and
-  sceneZ = worldHeight/2 - simY, so screen-up matches simulation +Y. Framing
-  is presentation-only and never alters simulation space, input, or replay.
-- **Arena reference:** two static, subtle world-space line meshes give the
-  camera-following view a minor/major grid. They are built once, use shared
-  materials, and never update or allocate during the render loop.
-- **Instanced swarms:** regular enemies, elite enemies, bosses, Spitters,
-  player projectiles, hostile projectiles, and pickups use **seven** fixed
-  hardware-instanced category batches. A normal enemy is a red sphere, an elite
-  is an amber cylinder, a boss is a violet cone, and a Spitter is a cobalt
-  capsule. The role treatment adds bounded fixed batches, not one mesh or
-  material per enemy. Greg, the arena grid, and bounded feedback pools are
-  separate presentation draws, so debug draw-call readings are measured per
-  frame rather than assumed to match an obsolete four-draw swarm model.
-- **Greg:** an audited local Quaternius fox glTF replaces a resilient cyan
-  fallback after loading. A fixed-tick presentation reducer drives Idle, Walk,
-  Attack, Hit, and Death behavior; a 45-degree-per-tick visual turn cap and
-  hysteresis keep locomotion readable without touching position, input,
-  simulation, or replay state. A sharp reversal resolves across four bounded
-  visual turns.
-- **Live attachments:** actual authoritative trait visual state mounts Bud and
-  Adapted recipes to stable head/back sockets. Thornstorm consumes its
-  ingredient visuals into one Mythic silhouette.
-- **Combat readability:** separate fixed pools show attack, hit, pickup, enemy
-  death, and player-death feedback. The trait-command pool shows telegraph,
-  directed/radial burst, gather, knockback, area-damage, and trait-cue pulses
-  for supported executed commands.
-- **Sound feedback:** an opt-in Web Audio synth creates only sparse, quiet
-  start/restart, rate-limited pickup, upgrade-open, victory, and defeat cues.
-  It is presentation-only, never opens audio before a player enables it, and
-  fails as a harmless silent fallback when browser audio is unavailable.
-- **Context loss:** webglcontextlost sets a visible flag and pauses stepping;
-  restoring clears the flag. This path is designed to protect the boundary,
-  but forced recovery still needs a manual browser check.
-
-## Automated verification
-
-Run from apps/web-toy:
-
-| Command | What it checks |
-| --- | --- |
-| npm ci | Installs the locked browser-tooling dependency set. |
-| npm run typecheck | Strict TypeScript, including noUncheckedIndexedAccess. |
-| npm run lint | ESLint with --max-warnings 0; app-source Math.random is banned. |
-| npm test | The current suite contains **195 tests** across the driver, input, snapshots, presentation, procedural audio, real integrated run replay, and renderer-facing helpers. |
-| npm run build | Strict typecheck plus a Vite production build. |
-
-The suite covers accumulator exactness, catch-up and hidden-tab behavior,
-renderer-on/off hash parity, interpolation and generation reuse, keyboard and
-touch cancellation, pure autopilot input, upgrade-boundary pausing, live trait
-visual projection, attachment replacement, locomotion/animation behavior,
-combat feedback, trait-command cue retention through catch-up, director notice
-projection, role snapshots, fixed-pool trait-command presentation, and opt-in
-audio cue routing/failure handling.
-
-Two intentionally different deterministic checks are useful:
-
-- The five-minute fixed-driver autopilot parity test compares the baseline
-  browser driver with an identically fed bare headless simulation at 18,000
-  ticks. Its current canonical seed/hash is 0x1234abcd / 1e4715bcc24cc0ee.
-- full-run-replay.test.ts runs the real trait runtime and run director until a
-  terminal outcome no later than 43,200 ticks (12 minutes), makes deterministic
-  choices, reaches the boss phase, and reproduces the exact replay hash. Its
-  enlarged player-health configuration validates integration and replay
-  infrastructure; it is not evidence of normal difficulty balance.
-
-## Local browser checks and playtesting
-
-The browser has had a short local development smoke pass using the Codex
-in-app browser: the app loaded, the deterministic stress path advanced, and no
-console errors were observed in that check. This is local smoke evidence only,
-not a hardware benchmark, certification, or substitute for human playtesting.
-
-To repeat useful checks locally:
-
-1. **Hands-on feel and clarity:** follow the
-   [Gate 1 owner playtest guide](../../docs/playtests/gate1-owner-playtest.md).
-   In particular, check whether the initial **Start run** card explains the
-   core loop, then check vertical controls, green-mote XP clarity, upgrade
-   comprehension, Puffer and Thornstorm sequence readability, optional sound
-   feedback, HUD clutter, and elite/boss recognition.
-2. **Deterministic stress:** open
-   /?autopilot=1&stress=1&renderstress=1&debug=1&seed=305441741. It accelerates to and
-   auto-pauses at tick 18,000; compare the displayed hash with the five-minute
-   automated-check value above.
-3. **Accelerated boss/run flow:** open
-   /?autopilot=1&stress=1&fullrun=1. It raises the stress cap to the 43,200-tick
-   normal boundary and makes deterministic upgrade choices until terminal. If
-   the normal-health run reaches a live boss, verify the **The Final Threat**
-   health bar appears and the terminal card offers **Continue to upgrades**. This is an
-   engineering UI check, not evidence of normal-balance survival.
-4. **Read-only rendering A/B:** add `?debug=1`, then toggle **Renderer: OFF/ON**
-   while autopilot runs. The simulation/hash should continue identically with
-   draw calls shown as zero while rendering is detached.
-5. **Mobile layout and input:** emulate 390 x 844 in both portrait and
-   landscape; check that the lower-left joystick thumb follows a drag and
-   resets on release, the persistent adaptation cards stay above the joystick
-   in portrait and to its right in landscape, Pause/Restart run and terminal
-   Continue to upgrades are comfortable 44px targets, and the page has no horizontal
-   overflow.
-6. **Optional sound:** enable **Sound effects** before starting, then toggle
-   **Sound: On/Off** during a run. Confirm sparse start/restart, rate-limited
-   pickup, upgrade, and terminal cues feel helpful rather than noisy; if audio
-   cannot start, confirm its message does not block play.
-7. **Context loss:** use a browser's WEBGL_lose_context facility if available;
-   confirm the context banner pauses the run and restoration resumes without an
-   unexpected hash discontinuity.
-
-Do not treat any local FPS, frame-time, or draw-call reading as a universal
-threshold. No normal-difficulty end-to-end human balance run, physical-touch
-test, low-end-device test, or forced-context-loss recovery check has been
-accepted yet.
-
-## Dependencies and licenses
-
-Runtime (the only shipped game dependency):
-
-| Package | Version | License | Why |
-| --- | --- | --- | --- |
-| playcanvas | ^2.20.6 | MIT | Standalone WebGL 2 engine for pooled primitive and hero presentation. |
-
-Development-only (not shipped in the browser bundle):
-
-| Package | Version | License | Why |
-| --- | --- | --- | --- |
-| vite | ^8.1.4 | MIT | Dev server and production bundler; resolves project aliases. |
-| vitest | ^4.1.10 | MIT | Test runner sharing Vite alias resolution. |
-| happy-dom | ^20.10.6 | MIT | Pure-JS DOM for input/HUD tests. |
-| typescript | ^5.6.0 | Apache-2.0 | Strict typechecking. |
-| eslint / TypeScript ESLint | ^9.15.0 / ^8.15.0 | MIT | Lint and the Math.random determinism guard. |
-| @eslint/js, @types/node | ^9.15.0 / ^22.10.0 | MIT | ESLint base configuration and Node types for tooling. |
-
-## Known limitations and open checks
-
-- This is a **first playable Greg slice**, not a finished game. It has no final
-  animal roster, menus, save flow, authored audio mix or sound library, backend,
-  telemetry, monetization, or production-complete art.
-- The playable catalog is deliberately limited to Porcupine Quills, Puffer
-  Pouch, and Thornstorm Mantle. Persistent zone, mark, chain, melee, and shield
-  command kinds remain out of player-facing catalogs until their authoritative
-  state exists; unsupported commands reject rather than silently inventing
-  behavior.
-- Trait attachments and trait-command feedback are bounded primitive
-  presentation, not final VFX, meshes, animation, or accessibility treatment.
-  Ordinary combat uses short additive fading rings for attacks, pickups, hits,
-  and deaths; their tuning still needs hands-on feedback.
-  The current sound feedback is similarly a small optional procedural layer;
-  its volume, timing, and cue clarity need human feedback.
-- Aggregate culling is disabled: each category is arena-wide, and each
-  populated category uploads its retained full matrix buffer per frame. Spatial
-  chunking and dirty-range uploads are future low-end optimizations if profiling
-  justifies them.
-- The initial browser payload includes PlayCanvas and the fox glTF. Lazy hero
-  loading, glTF optimization, and code splitting remain release work.
-- PlayCanvas worker-path build warnings and physical WebGL-context recovery
-  still need release-oriented browser validation, even though the normal build
-  and local smoke path work.
-- @sim exposes the canonical packed-ID runtime helpers (`makeId`, `idSlot`,
-  `idGeneration`, and `NO_ENTITY`); browser code imports them instead of
-  maintaining a second copy of the bit-packing rules.
-
-The next meaningful milestone is a hands-on desktop playtest focused on
-movement feel, adaptation clarity, trait feedback, and elite/boss readability;
-then tune this bounded presentation from that feedback before treating the
-vertical slice as balance-ready.
+Forest Arsenal is deliberately a compact first loadout, not a final roster or
+art pass. More attack families, enemy patterns, difficulty modes, polished
+audio, final authored assets, physical-touch validation, low-end-device
+profiling, and broader human balance testing remain open.

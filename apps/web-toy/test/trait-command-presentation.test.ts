@@ -32,6 +32,12 @@ describe('trait command presentation profiles', () => {
     expect(profile?.lifetimeTicks).toBeGreaterThan(20);
   });
 
+  it('uses the authored Thunderbug charge treatment when its tag is available', () => {
+    const profile = projectTraitCommandEffect(command({ tag: 'thunderbug-charge' }));
+    expect(profile?.material).toBe('thunderbug-telegraph');
+    expect(profile?.lifetimeTicks).toBe(18);
+  });
+
   it('uses authored radius when present and clamps untrusted visual data', () => {
     const profile = projectTraitCommandEffect(command({ kind: 'areaGather' }))!;
     expect(resolveTraitCommandEffectRadius(command({ kind: 'areaGather', radius: 140 }), profile)).toBe(140);

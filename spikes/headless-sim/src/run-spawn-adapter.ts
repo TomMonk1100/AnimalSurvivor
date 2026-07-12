@@ -149,7 +149,7 @@ export function createRunSpawnAdapter(options: RunSpawnAdapterOptions = {}) {
   const eliteMultiplier = options.eliteHpMultiplier ?? 5;
   const eliteXpMultiplier = options.eliteXpMultiplier ?? 6;
   // The first playable Greg boss needs a real response period before the
-  // 12-minute boundary. This remains an adapter-owned temporary tune until
+  // normal-mode boundary. This remains an adapter-owned temporary tune until
   // boss health moves into versioned run content.
   const bossMultiplier = options.bossHpMultiplier ?? 18;
   const bossXpMultiplier = options.bossXpMultiplier ?? 1;

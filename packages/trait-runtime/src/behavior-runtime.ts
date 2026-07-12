@@ -133,7 +133,9 @@ function emitCommand(
   if (template.dirX !== undefined) cmd.dirX = template.dirX;
   if (template.dirY !== undefined) cmd.dirY = template.dirY;
   if (template.count !== undefined) cmd.count = template.count;
-  if (template.damage !== undefined) cmd.damage = template.damage;
+  if (template.damage !== undefined) {
+    cmd.damage = template.damage * (ctx.weaponDamageMultiplier ?? 1);
+  }
   if (template.speed !== undefined) cmd.speed = template.speed;
   if (template.radius !== undefined) cmd.radius = template.radius;
   if (template.strength !== undefined) cmd.strength = template.strength;
@@ -179,7 +181,7 @@ function stepPeriodic(
   out: CommandBuffer,
 ): void {
   if (timer.cooldown <= 0) {
-    timer.cooldown = behavior.periodTicks;
+    timer.cooldown = Math.max(1, Math.round(behavior.periodTicks * (ctx.weaponCooldownMultiplier ?? 1)));
     if (behavior.emit !== undefined) {
       emitCommand(out, behavior.emit, ownerId, ctx);
     } else {
@@ -218,7 +220,8 @@ function stepMultiPhase(
     emitCommand(out, phase.emit, ownerId, ctx);
   }
   timer.phaseTicks += 1;
-  if (timer.phaseTicks >= phase.durationTicks) {
+  const durationTicks = Math.max(1, Math.round(phase.durationTicks * (ctx.weaponCooldownMultiplier ?? 1)));
+  if (timer.phaseTicks >= durationTicks) {
     timer.phaseTicks = 0;
     timer.phase = (timer.phase + 1) % phases.length;
   }

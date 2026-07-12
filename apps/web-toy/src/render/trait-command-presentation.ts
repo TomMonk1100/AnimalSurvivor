@@ -38,7 +38,7 @@ export type TraitCommandEffectKind =
   | 'trait-cue';
 
 type EffectMotion = 'expand' | 'contract' | 'pulse';
-type EffectMaterial = TraitCommandEffectKind | 'thornstorm-telegraph';
+type EffectMaterial = TraitCommandEffectKind | 'thornstorm-telegraph' | 'thunderbug-telegraph';
 
 export interface TraitCommandEffectProfile {
   readonly kind: TraitCommandEffectKind;
@@ -76,6 +76,10 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
     kind: 'telegraph', material: 'thornstorm-telegraph', motion: 'pulse', lifetimeTicks: 26,
     fallbackRadius: 140, minimumRadius: 24, maximumRadius: 280, directed: false,
   },
+  'thunderbug-telegraph': {
+    kind: 'telegraph', material: 'thunderbug-telegraph', motion: 'pulse', lifetimeTicks: 18,
+    fallbackRadius: 150, minimumRadius: 24, maximumRadius: 280, directed: false,
+  },
   'directed-burst': {
     kind: 'directed-burst', material: 'directed-burst', motion: 'expand', lifetimeTicks: 9,
     fallbackRadius: 34, minimumRadius: 10, maximumRadius: 100, directed: true,
@@ -105,6 +109,7 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
 const COLORS: Readonly<Record<EffectMaterial, pc.Color>> = Object.freeze({
   telegraph: new pc.Color(0.72, 0.28, 1),
   'thornstorm-telegraph': new pc.Color(0.98, 0.2, 0.72),
+  'thunderbug-telegraph': new pc.Color(0.3, 0.66, 1),
   'directed-burst': new pc.Color(1, 0.8, 0.16),
   'radial-burst': new pc.Color(0.92, 0.48, 1),
   gather: new pc.Color(0.18, 0.85, 1),
@@ -116,6 +121,7 @@ const COLORS: Readonly<Record<EffectMaterial, pc.Color>> = Object.freeze({
 const OPACITY: Readonly<Record<EffectMaterial, number>> = Object.freeze({
   telegraph: 0.28,
   'thornstorm-telegraph': 0.34,
+  'thunderbug-telegraph': 0.34,
   'directed-burst': 0.72,
   'radial-burst': 0.62,
   gather: 0.42,
@@ -149,7 +155,11 @@ function clamp(value: number, minimum: number, maximum: number): number {
 export function projectTraitCommandEffect(event: TraitCommandPresentationEvent): TraitCommandEffectProfile | null {
   switch (event.kind) {
     case 'telegraph':
-      return event.tag === 'thornstorm-inhale' ? PROFILES['thornstorm-telegraph'] : PROFILES.telegraph;
+      return event.tag === 'thornstorm-inhale'
+        ? PROFILES['thornstorm-telegraph']
+        : event.tag === 'thunderbug-charge'
+          ? PROFILES['thunderbug-telegraph']
+          : PROFILES.telegraph;
     case 'spawnProjectileBurst': return PROFILES['directed-burst'];
     case 'radialProjectileBurst': return PROFILES['radial-burst'];
     case 'areaGather': return PROFILES.gather;

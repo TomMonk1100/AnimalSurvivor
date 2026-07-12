@@ -79,6 +79,8 @@ export interface SimDriver {
   readonly totalKills: number;
   readonly runEssenceEarned: number;
   readonly universalUpgradeRanks: readonly number[];
+  readonly universalUpgradeSlotCapacity: number;
+  readonly universalUpgradeSlotsUsed: number;
   /** Offers awaiting the player's deterministic level-up choice. */
   readonly pendingUpgradeOffers: readonly RunUpgradeOfferView[];
   /** True while fixed-tick advancement is blocked on an upgrade choice. */
@@ -384,6 +386,12 @@ export function createSimDriver(
     },
     get universalUpgradeRanks() {
       return sim.universalUpgradeRanks;
+    },
+    get universalUpgradeSlotCapacity() {
+      return sim.universalUpgradeSlotCapacity;
+    },
+    get universalUpgradeSlotsUsed() {
+      return sim.universalUpgradeSlotsUsed;
     },
     get pendingUpgradeOffers() {
       return sim.pendingUpgradeOffers;

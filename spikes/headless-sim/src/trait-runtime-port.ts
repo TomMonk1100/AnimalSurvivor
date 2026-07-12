@@ -13,6 +13,10 @@ export interface TraitRuntimeUpdateContext {
   readonly moveDirX: number;
   readonly moveDirY: number;
   readonly distanceMovedThisTick: number;
+  /** Neutral attack damage multiplier projected by the simulation. */
+  readonly weaponDamageMultiplier?: number;
+  /** Neutral attack cooldown multiplier projected by the simulation. */
+  readonly weaponCooldownMultiplier?: number;
 }
 
 export interface TraitRuntimeCommandView {
@@ -56,6 +60,7 @@ export type TraitUpgradeOutcomeView =
   | { readonly ok: false; readonly kind: 'unknownTrait'; readonly traitId: string }
   | { readonly ok: false; readonly kind: 'maxed'; readonly traitId: string }
   | { readonly ok: false; readonly kind: 'alreadyMythic'; readonly traitId: string }
+  | { readonly ok: false; readonly kind: 'loadoutFull'; readonly traitId: string; readonly capacity: number }
   | {
       readonly ok: false;
       readonly kind: 'socketConflict';

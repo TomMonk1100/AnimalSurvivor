@@ -14,7 +14,12 @@ type GregAdaptationId =
   | 'porcupine-quills:adapted'
   | 'puffer-pouch:bud'
   | 'puffer-pouch:adapted'
-  | 'thornstorm-mantle:mythic';
+  | 'thornstorm-mantle:mythic'
+  | 'electric-eel-coil:bud'
+  | 'electric-eel-coil:adapted'
+  | 'firefly-colony:bud'
+  | 'firefly-colony:adapted'
+  | 'thunderbug-dynamo:mythic';
 
 interface AdaptationDefinition {
   readonly card: ActiveAdaptationCard;
@@ -84,11 +89,69 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     'Draws enemies in, then releases a radial quill storm.',
     'Cycles every 1.5 seconds: telegraph → gather → radial quill storm',
   ),
+  'electric-eel-coil:bud': definition(
+    'electric-eel-coil:bud',
+    'electric-eel-coil',
+    'bud',
+    'Electric Eel Coil',
+    'Bud',
+    'Fires two charged bolts at the nearest enemy.',
+    'Every 1.3 seconds',
+  ),
+  'electric-eel-coil:adapted': definition(
+    'electric-eel-coil:adapted',
+    'electric-eel-coil',
+    'adapted',
+    'Electric Eel Coil',
+    'Adapted',
+    'Fires four faster charged bolts at the nearest enemy.',
+    'Every 0.9 seconds',
+  ),
+  'firefly-colony:bud': definition(
+    'firefly-colony:bud',
+    'firefly-colony',
+    'bud',
+    'Firefly Colony',
+    'Bud',
+    'Releases a six-spark burst in every direction.',
+    'Every 2 seconds',
+  ),
+  'firefly-colony:adapted': definition(
+    'firefly-colony:adapted',
+    'firefly-colony',
+    'adapted',
+    'Firefly Colony',
+    'Adapted',
+    'Releases ten stronger sparks in every direction.',
+    'Every 1.3 seconds',
+  ),
+  'thunderbug-dynamo:mythic': definition(
+    'thunderbug-dynamo:mythic',
+    'thunderbug-dynamo',
+    'mythic',
+    'Thunderbug Dynamo',
+    'Mythic',
+    'Charges up, then releases an eighteen-bolt lightning storm.',
+    'Cycles every 1.5 seconds: charge → radial lightning storm',
+  ),
 });
 
 const INGREDIENTS: readonly (readonly [GregAdaptationId, GregAdaptationId])[] = Object.freeze([
   ['porcupine-quills:adapted', 'porcupine-quills:bud'],
   ['puffer-pouch:adapted', 'puffer-pouch:bud'],
+  ['electric-eel-coil:adapted', 'electric-eel-coil:bud'],
+  ['firefly-colony:adapted', 'firefly-colony:bud'],
+]);
+
+const MYTHICS = Object.freeze([
+  Object.freeze({
+    id: 'thornstorm-mantle:mythic' as const,
+    ingredients: Object.freeze(['porcupine-quills', 'puffer-pouch']),
+  }),
+  Object.freeze({
+    id: 'thunderbug-dynamo:mythic' as const,
+    ingredients: Object.freeze(['electric-eel-coil', 'firefly-colony']),
+  }),
 ]);
 
 function hasActiveVisual(
@@ -109,11 +172,17 @@ function hasActiveVisual(
 export function presentActiveAdaptations(
   visuals: readonly TraitVisualAttachmentView[],
 ): readonly ActiveAdaptationCard[] {
-  const mythic = DEFINITIONS['thornstorm-mantle:mythic'];
-  if (hasActiveVisual(visuals, mythic)) return Object.freeze([mythic.card]);
-
   const cards: ActiveAdaptationCard[] = [];
+  const consumedSources = new Set<string>();
+  for (const entry of MYTHICS) {
+    const mythic = DEFINITIONS[entry.id];
+    if (hasActiveVisual(visuals, mythic)) {
+      cards.push(mythic.card);
+      for (const ingredient of entry.ingredients) consumedSources.add(ingredient);
+    }
+  }
   for (const [preferred, fallback] of INGREDIENTS) {
+    if (consumedSources.has(DEFINITIONS[preferred].sourceId)) continue;
     const definition = hasActiveVisual(visuals, DEFINITIONS[preferred])
       ? DEFINITIONS[preferred]
       : hasActiveVisual(visuals, DEFINITIONS[fallback]) ? DEFINITIONS[fallback] : null;
