@@ -17,10 +17,12 @@ Greg has a deterministic browser survival loop with:
 - off-screen approach waves, weaving runners, ranged Spitters, ranged elites,
   six warned elite requests, and **The Final Threat**;
 - five active-attack slots: Greg’s starter Auto-Fire plus up to four acquired
-  choices from five trait families;
+  choices from six trait families;
 - Quills, Puffer, Electric Eel Coil, Firefly Colony, and **Mantis Scythes**
-  (a standalone short-range pulse with no Mythic evolution yet), with the
-  **Thornstorm Mantle** and **Thunderbug Dynamo** two-slot Mythics;
+  (a short-range pulse), plus **Gecko Pads** (damaging pads at Greg's feet
+  after he travels 150 units at Bud or 110 units at Adapted; they do not slow), with the
+  **Thornstorm Mantle**, **Thunderbug Dynamo**, and **Razorstep Chimera**
+  two-slot Mythics;
 - five distinct neutral passive footprints, rank-up continuation for selected
   passives, and **Essence Cache** as the repeatable finite-upgrade fallback;
 - pause-only build details, so active play is not covered by repeated move
@@ -45,9 +47,9 @@ not only starter fire.
 
 - A fresh human playtest of the compressed eight-minute curve: is pressure
   urgent, fair, and readable from opening through boss?
-- Attack clarity: can a player distinguish Quills, Puffer, Coil, Firefly, and
-  Mantis Scythes; understand each Mythic; and find build details naturally in
-  the pause panel?
+- Attack clarity: can a player distinguish Quills, Puffer, Coil, Firefly,
+  Mantis Scythes, and Gecko Pads; understand each Mythic; and find build
+  details naturally in the pause panel?
 - Forest readability: does the clearing improve movement and threat awareness
   without hiding pickups, projectiles, or enemy silhouettes?
 - Human confirmation that the verified deterministic/browser integration feels
@@ -61,7 +63,7 @@ not only starter fire.
 1. Conduct focused owner playtests using
    [the Gate 1 guide](../playtests/gate1-owner-playtest.md), then tune only
    values supported by that feedback.
-2. Expand from the current five attack candidates to a wider pool, so five-slot
+2. Expand from the current six attack candidates to a wider pool, so five-slot
    builds make increasingly meaningful choices rather than merely filling every
    available family.
 3. Design a truthful Luck system and future difficulty definitions only after

@@ -182,6 +182,10 @@ export function createGregPresentation(
   const firefly = attachmentMaterial(new pc.Color(0.5, 1, 0.3));
   const mantis = attachmentMaterial(new pc.Color(0.72, 0.94, 0.42));
   const mantisEdge = attachmentMaterial(new pc.Color(0.92, 1, 0.68));
+  const gecko = attachmentMaterial(new pc.Color(0.12, 0.9, 0.52));
+  const geckoGlow = attachmentMaterial(new pc.Color(0.66, 1, 0.76));
+  const razorstep = attachmentMaterial(new pc.Color(0.96, 0.38, 0.7));
+  const razorstepEdge = attachmentMaterial(new pc.Color(0.74, 0.96, 1));
   const attachmentMaterials: Readonly<Record<GregMaterialRole, pc.StandardMaterial>> = {
     quillPrimary: brass,
     quillAccent: cream,
@@ -196,6 +200,10 @@ export function createGregPresentation(
     thunderbugCore: electric,
     mantisPrimary: mantis,
     mantisAccent: mantisEdge,
+    geckoPrimary: gecko,
+    geckoAccent: geckoGlow,
+    razorstepPrimary: razorstep,
+    razorstepAccent: razorstepEdge,
   };
 
   let entity: pc.Entity | null = null;
@@ -276,6 +284,10 @@ export function createGregPresentation(
       firefly.destroy();
       mantis.destroy();
       mantisEdge.destroy();
+      gecko.destroy();
+      geckoGlow.destroy();
+      razorstep.destroy();
+      razorstepEdge.destroy();
     },
   };
 }

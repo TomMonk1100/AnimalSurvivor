@@ -60,7 +60,7 @@
 import * as pc from 'playcanvas';
 import type { SimConfig } from '@sim';
 import type { TraitPresentationEventView, TraitVisualAttachmentView } from '@sim';
-import { DEFAULT_CONFIG, RUN_ENEMY_ROLE } from '@sim';
+import { DEFAULT_CONFIG, RUN_ENEMY_ROLE, ZONE_TAG } from '@sim';
 import type {
   RendererAdapter,
   RendererStats,
@@ -99,12 +99,14 @@ const CATEGORY_COLORS: Record<ViewCategory, pc.Color> = {
   enemy: new pc.Color(0.86, 0.2, 0.24), // red
   projectile: new pc.Color(0.95, 0.85, 0.2), // yellow
   pickup: new pc.Color(0.27, 0.9, 0.36), // green
+  zone: new pc.Color(0.24, 1, 0.58), // mint Gecko pad
 };
 const HOSTILE_PROJECTILE_COLOR = new pc.Color(1, 0.32, 0.1); // orange-red
 /** Fixed role treatments: never a unique material or mesh per enemy. */
 const ELITE_ENEMY_COLOR = new pc.Color(1, 0.58, 0.12); // amber
 const BOSS_ENEMY_COLOR = new pc.Color(0.72, 0.22, 0.95); // violet
 const RANGED_ENEMY_COLOR = new pc.Color(0.18, 0.52, 1); // cobalt-blue
+const RAZORSTEP_ZONE_COLOR = new pc.Color(0.82, 1, 0.36); // lime scythe pad
 const ELITE_SCALE_MULTIPLIER = 1.35;
 const BOSS_SCALE_MULTIPLIER = 2.2;
 const RANGED_SCALE_MULTIPLIER = 1.12;
@@ -115,6 +117,16 @@ function createFlatMaterial(color: pc.Color): pc.StandardMaterial {
   material.useLighting = false;
   material.diffuse.set(0, 0, 0);
   material.emissive.copy(color);
+  material.update();
+  return material;
+}
+
+/** Persistent pads read as translucent ground decals rather than solid mobs. */
+function createZoneMaterial(color: pc.Color): pc.StandardMaterial {
+  const material = createFlatMaterial(color);
+  material.opacity = 0.4;
+  material.blendType = pc.BLEND_ADDITIVEALPHA;
+  material.depthWrite = false;
   material.update();
   return material;
 }
@@ -200,11 +212,13 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     enemy: createFlatMaterial(CATEGORY_COLORS.enemy),
     projectile: createFlatMaterial(CATEGORY_COLORS.projectile),
     pickup: createFlatMaterial(CATEGORY_COLORS.pickup),
+    zone: createZoneMaterial(CATEGORY_COLORS.zone),
   };
   const eliteEnemyMaterial = createFlatMaterial(ELITE_ENEMY_COLOR);
   const bossEnemyMaterial = createFlatMaterial(BOSS_ENEMY_COLOR);
   const rangedEnemyMaterial = createFlatMaterial(RANGED_ENEMY_COLOR);
   const hostileProjectileMaterial = createFlatMaterial(HOSTILE_PROJECTILE_COLOR);
+  const razorstepZoneMaterial = createZoneMaterial(RAZORSTEP_ZONE_COLOR);
   const playerMaterial = createFlatMaterial(PLAYER_COLOR);
 
   const playerEntity = new pc.Entity('player');
@@ -248,6 +262,14 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     app.graphicsDevice,
     new pc.ConeGeometry({ baseRadius: 0.62, height: 1.25, heightSegments: 1, capSegments: 5 }),
   );
+  const zoneMesh = pc.Mesh.fromGeometry(
+    app.graphicsDevice,
+    new pc.PlaneGeometry({
+      halfExtents: new pc.Vec2(0.5, 0.5),
+      widthSegments: 1,
+      lengthSegments: 1,
+    }),
+  );
   const batches: Record<ViewCategory, InstancedCategoryBatch> = {
     enemy: createInstancedCategoryBatch(
       app.graphicsDevice,
@@ -272,6 +294,15 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
       config.pickupCap,
       categoryMesh,
       materials.pickup,
+    ),
+    zone: createInstancedCategoryBatch(
+      app.graphicsDevice,
+      entitiesRoot,
+      'gecko-pad',
+      config.zoneCap,
+      zoneMesh,
+      materials.zone,
+      0.08,
     ),
   };
   const eliteEnemyBatch = createInstancedCategoryBatch(
@@ -306,16 +337,27 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     categoryMesh,
     hostileProjectileMaterial,
   );
+  const razorstepZoneBatch = createInstancedCategoryBatch(
+    app.graphicsDevice,
+    entitiesRoot,
+    'razorstep-pad',
+    config.zoneCap,
+    zoneMesh,
+    razorstepZoneMaterial,
+    0.09,
+  );
 
   const transformStores: Record<ViewCategory, InstancedTransformStore> = {
     enemy: new InstancedTransformStore(config.enemyCap),
     projectile: new InstancedTransformStore(config.projectileCap),
     pickup: new InstancedTransformStore(config.pickupCap),
+    zone: new InstancedTransformStore(config.zoneCap),
   };
   const eliteEnemyTransforms = new InstancedTransformStore(config.enemyCap);
   const bossEnemyTransforms = new InstancedTransformStore(config.enemyCap);
   const rangedEnemyTransforms = new InstancedTransformStore(config.enemyCap);
   const hostileProjectileTransforms = new InstancedTransformStore(config.projectileCap);
+  const razorstepZoneTransforms = new InstancedTransformStore(config.zoneCap);
 
   let ready = true;
   let lastDrawCalls = 0;
@@ -426,6 +468,24 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
       worldHalfHeight,
       -1,
     );
+    transformStores.zone.update(
+      prev.zones,
+      curr.zones,
+      alpha,
+      -worldHalfWidth,
+      worldHalfHeight,
+      -1,
+      ZONE_TAG.geckoPad,
+    );
+    razorstepZoneTransforms.update(
+      prev.zones,
+      curr.zones,
+      alpha,
+      -worldHalfWidth,
+      worldHalfHeight,
+      -1,
+      ZONE_TAG.razorstepScythePad,
+    );
     batches.enemy.sync(transformStores.enemy);
     eliteEnemyBatch.sync(eliteEnemyTransforms);
     bossEnemyBatch.sync(bossEnemyTransforms);
@@ -433,6 +493,8 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     batches.projectile.sync(transformStores.projectile);
     hostileProjectileBatch.sync(hostileProjectileTransforms);
     batches.pickup.sync(transformStores.pickup);
+    batches.zone.sync(transformStores.zone);
+    razorstepZoneBatch.sync(razorstepZoneTransforms);
 
     // app.render() is called manually rather than through app.tick(), so
     // ApplicationStats.updateBasic() never transfers the device counter into
@@ -455,7 +517,9 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
         rangedEnemyBatch.liveViews +
         batches.projectile.liveViews +
         hostileProjectileBatch.liveViews +
-        batches.pickup.liveViews,
+        batches.pickup.liveViews +
+        batches.zone.liveViews +
+        razorstepZoneBatch.liveViews,
       highWaterViews:
         batches.enemy.highWaterViews +
         eliteEnemyBatch.highWaterViews +
@@ -463,7 +527,9 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
         rangedEnemyBatch.highWaterViews +
         batches.projectile.highWaterViews +
         hostileProjectileBatch.highWaterViews +
-        batches.pickup.highWaterViews,
+        batches.pickup.highWaterViews +
+        batches.zone.highWaterViews +
+        razorstepZoneBatch.highWaterViews,
       contextLost: contextLost ? 1 : 0,
     };
   }
@@ -479,9 +545,12 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     batches.projectile.dispose();
     hostileProjectileBatch.dispose();
     batches.pickup.dispose();
+    batches.zone.dispose();
+    razorstepZoneBatch.dispose();
     categoryMesh.destroy();
     eliteEnemyMesh.destroy();
     bossEnemyMesh.destroy();
+    zoneMesh.destroy();
     materials.enemy.destroy();
     eliteEnemyMaterial.destroy();
     bossEnemyMaterial.destroy();
@@ -489,6 +558,8 @@ export function createRenderer(canvas: HTMLCanvasElement, config: SimConfig = DE
     materials.projectile.destroy();
     hostileProjectileMaterial.destroy();
     materials.pickup.destroy();
+    materials.zone.destroy();
+    razorstepZoneMaterial.destroy();
     playerMaterial.destroy();
     traitCommandPresentation.dispose();
     combatFeedbackPresentation.dispose();

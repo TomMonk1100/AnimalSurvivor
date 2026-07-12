@@ -94,6 +94,8 @@ export interface EnemyPool extends PoolBase {
   readonly touchDamage: Float32Array;
   /** Ticks remaining until this enemy may deal contact damage again. */
   readonly contactCooldown: Uint16Array;
+  /** Ticks remaining until a player-authored damage zone may hurt this enemy again. */
+  readonly zoneDamageCooldown: Uint16Array;
   readonly archetype: Uint8Array;
   readonly xpDrop: Float32Array;
   /** 1 = marked target (for markedThenNearest policy). */
@@ -116,6 +118,28 @@ export interface ProjectilePool extends PoolBase {
 export interface PickupPool extends PoolBase {
   readonly xp: Float32Array;
   readonly radius: Float32Array;
+}
+
+/**
+ * Persistent player-authored damage zone. Zones are deliberately compact and
+ * renderer-agnostic: tag is a stable numeric role rather than a string so the
+ * fixed pool can be hashed and projected without per-tick allocation.
+ *
+ * This first slice supports damaging pads only. It has no slow, mark, or
+ * debuff component, so enemy movement remains wholly owned by combat/behavior.
+ */
+export interface ZonePool extends PoolBase {
+  readonly radius: Float32Array;
+  /** Damage dealt on each scheduled pulse. */
+  readonly damage: Float32Array;
+  /** Remaining active simulation ticks. */
+  readonly lifetime: Uint16Array;
+  /** Fixed number of ticks between two pulses. */
+  readonly intervalTicks: Uint16Array;
+  /** Number of skipped ticks before the next pulse; zero means pulse now. */
+  readonly pulseCooldown: Uint16Array;
+  /** Stable numeric visual/gameplay role; see ZONE_TAG in zones.ts. */
+  readonly tag: Uint8Array;
 }
 
 /**

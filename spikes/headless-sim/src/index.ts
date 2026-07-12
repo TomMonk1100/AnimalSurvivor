@@ -9,7 +9,16 @@ export { createRng } from './rng.js';
 export { createClock } from './clock.js';
 export { createReplayRecorder, serializeReplay, deserializeReplay } from './replay.js';
 export { createHashWriter } from './state-hash.js';
-export { createEnemyPool, createProjectilePool, createPickupPool } from './pools.js';
+export { createEnemyPool, createProjectilePool, createPickupPool, createZonePool } from './pools.js';
+export {
+  ZONE_TAG,
+  zoneTagFromCommandTag,
+  createZoneStepper,
+  type ZoneStepContext,
+  type ZoneStepStats,
+  type ZoneStepper,
+  type ZoneTag,
+} from './zones.js';
 export {
   ENEMY_BEHAVIOR_KIND,
   createEnemyBehaviorState,

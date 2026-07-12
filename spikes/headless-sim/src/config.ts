@@ -5,10 +5,10 @@
 import type { EnemyArchetype, WaveSegment } from './types.js';
 import { createHashWriter } from './state-hash.js';
 
-// Version 8 changes authoritative run behavior: five-passive build locking,
-// Forest Arsenal trait commands, and universal damage/cadence now apply to
-// every active attack. Old records must reject rather than silently diverge.
-export const CONFIG_VERSION = 8;
+// Version 9 adds bounded, hashed persistent damage zones and their per-enemy
+// overlap guard for Gecko/Razorstep. Old records must reject rather than
+// silently diverge.
+export const CONFIG_VERSION = 9;
 
 export interface WeaponConfig {
   /** Ticks between automatic shots. */
@@ -80,6 +80,8 @@ export interface SimConfig {
   enemyCap: number;
   projectileCap: number;
   pickupCap: number;
+  /** Maximum simultaneous persistent player damage zones. */
+  zoneCap: number;
   /** Authored opening cumulative XP thresholds; simulation continues with a deterministic tail. */
   xpThresholds: readonly number[];
   /** Ticks an enemy must wait between contact-damage applications. */
@@ -112,6 +114,7 @@ export function validateConfig(config: SimConfig): void {
   requireInteger('enemyCap', config.enemyCap, 1, 0xfffe);
   requireInteger('projectileCap', config.projectileCap, 1, 0xfffe);
   requireInteger('pickupCap', config.pickupCap, 1, 0xfffe);
+  requireInteger('zoneCap', config.zoneCap, 1, 0xfffe);
   requireInteger('enemyContactCooldownTicks', config.enemyContactCooldownTicks, 0, 0xffff);
 
   let previousXp = -Infinity;
@@ -221,6 +224,7 @@ export function fingerprintConfig(config: SimConfig): string {
   w.u32(config.enemyCap);
   w.u32(config.projectileCap);
   w.u32(config.pickupCap);
+  w.u32(config.zoneCap);
   w.u32(config.enemyContactCooldownTicks);
   w.u32(config.xpThresholds.length);
   for (const value of config.xpThresholds) w.f64(value);
@@ -313,6 +317,7 @@ export const DEFAULT_CONFIG: SimConfig = {
   enemyCap: 1200,
   projectileCap: 600,
   pickupCap: 300,
+  zoneCap: 16,
   xpThresholds: [5, 15, 30, 50, 80, 120, 170, 230, 300, 380],
   enemyContactCooldownTicks: 30,
   player: {

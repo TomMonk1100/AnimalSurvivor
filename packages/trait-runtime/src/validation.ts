@@ -17,6 +17,9 @@
  *                               or counts/damage negative where nonsensical.
  *   - emptyPhases             : multiPhase behavior has no phases, or a phase
  *                               has durationTicks < 1.
+ *   - invalidMovementTrail    : movementTrail lacks a positive fixed-distance
+ *                               threshold or a complete executable spawnZone
+ *                               emit template.
  *   - visualKeyCollision      : two definitions share a visualKey.
  *
  * The shipped CATALOG must validate with ok=true and zero issues.
@@ -46,6 +49,7 @@ const NON_NEGATIVE_FIELDS: readonly (keyof CommandTemplate)[] = [
   'jumps',
   'range',
   'amount',
+  'intervalTicks',
 ];
 
 /** Fields whose values may be any finite number (directions, positions, angles). */
@@ -63,7 +67,10 @@ const INTEGER_FIELDS: readonly (keyof CommandTemplate)[] = [
   'count',
   'durationTicks',
   'jumps',
+  'intervalTicks',
 ];
+
+const MAX_FLOAT32 = 3.4028234663852886e38;
 
 function pushIssue(
   issues: ValidationIssue[],
@@ -126,11 +133,55 @@ function validateTemplateNumbers(
   }
 }
 
+/**
+ * A movement trail is authored specifically for the accepted zone executor,
+ * so reject incomplete zone templates during catalog construction rather than
+ * allowing a future run to fail the first time Greg crosses its threshold.
+ */
+function validateMovementTrailZoneTemplate(
+  subjectId: string,
+  template: CommandTemplate | undefined,
+  issues: ValidationIssue[],
+): void {
+  if (template === undefined || template.kind !== 'spawnZone') return;
+  const invalid = (message: string): void => pushIssue(issues, 'invalidMovementTrail', message, subjectId);
+
+  if (!(typeof template.radius === 'number' && Number.isFinite(template.radius)
+    && template.radius > 0 && template.radius <= MAX_FLOAT32)) {
+    invalid('movementTrail spawnZone requires a positive finite float32 radius.');
+  }
+  if (!(typeof template.amount === 'number' && Number.isFinite(template.amount)
+    && template.amount >= 0 && template.amount <= MAX_FLOAT32)) {
+    invalid('movementTrail spawnZone requires a non-negative finite float32 amount.');
+  }
+  for (const field of ['durationTicks', 'intervalTicks'] as const) {
+    const value = template[field];
+    if (value === undefined || !Number.isSafeInteger(value) || value < 1 || value > 0xffff) {
+      invalid(`movementTrail spawnZone requires ${field} in [1, 65535].`);
+    }
+  }
+  if (typeof template.tag !== 'string' || template.tag.length === 0) {
+    invalid('movementTrail spawnZone requires a non-empty tag.');
+  }
+}
+
 function validateBehavior(
   subjectId: string,
   behavior: BehaviorDefinition,
   issues: ValidationIssue[],
 ): void {
+  if (
+    behavior.distanceMilliunits !== undefined
+    && (!Number.isSafeInteger(behavior.distanceMilliunits) || behavior.distanceMilliunits < 1)
+  ) {
+    pushIssue(
+      issues,
+      'nonFiniteParam',
+      'distanceMilliunits must be a positive safe integer when provided.',
+      subjectId,
+    );
+  }
+
   switch (behavior.kind) {
     case 'periodicBurst':
     case 'periodicPulse':
@@ -181,6 +232,27 @@ function validateBehavior(
           validateTemplateNumbers(phaseSubject, phase.emit, issues);
         }
       }
+      break;
+    }
+    case 'movementTrail': {
+      if (behavior.distanceMilliunits === undefined || behavior.distanceMilliunits < 1) {
+        pushIssue(
+          issues,
+          'invalidMovementTrail',
+          'movementTrail requires a positive distanceMilliunits threshold.',
+          subjectId,
+        );
+      }
+      if (behavior.emit === undefined || behavior.emit.kind !== 'spawnZone') {
+        pushIssue(
+          issues,
+          'invalidMovementTrail',
+          'movementTrail requires a spawnZone emit template.',
+          subjectId,
+        );
+      }
+      validateTemplateNumbers(subjectId, behavior.emit, issues);
+      validateMovementTrailZoneTemplate(subjectId, behavior.emit, issues);
       break;
     }
   }

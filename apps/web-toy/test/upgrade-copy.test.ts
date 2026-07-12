@@ -42,6 +42,36 @@ describe('upgrade card copy', () => {
     expect(adapted.description).toMatch(/wider area/i);
   });
 
+  it('explains Gecko Pads as damaging movement trails and advertises Razorstep', () => {
+    const gecko = presentUpgrade({ traitId: 'gecko-pads', resultStage: 'bud' }, []);
+    expect(gecko).toMatchObject({
+      title: 'Gecko Pads',
+      badge: 'NEW ATTACK',
+      socket: 'Right shoulder attachment',
+      description: "After moving, leaves a damaging pad at Greg's feet.",
+    });
+    expect(gecko.description).not.toMatch(/slow/i);
+    expect(gecko.pairingHint).toMatch(/Mantis Scythes/);
+
+    const geckoReady = presentUpgrade({ traitId: 'gecko-pads', resultStage: 'adapted' }, [
+      { sourceId: 'mantis-scythes', stage: 'adapted', sockets: ['leftShoulder'], visualKey: 'mantis-scythes:adapted', enabled: true },
+    ]);
+    expect(geckoReady).toMatchObject({
+      badge: 'MYTHIC READY',
+      description: "Completes Razorstep Chimera: movement leaves stronger scythe pads at Greg's feet.",
+      pairingHint: null,
+    });
+
+    const mantisReady = presentUpgrade({ traitId: 'mantis-scythes', resultStage: 'adapted' }, [
+      { sourceId: 'gecko-pads', stage: 'adapted', sockets: ['rightShoulder'], visualKey: 'gecko-pads:adapted', enabled: true },
+    ]);
+    expect(mantisReady).toMatchObject({
+      badge: 'MYTHIC READY',
+      description: "Completes Razorstep Chimera: movement leaves stronger scythe pads at Greg's feet.",
+      pairingHint: null,
+    });
+  });
+
   it('describes truthful neutral and Essence fallback cards without pretending they are body traits', () => {
     expect(presentRunUpgrade({
       kind: 'universal', id: 'universal:xp-magnet', upgradeId: 'xp-magnet', currentRank: 1, nextRank: 2, maxRank: 5,

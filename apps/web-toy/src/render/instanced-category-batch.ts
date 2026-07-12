@@ -31,6 +31,7 @@ export function createInstancedCategoryBatch(
   capacity: number,
   mesh: pc.Mesh,
   material: pc.Material,
+  localY = 0,
 ): InstancedCategoryBatch {
   if (!Number.isInteger(capacity) || capacity <= 0) {
     throw new RangeError(`${name} instance capacity must be a positive integer`);
@@ -57,6 +58,7 @@ export function createInstancedCategoryBatch(
     castShadows: false,
     receiveShadows: false,
   });
+  entity.setLocalPosition(0, localY, 0);
   parent.addChild(entity);
 
   let liveViews = 0;

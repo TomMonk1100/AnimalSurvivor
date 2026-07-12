@@ -42,6 +42,7 @@ function makeCommand(): Command {
     jumps: BLANK_COMMAND.jumps,
     range: BLANK_COMMAND.range,
     amount: BLANK_COMMAND.amount,
+    intervalTicks: BLANK_COMMAND.intervalTicks,
     tag: BLANK_COMMAND.tag,
   };
 }
@@ -68,6 +69,7 @@ export function resetCommand(cmd: Command): void {
   cmd.jumps = BLANK_COMMAND.jumps;
   cmd.range = BLANK_COMMAND.range;
   cmd.amount = BLANK_COMMAND.amount;
+  cmd.intervalTicks = BLANK_COMMAND.intervalTicks;
   cmd.tag = BLANK_COMMAND.tag;
 }
 

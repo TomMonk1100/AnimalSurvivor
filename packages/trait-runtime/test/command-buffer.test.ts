@@ -39,11 +39,13 @@ test('acquire returns a zeroed struct (no stale field leakage)', () => {
   c.damage = 99;
   c.tag = 'dirty';
   c.count = 7;
+  c.intervalTicks = 42;
   buf.reset();
   const c2 = buf.acquire()!;
   assert.equal(c2.damage, 0);
   assert.equal(c2.tag, '');
   assert.equal(c2.count, 0);
+  assert.equal(c2.intervalTicks, 0);
 });
 
 test('countsByKind reflects buffer contents', () => {

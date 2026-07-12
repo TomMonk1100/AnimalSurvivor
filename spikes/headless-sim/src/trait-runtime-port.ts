@@ -35,6 +35,10 @@ export interface TraitRuntimeCommandView {
   readonly strength: number;
   /** Optional for compatibility with minimal runtime fixtures. */
   readonly durationTicks?: number;
+  /** Optional for compatibility while authored runtimes adopt zone cadence. */
+  readonly intervalTicks?: number;
+  /** Optional for compatibility while authored runtimes adopt zone damage. */
+  readonly amount?: number;
   readonly facing: number;
   readonly spread: number;
   readonly range: number;

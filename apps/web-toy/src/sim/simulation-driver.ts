@@ -202,6 +202,8 @@ export function createSimDriver(
           radius: event.radius,
           strength: event.strength,
           durationTicks: event.durationTicks,
+          intervalTicks: event.intervalTicks,
+          amount: event.amount,
           facing: event.facing,
           spread: event.spread,
           range: event.range,
@@ -223,6 +225,8 @@ export function createSimDriver(
         copy.radius = event.radius;
         copy.strength = event.strength;
         copy.durationTicks = event.durationTicks;
+        copy.intervalTicks = event.intervalTicks;
+        copy.amount = event.amount;
         copy.facing = event.facing;
         copy.spread = event.spread;
         copy.range = event.range;

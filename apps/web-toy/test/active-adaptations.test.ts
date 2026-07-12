@@ -110,4 +110,69 @@ describe('active adaptation presentation', () => {
     ]);
     expect(cards[0]?.effect).toMatch(/wider area/i);
   });
+
+  it('shows Gecko Pads as movement-trail damage at each authored threshold', () => {
+    const bud = presentActiveAdaptations([
+      visual({
+        sourceId: 'gecko-pads',
+        stage: 'bud',
+        sockets: ['rightShoulder'],
+        visualKey: 'gecko-pads:bud',
+      }),
+    ]);
+    expect(bud).toEqual([
+      expect.objectContaining({
+        id: 'gecko-pads:bud',
+        title: 'Gecko Pads',
+        effect: "After moving, leaves a damaging pad at Greg's feet.",
+        cadence: 'Placement: after travelling 150 units',
+      }),
+    ]);
+
+    const adapted = presentActiveAdaptations([
+      visual({
+        sourceId: 'gecko-pads',
+        stage: 'adapted',
+        sockets: ['rightShoulder'],
+        visualKey: 'gecko-pads:adapted',
+      }),
+    ]);
+    expect(adapted[0]).toMatchObject({
+      effect: "After moving, leaves larger, stronger damaging pads at Greg's feet.",
+      cadence: 'Placement: after travelling 110 units',
+    });
+  });
+
+  it('replaces Mantis and Gecko with their two-slot Razorstep Mythic card', () => {
+    const cards = presentActiveAdaptations([
+      visual({
+        sourceId: 'mantis-scythes',
+        stage: 'adapted',
+        sockets: ['leftShoulder'],
+        visualKey: 'mantis-scythes:adapted',
+      }),
+      visual({
+        sourceId: 'gecko-pads',
+        stage: 'adapted',
+        sockets: ['rightShoulder'],
+        visualKey: 'gecko-pads:adapted',
+      }),
+      visual({
+        sourceId: 'razorstep-chimera',
+        stage: 'mythic',
+        sockets: ['leftShoulder', 'rightShoulder'],
+        visualKey: 'razorstep-chimera:mythic',
+      }),
+    ]);
+
+    expect(cards).toEqual([
+      expect.objectContaining({
+        id: 'razorstep-chimera:mythic',
+        title: 'Razorstep Chimera',
+        stageLabel: 'Mythic',
+        effect: "Movement leaves stronger scythe pads at Greg's feet.",
+        cadence: 'Placement: after travelling 90 units',
+      }),
+    ]);
+  });
 });

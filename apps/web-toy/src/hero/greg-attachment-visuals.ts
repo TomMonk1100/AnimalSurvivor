@@ -18,7 +18,10 @@ export const GREG_ATTACHMENT_VISUAL_KEYS = Object.freeze([
   'firefly-colony:adapted',
   'mantis-scythes:bud',
   'mantis-scythes:adapted',
+  'gecko-pads:bud',
+  'gecko-pads:adapted',
   'thunderbug-dynamo:mythic',
+  'razorstep-chimera:mythic',
 ] as const);
 
 export type GregAttachmentVisualKey = (typeof GREG_ATTACHMENT_VISUAL_KEYS)[number];
@@ -30,7 +33,9 @@ export type GregAttachmentFamily =
   | 'electric-eel-coil'
   | 'firefly-colony'
   | 'mantis-scythes'
-  | 'thunderbug-dynamo';
+  | 'gecko-pads'
+  | 'thunderbug-dynamo'
+  | 'razorstep-chimera';
 export type GregPrimitiveShape = 'sphere' | 'cone' | 'cylinder';
 export type GregMaterialRole =
   | 'quillPrimary'
@@ -45,7 +50,11 @@ export type GregMaterialRole =
   | 'fireflyGlow'
   | 'thunderbugCore'
   | 'mantisPrimary'
-  | 'mantisAccent';
+  | 'mantisAccent'
+  | 'geckoPrimary'
+  | 'geckoAccent'
+  | 'razorstepPrimary'
+  | 'razorstepAccent';
 
 export interface GregPrimitiveTransform {
   readonly position: readonly [x: number, y: number, z: number];
@@ -72,7 +81,8 @@ const SHAPES: readonly GregPrimitiveShape[] = ['sphere', 'cone', 'cylinder'];
 const MATERIAL_ROLES: readonly GregMaterialRole[] = [
   'quillPrimary', 'quillAccent', 'pufferPrimary', 'pufferAccent', 'mythicThorn', 'mythicGlow',
   'coilPrimary', 'coilGlow', 'fireflyPrimary', 'fireflyGlow', 'thunderbugCore',
-  'mantisPrimary', 'mantisAccent',
+  'mantisPrimary', 'mantisAccent', 'geckoPrimary', 'geckoAccent',
+  'razorstepPrimary', 'razorstepAccent',
 ];
 
 function transform(
@@ -179,6 +189,22 @@ const RAW_RECIPES: readonly GregAttachmentVisualRecipe[] = [
     ],
   },
   {
+    key: 'gecko-pads:bud', family: 'gecko-pads', stage: 'bud', parts: [
+      part('pad-plate', 'sphere', 'geckoPrimary', [0, 0.08, 0], [0, 0, 0], [0.34, 0.13, 0.46]),
+      part('pad-band', 'cylinder', 'geckoAccent', [0, 0.13, -0.08], [0, 0, 90], [0.08, 0.34, 0.08]),
+      part('toe-glow', 'sphere', 'geckoAccent', [0.16, 0.12, 0.26], [0, 0, 0], [0.11, 0.08, 0.11]),
+    ],
+  },
+  {
+    key: 'gecko-pads:adapted', family: 'gecko-pads', stage: 'adapted', parts: [
+      part('pad-plate', 'sphere', 'geckoPrimary', [0, 0.08, 0], [0, 0, 0], [0.46, 0.15, 0.62]),
+      part('pad-band', 'cylinder', 'geckoAccent', [0, 0.14, -0.08], [0, 0, 90], [0.1, 0.46, 0.1]),
+      part('toe-left', 'sphere', 'geckoAccent', [-0.24, 0.13, 0.3], [0, 0, 0], [0.12, 0.09, 0.12]),
+      part('toe-centre', 'sphere', 'geckoAccent', [0, 0.15, 0.38], [0, 0, 0], [0.13, 0.09, 0.13]),
+      part('toe-right', 'sphere', 'geckoAccent', [0.24, 0.13, 0.3], [0, 0, 0], [0.12, 0.09, 0.12]),
+    ],
+  },
+  {
     key: 'thunderbug-dynamo:mythic', family: 'thunderbug-dynamo', stage: 'mythic', parts: [
       part('dynamo-core', 'sphere', 'thunderbugCore', [0, 0.15, 0], [0, 0, 0], [0.32, 0.32, 0.32]),
       part('dynamo-ring', 'cylinder', 'coilPrimary', [0, 0.14, 0], [90, 0, 0], [0.48, 0.05, 0.48]),
@@ -200,6 +226,20 @@ const RAW_RECIPES: readonly GregAttachmentVisualRecipe[] = [
       part('thorn-north-west', 'cone', 'mythicThorn', [-0.2, 0.09, -0.04], [-8, 0, -30], [0.075, 0.44, 0.075]),
       part('glow-rivet-left', 'cylinder', 'mythicGlow', [-0.13, 0.12, 0.08], [90, 0, 0], [0.035, 0.025, 0.035]),
       part('glow-rivet-right', 'cylinder', 'mythicGlow', [0.13, 0.12, 0.08], [90, 0, 0], [0.035, 0.025, 0.035]),
+    ],
+  },
+  {
+    // This combined form mounts at the left shoulder while the projector
+    // reserves both shoulders, so its bridge and paired pads read as one item.
+    key: 'razorstep-chimera:mythic', family: 'razorstep-chimera', stage: 'mythic', parts: [
+      part('scythe-bridge', 'cylinder', 'razorstepPrimary', [0.72, 0.15, 0], [0, 0, 90], [0.13, 1.46, 0.13]),
+      part('left-pad', 'sphere', 'geckoPrimary', [0.02, 0.08, 0.06], [0, 0, 0], [0.38, 0.14, 0.5]),
+      part('right-pad', 'sphere', 'geckoPrimary', [1.42, 0.08, 0.06], [0, 0, 0], [0.38, 0.14, 0.5]),
+      part('left-blade', 'cone', 'razorstepAccent', [0.14, 0.34, -0.04], [0, 0, -72], [0.11, 0.74, 0.11]),
+      part('right-blade', 'cone', 'razorstepAccent', [1.3, 0.34, -0.04], [0, 0, 72], [0.11, 0.74, 0.11]),
+      part('left-rivet', 'sphere', 'razorstepPrimary', [-0.02, 0.18, 0], [0, 0, 0], [0.14, 0.14, 0.14]),
+      part('right-rivet', 'sphere', 'razorstepPrimary', [1.46, 0.18, 0], [0, 0, 0], [0.14, 0.14, 0.14]),
+      part('trail-core', 'sphere', 'geckoAccent', [0.72, 0.3, 0.1], [0, 0, 0], [0.16, 0.16, 0.16]),
     ],
   },
 ];

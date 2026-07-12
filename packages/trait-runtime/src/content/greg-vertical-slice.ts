@@ -17,6 +17,10 @@
  *   bud/adapted: autonomous radial spark bursts.
  * mantis-scythes (socket: leftShoulder)
  *   bud/adapted: close-range sweeping damage pulse around Greg.
+ * gecko-pads (socket: rightShoulder)
+ *   bud/adapted: leave damaging pads only while Greg travels through the forest.
+ * razorstep-chimera (recipe: Adapted Mantis + Adapted Gecko; shoulders)
+ *   mythic: a stronger, denser moving trail that preserves both ingredients' slots.
  * thunderbug-dynamo (recipe: Adapted Coil + Adapted Colony; sockets tail+bodyOrbit)
  *   mythic charge telegraph followed by a larger radial lightning storm.
  * thornstorm-mantle (recipe: Adapted Quills + Adapted Pouch; sockets head+back)
@@ -228,6 +232,54 @@ export const MANTIS_SCYTHES: TraitDefinition = {
   },
 };
 
+/**
+ * A movement-dependent zone attack. Its BehaviorTimer carries fixed
+ * milliunits of travel, so stationary players never receive free damage and
+ * attack speed adjusts only the pad's damage cadence, not its placement
+ * distance.
+ */
+export const GECKO_PADS: TraitDefinition = {
+  id: TRAIT_IDS.geckoPads,
+  sockets: ['rightShoulder'],
+  tags: ['mobility', 'zone'],
+  stages: {
+    bud: {
+      visualKey: 'gecko-pads:bud',
+      behavior: {
+        kind: 'movementTrail',
+        periodTicks: 0,
+        distanceMilliunits: 150_000,
+        emit: {
+          kind: 'spawnZone',
+          targeting: 'none',
+          radius: 38,
+          amount: 3,
+          durationTicks: 150,
+          intervalTicks: 24,
+          tag: 'gecko-pad',
+        },
+      },
+    },
+    adapted: {
+      visualKey: 'gecko-pads:adapted',
+      behavior: {
+        kind: 'movementTrail',
+        periodTicks: 0,
+        distanceMilliunits: 110_000,
+        emit: {
+          kind: 'spawnZone',
+          targeting: 'none',
+          radius: 52,
+          amount: 5,
+          durationTicks: 180,
+          intervalTicks: 18,
+          tag: 'gecko-pad',
+        },
+      },
+    },
+  },
+};
+
 export const THUNDERBUG_DYNAMO: EvolutionDefinition = {
   id: EVOLUTION_IDS.thunderbugDynamo,
   ingredients: [TRAIT_IDS.electricEelCoil, TRAIT_IDS.fireflyColony],
@@ -304,10 +356,36 @@ export const THORNSTORM_MANTLE: EvolutionDefinition = {
 };
 
 /**
+ * The close-range Mantis/Gecko evolution. It keeps both shoulder slots
+ * occupied and remains movement-gated, but turns the trail into a larger,
+ * faster-ticking Razorstep pad.
+ */
+export const RAZORSTEP_CHIMERA: EvolutionDefinition = {
+  id: EVOLUTION_IDS.razorstepChimera,
+  ingredients: [TRAIT_IDS.mantisScythes, TRAIT_IDS.geckoPads],
+  occupiedSockets: ['leftShoulder', 'rightShoulder'],
+  visualKey: 'razorstep-chimera:mythic',
+  behavior: {
+    kind: 'movementTrail',
+    periodTicks: 0,
+    distanceMilliunits: 90_000,
+    emit: {
+      kind: 'spawnZone',
+      targeting: 'none',
+      radius: 58,
+      amount: 7,
+      durationTicks: 200,
+      intervalTicks: 14,
+      tag: 'razorstep-scythe-pad',
+    },
+  },
+};
+
+/**
  * Exact content boundary for Greg's first five-attack loadout: starter fire
  * plus any four selected candidates from Quills, Puffer control, Coil, Colony,
- * and Mantis Scythes. The two Mythics each retain both ingredient attack slots
- * rather than creating a free slot.
+ * Mantis Scythes, and Gecko Pads. The Mythics each retain both ingredient
+ * attack slots rather than creating a free slot.
  */
 export const GREG_FOREST_ARSENAL_CATALOG: Catalog = Object.freeze({
   traits: Object.freeze([
@@ -316,8 +394,9 @@ export const GREG_FOREST_ARSENAL_CATALOG: Catalog = Object.freeze({
     ELECTRIC_EEL_COIL,
     FIREFLY_COLONY,
     MANTIS_SCYTHES,
+    GECKO_PADS,
   ]),
-  evolutions: Object.freeze([THORNSTORM_MANTLE, THUNDERBUG_DYNAMO]),
+  evolutions: Object.freeze([THORNSTORM_MANTLE, THUNDERBUG_DYNAMO, RAZORSTEP_CHIMERA]),
   maxActiveTraits: 4,
 });
 

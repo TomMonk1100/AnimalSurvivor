@@ -25,11 +25,20 @@ test('fingerprint changes when a gameplay value changes', () => {
     },
   };
   assert.notEqual(fingerprintConfig(behaviorChanged), fingerprintConfig(DEFAULT_CONFIG));
+
+  const zoneChanged: SimConfig = {
+    ...DEFAULT_CONFIG,
+    zoneCap: DEFAULT_CONFIG.zoneCap + 1,
+  };
+  assert.notEqual(fingerprintConfig(zoneChanged), fingerprintConfig(DEFAULT_CONFIG));
+
 });
 
 test('validation rejects capacities that can collide with packed ids', () => {
   assert.throws(() => validateConfig({ ...DEFAULT_CONFIG, enemyCap: 0 }), /enemyCap/);
   assert.throws(() => validateConfig({ ...DEFAULT_CONFIG, enemyCap: 0xffff }), /enemyCap/);
+  assert.throws(() => validateConfig({ ...DEFAULT_CONFIG, zoneCap: 0 }), /zoneCap/);
+  assert.throws(() => validateConfig({ ...DEFAULT_CONFIG, zoneCap: 0xffff }), /zoneCap/);
 });
 
 test('validation rejects mismatched wave weights and non-finite values', () => {

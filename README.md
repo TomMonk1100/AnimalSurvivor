@@ -59,7 +59,7 @@ kills award a noticeably larger XP pickup.
 ## Forest Arsenal loadout
 
 Greg always begins with **Auto-Fire**, the first of five active-attack slots.
-He can choose up to four of five additional attack families, for a five-attack
+He can choose up to four of six additional attack families, for a five-attack
 build.
 
 | Attack | Role |
@@ -70,15 +70,17 @@ build.
 | **Electric Eel Coil** | Fires charged bolts at the nearest enemy. |
 | **Firefly Colony** | Releases sparks in every direction. |
 | **Mantis Scythes** | Sweeps nearby enemies with a short-range damaging pulse. |
+| **Gecko Pads** | After Greg travels 150 units, creates a damaging pad at his feet; Adapted pads recur after 110 units. Pads deal damage and do not slow enemies. |
 
-Each animal attack can be improved from Bud to Adapted. **Mantis Scythes** is
-currently a standalone attack with no Mythic evolution yet. Two pairs can
-become Mythics:
+Each animal attack can be improved from Bud to Adapted. Three pairs can become
+Mythics:
 
 - **Thornstorm Mantle** — Adapted Quills + Adapted Pouch: telegraph, gather,
   then a radial quill storm.
 - **Thunderbug Dynamo** — Adapted Coil + Adapted Colony: charge, then a radial
   lightning storm.
+- **Razorstep Chimera** — Adapted Mantis Scythes + Adapted Gecko Pads: movement
+  leaves stronger scythe pads every 90 units.
 
 An evolution keeps both of its ingredient attack slots. A Mythic makes a more
 powerful combined attack; it never creates a free sixth weapon slot.

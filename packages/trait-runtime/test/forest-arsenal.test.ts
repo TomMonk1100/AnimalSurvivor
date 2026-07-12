@@ -23,7 +23,7 @@ function upgrade(runtime: TraitRuntime, id: string): void {
   assert.equal(result.outcome.ok, true, `${id} should be a legal upgrade`);
 }
 
-test('Forest Arsenal exposes five real non-starter attack candidates and two supported Mythics', () => {
+test('Forest Arsenal exposes six real non-starter attack candidates and three supported Mythics', () => {
   assert.equal(GREG_FOREST_ARSENAL_CATALOG.maxActiveTraits, 4);
   assert.deepEqual(
     GREG_FOREST_ARSENAL_CATALOG.traits.map((trait) => trait.id),
@@ -33,11 +33,12 @@ test('Forest Arsenal exposes five real non-starter attack candidates and two sup
       'electric-eel-coil',
       'firefly-colony',
       'mantis-scythes',
+      'gecko-pads',
     ],
   );
   assert.deepEqual(
     GREG_FOREST_ARSENAL_CATALOG.evolutions.map((evolution) => evolution.id),
-    ['thornstorm-mantle', 'thunderbug-dynamo'],
+    ['thornstorm-mantle', 'thunderbug-dynamo', 'razorstep-chimera'],
   );
 
   const coil = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
@@ -87,7 +88,7 @@ test('Forest Arsenal exposes five real non-starter attack candidates and two sup
   assert.equal(radial.at(0).count, 18);
 });
 
-test('five candidates make the four-attack cap a real choice while existing upgrades stay legal', () => {
+test('six candidates make the four-attack cap a real choice while existing upgrades stay legal', () => {
   const runtime = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG });
   assert.deepEqual(
     runtime.offers(99).map((offer) => offer.traitId),
@@ -97,19 +98,22 @@ test('five candidates make the four-attack cap a real choice while existing upgr
       'electric-eel-coil',
       'firefly-colony',
       'mantis-scythes',
+      'gecko-pads',
     ],
   );
   for (const traitId of ['porcupine-quills', 'puffer-pouch', 'electric-eel-coil', 'firefly-colony']) {
     upgrade(runtime, traitId);
   }
 
-  assert.ok(!runtime.offers(99).some((offer) => offer.traitId === 'mantis-scythes'));
-  assert.deepEqual(runtime.applyUpgrade('mantis-scythes').outcome, {
-    ok: false,
-    kind: 'loadoutFull',
-    traitId: 'mantis-scythes',
-    capacity: 4,
-  });
+  for (const traitId of ['mantis-scythes', 'gecko-pads']) {
+    assert.ok(!runtime.offers(99).some((offer) => offer.traitId === traitId));
+    assert.deepEqual(runtime.applyUpgrade(traitId).outcome, {
+      ok: false,
+      kind: 'loadoutFull',
+      traitId,
+      capacity: 4,
+    });
+  }
   assert.equal(runtime.applyUpgrade('electric-eel-coil').outcome.ok, true, 'an owned Bud can still adapt');
 });
 

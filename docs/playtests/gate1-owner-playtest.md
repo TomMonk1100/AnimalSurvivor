@@ -59,7 +59,7 @@ The boss warning starts at **6:10** and **The Final Threat** arrives at **6:30**
 Elite requests are at **2:00**, **3:40**, **4:30**, **5:15**, **5:45**, and
 **6:05**, each after a five-second warning.
 
-Greg begins with Auto-Fire and can choose up to four of five additional attack
+Greg begins with Auto-Fire and can choose up to four of six additional attack
 families:
 
 - **Porcupine Quills** — targeted quill bursts.
@@ -67,11 +67,14 @@ families:
 - **Electric Eel Coil** — charged bolts toward the nearest threat.
 - **Firefly Colony** — radial sparks.
 - **Mantis Scythes** — a short-range damaging pulse around Greg.
+- **Gecko Pads** — after Greg travels 150 units, creates a damaging pad at his
+  feet; Adapted pads recur after 110 units. The pads damage but do not slow.
 
 Adapted Quills + Pouch can become **Thornstorm Mantle**. Adapted Coil + Colony
 can become **Thunderbug Dynamo**. A Mythic keeps both of its ingredient slots:
-the loadout remains a five-active-attack build, not six.
-Mantis Scythes is currently a standalone attack with no Mythic evolution yet.
+the loadout remains a five-active-attack build, not six. Adapted Mantis Scythes
++ Adapted Gecko Pads can become **Razorstep Chimera**, which leaves stronger
+scythe pads every 90 units of movement.
 
 The neutral pool contains Swift Paws, XP Magnet, Sturdy Hide, Sharpened
 Instinct, Rapid Instinct, and Growth. A run can choose five distinct neutral
@@ -91,9 +94,11 @@ read as upgrades to every attack.
    and the immediate goal? Is the lack of repeated “what just fired” text a
    relief, or do you miss important information?
 4. **Attack choices.** Pick at least two different attacks if offered. Can you
-   tell what Quills, Puffer, Coil, Firefly, and Mantis Scythes are meant to do
-   from their cards and their first use? Which feels most satisfying, weak, or
-   confusing?
+   tell what Quills, Puffer, Coil, Firefly, Mantis Scythes, and Gecko Pads are
+   meant to do from their cards and their first use? Does Gecko Pads clearly
+   read as damaging movement trail rather than a slow? Circle tightly around a
+   durable enemy: does pad damage feel strong without turning into a runaway
+   stationary kill zone? Which feels most satisfying, weak, or confusing?
 5. **Build limits.** Pause after taking upgrades. Can you find the active attack
    count and neutral passive count? Does starter + four acquired attacks make
    sense? If you see a Mythic, is it clear why it retains two slots?

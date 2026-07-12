@@ -118,6 +118,7 @@ test('spawn resets component data to zero (no leakage across reuse)', () => {
   pool.data.radius[slot] = rng() * 1000;
   pool.data.touchDamage[slot] = rng() * 1000;
   pool.data.contactCooldown[slot] = 123;
+  pool.data.zoneDamageCooldown[slot] = 123;
   pool.data.archetype[slot] = 2;
   pool.data.xpDrop[slot] = rng() * 1000;
   pool.data.marked[slot] = 1;
@@ -136,6 +137,7 @@ test('spawn resets component data to zero (no leakage across reuse)', () => {
   assert.equal(pool.data.radius[slot], 0);
   assert.equal(pool.data.touchDamage[slot], 0);
   assert.equal(pool.data.contactCooldown[slot], 0);
+  assert.equal(pool.data.zoneDamageCooldown[slot], 0);
   assert.equal(pool.data.archetype[slot], 0);
   assert.equal(pool.data.xpDrop[slot], 0);
   assert.equal(pool.data.marked[slot], 0);

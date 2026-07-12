@@ -49,6 +49,9 @@ export function presentUpgrade(
   const thunderbugReady = offer.resultStage === 'adapted'
     && ((offer.traitId === 'electric-eel-coil' && hasAdapted(visualState, 'firefly-colony'))
       || (offer.traitId === 'firefly-colony' && hasAdapted(visualState, 'electric-eel-coil')));
+  const razorstepReady = offer.resultStage === 'adapted'
+    && ((offer.traitId === 'mantis-scythes' && hasAdapted(visualState, 'gecko-pads'))
+      || (offer.traitId === 'gecko-pads' && hasAdapted(visualState, 'mantis-scythes')));
   if (offer.traitId === 'electric-eel-coil') {
     return {
       title: 'Electric Eel Coil',
@@ -78,12 +81,27 @@ export function presentUpgrade(
   if (offer.traitId === 'mantis-scythes') {
     return {
       title: 'Mantis Scythes',
-      badge: offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
+      badge: razorstepReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
       socket: 'Left shoulder attachment',
       description: offer.resultStage === 'bud'
         ? 'Sweeps nearby enemies with a close-range damaging pulse.'
-        : 'Sweeps a wider area for stronger close-range damage.',
-      pairingHint: null,
+        : razorstepReady
+          ? "Completes Razorstep Chimera: movement leaves stronger scythe pads at Greg's feet."
+          : 'Sweeps a wider area for stronger close-range damage.',
+      pairingHint: razorstepReady ? null : 'Adapt Gecko Pads too to evolve both into Razorstep Chimera.',
+    };
+  }
+  if (offer.traitId === 'gecko-pads') {
+    return {
+      title: 'Gecko Pads',
+      badge: razorstepReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
+      socket: 'Right shoulder attachment',
+      description: offer.resultStage === 'bud'
+        ? "After moving, leaves a damaging pad at Greg's feet."
+        : razorstepReady
+          ? "Completes Razorstep Chimera: movement leaves stronger scythe pads at Greg's feet."
+          : "After moving, leaves larger, stronger damaging pads at Greg's feet.",
+      pairingHint: razorstepReady ? null : 'Adapt Mantis Scythes too to evolve both into Razorstep Chimera.',
     };
   }
   return {

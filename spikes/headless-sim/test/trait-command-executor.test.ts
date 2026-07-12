@@ -6,7 +6,9 @@ import {
   type TraitCommandExecutionContext,
   type TraitCommandSource,
 } from '../src/trait-command-executor.js';
+import { createZonePool } from '../src/pools.js';
 import { BruteForceGrid, createEnemyPool, createProjectilePool } from './helpers-c.js';
+import { ZONE_TAG } from '../src/zones.js';
 
 function command(overrides: Partial<TraitCombatCommand> = {}): TraitCombatCommand {
   return {
@@ -41,7 +43,7 @@ function source(...commands: TraitCombatCommand[]): TraitCommandSource {
   };
 }
 
-function setup(projectileCapacity = 32): {
+function setup(projectileCapacity = 32, zoneCapacity = 16): {
   context: TraitCommandExecutionContext;
   grid: BruteForceGrid;
 } {
@@ -57,6 +59,7 @@ function setup(projectileCapacity = 32): {
       worldHeight: 100,
       enemies,
       projectiles: createProjectilePool(projectileCapacity),
+      zones: createZonePool(zoneCapacity),
       enemyGrid: grid,
       killEnemy(slot): void {
         grid.remove(enemies.idOf(slot));
@@ -241,9 +244,56 @@ test('counts renderer-only trait cues without mutating combat state', () => {
   assert.equal(context.enemies.data.count, 0);
 });
 
-test('explicitly rejects authored commands that require unsupported persistent state', () => {
+test('spawns a compact-tag damaging pad and applies the legacy cadence default only when omitted', () => {
   const { context } = setup();
-  for (const kind of ['spawnZone', 'markTargets', 'chainDamage', 'meleeArc', 'grantShield']) {
+  const stats = createTraitCommandExecutor({ defaultZoneIntervalTicks: 9 }).execute(source(command({
+    kind: 'spawnZone',
+    originX: 12,
+    originY: 34,
+    radius: 20,
+    amount: 3.5,
+    durationTicks: 42,
+    tag: 'gecko-pad',
+  })), context);
+
+  assert.equal(stats.zonesRequested, 1);
+  assert.equal(stats.zonesSpawned, 1);
+  assert.equal(stats.zonesRejected, 0);
+  assert.equal(context.zones.data.count, 1);
+  assert.equal(context.zones.data.posX[0], 12);
+  assert.equal(context.zones.data.posY[0], 34);
+  assert.equal(context.zones.data.radius[0], 20);
+  assert.equal(context.zones.data.damage[0], 3.5);
+  assert.equal(context.zones.data.lifetime[0], 42);
+  assert.equal(context.zones.data.intervalTicks[0], 9);
+  assert.equal(context.zones.data.pulseCooldown[0], 0);
+  assert.equal(context.zones.data.tag[0], ZONE_TAG.geckoPad);
+});
+
+test('zone requests reject the newest command deterministically when the fixed pool is full', () => {
+  const { context } = setup(32, 1);
+  const stats = createTraitCommandExecutor().execute(source(
+    command({
+      kind: 'spawnZone', originX: 10, radius: 10, amount: 1, durationTicks: 20,
+      intervalTicks: 4, tag: 'gecko-pad',
+    }),
+    command({
+      kind: 'spawnZone', originX: 90, radius: 10, amount: 9, durationTicks: 20,
+      intervalTicks: 4, tag: 'razorstep-scythe-pad',
+    }),
+  ), context);
+
+  assert.equal(stats.zonesRequested, 2);
+  assert.equal(stats.zonesSpawned, 1);
+  assert.equal(stats.zonesRejected, 1);
+  assert.equal(context.zones.data.count, 1);
+  assert.equal(context.zones.data.posX[0], 10, 'the older accepted pad is never evicted');
+  assert.equal(context.zones.data.tag[0], ZONE_TAG.geckoPad);
+});
+
+test('explicitly rejects authored commands that still require unsupported persistent state', () => {
+  const { context } = setup();
+  for (const kind of ['markTargets', 'chainDamage', 'meleeArc', 'grantShield']) {
     assert.throws(
       () => createTraitCommandExecutor().execute(source(command({ kind })), context),
       new RegExp(`unsupported simulation state: ${kind}`),
@@ -311,6 +361,23 @@ test('validates the whole batch before mutating any pool', () => {
     /command\.count must be an integer/,
   );
   assert.equal(context.projectiles.data.count, 0, 'the valid first command must not run');
+});
+
+test('validates every spawnZone before mutating the zone pool', () => {
+  const { context } = setup();
+  const executor = createTraitCommandExecutor();
+  const validFirst = command({
+    kind: 'spawnZone', radius: 10, amount: 2, durationTicks: 30, tag: 'gecko-pad',
+  });
+  const malformedSecond = command({
+    kind: 'spawnZone', radius: 10, amount: 2, durationTicks: 30, tag: 'not-a-pad',
+  });
+
+  assert.throws(
+    () => executor.execute(source(validFirst, malformedSecond), context),
+    /unsupported spawnZone tag/,
+  );
+  assert.equal(context.zones.data.count, 0, 'the valid first command must not spawn a partial zone');
 });
 
 test('fetches each command once so validation and execution use the same object', () => {

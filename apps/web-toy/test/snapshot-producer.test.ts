@@ -3,6 +3,7 @@ import {
   createSimulation,
   DEFAULT_CONFIG,
   RUN_ENEMY_ROLE,
+  ZONE_TAG,
   type RunDirectorEventView,
   type RunDirectorPort,
   type RunMetricsView,
@@ -104,29 +105,42 @@ describe('snapshot producer enemy presentation roles', () => {
     expect(snapshot.enemies.hp[bossIndex]).toBe(bruteHp * 18);
   });
 
-  it('keeps health fields zero for non-enemy categories and copies projectile faction for rendering', () => {
+  it('keeps health fields zero for non-enemy categories and copies projectile, pickup, and zone roles for rendering', () => {
     const sim = createSimulation(QUIET_CONFIG, 12);
     const projectileSlot = sim.projectiles.spawn();
     const pickupSlot = sim.pickups.spawn();
+    const zoneSlot = sim.zones.spawn();
     expect(projectileSlot).toBeGreaterThanOrEqual(0);
     expect(pickupSlot).toBeGreaterThanOrEqual(0);
+    expect(zoneSlot).toBeGreaterThanOrEqual(0);
     sim.projectiles.data.posX[projectileSlot] = 10;
     sim.projectiles.data.posY[projectileSlot] = 20;
     sim.projectiles.data.faction[projectileSlot] = 1;
     sim.pickups.data.posX[pickupSlot] = 30;
     sim.pickups.data.posY[pickupSlot] = 40;
     sim.pickups.data.radius[pickupSlot] = 4;
+    sim.zones.data.posX[zoneSlot] = 50;
+    sim.zones.data.posY[zoneSlot] = 60;
+    sim.zones.data.radius[zoneSlot] = 24;
+    sim.zones.data.tag[zoneSlot] = ZONE_TAG.geckoPad;
 
     const snapshot = createSnapshot(QUIET_CONFIG);
     captureSnapshot(snapshot, sim);
 
     expect(snapshot.projectiles.count).toBe(1);
     expect(snapshot.pickups.count).toBe(1);
+    expect(snapshot.zones.count).toBe(1);
     expect(snapshot.projectiles.hp[0]).toBe(0);
     expect(snapshot.projectiles.maxHp[0]).toBe(0);
     expect(snapshot.projectiles.role[0]).toBe(1);
     expect(snapshot.pickups.hp[0]).toBe(0);
     expect(snapshot.pickups.maxHp[0]).toBe(0);
+    expect(snapshot.zones.x[0]).toBe(50);
+    expect(snapshot.zones.y[0]).toBe(60);
+    expect(snapshot.zones.radius[0]).toBe(24);
+    expect(snapshot.zones.hp[0]).toBe(0);
+    expect(snapshot.zones.maxHp[0]).toBe(0);
+    expect(snapshot.zones.role[0]).toBe(ZONE_TAG.geckoPad);
   });
 });
 

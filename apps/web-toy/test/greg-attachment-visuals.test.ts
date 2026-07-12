@@ -20,7 +20,10 @@ describe('Greg attachment visual recipes', () => {
       'firefly-colony:adapted',
       'mantis-scythes:bud',
       'mantis-scythes:adapted',
+      'gecko-pads:bud',
+      'gecko-pads:adapted',
       'thunderbug-dynamo:mythic',
+      'razorstep-chimera:mythic',
     ]);
     for (const key of GREG_ATTACHMENT_VISUAL_KEYS) {
       const recipe = getGregAttachmentVisualRecipe(key);
@@ -44,8 +47,19 @@ describe('Greg attachment visual recipes', () => {
       .toBeGreaterThan(getGregAttachmentVisualRecipe('firefly-colony:bud').parts.length);
     expect(getGregAttachmentVisualRecipe('mantis-scythes:adapted').parts.length)
       .toBeGreaterThan(getGregAttachmentVisualRecipe('mantis-scythes:bud').parts.length);
+    expect(getGregAttachmentVisualRecipe('gecko-pads:adapted').parts.length)
+      .toBeGreaterThan(getGregAttachmentVisualRecipe('gecko-pads:bud').parts.length);
     expect(getGregAttachmentVisualRecipe('thornstorm-mantle:mythic').parts.length)
       .toBeGreaterThan(getGregAttachmentVisualRecipe('porcupine-quills:adapted').parts.length);
+    expect(getGregAttachmentVisualRecipe('razorstep-chimera:mythic').parts.length)
+      .toBeGreaterThan(getGregAttachmentVisualRecipe('mantis-scythes:adapted').parts.length);
+  });
+
+  it('uses dedicated Gecko and Razorstep material roles', () => {
+    expect(getGregAttachmentVisualRecipe('gecko-pads:bud').parts.map((part) => part.materialRole))
+      .toEqual(expect.arrayContaining(['geckoPrimary', 'geckoAccent']));
+    expect(getGregAttachmentVisualRecipe('razorstep-chimera:mythic').parts.map((part) => part.materialRole))
+      .toEqual(expect.arrayContaining(['razorstepPrimary', 'razorstepAccent']));
   });
 
   it('returns deeply immutable recipes and stable recipe identities', () => {

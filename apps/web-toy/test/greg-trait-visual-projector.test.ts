@@ -70,6 +70,40 @@ describe('Greg trait visual projector', () => {
     expect(events).toEqual(['create:leftShoulder:mantis-scythes:bud']);
   });
 
+  it('anchors Gecko Pads to Greg\'s right shoulder', () => {
+    const { events, projector } = fixture();
+    projector.sync([
+      visual({
+        sourceId: 'gecko-pads',
+        stage: 'adapted',
+        sockets: ['rightShoulder'],
+        visualKey: 'gecko-pads:adapted',
+      }),
+    ]);
+    expect(events).toEqual(['create:rightShoulder:gecko-pads:adapted']);
+  });
+
+  it('anchors Razorstep at the left shoulder while reserving both shoulders', () => {
+    const { events, sockets, projector } = fixture();
+    projector.sync([
+      visual({
+        sourceId: 'razorstep-chimera',
+        stage: 'mythic',
+        sockets: ['leftShoulder', 'rightShoulder'],
+        visualKey: 'razorstep-chimera:mythic',
+      }),
+      visual({
+        sourceId: 'gecko-pads',
+        stage: 'adapted',
+        sockets: ['rightShoulder'],
+        visualKey: 'gecko-pads:adapted',
+      }),
+    ]);
+
+    expect(events).toEqual(['create:leftShoulder:razorstep-chimera:mythic']);
+    expect(sockets.attachmentCount).toBe(1);
+  });
+
   it('hides disabled and malformed or socket-conflicting entries', () => {
     const { events, projector } = fixture();
     projector.sync([

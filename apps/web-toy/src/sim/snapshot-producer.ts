@@ -4,7 +4,7 @@
  * copies: nothing here ever writes to the simulation's live typed arrays.
  */
 import type { CategorySnapshot, RenderSnapshot, ViewCategory } from '../contracts';
-import type { PickupPool, Pool, ProjectilePool, SimConfig, Simulation } from '@sim';
+import type { PickupPool, Pool, ProjectilePool, SimConfig, Simulation, ZonePool } from '@sim';
 
 /** Projectiles have no radius field in the sim pool; used only for the view. */
 const PROJECTILE_VIEW_RADIUS = 3;
@@ -44,6 +44,7 @@ export function createSnapshot(config: SimConfig): RenderSnapshot {
     enemies: createCategorySnapshot('enemy', config.enemyCap),
     projectiles: createCategorySnapshot('projectile', config.projectileCap),
     pickups: createCategorySnapshot('pickup', config.pickupCap),
+    zones: createCategorySnapshot('zone', config.zoneCap),
   };
 }
 
@@ -102,6 +103,25 @@ function capturePickups(out: CategorySnapshot, pool: Pool<PickupPool>): void {
   out.count = n;
 }
 
+/** Copies only authoritative live pads, including their compact renderer role. */
+function captureZones(out: CategorySnapshot, pool: Pool<ZonePool>): void {
+  const data = pool.data;
+  let n = 0;
+  for (let slot = 0; slot < data.capacity; slot++) {
+    if (data.alive[slot] !== 1) continue;
+    out.id[n] = pool.idOf(slot);
+    out.x[n] = data.posX[slot]!;
+    out.y[n] = data.posY[slot]!;
+    out.radius[n] = data.radius[slot]!;
+    out.hp[n] = 0;
+    out.maxHp[n] = 0;
+    out.archetype[n] = 0;
+    out.role[n] = data.tag[slot]!;
+    n++;
+  }
+  out.count = n;
+}
+
 /**
  * Fills `out` IN PLACE from the simulation's current state. Read-only with
  * respect to `sim` — never writes to any sim array. Allocation-free: reuses
@@ -122,4 +142,5 @@ export function captureSnapshot(out: RenderSnapshot, sim: Simulation): void {
   captureEnemies(out.enemies, sim);
   captureProjectiles(out.projectiles, sim.projectiles);
   capturePickups(out.pickups, sim.pickups);
+  captureZones(out.zones, sim.zones);
 }

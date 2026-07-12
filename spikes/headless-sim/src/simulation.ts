@@ -68,18 +68,21 @@
  *   player: f32 x, f32 y, f32 hp, f32 maxHp, f32 speed, f32 radius,
  *           f32 pickupRadius, f64 xp, u32 level, u32 invulnTicks, u8 alive
  *   u32 weaponCooldown, f32 lastMoveDirX, f32 lastMoveDirY
- *   for each pool in order [enemies, projectiles, pickups]:
+ *   for each pool in order [enemies, projectiles, pickups, zones]:
  *     u32 count
  *     for slot in 0..capacity-1:
  *       u8 alive[slot], u16 generation[slot]
  *       IF alive[slot]: every gameplay component for that slot, in this
  *       fixed order (f32 for float arrays, u16/u8 for int arrays):
  *         enemies:     posX, posY, velX, velY, hp, maxHp, speed, radius,
- *                      touchDamage, contactCooldown(u16), archetype(u8),
+ *                      touchDamage, contactCooldown(u16),
+ *                      zoneDamageCooldown(u16), archetype(u8),
  *                      xpDrop, marked(u8)
  *         projectiles: posX, posY, velX, velY, damage, lifetime(u16),
  *                      hitRadius, pierce(u8), faction(u8)
  *         pickups:     posX, posY, xp, radius
+ *         zones:       posX, posY, radius, damage, lifetime(u16),
+ *                      intervalTicks(u16), pulseCooldown(u16), tag(u8)
  * EXCLUDED from the hash (diagnostics only): highWater, queryCount,
  * spawnAttempts/spawnRejections, and this module's xpLostToFullPickupPool
  * counter. Object property iteration is never used for hashing — every
@@ -99,6 +102,7 @@ import {
   type ReplayRecord,
   type UpgradeSelection,
   type WaveDirector,
+  type ZonePool,
 } from './types.js';
 import type { SimConfig } from './config.js';
 import { CONFIG_VERSION, fingerprintConfig } from './config.js';
@@ -106,7 +110,7 @@ import { createRng } from './rng.js';
 import { createClock } from './clock.js';
 import { createReplayRecorder, deserializeReplay, serializeReplay } from './replay.js';
 import { createHashWriter } from './state-hash.js';
-import { createEnemyPool, createProjectilePool, createPickupPool } from './pools.js';
+import { createEnemyPool, createProjectilePool, createPickupPool, createZonePool } from './pools.js';
 import { createSpatialGrid } from './spatial-grid.js';
 import { selectTarget } from './targeting.js';
 import { createWaveDirector } from './wave-director.js';
@@ -119,6 +123,7 @@ import {
   stepProjectiles,
 } from './combat.js';
 import { createTraitCommandExecutor } from './trait-command-executor.js';
+import { createZoneStepper } from './zones.js';
 import {
   createTraitRuntimePort,
   type TraitRuntimeCommandSource,
@@ -172,8 +177,8 @@ const EMPTY_UNIVERSAL_RANKS: readonly number[] = Object.freeze([]);
  * executor. The simulation reuses both the array and its event objects on
  * the next step, so consumers must copy any data they need to retain.
  *
- * `tag` and `durationTicks` are normalized because the structural runtime
- * port keeps them optional for compatibility with lightweight runtimes.
+ * Zone metadata is normalized because the structural runtime port keeps it
+ * optional for compatibility with lightweight runtimes.
  * This is presentation-only output and is deliberately excluded from hash()
  * and replay state.
  */
@@ -192,6 +197,8 @@ export interface TraitPresentationEventView {
   readonly radius: number;
   readonly strength: number;
   readonly durationTicks: number;
+  readonly intervalTicks: number;
+  readonly amount: number;
   readonly facing: number;
   readonly spread: number;
   readonly range: number;
@@ -208,6 +215,8 @@ export interface Simulation {
   readonly enemies: Pool<EnemyPool>;
   readonly projectiles: Pool<ProjectilePool>;
   readonly pickups: Pool<PickupPool>;
+  /** Persistent player damage pads; compact numeric tags are renderer-ready. */
+  readonly zones: Pool<ZonePool>;
   readonly grid: SpatialGrid;
   readonly waveDirector: WaveDirector;
   /** XP silently dropped because the pickup pool was full at kill time. Diagnostic only. */
@@ -339,6 +348,7 @@ export function createSimulation(
   const enemies = createEnemyPool(config.enemyCap);
   const projectiles = createProjectilePool(config.projectileCap);
   const pickups = createPickupPool(config.pickupCap);
+  const zones = createZonePool(config.zoneCap);
   const grid = createSpatialGrid(config.worldWidth, config.worldHeight, config.gridCellSize, config.enemyCap);
   const waveDirector = createWaveDirector(config.waves);
   // The config is immutable content. A local copy lets an actual run upgrade
@@ -393,6 +403,8 @@ export function createSimulation(
           radius: command.radius,
           strength: command.strength,
           durationTicks: command.durationTicks ?? 0,
+          intervalTicks: command.intervalTicks ?? 0,
+          amount: command.amount ?? 0,
           facing: command.facing,
           spread: command.spread,
           range: command.range,
@@ -414,6 +426,8 @@ export function createSimulation(
         event.radius = command.radius;
         event.strength = command.strength;
         event.durationTicks = command.durationTicks ?? 0;
+        event.intervalTicks = command.intervalTicks ?? 0;
+        event.amount = command.amount ?? 0;
         event.facing = command.facing;
         event.spread = command.spread;
         event.range = command.range;
@@ -445,6 +459,7 @@ export function createSimulation(
   let xpGainMultiplier = 1;
   let traitDamageMultiplier = 1;
   let traitCooldownMultiplier = 1;
+  const zoneStepper = createZoneStepper();
 
   /** Synchronize concrete authoritative stats after a universal card selection. */
   function applyUniversalStats(): void {
@@ -500,6 +515,7 @@ export function createSimulation(
     data.radius[slot] = arch.radius;
     data.touchDamage[slot] = arch.touchDamage;
     data.contactCooldown[slot] = 0;
+    data.zoneDamageCooldown[slot] = 0;
     data.archetype[slot] = archetype;
     data.xpDrop[slot] = arch.xpDrop * xpMultiplier;
     data.marked[slot] = 0;
@@ -726,6 +742,7 @@ export function createSimulation(
             worldHeight,
             enemies,
             projectiles,
+            zones,
             enemyGrid: grid,
             killEnemy,
           });
@@ -740,6 +757,15 @@ export function createSimulation(
         }
       }
     }
+
+    // Persistent pads resolve after all new trait commands in the same tick,
+    // so a newly placed Gecko/Razorstep pad gets its first damaging pulse
+    // immediately. Zones are damage-only and never alter enemy movement.
+    zoneStepper.step(zones, {
+      enemies,
+      enemyGrid: grid,
+      killEnemy,
+    });
 
     stepProjectiles(
       projectiles,
@@ -875,6 +901,7 @@ export function createSimulation(
           writer.f32(data.radius[slot]!);
           writer.f32(data.touchDamage[slot]!);
           writer.u16(data.contactCooldown[slot]!);
+          writer.u16(data.zoneDamageCooldown[slot]!);
           writer.u8(data.archetype[slot]!);
           writer.f32(data.xpDrop[slot]!);
           writer.u8(data.marked[slot]!);
@@ -917,6 +944,26 @@ export function createSimulation(
           writer.f32(data.posY[slot]!);
           writer.f32(data.xp[slot]!);
           writer.f32(data.radius[slot]!);
+        }
+      }
+    }
+
+    // persistent damage zones
+    {
+      const data = zones.data;
+      writer.u32(data.count);
+      for (let slot = 0; slot < data.capacity; slot++) {
+        writer.u8(data.alive[slot]!);
+        writer.u16(data.generation[slot]!);
+        if (data.alive[slot] === 1) {
+          writer.f32(data.posX[slot]!);
+          writer.f32(data.posY[slot]!);
+          writer.f32(data.radius[slot]!);
+          writer.f32(data.damage[slot]!);
+          writer.u16(data.lifetime[slot]!);
+          writer.u16(data.intervalTicks[slot]!);
+          writer.u16(data.pulseCooldown[slot]!);
+          writer.u8(data.tag[slot]!);
         }
       }
     }
@@ -994,6 +1041,7 @@ export function createSimulation(
     enemies,
     projectiles,
     pickups,
+    zones,
     grid,
     waveDirector,
     traitCatalogFingerprint,

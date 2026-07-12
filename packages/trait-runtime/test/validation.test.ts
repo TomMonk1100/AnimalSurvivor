@@ -95,3 +95,31 @@ test('fractional fixed-tick and count fields fail validation', () => {
   assert.ok(resultCodes.includes('nonFiniteParam'));
   assert.ok(resultCodes.includes('nonIntegerParam'));
 });
+
+test('movementTrail requires a positive distance threshold and spawn-zone emit', () => {
+  const c = clone();
+  const behavior = c.traits[0]!.stages.bud.behavior;
+  behavior.kind = 'movementTrail';
+  behavior.periodTicks = 0;
+  behavior.distanceMilliunits = 0;
+  behavior.emit = { kind: 'applyAreaDamage', radius: 10, damage: 1 };
+  assert.ok(codes(c).includes('invalidMovementTrail'));
+
+  behavior.distanceMilliunits = 100_000;
+  behavior.emit = { kind: 'spawnZone', intervalTicks: 2.5 };
+  assert.ok(codes(c).includes('nonIntegerParam'));
+  assert.ok(codes(c).includes('invalidMovementTrail'));
+});
+
+test('movementTrail validates every spawnZone field required by the accepted executor', () => {
+  const c = clone();
+  const behavior = c.traits[0]!.stages.bud.behavior;
+  behavior.kind = 'movementTrail';
+  behavior.periodTicks = 0;
+  behavior.distanceMilliunits = 100_000;
+  behavior.emit = { kind: 'spawnZone', radius: 20, amount: 2, durationTicks: 30, intervalTicks: 10, tag: 'gecko-pad' };
+  assert.equal(codes(c).includes('invalidMovementTrail'), false);
+
+  behavior.emit = { kind: 'spawnZone', radius: 0, amount: 2, durationTicks: 0, intervalTicks: 0, tag: '' };
+  assert.ok(codes(c).includes('invalidMovementTrail'));
+});

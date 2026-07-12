@@ -35,10 +35,15 @@ export type TraitCommandEffectKind =
   | 'gather'
   | 'knockback'
   | 'area-damage'
+  | 'zone-spawn'
   | 'trait-cue';
 
 type EffectMotion = 'expand' | 'contract' | 'pulse';
-type EffectMaterial = TraitCommandEffectKind | 'thornstorm-telegraph' | 'thunderbug-telegraph';
+type EffectMaterial = Exclude<TraitCommandEffectKind, 'zone-spawn'>
+  | 'thornstorm-telegraph'
+  | 'thunderbug-telegraph'
+  | 'gecko-zone-spawn'
+  | 'razorstep-zone-spawn';
 
 export interface TraitCommandEffectProfile {
   readonly kind: TraitCommandEffectKind;
@@ -100,6 +105,14 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
     kind: 'area-damage', material: 'area-damage', motion: 'expand', lifetimeTicks: 10,
     fallbackRadius: 52, minimumRadius: 14, maximumRadius: 220, directed: false,
   },
+  'gecko-zone-spawn': {
+    kind: 'zone-spawn', material: 'gecko-zone-spawn', motion: 'pulse', lifetimeTicks: 18,
+    fallbackRadius: 38, minimumRadius: 14, maximumRadius: 160, directed: false,
+  },
+  'razorstep-zone-spawn': {
+    kind: 'zone-spawn', material: 'razorstep-zone-spawn', motion: 'pulse', lifetimeTicks: 20,
+    fallbackRadius: 58, minimumRadius: 16, maximumRadius: 180, directed: false,
+  },
   'trait-cue': {
     kind: 'trait-cue', material: 'trait-cue', motion: 'pulse', lifetimeTicks: 12,
     fallbackRadius: 28, minimumRadius: 10, maximumRadius: 90, directed: false,
@@ -115,6 +128,8 @@ const COLORS: Readonly<Record<EffectMaterial, pc.Color>> = Object.freeze({
   gather: new pc.Color(0.18, 0.85, 1),
   knockback: new pc.Color(1, 0.3, 0.12),
   'area-damage': new pc.Color(1, 0.16, 0.26),
+  'gecko-zone-spawn': new pc.Color(0.28, 1, 0.62),
+  'razorstep-zone-spawn': new pc.Color(0.84, 1, 0.4),
   'trait-cue': new pc.Color(0.34, 1, 0.58),
 });
 
@@ -127,6 +142,8 @@ const OPACITY: Readonly<Record<EffectMaterial, number>> = Object.freeze({
   gather: 0.42,
   knockback: 0.5,
   'area-damage': 0.66,
+  'gecko-zone-spawn': 0.58,
+  'razorstep-zone-spawn': 0.66,
   'trait-cue': 0.55,
 });
 
@@ -165,6 +182,10 @@ export function projectTraitCommandEffect(event: TraitCommandPresentationEvent):
     case 'areaGather': return PROFILES.gather;
     case 'areaKnockback': return PROFILES.knockback;
     case 'applyAreaDamage': return PROFILES['area-damage'];
+    case 'spawnZone':
+      return event.tag === 'razorstep-scythe-pad'
+        ? PROFILES['razorstep-zone-spawn']
+        : PROFILES['gecko-zone-spawn'];
     case 'playTraitCue': return PROFILES['trait-cue'];
     default: return null;
   }

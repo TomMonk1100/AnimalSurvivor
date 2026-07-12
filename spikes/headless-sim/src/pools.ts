@@ -21,7 +21,7 @@
  * plausible, harmless occurrence — throwing would force every call site to
  * pre-check aliveness for no real benefit.
  */
-import type { EnemyPool, PickupPool, Pool, PoolBase, ProjectilePool } from './types.js';
+import type { EnemyPool, PickupPool, Pool, PoolBase, ProjectilePool, ZonePool } from './types.js';
 import { makeId, idSlot, idGeneration } from './types.js';
 
 type TypedNumArray =
@@ -148,6 +148,7 @@ export function createEnemyPool(capacity: number): Pool<EnemyPool> {
     radius: new Float32Array(capacity),
     touchDamage: new Float32Array(capacity),
     contactCooldown: new Uint16Array(capacity),
+    zoneDamageCooldown: new Uint16Array(capacity),
     archetype: new Uint8Array(capacity),
     xpDrop: new Float32Array(capacity),
     marked: new Uint8Array(capacity),
@@ -188,6 +189,31 @@ export function createPickupPool(capacity: number): Pool<PickupPool> {
     posY: new Float32Array(capacity),
     xp: new Float32Array(capacity),
     radius: new Float32Array(capacity),
+  };
+  return createPool(capacity, data);
+}
+
+/**
+ * Bounded persistent-zone pool. The generic pool's deterministic LIFO free
+ * list reuses the most recently freed slot; callers reject a newly requested
+ * zone when all live slots are occupied rather than evicting an existing pad.
+ */
+export function createZonePool(capacity: number): Pool<ZonePool> {
+  assertPoolCapacity(capacity);
+  const data: ZonePool = {
+    capacity,
+    count: 0,
+    highWater: 0,
+    alive: new Uint8Array(capacity),
+    generation: new Uint16Array(capacity),
+    posX: new Float32Array(capacity),
+    posY: new Float32Array(capacity),
+    radius: new Float32Array(capacity),
+    damage: new Float32Array(capacity),
+    lifetime: new Uint16Array(capacity),
+    intervalTicks: new Uint16Array(capacity),
+    pulseCooldown: new Uint16Array(capacity),
+    tag: new Uint8Array(capacity),
   };
   return createPool(capacity, data);
 }

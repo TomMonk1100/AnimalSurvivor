@@ -75,7 +75,7 @@ elites add ranged pressure, and elites give larger XP rewards.
 ### Attacks and evolutions
 
 Greg’s starter **Auto-Fire** occupies one active-attack slot. A normal run can
-choose up to four of five acquired trait families, for five active attack slots
+choose up to four of six acquired trait families, for five active attack slots
 total:
 
 | Attack | Bud effect | Adapted effect |
@@ -85,15 +85,16 @@ total:
 | **Electric Eel Coil** | Two charged bolts at the nearest threat | Four faster charged bolts |
 | **Firefly Colony** | Six radial sparks | Ten stronger radial sparks |
 | **Mantis Scythes** | Short-range damaging pulse | Wider, stronger close-range pulse |
+| **Gecko Pads** | After traveling 150 units, create a damaging pad at Greg's feet; it does not slow enemies | After traveling 110 units, create a stronger damaging pad at Greg's feet; it does not slow enemies |
 
-Every attack has Bud and Adapted forms. **Mantis Scythes** is currently a
-standalone attack with no Mythic evolution yet. Two paired evolutions are
-available:
+Every attack has Bud and Adapted forms. Three paired evolutions are available:
 
 - **Thornstorm Mantle** combines Adapted Quills and Adapted Pouch: telegraph,
   gather, then radial quill storm.
 - **Thunderbug Dynamo** combines Adapted Coil and Adapted Colony: charge, then
   radial lightning storm.
+- **Razorstep Chimera** combines Adapted Mantis Scythes and Adapted Gecko Pads:
+  moving leaves stronger scythe pads every 90 units.
 
 Each Mythic retains its two ingredient slots. Evolving is a power conversion,
 not a way to open a sixth active-attack slot.

@@ -25,7 +25,12 @@ const ANCHOR_BY_VISUAL_KEY: Readonly<Record<string, GregSocketName>> = Object.fr
   'firefly-colony:adapted': 'bodyOrbit',
   'mantis-scythes:bud': 'leftShoulder',
   'mantis-scythes:adapted': 'leftShoulder',
+  'gecko-pads:bud': 'rightShoulder',
+  'gecko-pads:adapted': 'rightShoulder',
   'thunderbug-dynamo:mythic': 'tail',
+  // The combined form owns both shoulders but has one stable root: the left
+  // shoulder, which avoids mount churn while still reserving the right one.
+  'razorstep-chimera:mythic': 'leftShoulder',
 });
 
 interface MountedVisual {

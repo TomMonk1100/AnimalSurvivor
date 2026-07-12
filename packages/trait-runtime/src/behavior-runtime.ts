@@ -30,6 +30,11 @@
  *       no double-fire and no skipped phase. A single stepBehaviors call
  *       advances exactly one tick and emits at most the templates due this tick.
  *       generic with no `emit` emits a `playTraitCue` heartbeat at period.
+ *   - movementTrail:
+ *       quantize `ctx.distanceMovedThisTick` to fixed milliunits, accumulate it
+ *       in `timer.charges`, and emit at most one spawnZone after a positive-
+ *       movement tick crosses the authored distance threshold. A stationary
+ *       tick never emits, even when prior movement left a charged threshold.
  *   - multiPhase (e.g. Thornstorm):
  *       emit the current phase's command at the tick the phase BEGINS, then
  *       wait durationTicks before advancing to the next phase; wrap after the
@@ -54,6 +59,37 @@ import type {
   RuntimeContext,
   RuntimeState,
 } from './contracts.js';
+
+const MILLIUNITS_PER_WORLD_UNIT = 1_000;
+
+/** Apply neutral attack-speed scaling while preserving a valid fixed-tick interval. */
+function scaleCooldownTicks(ticks: number, ctx: RuntimeContext): number {
+  const scaled = ticks * (ctx.weaponCooldownMultiplier ?? 1);
+  if (!Number.isFinite(scaled) || scaled >= Number.MAX_SAFE_INTEGER) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  return Math.max(1, Math.round(scaled));
+}
+
+/**
+ * Convert a finite non-negative world distance to an exact safe integer count
+ * of thousandths. Very large hostile inputs saturate rather than overflowing
+ * the deterministic timer state.
+ */
+function quantizeDistanceMilliunits(distance: number): number {
+  if (distance <= 0) return 0;
+  const scaled = distance * MILLIUNITS_PER_WORLD_UNIT;
+  if (!Number.isFinite(scaled) || scaled >= Number.MAX_SAFE_INTEGER) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  return Math.min(Number.MAX_SAFE_INTEGER, Math.round(scaled));
+}
+
+/** Saturating integer add keeps `BehaviorTimer.charges` serializable and exact. */
+function addCharges(current: number, added: number): number {
+  if (current >= Number.MAX_SAFE_INTEGER - added) return Number.MAX_SAFE_INTEGER;
+  return current + added;
+}
 
 /** Linear scan for the timer owned by `ownerId`. No allocation. */
 function findTimer(state: RuntimeState, ownerId: string): BehaviorTimer | undefined {
@@ -145,7 +181,17 @@ function emitCommand(
   if (template.spread !== undefined) cmd.spread = template.spread;
   if (template.jumps !== undefined) cmd.jumps = template.jumps;
   if (template.range !== undefined) cmd.range = template.range;
-  if (template.amount !== undefined) cmd.amount = template.amount;
+  if (template.amount !== undefined) {
+    // `amount` represents damage-per-tick for spawn zones but can represent a
+    // non-damage magnitude (for example, shield amount) for other command
+    // kinds. Neutral weapon damage must affect only the former.
+    cmd.amount = template.kind === 'spawnZone'
+      ? template.amount * (ctx.weaponDamageMultiplier ?? 1)
+      : template.amount;
+  }
+  if (template.intervalTicks !== undefined) {
+    cmd.intervalTicks = scaleCooldownTicks(template.intervalTicks, ctx);
+  }
   if (template.tag !== undefined) cmd.tag = template.tag;
 
   cmd.sourceId = ownerId;
@@ -181,7 +227,7 @@ function stepPeriodic(
   out: CommandBuffer,
 ): void {
   if (timer.cooldown <= 0) {
-    timer.cooldown = Math.max(1, Math.round(behavior.periodTicks * (ctx.weaponCooldownMultiplier ?? 1)));
+    timer.cooldown = scaleCooldownTicks(behavior.periodTicks, ctx);
     if (behavior.emit !== undefined) {
       emitCommand(out, behavior.emit, ownerId, ctx);
     } else {
@@ -220,11 +266,44 @@ function stepMultiPhase(
     emitCommand(out, phase.emit, ownerId, ctx);
   }
   timer.phaseTicks += 1;
-  const durationTicks = Math.max(1, Math.round(phase.durationTicks * (ctx.weaponCooldownMultiplier ?? 1)));
+  const durationTicks = scaleCooldownTicks(phase.durationTicks, ctx);
   if (timer.phaseTicks >= durationTicks) {
     timer.phaseTicks = 0;
     timer.phase = (timer.phase + 1) % phases.length;
   }
+}
+
+/**
+ * Movement trails are intentionally distance-driven rather than cooldown-
+ * driven: Attack Speed changes zone tick cadence, never how far Greg must
+ * travel to leave a pad. The one-emission cap prevents a single large movement
+ * sample from flooding the command buffer; any remaining charge carries into
+ * later positive-movement ticks.
+ */
+function stepMovementTrail(
+  behavior: BehaviorDefinition,
+  timer: BehaviorTimer,
+  ownerId: string,
+  ctx: RuntimeContext,
+  out: CommandBuffer,
+): void {
+  const threshold = behavior.distanceMilliunits;
+  const template = behavior.emit;
+  if (
+    threshold === undefined
+    || threshold < 1
+    || template === undefined
+    || template.kind !== 'spawnZone'
+    || ctx.distanceMovedThisTick <= 0
+  ) {
+    return;
+  }
+
+  timer.charges = addCharges(timer.charges, quantizeDistanceMilliunits(ctx.distanceMovedThisTick));
+  if (timer.charges < threshold) return;
+
+  timer.charges -= threshold;
+  emitCommand(out, template, ownerId, ctx);
 }
 
 function advanceTimer(
@@ -242,6 +321,9 @@ function advanceTimer(
       break;
     case 'multiPhase':
       stepMultiPhase(behavior, timer, ownerId, ctx, out);
+      break;
+    case 'movementTrail':
+      stepMovementTrail(behavior, timer, ownerId, ctx, out);
       break;
   }
 }

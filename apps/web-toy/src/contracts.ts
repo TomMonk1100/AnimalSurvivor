@@ -59,18 +59,16 @@ export interface InputSource {
 // ---------------------------------------------------------------------------
 
 /** Category of a pooled primitive view. One shared flat material per category. */
-export type ViewCategory = 'enemy' | 'projectile' | 'pickup';
+export type ViewCategory = 'enemy' | 'projectile' | 'pickup' | 'zone';
 
 /**
  * A flat, allocation-stable list of live entities of one category captured at a
  * tick boundary. Parallel arrays indexed 0..count-1. `id` is the generation-
  * guarded EntityId. `archetype`, `role`, `hp`, and `maxHp` are only meaningful
- * for enemies (all are 0 otherwise), except projectile `role`, which mirrors
- * the simulation faction: 0 for Greg's projectile and 1 for a hostile one.
- * Enemy role values mirror the simulation's fixed regular/elite/boss/ranged
- * mapping: 0, 1, 2, and 3 respectively.
- * Buffers are preallocated to capacity and reused every tick — never resized in
- * the steady-state loop.
+ * for enemies (all are 0 otherwise). `role` mirrors simulation-owned visual
+ * classification: enemy regular/elite/boss/ranged values, projectile faction,
+ * or the compact tag for a persistent player zone. Buffers are preallocated
+ * to capacity and reused every tick — never resized in the steady-state loop.
  */
 export interface CategorySnapshot {
   readonly category: ViewCategory;
@@ -106,6 +104,8 @@ export interface RenderSnapshot {
   readonly enemies: CategorySnapshot;
   readonly projectiles: CategorySnapshot;
   readonly pickups: CategorySnapshot;
+  /** Authoritative persistent player pads, copied from the bounded zone pool. */
+  readonly zones: CategorySnapshot;
 }
 
 // ---------------------------------------------------------------------------

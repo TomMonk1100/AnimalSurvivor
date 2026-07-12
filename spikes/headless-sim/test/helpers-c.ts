@@ -82,6 +82,7 @@ export function createEnemyPool(capacity: number): Pool<EnemyPool> {
     radius: new Float32Array(capacity),
     touchDamage: new Float32Array(capacity),
     contactCooldown: new Uint16Array(capacity),
+    zoneDamageCooldown: new Uint16Array(capacity),
     archetype: new Uint8Array(capacity),
     xpDrop: new Float32Array(capacity),
     marked: new Uint8Array(capacity),

@@ -6,8 +6,17 @@
  * simulation independently buildable while allowing TraitRuntime's Command and
  * CommandBuffer to satisfy these contracts without conversion or allocation.
  */
-import { NO_ENTITY, type EnemyPool, type EntityId, type Pool, type ProjectilePool, type SpatialGrid } from './types.js';
+import {
+  NO_ENTITY,
+  type EnemyPool,
+  type EntityId,
+  type Pool,
+  type ProjectilePool,
+  type SpatialGrid,
+  type ZonePool,
+} from './types.js';
 import { selectTarget } from './targeting.js';
+import { zoneTagFromCommandTag } from './zones.js';
 
 export interface TraitCombatCommand {
   readonly kind: string;
@@ -23,9 +32,17 @@ export interface TraitCombatCommand {
   readonly speed: number;
   readonly radius: number;
   readonly strength: number;
+  /** Required by spawnZone; optional structurally while runtimes upgrade. */
+  readonly durationTicks?: number;
+  /** Optional for legacy zone templates; executor applies its configured default. */
+  readonly intervalTicks?: number;
+  /** Required by spawnZone: damage dealt once per scheduled zone pulse. */
+  readonly amount?: number;
   readonly facing: number;
   readonly spread: number;
   readonly range: number;
+  /** Required by spawnZone; mapped to a compact numeric pool role. */
+  readonly tag?: string;
 }
 
 export interface TraitCommandSource {
@@ -41,6 +58,8 @@ export interface TraitCommandExecutionContext {
   readonly worldHeight: number;
   readonly enemies: Pool<EnemyPool>;
   readonly projectiles: Pool<ProjectilePool>;
+  /** Bounded persistent damaging-pad state owned by the simulation. */
+  readonly zones: Pool<ZonePool>;
   readonly enemyGrid: SpatialGrid;
   /** Simulation-owned cleanup so direct trait damage preserves drops/boss state. */
   readonly killEnemy: (slot: number) => void;
@@ -55,6 +74,8 @@ export interface TraitCommandExecutorOptions {
   readonly projectileHitRadius: number;
   readonly projectilePierce: number;
   readonly maxBurstCount: number;
+  /** Cadence used only by legacy spawnZone commands that omit intervalTicks. */
+  readonly defaultZoneIntervalTicks: number;
 }
 
 export interface TraitCommandExecutionStats {
@@ -64,6 +85,10 @@ export interface TraitCommandExecutionStats {
   projectilesRequested: number;
   projectilesSpawned: number;
   projectilesRejected: number;
+  zonesRequested: number;
+  zonesSpawned: number;
+  /** Newest zone request is rejected when the fixed pool is full; no eviction. */
+  zonesRejected: number;
   burstsSkippedNoTarget: number;
   enemiesGathered: number;
   enemiesKnockedBack: number;
@@ -87,6 +112,7 @@ const DEFAULT_OPTIONS: Readonly<TraitCommandExecutorOptions> = Object.freeze({
   projectileHitRadius: 6,
   projectilePierce: 0,
   maxBurstCount: 512,
+  defaultZoneIntervalTicks: 30,
 });
 
 const SUPPORTED_KINDS = new Set([
@@ -95,12 +121,12 @@ const SUPPORTED_KINDS = new Set([
   'areaGather',
   'areaKnockback',
   'applyAreaDamage',
+  'spawnZone',
   'telegraph',
   'playTraitCue',
 ]);
 /** These need state/pools not yet owned by the accepted simulation. */
 export const REJECTED_TRAIT_COMMAND_KINDS = Object.freeze([
-  'spawnZone',
   'markTargets',
   'chainDamage',
   'meleeArc',
@@ -146,6 +172,13 @@ function validateOptions(options: TraitCommandExecutorOptions): void {
   }
   if (!Number.isSafeInteger(options.maxBurstCount) || options.maxBurstCount < 1) {
     throw new RangeError('maxBurstCount must be a positive safe integer');
+  }
+  if (
+    !Number.isSafeInteger(options.defaultZoneIntervalTicks) ||
+    options.defaultZoneIntervalTicks < 1 ||
+    options.defaultZoneIntervalTicks > 0xffff
+  ) {
+    throw new RangeError('defaultZoneIntervalTicks must be an integer in [1, 65535]');
   }
 }
 
@@ -202,6 +235,34 @@ function validateCommand(
       nonNegative('command.damage', command.damage);
       float32('command.damage', command.damage);
       break;
+    case 'spawnZone': {
+      positive('command.radius', command.radius);
+      float32('command.radius', command.radius);
+      if (command.amount === undefined) {
+        throw new TypeError('spawnZone command.amount is required');
+      }
+      nonNegative('command.amount', command.amount);
+      float32('command.amount', command.amount);
+      const durationTicks = command.durationTicks;
+      if (
+        durationTicks === undefined ||
+        !Number.isSafeInteger(durationTicks) ||
+        durationTicks < 1 ||
+        durationTicks > 0xffff
+      ) {
+        throw new RangeError('spawnZone command.durationTicks must be an integer in [1, 65535]');
+      }
+      if (
+        command.intervalTicks !== undefined &&
+        (!Number.isSafeInteger(command.intervalTicks) || command.intervalTicks < 1 || command.intervalTicks > 0xffff)
+      ) {
+        throw new RangeError('spawnZone command.intervalTicks must be an integer in [1, 65535] when provided');
+      }
+      if (typeof command.tag !== 'string' || zoneTagFromCommandTag(command.tag) === null) {
+        throw new RangeError(`unsupported spawnZone tag: ${String(command.tag)}`);
+      }
+      break;
+    }
   }
 }
 
@@ -212,6 +273,9 @@ function resetStats(stats: TraitCommandExecutionStats): void {
   stats.projectilesRequested = 0;
   stats.projectilesSpawned = 0;
   stats.projectilesRejected = 0;
+  stats.zonesRequested = 0;
+  stats.zonesSpawned = 0;
+  stats.zonesRejected = 0;
   stats.burstsSkippedNoTarget = 0;
   stats.enemiesGathered = 0;
   stats.enemiesKnockedBack = 0;
@@ -379,6 +443,41 @@ function executeAreaDamage(
   }
 }
 
+/**
+ * Adds one stationary, damaging pad. The pool deliberately never evicts a
+ * live zone: source-order requests beyond capacity are rejected as the newest
+ * requests, which is deterministic and visible in stats.
+ */
+function executeSpawnZone(
+  command: TraitCombatCommand,
+  context: TraitCommandExecutionContext,
+  options: TraitCommandExecutorOptions,
+  stats: TraitCommandExecutionStats,
+): void {
+  stats.zonesRequested++;
+  const slot = context.zones.spawn();
+  if (slot < 0) {
+    stats.zonesRejected++;
+    return;
+  }
+  const tag = zoneTagFromCommandTag(command.tag!);
+  // The full batch was validated before mutation, so a null tag cannot occur.
+  if (tag === null || command.amount === undefined || command.durationTicks === undefined) {
+    throw new Error('validated spawnZone command lost required data');
+  }
+  const data = context.zones.data;
+  data.posX[slot] = command.originX;
+  data.posY[slot] = command.originY;
+  data.radius[slot] = command.radius;
+  data.damage[slot] = command.amount;
+  data.lifetime[slot] = command.durationTicks;
+  data.intervalTicks[slot] = command.intervalTicks ?? options.defaultZoneIntervalTicks;
+  // Zero means pulse on the immediate following zone step.
+  data.pulseCooldown[slot] = 0;
+  data.tag[slot] = tag;
+  stats.zonesSpawned++;
+}
+
 export function createTraitCommandExecutor(
   overrides: Partial<TraitCommandExecutorOptions> = {},
 ): TraitCommandExecutor {
@@ -393,6 +492,9 @@ export function createTraitCommandExecutor(
     projectilesRequested: 0,
     projectilesSpawned: 0,
     projectilesRejected: 0,
+    zonesRequested: 0,
+    zonesSpawned: 0,
+    zonesRejected: 0,
     burstsSkippedNoTarget: 0,
     enemiesGathered: 0,
     enemiesKnockedBack: 0,
@@ -439,6 +541,9 @@ export function createTraitCommandExecutor(
             break;
           case 'applyAreaDamage':
             executeAreaDamage(command, context, scratch, stats);
+            break;
+          case 'spawnZone':
+            executeSpawnZone(command, context, options, stats);
             break;
           case 'telegraph':
             stats.telegraphs++;

@@ -36,4 +36,34 @@ describe('active attack loadout', () => {
     expect(loadout.slotsUsed).toBe(5);
     expect(loadout.cards.map((card) => card.slotCost)).toEqual([1, 2, 2]);
   });
+
+  it('counts Razorstep as two slots after it consumes Mantis and Gecko', () => {
+    const loadout = presentActiveAttackLoadout([
+      visual({
+        sourceId: 'mantis-scythes',
+        stage: 'adapted',
+        sockets: ['leftShoulder'],
+        visualKey: 'mantis-scythes:adapted',
+      }),
+      visual({
+        sourceId: 'gecko-pads',
+        stage: 'adapted',
+        sockets: ['rightShoulder'],
+        visualKey: 'gecko-pads:adapted',
+      }),
+      visual({
+        sourceId: 'razorstep-chimera',
+        stage: 'mythic',
+        sockets: ['leftShoulder', 'rightShoulder'],
+        visualKey: 'razorstep-chimera:mythic',
+      }),
+    ]);
+
+    expect(loadout.slotsUsed).toBe(3);
+    expect(loadout.cards.map((card) => card.id)).toEqual([
+      'greg-auto-fire:starter',
+      'razorstep-chimera:mythic',
+    ]);
+    expect(loadout.cards.map((card) => card.slotCost)).toEqual([1, 2]);
+  });
 });

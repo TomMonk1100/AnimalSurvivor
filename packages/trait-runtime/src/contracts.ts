@@ -117,6 +117,8 @@ export interface Command {
   jumps: number;
   range: number;
   amount: number; // shield amount / damage-per-tick for zones
+  /** Per-zone damage cadence, in ticks. Meaningful for spawnZone commands. */
+  intervalTicks: number;
 
   /** Discriminating string payload: zone kind, telegraph kind, or cue key. */
   tag: string;
@@ -144,6 +146,7 @@ export const BLANK_COMMAND: Readonly<Command> = {
   jumps: 0,
   range: 0,
   amount: 0,
+  intervalTicks: 0,
   tag: '',
 };
 
@@ -177,7 +180,9 @@ export type BehaviorKind =
   | 'periodicBurst'
   | 'periodicPulse'
   | 'multiPhase'
-  | 'generic';
+  | 'generic'
+  /** Emits a zone after the player has traveled a fixed authored distance. */
+  | 'movementTrail';
 
 /**
  * A parameterized command template. Only numeric fields set here are applied;
@@ -203,6 +208,8 @@ export interface CommandTemplate {
   jumps?: number;
   range?: number;
   amount?: number;
+  /** Per-zone damage cadence, in ticks. Meaningful for spawnZone commands. */
+  intervalTicks?: number;
   tag?: string;
 }
 
@@ -222,12 +229,17 @@ export interface BehaviorPhase {
  *    start, then waits `durationTicks`. `periodTicks` is ignored.
  *  - generic: placeholder loop; emits `emit` every `periodTicks` ticks if set,
  *    otherwise a `playTraitCue` heartbeat. Used for non-slice catalog traits.
+ *  - movementTrail: accumulates player movement in fixed milliunits and emits
+ *    its spawnZone once per positive-movement tick after crossing
+ *    `distanceMilliunits`. `periodTicks` is ignored for this behavior.
  */
 export interface BehaviorDefinition {
   kind: BehaviorKind;
-  /** Cooldown period for periodic/generic kinds. Ignored for multiPhase. */
+  /** Cooldown period for periodic/generic kinds. Ignored for multiPhase/movementTrail. */
   periodTicks: number;
-  /** Single emit for periodic/generic kinds. */
+  /** Distance threshold in thousandths of a world unit; required by movementTrail. */
+  distanceMilliunits?: number;
+  /** Single emit for periodic/generic/movementTrail kinds. */
   emit?: CommandTemplate;
   /** Ordered phases for multiPhase kind. */
   phases?: readonly BehaviorPhase[];

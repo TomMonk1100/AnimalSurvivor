@@ -142,6 +142,7 @@ export function deserializeState(json: string): RuntimeState {
     for (const f of ['phase', 'phaseTicks', 'cooldown', 'charges'] as const) {
       if (!isFiniteInt(t[f]) || (t[f] as number) < 0) return fail(`timers[${i}].${f}`);
     }
+    if (!Number.isSafeInteger(t['charges'])) return fail(`timers[${i}].charges`);
     return {
       ownerId: t['ownerId'],
       active: t['active'],
@@ -255,7 +256,14 @@ export function validateStateAgainstCatalog(state: RuntimeState, catalog: Catalo
       if (timer.phase >= phases.length || timer.phaseTicks >= phases[timer.phase]!.durationTicks) {
         fail(`multi-phase timer out of range: ${timer.ownerId}`);
       }
-    } else if (timer.phase !== 0 || timer.phaseTicks !== 0 || timer.cooldown >= behavior.periodTicks) {
+    } else if (behavior.kind === 'movementTrail') {
+      if (timer.phase !== 0 || timer.phaseTicks !== 0 || timer.cooldown !== 0) {
+        fail(`movement-trail timer out of range: ${timer.ownerId}`);
+      }
+    } else if (timer.phase !== 0 || timer.phaseTicks !== 0) {
+      // Cooldowns are scaled by the per-tick attack-speed multiplier, which is
+      // deliberately contextual rather than serialized. Its exact upper bound
+      // therefore cannot be reconstructed during save validation.
       fail(`periodic timer out of range: ${timer.ownerId}`);
     }
     timersByOwner.set(timer.ownerId, timer);

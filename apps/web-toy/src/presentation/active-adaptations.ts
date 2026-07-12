@@ -21,7 +21,10 @@ type GregAdaptationId =
   | 'firefly-colony:adapted'
   | 'mantis-scythes:bud'
   | 'mantis-scythes:adapted'
-  | 'thunderbug-dynamo:mythic';
+  | 'gecko-pads:bud'
+  | 'gecko-pads:adapted'
+  | 'thunderbug-dynamo:mythic'
+  | 'razorstep-chimera:mythic';
 
 interface AdaptationDefinition {
   readonly card: ActiveAdaptationCard;
@@ -154,6 +157,33 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     'Sweeps a wider area for stronger close-range damage.',
     'Every 0.6 seconds',
   ),
+  'gecko-pads:bud': definition(
+    'gecko-pads:bud',
+    'gecko-pads',
+    'bud',
+    'Gecko Pads',
+    'Bud',
+    "After moving, leaves a damaging pad at Greg's feet.",
+    'Placement: after travelling 150 units',
+  ),
+  'gecko-pads:adapted': definition(
+    'gecko-pads:adapted',
+    'gecko-pads',
+    'adapted',
+    'Gecko Pads',
+    'Adapted',
+    "After moving, leaves larger, stronger damaging pads at Greg's feet.",
+    'Placement: after travelling 110 units',
+  ),
+  'razorstep-chimera:mythic': definition(
+    'razorstep-chimera:mythic',
+    'razorstep-chimera',
+    'mythic',
+    'Razorstep Chimera',
+    'Mythic',
+    "Movement leaves stronger scythe pads at Greg's feet.",
+    'Placement: after travelling 90 units',
+  ),
 });
 
 const INGREDIENTS: readonly (readonly [GregAdaptationId, GregAdaptationId])[] = Object.freeze([
@@ -162,6 +192,7 @@ const INGREDIENTS: readonly (readonly [GregAdaptationId, GregAdaptationId])[] = 
   ['electric-eel-coil:adapted', 'electric-eel-coil:bud'],
   ['firefly-colony:adapted', 'firefly-colony:bud'],
   ['mantis-scythes:adapted', 'mantis-scythes:bud'],
+  ['gecko-pads:adapted', 'gecko-pads:bud'],
 ]);
 
 const MYTHICS = Object.freeze([
@@ -172,6 +203,10 @@ const MYTHICS = Object.freeze([
   Object.freeze({
     id: 'thunderbug-dynamo:mythic' as const,
     ingredients: Object.freeze(['electric-eel-coil', 'firefly-colony']),
+  }),
+  Object.freeze({
+    id: 'razorstep-chimera:mythic' as const,
+    ingredients: Object.freeze(['mantis-scythes', 'gecko-pads']),
   }),
 ]);
 

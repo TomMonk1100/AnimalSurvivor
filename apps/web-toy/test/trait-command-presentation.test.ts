@@ -22,8 +22,8 @@ describe('trait command presentation profiles', () => {
     expect(projectTraitCommandEffect(command({ kind: 'areaGather' }))?.kind).toBe('gather');
     expect(projectTraitCommandEffect(command({ kind: 'areaKnockback' }))?.kind).toBe('knockback');
     expect(projectTraitCommandEffect(command({ kind: 'applyAreaDamage' }))?.kind).toBe('area-damage');
+    expect(projectTraitCommandEffect(command({ kind: 'spawnZone' }))?.kind).toBe('zone-spawn');
     expect(projectTraitCommandEffect(command({ kind: 'playTraitCue' }))?.kind).toBe('trait-cue');
-    expect(projectTraitCommandEffect(command({ kind: 'spawnZone' }))).toBeNull();
   });
 
   it('uses the authored thornstorm telegraph treatment when its tag is available', () => {
@@ -36,6 +36,13 @@ describe('trait command presentation profiles', () => {
     const profile = projectTraitCommandEffect(command({ tag: 'thunderbug-charge' }));
     expect(profile?.material).toBe('thunderbug-telegraph');
     expect(profile?.lifetimeTicks).toBe(18);
+  });
+
+  it('distinguishes Gecko and Razorstep pad spawn pulses by their authored tags', () => {
+    expect(projectTraitCommandEffect(command({ kind: 'spawnZone', tag: 'gecko-pad' }))?.material)
+      .toBe('gecko-zone-spawn');
+    expect(projectTraitCommandEffect(command({ kind: 'spawnZone', tag: 'razorstep-scythe-pad' }))?.material)
+      .toBe('razorstep-zone-spawn');
   });
 
   it('uses authored radius when present and clamps untrusted visual data', () => {
