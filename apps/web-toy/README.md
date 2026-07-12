@@ -75,7 +75,8 @@ elites add ranged pressure, and elites give larger XP rewards.
 ### Attacks and evolutions
 
 Greg’s starter **Auto-Fire** occupies one active-attack slot. A normal run can
-add four acquired trait families, for five active attack slots total:
+choose up to four of five acquired trait families, for five active attack slots
+total:
 
 | Attack | Bud effect | Adapted effect |
 | --- | --- | --- |
@@ -83,8 +84,11 @@ add four acquired trait families, for five active attack slots total:
 | **Puffer Pouch** | Gather nearby enemies | Wider push pulse |
 | **Electric Eel Coil** | Two charged bolts at the nearest threat | Four faster charged bolts |
 | **Firefly Colony** | Six radial sparks | Ten stronger radial sparks |
+| **Mantis Scythes** | Short-range damaging pulse | Wider, stronger close-range pulse |
 
-Two paired evolutions are available:
+Every attack has Bud and Adapted forms. **Mantis Scythes** is currently a
+standalone attack with no Mythic evolution yet. Two paired evolutions are
+available:
 
 - **Thornstorm Mantle** combines Adapted Quills and Adapted Pouch: telegraph,
   gather, then radial quill storm.

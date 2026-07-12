@@ -18,6 +18,8 @@ describe('Greg attachment visual recipes', () => {
       'electric-eel-coil:adapted',
       'firefly-colony:bud',
       'firefly-colony:adapted',
+      'mantis-scythes:bud',
+      'mantis-scythes:adapted',
       'thunderbug-dynamo:mythic',
     ]);
     for (const key of GREG_ATTACHMENT_VISUAL_KEYS) {
@@ -40,6 +42,8 @@ describe('Greg attachment visual recipes', () => {
       .toBeGreaterThan(getGregAttachmentVisualRecipe('electric-eel-coil:bud').parts.length);
     expect(getGregAttachmentVisualRecipe('firefly-colony:adapted').parts.length)
       .toBeGreaterThan(getGregAttachmentVisualRecipe('firefly-colony:bud').parts.length);
+    expect(getGregAttachmentVisualRecipe('mantis-scythes:adapted').parts.length)
+      .toBeGreaterThan(getGregAttachmentVisualRecipe('mantis-scythes:bud').parts.length);
     expect(getGregAttachmentVisualRecipe('thornstorm-mantle:mythic').parts.length)
       .toBeGreaterThan(getGregAttachmentVisualRecipe('porcupine-quills:adapted').parts.length);
   });

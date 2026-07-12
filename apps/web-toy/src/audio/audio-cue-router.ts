@@ -36,8 +36,12 @@ export const PICKUP_AUDIO_MIN_INTERVAL_TICKS = 12;
 /** A damage warning remains responsive without becoming a collision-rate metronome. */
 export const PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS = 45;
 
-/** Auto-fire remains audible as a texture, never a per-projectile metronome. */
-export const ATTACK_AUDIO_MIN_INTERVAL_TICKS = 30;
+/**
+ * Auto-fire punctuates the fight at most about once every three quarters of a
+ * second. It is deliberately much sparser than XP so a dense pickup stream
+ * cannot turn it into a metronome.
+ */
+export const ATTACK_AUDIO_MIN_INTERVAL_TICKS = 45;
 
 type TerminalCue = 'victory' | 'defeat' | null;
 
@@ -145,28 +149,6 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
       lastObservedDamageTick = freshDamageTicks[freshDamageTicks.length - 1]!;
     }
 
-    const freshPickupTicks = freshFeedbackTicks(
-      frame.combatFeedback,
-      'pickup',
-      lastObservedPickupTick,
-    );
-
-    const pickupTick = firstRateLimitedTick(
-      freshPickupTicks,
-      lastPlayedPickupTick,
-      PICKUP_AUDIO_MIN_INTERVAL_TICKS,
-    );
-    // A fresh damage warning wins a same-frame pickup so the two short voices
-    // do not mask one another. Pickup history still advances below, preventing
-    // a delayed chime after the danger has passed.
-    if (pickupTick !== null && damageTick === null) {
-      sink.play('pickup');
-      lastPlayedPickupTick = pickupTick;
-    }
-    if (freshPickupTicks.length > 0) {
-      lastObservedPickupTick = freshPickupTicks[freshPickupTicks.length - 1]!;
-    }
-
     const freshAttackTicks = freshFeedbackTicks(
       frame.combatFeedback,
       'attack',
@@ -177,11 +159,10 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
       lastPlayedAttackTick,
       ATTACK_AUDIO_MIN_INTERVAL_TICKS,
     );
-    // A newly observed player-hit or pickup owns the frame even when its own
-    // cue was rate-limited. This prevents automatic attacks from filling the
-    // gaps between more meaningful player feedback.
-    if (attackTick !== null && damageTick === null && pickupTick === null
-      && freshDamageTicks.length === 0 && freshPickupTicks.length === 0) {
+    // Damage remains the most urgent signal. Otherwise an eligible attack
+    // punctuates pickup-heavy play: the former pickup-first ordering could
+    // suppress auto-fire forever once XP began arriving steadily.
+    if (attackTick !== null && damageTick === null) {
       sink.play('attack');
       lastPlayedAttackTick = attackTick;
     }
@@ -189,6 +170,27 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
       // Advance even when another cue won the frame, so a suppressed attack
       // cannot chime late after the visible action has already passed.
       lastObservedAttackTick = freshAttackTicks[freshAttackTicks.length - 1]!;
+    }
+
+    const freshPickupTicks = freshFeedbackTicks(
+      frame.combatFeedback,
+      'pickup',
+      lastObservedPickupTick,
+    );
+    const pickupTick = firstRateLimitedTick(
+      freshPickupTicks,
+      lastPlayedPickupTick,
+      PICKUP_AUDIO_MIN_INTERVAL_TICKS,
+    );
+    // Never stack an XP ping over a just-routed danger warning or attack
+    // punctuation. Its observation latch still advances, so this is a
+    // deliberate omission rather than a stale chime later in the run.
+    if (pickupTick !== null && damageTick === null && attackTick === null) {
+      sink.play('pickup');
+      lastPlayedPickupTick = pickupTick;
+    }
+    if (freshPickupTicks.length > 0) {
+      lastObservedPickupTick = freshPickupTicks[freshPickupTicks.length - 1]!;
     }
     lastFrameTick = tick;
   }

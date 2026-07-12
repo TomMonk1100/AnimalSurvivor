@@ -57,6 +57,19 @@ describe('Greg trait visual projector', () => {
     ]);
   });
 
+  it('anchors Mantis Scythes to Greg\'s left shoulder', () => {
+    const { events, projector } = fixture();
+    projector.sync([
+      visual({
+        sourceId: 'mantis-scythes',
+        stage: 'bud',
+        sockets: ['leftShoulder'],
+        visualKey: 'mantis-scythes:bud',
+      }),
+    ]);
+    expect(events).toEqual(['create:leftShoulder:mantis-scythes:bud']);
+  });
+
   it('hides disabled and malformed or socket-conflicting entries', () => {
     const { events, projector } = fixture();
     projector.sync([

@@ -19,6 +19,8 @@ type GregAdaptationId =
   | 'electric-eel-coil:adapted'
   | 'firefly-colony:bud'
   | 'firefly-colony:adapted'
+  | 'mantis-scythes:bud'
+  | 'mantis-scythes:adapted'
   | 'thunderbug-dynamo:mythic';
 
 interface AdaptationDefinition {
@@ -134,6 +136,24 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     'Charges up, then releases an eighteen-bolt lightning storm.',
     'Cycles every 1.5 seconds: charge → radial lightning storm',
   ),
+  'mantis-scythes:bud': definition(
+    'mantis-scythes:bud',
+    'mantis-scythes',
+    'bud',
+    'Mantis Scythes',
+    'Bud',
+    'Sweeps nearby enemies with a close-range damaging pulse.',
+    'Every 0.9 seconds',
+  ),
+  'mantis-scythes:adapted': definition(
+    'mantis-scythes:adapted',
+    'mantis-scythes',
+    'adapted',
+    'Mantis Scythes',
+    'Adapted',
+    'Sweeps a wider area for stronger close-range damage.',
+    'Every 0.6 seconds',
+  ),
 });
 
 const INGREDIENTS: readonly (readonly [GregAdaptationId, GregAdaptationId])[] = Object.freeze([
@@ -141,6 +161,7 @@ const INGREDIENTS: readonly (readonly [GregAdaptationId, GregAdaptationId])[] = 
   ['puffer-pouch:adapted', 'puffer-pouch:bud'],
   ['electric-eel-coil:adapted', 'electric-eel-coil:bud'],
   ['firefly-colony:adapted', 'firefly-colony:bud'],
+  ['mantis-scythes:adapted', 'mantis-scythes:bud'],
 ]);
 
 const MYTHICS = Object.freeze([

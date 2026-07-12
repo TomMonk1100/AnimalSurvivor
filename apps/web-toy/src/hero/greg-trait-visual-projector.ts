@@ -23,6 +23,8 @@ const ANCHOR_BY_VISUAL_KEY: Readonly<Record<string, GregSocketName>> = Object.fr
   'electric-eel-coil:adapted': 'tail',
   'firefly-colony:bud': 'bodyOrbit',
   'firefly-colony:adapted': 'bodyOrbit',
+  'mantis-scythes:bud': 'leftShoulder',
+  'mantis-scythes:adapted': 'leftShoulder',
   'thunderbug-dynamo:mythic': 'tail',
 });
 

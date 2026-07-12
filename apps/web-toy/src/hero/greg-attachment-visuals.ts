@@ -16,6 +16,8 @@ export const GREG_ATTACHMENT_VISUAL_KEYS = Object.freeze([
   'electric-eel-coil:adapted',
   'firefly-colony:bud',
   'firefly-colony:adapted',
+  'mantis-scythes:bud',
+  'mantis-scythes:adapted',
   'thunderbug-dynamo:mythic',
 ] as const);
 
@@ -27,6 +29,7 @@ export type GregAttachmentFamily =
   | 'thornstorm-mantle'
   | 'electric-eel-coil'
   | 'firefly-colony'
+  | 'mantis-scythes'
   | 'thunderbug-dynamo';
 export type GregPrimitiveShape = 'sphere' | 'cone' | 'cylinder';
 export type GregMaterialRole =
@@ -40,7 +43,9 @@ export type GregMaterialRole =
   | 'coilGlow'
   | 'fireflyPrimary'
   | 'fireflyGlow'
-  | 'thunderbugCore';
+  | 'thunderbugCore'
+  | 'mantisPrimary'
+  | 'mantisAccent';
 
 export interface GregPrimitiveTransform {
   readonly position: readonly [x: number, y: number, z: number];
@@ -67,6 +72,7 @@ const SHAPES: readonly GregPrimitiveShape[] = ['sphere', 'cone', 'cylinder'];
 const MATERIAL_ROLES: readonly GregMaterialRole[] = [
   'quillPrimary', 'quillAccent', 'pufferPrimary', 'pufferAccent', 'mythicThorn', 'mythicGlow',
   'coilPrimary', 'coilGlow', 'fireflyPrimary', 'fireflyGlow', 'thunderbugCore',
+  'mantisPrimary', 'mantisAccent',
 ];
 
 function transform(
@@ -156,6 +162,20 @@ const RAW_RECIPES: readonly GregAttachmentVisualRecipe[] = [
       part('spark-east', 'sphere', 'fireflyGlow', [0.48, 0.27, 0], [0, 0, 0], [0.12, 0.12, 0.12]),
       part('spark-south', 'sphere', 'fireflyGlow', [0, 0.31, 0.48], [0, 0, 0], [0.12, 0.12, 0.12]),
       part('spark-west', 'sphere', 'fireflyGlow', [-0.48, 0.27, 0], [0, 0, 0], [0.12, 0.12, 0.12]),
+    ],
+  },
+  {
+    key: 'mantis-scythes:bud', family: 'mantis-scythes', stage: 'bud', parts: [
+      part('scythe-hilt', 'cylinder', 'mantisPrimary', [0, 0.08, 0], [0, 0, 76], [0.1, 0.42, 0.1]),
+      part('scythe-blade', 'cone', 'mantisAccent', [0.24, 0.18, 0], [0, 0, -72], [0.08, 0.52, 0.08]),
+    ],
+  },
+  {
+    key: 'mantis-scythes:adapted', family: 'mantis-scythes', stage: 'adapted', parts: [
+      part('scythe-hilt', 'cylinder', 'mantisPrimary', [0, 0.08, 0], [0, 0, 76], [0.13, 0.56, 0.13]),
+      part('scythe-blade-upper', 'cone', 'mantisAccent', [0.3, 0.22, -0.05], [0, 0, -72], [0.1, 0.68, 0.1]),
+      part('scythe-blade-lower', 'cone', 'mantisAccent', [0.2, 0.06, 0.13], [0, 0, -47], [0.08, 0.5, 0.08]),
+      part('scythe-rivet', 'sphere', 'mantisPrimary', [-0.07, 0.12, 0], [0, 0, 0], [0.13, 0.13, 0.13]),
     ],
   },
   {

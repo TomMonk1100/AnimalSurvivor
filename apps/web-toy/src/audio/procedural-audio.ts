@@ -69,22 +69,31 @@ const TONES: Readonly<Record<AudioCue, ToneProfile>> = Object.freeze({
   // A two-note confirmation is easier to notice than the former single short
   // chirp, while still remaining modest enough for an opt-in game layer.
   start: [
-    { shape: 'triangle', frequency: 392, peakGain: 0.065, durationSeconds: 0.13 },
-    { shape: 'triangle', frequency: 587.33, peakGain: 0.078, durationSeconds: 0.19, startOffsetSeconds: 0.1 },
+    { shape: 'triangle', frequency: 392, peakGain: 0.07, durationSeconds: 0.13 },
+    { shape: 'triangle', frequency: 587.33, peakGain: 0.086, durationSeconds: 0.19, startOffsetSeconds: 0.1 },
   ],
-  pickup: [{ shape: 'sine', frequency: 783.99, peakGain: 0.028, durationSeconds: 0.055 }],
+  pickup: [{ shape: 'sine', frequency: 783.99, peakGain: 0.032, durationSeconds: 0.06 }],
   // The brighter rising pair makes a paused upgrade choice unmistakable from
   // both the start confirmation and the frequent XP ping.
   upgrade: [
-    { shape: 'sine', frequency: 659.25, peakGain: 0.07, durationSeconds: 0.13 },
-    { shape: 'triangle', frequency: 987.77, peakGain: 0.086, durationSeconds: 0.22, startOffsetSeconds: 0.11 },
+    { shape: 'sine', frequency: 659.25, peakGain: 0.078, durationSeconds: 0.13 },
+    { shape: 'triangle', frequency: 987.77, peakGain: 0.096, durationSeconds: 0.22, startOffsetSeconds: 0.11 },
   ],
-  damage: [{ shape: 'sawtooth', frequency: 196, peakGain: 0.035, durationSeconds: 0.11 }],
-  // Kept intentionally softer and lower than the pickup chime: auto-fire is
-  // common, while the router limits it to one short texture every half second.
-  attack: [{ shape: 'triangle', frequency: 329.63, peakGain: 0.018, durationSeconds: 0.055 }],
-  victory: [{ shape: 'sine', frequency: 880, peakGain: 0.05, durationSeconds: 0.2 }],
-  defeat: [{ shape: 'sawtooth', frequency: 164.81, peakGain: 0.025, durationSeconds: 0.18 }],
+  // A lower, rougher warning is distinct from the bright pickup/upgrade
+  // family and is audible over the arena without becoming an alarm loop.
+  damage: [{ shape: 'sawtooth', frequency: 155.56, peakGain: 0.055, durationSeconds: 0.13 }],
+  // This short square pulse is intentionally more present than XP, but the
+  // router allows it only as sparse combat punctuation rather than per shot.
+  attack: [{ shape: 'square', frequency: 261.63, peakGain: 0.04, durationSeconds: 0.05 }],
+  victory: [
+    { shape: 'triangle', frequency: 523.25, peakGain: 0.06, durationSeconds: 0.13 },
+    { shape: 'triangle', frequency: 659.25, peakGain: 0.072, durationSeconds: 0.15, startOffsetSeconds: 0.1 },
+    { shape: 'sine', frequency: 783.99, peakGain: 0.084, durationSeconds: 0.24, startOffsetSeconds: 0.2 },
+  ],
+  defeat: [
+    { shape: 'sawtooth', frequency: 196, peakGain: 0.042, durationSeconds: 0.12 },
+    { shape: 'triangle', frequency: 146.83, peakGain: 0.052, durationSeconds: 0.24, startOffsetSeconds: 0.1 },
+  ],
 });
 
 type BrowserAudioContextConstructor = new () => ProceduralAudioContext;

@@ -29,6 +29,19 @@ describe('upgrade card copy', () => {
     expect(colony.description).toMatch(/Thunderbug Dynamo/);
   });
 
+  it('explains Mantis Scythes as a distinct close-range attack', () => {
+    const mantis = presentUpgrade({ traitId: 'mantis-scythes', resultStage: 'bud' }, []);
+    expect(mantis).toMatchObject({
+      title: 'Mantis Scythes',
+      badge: 'NEW ATTACK',
+      socket: 'Left shoulder attachment',
+    });
+    expect(mantis.description).toMatch(/close-range damaging pulse/i);
+
+    const adapted = presentUpgrade({ traitId: 'mantis-scythes', resultStage: 'adapted' }, []);
+    expect(adapted.description).toMatch(/wider area/i);
+  });
+
   it('describes truthful neutral and Essence fallback cards without pretending they are body traits', () => {
     expect(presentRunUpgrade({
       kind: 'universal', id: 'universal:xp-magnet', upgradeId: 'xp-magnet', currentRank: 1, nextRank: 2, maxRank: 5,

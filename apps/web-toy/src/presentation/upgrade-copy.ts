@@ -75,6 +75,17 @@ export function presentUpgrade(
       pairingHint: thunderbugReady ? null : 'Adapt Electric Eel Coil too to evolve both into Thunderbug Dynamo.',
     };
   }
+  if (offer.traitId === 'mantis-scythes') {
+    return {
+      title: 'Mantis Scythes',
+      badge: offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
+      socket: 'Left shoulder attachment',
+      description: offer.resultStage === 'bud'
+        ? 'Sweeps nearby enemies with a close-range damaging pulse.'
+        : 'Sweeps a wider area for stronger close-range damage.',
+      pairingHint: null,
+    };
+  }
   return {
     title: offer.traitId.split('-').map((part) => part[0]?.toUpperCase() + part.slice(1)).join(' '),
     badge: offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE', socket: 'Body attachment',

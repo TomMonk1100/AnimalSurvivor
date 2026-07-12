@@ -106,36 +106,36 @@ describe('audio cue router', () => {
     expect(played).toEqual(['damage', 'pickup', 'damage']);
   });
 
-  it('adds a sparse auto-attack texture without overtaking fresh player feedback', () => {
+  it('keeps damage ahead of a same-frame attack and pickup', () => {
     const played: AudioCue[] = [];
     const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
 
     router.observe({ tick: 10, combatFeedback: feedback(10, [attack(10), pickup(10), playerHit(10)]), runOutcome: 'running' });
     router.observe({ tick: 11, combatFeedback: feedback(11, [attack(10), pickup(10), playerHit(10)]), runOutcome: 'running' });
-    router.observe({ tick: 22, combatFeedback: feedback(22, [attack(22), pickup(22)]), runOutcome: 'running' });
-    router.observe({ tick: 23, combatFeedback: feedback(23, [attack(22), pickup(22)]), runOutcome: 'running' });
-    router.observe({ tick: 30, combatFeedback: feedback(30, [attack(30)]), runOutcome: 'running' });
-    router.observe({
-      tick: 30 + ATTACK_AUDIO_MIN_INTERVAL_TICKS - 1,
-      combatFeedback: feedback(30 + ATTACK_AUDIO_MIN_INTERVAL_TICKS - 1, [attack(30 + ATTACK_AUDIO_MIN_INTERVAL_TICKS - 1)]),
-      runOutcome: 'running',
-    });
-    router.observe({
-      tick: 30 + ATTACK_AUDIO_MIN_INTERVAL_TICKS,
-      combatFeedback: feedback(30 + ATTACK_AUDIO_MIN_INTERVAL_TICKS, [attack(30 + ATTACK_AUDIO_MIN_INTERVAL_TICKS)]),
-      runOutcome: 'running',
-    });
 
-    expect(played).toEqual(['damage', 'pickup', 'attack', 'attack']);
+    expect(played).toEqual(['damage']);
   });
 
-  it('does not let a rate-limited pickup fall through to an otherwise eligible attack', () => {
+  it('lets sparse attack punctuation through a steady pickup stream', () => {
+    const played: AudioCue[] = [];
+    const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
+
+    router.observe({ tick: 0, combatFeedback: feedback(0, [attack(0), pickup(0)]), runOutcome: 'running' });
+    router.observe({ tick: PICKUP_AUDIO_MIN_INTERVAL_TICKS, combatFeedback: feedback(PICKUP_AUDIO_MIN_INTERVAL_TICKS, [attack(PICKUP_AUDIO_MIN_INTERVAL_TICKS), pickup(PICKUP_AUDIO_MIN_INTERVAL_TICKS)]), runOutcome: 'running' });
+    router.observe({ tick: PICKUP_AUDIO_MIN_INTERVAL_TICKS * 2, combatFeedback: feedback(PICKUP_AUDIO_MIN_INTERVAL_TICKS * 2, [attack(PICKUP_AUDIO_MIN_INTERVAL_TICKS * 2), pickup(PICKUP_AUDIO_MIN_INTERVAL_TICKS * 2)]), runOutcome: 'running' });
+    router.observe({ tick: ATTACK_AUDIO_MIN_INTERVAL_TICKS, combatFeedback: feedback(ATTACK_AUDIO_MIN_INTERVAL_TICKS, [attack(ATTACK_AUDIO_MIN_INTERVAL_TICKS), pickup(ATTACK_AUDIO_MIN_INTERVAL_TICKS)]), runOutcome: 'running' });
+
+    expect(played).toEqual(['attack', 'pickup', 'pickup', 'attack']);
+  });
+
+  it('does not replay an attack or pickup while either channel is rate-limited', () => {
     const played: AudioCue[] = [];
     const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
 
     router.observe({ tick: 0, combatFeedback: feedback(0, [attack(0)]), runOutcome: 'running' });
     router.observe({ tick: 20, combatFeedback: feedback(20, [pickup(20)]), runOutcome: 'running' });
-    router.observe({ tick: ATTACK_AUDIO_MIN_INTERVAL_TICKS, combatFeedback: feedback(ATTACK_AUDIO_MIN_INTERVAL_TICKS, [attack(ATTACK_AUDIO_MIN_INTERVAL_TICKS), pickup(ATTACK_AUDIO_MIN_INTERVAL_TICKS)]), runOutcome: 'running' });
+    const stillRateLimitedTick = 20 + PICKUP_AUDIO_MIN_INTERVAL_TICKS - 1;
+    router.observe({ tick: stillRateLimitedTick, combatFeedback: feedback(stillRateLimitedTick, [attack(stillRateLimitedTick), pickup(stillRateLimitedTick)]), runOutcome: 'running' });
 
     expect(played).toEqual(['attack', 'pickup']);
   });

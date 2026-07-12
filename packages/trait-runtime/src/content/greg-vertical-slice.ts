@@ -12,9 +12,11 @@
  *   bud:      periodic telegraphed inhale/exhale pulse.
  *   adapted:  wider gather + knockback pulse.
  * electric-eel-coil (socket: tail)
- *   bud/adapted: directed charged-bolt bursts aimed into dense enemy clusters.
+ *   bud/adapted: directed charged-bolt bursts at the nearest enemy.
  * firefly-colony (socket: bodyOrbit)
  *   bud/adapted: autonomous radial spark bursts.
+ * mantis-scythes (socket: leftShoulder)
+ *   bud/adapted: close-range sweeping damage pulse around Greg.
  * thunderbug-dynamo (recipe: Adapted Coil + Adapted Colony; sockets tail+bodyOrbit)
  *   mythic charge telegraph followed by a larger radial lightning storm.
  * thornstorm-mantle (recipe: Adapted Quills + Adapted Pouch; sockets head+back)
@@ -187,6 +189,45 @@ export const FIREFLY_COLONY: TraitDefinition = {
   },
 };
 
+/**
+ * A deliberately close-range damage option. It uses the already-executable
+ * area-damage bridge instead of the catalog's future melee-arc command, so
+ * selecting it changes the playable run today rather than only its visuals.
+ */
+export const MANTIS_SCYTHES: TraitDefinition = {
+  id: TRAIT_IDS.mantisScythes,
+  sockets: ['leftShoulder'],
+  tags: ['melee', 'area'],
+  stages: {
+    bud: {
+      visualKey: 'mantis-scythes:bud',
+      behavior: {
+        kind: 'periodicPulse',
+        periodTicks: 54,
+        emit: {
+          kind: 'applyAreaDamage',
+          targeting: 'none',
+          radius: 68,
+          damage: 5,
+        },
+      },
+    },
+    adapted: {
+      visualKey: 'mantis-scythes:adapted',
+      behavior: {
+        kind: 'periodicPulse',
+        periodTicks: 38,
+        emit: {
+          kind: 'applyAreaDamage',
+          targeting: 'none',
+          radius: 88,
+          damage: 8,
+        },
+      },
+    },
+  },
+};
+
 export const THUNDERBUG_DYNAMO: EvolutionDefinition = {
   id: EVOLUTION_IDS.thunderbugDynamo,
   ingredients: [TRAIT_IDS.electricEelCoil, TRAIT_IDS.fireflyColony],
@@ -263,9 +304,10 @@ export const THORNSTORM_MANTLE: EvolutionDefinition = {
 };
 
 /**
- * Exact content boundary for Greg's first five-attack loadout:
- * starter fire + Quills + Puffer control + Coil + Colony. The two Mythics
- * each retain both ingredient attack slots rather than creating a free slot.
+ * Exact content boundary for Greg's first five-attack loadout: starter fire
+ * plus any four selected candidates from Quills, Puffer control, Coil, Colony,
+ * and Mantis Scythes. The two Mythics each retain both ingredient attack slots
+ * rather than creating a free slot.
  */
 export const GREG_FOREST_ARSENAL_CATALOG: Catalog = Object.freeze({
   traits: Object.freeze([
@@ -273,6 +315,7 @@ export const GREG_FOREST_ARSENAL_CATALOG: Catalog = Object.freeze({
     PUFFER_POUCH,
     ELECTRIC_EEL_COIL,
     FIREFLY_COLONY,
+    MANTIS_SCYTHES,
   ]),
   evolutions: Object.freeze([THORNSTORM_MANTLE, THUNDERBUG_DYNAMO]),
   maxActiveTraits: 4,

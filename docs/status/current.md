@@ -16,9 +16,10 @@ Greg has a deterministic browser survival loop with:
   Adaptation (3:00–5:00), Mutation (5:00–6:30), and Boss (6:30–8:00);
 - off-screen approach waves, weaving runners, ranged Spitters, ranged elites,
   six warned elite requests, and **The Final Threat**;
-- five active-attack footprints: Greg’s starter Auto-Fire plus up to four
-  acquired trait families;
-- Quills, Puffer, Electric Eel Coil, and Firefly Colony, with the
+- five active-attack slots: Greg’s starter Auto-Fire plus up to four acquired
+  choices from five trait families;
+- Quills, Puffer, Electric Eel Coil, Firefly Colony, and **Mantis Scythes**
+  (a standalone short-range pulse with no Mythic evolution yet), with the
   **Thornstorm Mantle** and **Thunderbug Dynamo** two-slot Mythics;
 - five distinct neutral passive footprints, rank-up continuation for selected
   passives, and **Essence Cache** as the repeatable finite-upgrade fallback;
@@ -44,8 +45,9 @@ not only starter fire.
 
 - A fresh human playtest of the compressed eight-minute curve: is pressure
   urgent, fair, and readable from opening through boss?
-- Attack clarity: can a player distinguish Quills, Puffer, Coil, and Firefly;
-  understand each Mythic; and find build details naturally in the pause panel?
+- Attack clarity: can a player distinguish Quills, Puffer, Coil, Firefly, and
+  Mantis Scythes; understand each Mythic; and find build details naturally in
+  the pause panel?
 - Forest readability: does the clearing improve movement and threat awareness
   without hiding pickups, projectiles, or enemy silhouettes?
 - Human confirmation that the verified deterministic/browser integration feels
@@ -59,9 +61,9 @@ not only starter fire.
 1. Conduct focused owner playtests using
    [the Gate 1 guide](../playtests/gate1-owner-playtest.md), then tune only
    values supported by that feedback.
-2. Expand from the first four acquired attacks to a wider candidate pool, so
-   five-slot builds make increasingly meaningful choices rather than merely
-   filling every available family.
+2. Expand from the current five attack candidates to a wider pool, so five-slot
+   builds make increasingly meaningful choices rather than merely filling every
+   available family.
 3. Design a truthful Luck system and future difficulty definitions only after
    the normal run and early meta loop are enjoyable.
 4. Add selectable harder modes and Hardcore Endless as explicit later choices,

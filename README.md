@@ -59,7 +59,8 @@ kills award a noticeably larger XP pickup.
 ## Forest Arsenal loadout
 
 Greg always begins with **Auto-Fire**, the first of five active-attack slots.
-He can acquire up to four additional attack families, for a five-attack build.
+He can choose up to four of five additional attack families, for a five-attack
+build.
 
 | Attack | Role |
 | --- | --- |
@@ -68,9 +69,11 @@ He can acquire up to four additional attack families, for a five-attack build.
 | **Puffer Pouch** | Pulls nearby enemies; its Adapted form pushes them back. |
 | **Electric Eel Coil** | Fires charged bolts at the nearest enemy. |
 | **Firefly Colony** | Releases sparks in every direction. |
+| **Mantis Scythes** | Sweeps nearby enemies with a short-range damaging pulse. |
 
-Each animal attack can be improved from Bud to Adapted. Two pairs can become
-Mythics:
+Each animal attack can be improved from Bud to Adapted. **Mantis Scythes** is
+currently a standalone attack with no Mythic evolution yet. Two pairs can
+become Mythics:
 
 - **Thornstorm Mantle** — Adapted Quills + Adapted Pouch: telegraph, gather,
   then a radial quill storm.

@@ -3,7 +3,6 @@ import { test } from 'node:test';
 import {
   GREG_FOREST_ARSENAL_CATALOG,
   TraitRuntime,
-  type Catalog,
   type RuntimeContext,
 } from '../src/index.js';
 
@@ -24,11 +23,17 @@ function upgrade(runtime: TraitRuntime, id: string): void {
   assert.equal(result.outcome.ok, true, `${id} should be a legal upgrade`);
 }
 
-test('Forest Arsenal exposes four real non-starter attacks and two supported Mythics', () => {
+test('Forest Arsenal exposes five real non-starter attack candidates and two supported Mythics', () => {
   assert.equal(GREG_FOREST_ARSENAL_CATALOG.maxActiveTraits, 4);
   assert.deepEqual(
     GREG_FOREST_ARSENAL_CATALOG.traits.map((trait) => trait.id),
-    ['porcupine-quills', 'puffer-pouch', 'electric-eel-coil', 'firefly-colony'],
+    [
+      'porcupine-quills',
+      'puffer-pouch',
+      'electric-eel-coil',
+      'firefly-colony',
+      'mantis-scythes',
+    ],
   );
   assert.deepEqual(
     GREG_FOREST_ARSENAL_CATALOG.evolutions.map((evolution) => evolution.id),
@@ -55,6 +60,20 @@ test('Forest Arsenal exposes four real non-starter attacks and two supported Myt
   assert.equal(colonyCommands.at(0).kind, 'radialProjectileBurst');
   assert.equal(colonyCommands.at(0).count, 6);
 
+  const mantis = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
+  upgrade(mantis, 'mantis-scythes');
+  const mantisCommands = mantis.update(context(1));
+  assert.equal(mantisCommands.length, 1);
+  assert.deepEqual(
+    {
+      sourceId: mantisCommands.at(0).sourceId,
+      kind: mantisCommands.at(0).kind,
+      radius: mantisCommands.at(0).radius,
+      damage: mantisCommands.at(0).damage,
+    },
+    { sourceId: 'mantis-scythes', kind: 'applyAreaDamage', radius: 68, damage: 5 },
+  );
+
   const mythic = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
   upgrade(mythic, 'electric-eel-coil');
   upgrade(mythic, 'electric-eel-coil');
@@ -68,34 +87,27 @@ test('Forest Arsenal exposes four real non-starter attacks and two supported Myt
   assert.equal(radial.at(0).count, 18);
 });
 
-test('active attack cap blocks direct fifth-trait acquisition and leaves existing upgrades legal', () => {
-  const fifth = {
-    ...GREG_FOREST_ARSENAL_CATALOG.traits[0]!,
-    id: 'test-fifth-attack',
-    sockets: ['rightShoulder'] as const,
-    stages: {
-      bud: {
-        ...GREG_FOREST_ARSENAL_CATALOG.traits[0]!.stages.bud,
-        visualKey: 'test-fifth-attack:bud',
-      },
-      adapted: {
-        ...GREG_FOREST_ARSENAL_CATALOG.traits[0]!.stages.adapted,
-        visualKey: 'test-fifth-attack:adapted',
-      },
-    },
-  };
-  const catalog: Catalog = {
-    ...GREG_FOREST_ARSENAL_CATALOG,
-    traits: [...GREG_FOREST_ARSENAL_CATALOG.traits, fifth],
-  };
-  const runtime = new TraitRuntime({ catalog });
-  for (const trait of GREG_FOREST_ARSENAL_CATALOG.traits) upgrade(runtime, trait.id);
+test('five candidates make the four-attack cap a real choice while existing upgrades stay legal', () => {
+  const runtime = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG });
+  assert.deepEqual(
+    runtime.offers(99).map((offer) => offer.traitId),
+    [
+      'porcupine-quills',
+      'puffer-pouch',
+      'electric-eel-coil',
+      'firefly-colony',
+      'mantis-scythes',
+    ],
+  );
+  for (const traitId of ['porcupine-quills', 'puffer-pouch', 'electric-eel-coil', 'firefly-colony']) {
+    upgrade(runtime, traitId);
+  }
 
-  assert.ok(!runtime.offers(99).some((offer) => offer.traitId === 'test-fifth-attack'));
-  assert.deepEqual(runtime.applyUpgrade('test-fifth-attack').outcome, {
+  assert.ok(!runtime.offers(99).some((offer) => offer.traitId === 'mantis-scythes'));
+  assert.deepEqual(runtime.applyUpgrade('mantis-scythes').outcome, {
     ok: false,
     kind: 'loadoutFull',
-    traitId: 'test-fifth-attack',
+    traitId: 'mantis-scythes',
     capacity: 4,
   });
   assert.equal(runtime.applyUpgrade('electric-eel-coil').outcome.ok, true, 'an owned Bud can still adapt');

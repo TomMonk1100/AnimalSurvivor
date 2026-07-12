@@ -18,15 +18,17 @@ eight-minute pacing target, and a larger first attack set.
 ### Active attacks: five slots
 
 Greg begins with **Auto-Fire**, which occupies one active-attack slot. He can
-acquire up to four trait families:
+choose up to four of five available trait families:
 
 1. **Porcupine Quills** — targeted quill bursts.
 2. **Puffer Pouch** — gather, then Adapted knockback control.
 3. **Electric Eel Coil** — charged bolts toward the nearest threat.
 4. **Firefly Colony** — radial spark bursts.
+5. **Mantis Scythes** — a short-range damaging pulse around Greg.
 
-Each can progress from Bud to Adapted. The current two Mythics combine a pair
-of Adapted attacks:
+Each animal attack can progress from Bud to Adapted. Mantis Scythes is
+currently a standalone attack with no Mythic evolution yet. The current two
+Mythics combine a pair of Adapted attacks:
 
 - **Thornstorm Mantle**: Quills + Pouch; telegraph, gather, then radial quills.
 - **Thunderbug Dynamo**: Coil + Colony; charge, then radial lightning storm.
@@ -108,12 +110,12 @@ playtest evidence, with replay-safe definitions and no same-tick wave burst.
 1. Run hands-on Forest Arsenal playtests. Check forest readability, whether the
    eight-minute curve feels urgent, whether off-screen waves read fairly, and
    whether standing still remains unsafe as pressure rises.
-2. Check attack clarity: players should understand what each of the four
-   acquired attacks does, why a Mythic needs two slots, and where to inspect a
-   build without on-screen combat clutter.
+2. Check attack clarity: players should understand what each of the five
+   candidates does, why a Mythic needs two slots, and where to inspect a build
+   without on-screen combat clutter.
 3. Tune only evidence-backed pressure and attack values, then repeat
    deterministic replay and browser checks.
-4. Expand the attack candidate pool beyond the first four families so future
+4. Expand the attack candidate pool beyond the current five families so future
    runs make more meaningful five-slot choices.
 5. After the normal/meta loop is enjoyable, design selectable difficulties and
    Hardcore Endless from explicit authored definitions.

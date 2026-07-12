@@ -89,4 +89,25 @@ describe('active adaptation presentation', () => {
     ]);
     expect(mythics[1]?.effect).toMatch(/lightning storm/i);
   });
+
+  it('shows Mantis Scythes as a truthful close-range attack', () => {
+    const cards = presentActiveAdaptations([
+      visual({
+        sourceId: 'mantis-scythes',
+        stage: 'adapted',
+        sockets: ['leftShoulder'],
+        visualKey: 'mantis-scythes:adapted',
+      }),
+    ]);
+
+    expect(cards).toEqual([
+      expect.objectContaining({
+        id: 'mantis-scythes:adapted',
+        title: 'Mantis Scythes',
+        stageLabel: 'Adapted',
+        cadence: 'Every 0.6 seconds',
+      }),
+    ]);
+    expect(cards[0]?.effect).toMatch(/wider area/i);
+  });
 });
