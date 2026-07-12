@@ -80,7 +80,7 @@ total:
 
 | Attack | Bud effect | Adapted effect |
 | --- | --- | --- |
-| **Porcupine Quills** | Targeted quill burst | More, faster quills |
+| **Porcupine Quills** | Three forward quills that pierce one extra enemy | Five wider quills that pierce two extra enemies |
 | **Puffer Pouch** | Gather nearby enemies | Wider push pulse |
 | **Electric Eel Coil** | Instant strike on the nearest threat, then chain to 1 nearby unhit foe | Instant strike on the nearest threat, then chain to 3 nearby unhit foes |
 | **Firefly Colony** | Two fireflies orbit Greg and zap enemies on contact | Four fireflies orbit wider and zap nearby enemies |

@@ -13,11 +13,28 @@ import type {
   SimEvents,
   SpatialGrid,
 } from './types.js';
+import { MAX_PROJECTILE_HIT_HISTORY } from './types.js';
 import type { EnemyBehaviorConfig, WeaponConfig } from './config.js';
 import { ENEMY_BEHAVIOR_KIND, type EnemyBehaviorState } from './enemy-behavior.js';
 
 // Module-level scratch array reused across calls (allocation-light hot path).
 const hitScratch: EntityId[] = [];
+
+function projectileHasHit(projectiles: ProjectilePool, slot: number, enemyId: EntityId): boolean {
+  const start = slot * MAX_PROJECTILE_HIT_HISTORY;
+  const count = projectiles.hitCount[slot]!;
+  for (let index = 0; index < count; index++) {
+    if (projectiles.hitHistory[start + index] === enemyId) return true;
+  }
+  return false;
+}
+
+function recordProjectileHit(projectiles: ProjectilePool, slot: number, enemyId: EntityId): void {
+  const count = projectiles.hitCount[slot]!;
+  if (count >= MAX_PROJECTILE_HIT_HISTORY) return;
+  projectiles.hitHistory[slot * MAX_PROJECTILE_HIT_HISTORY + count] = enemyId;
+  projectiles.hitCount[slot] = count + 1;
+}
 
 /** Optional deterministic behavior layer for the active enemy slice. */
 export interface EnemyBehaviorStepOptions {
@@ -233,10 +250,12 @@ export function stepProjectiles(
       const id = hitScratch[i]!;
       const eSlot = enemies.slotOf(id);
       if (eSlot < 0) continue;
+      if (projectileHasHit(pdata, slot, id)) continue;
 
       const rSum = pdata.hitRadius[slot]! + edata.radius[eSlot]!;
       if (distSq(x, y, edata.posX[eSlot]!, edata.posY[eSlot]!) > rSum * rSum) continue;
 
+      recordProjectileHit(pdata, slot, id);
       edata.hp[eSlot] = edata.hp[eSlot]! - pdata.damage[slot]!;
       if (edata.hp[eSlot]! <= 0) {
         killEnemy(eSlot);
@@ -252,10 +271,6 @@ export function stepProjectiles(
     }
   }
 }
-// KNOWN LIMITATION: a surviving pierced enemy can be re-hit by the same
-// projectile on a later tick since we keep no per-projectile hit list in
-// this spike. Acceptable for a headless simulation prototype.
-
 export function collectPickups(
   pickups: Pool<PickupPool>,
   player: PlayerState,

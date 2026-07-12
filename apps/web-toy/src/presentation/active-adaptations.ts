@@ -55,7 +55,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     'bud',
     'Porcupine Quills',
     'Bud',
-    'Automatically fires a compact quill burst at nearby enemies.',
+    'Fires three forward quills that pierce through one extra enemy each.',
     'Every 1.5 seconds',
   ),
   'porcupine-quills:adapted': definition(
@@ -64,7 +64,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     'adapted',
     'Porcupine Quills',
     'Adapted',
-    'Automatically fires a wider, faster quill burst at nearby enemies.',
+    'Fires five wider quills that pierce through two extra enemies each.',
     'Every second',
   ),
   'puffer-pouch:bud': definition(

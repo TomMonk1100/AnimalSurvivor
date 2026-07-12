@@ -41,6 +41,18 @@ test('Forest Arsenal exposes six real non-starter attack candidates and three su
     ['thornstorm-mantle', 'thunderbug-dynamo', 'razorstep-chimera'],
   );
 
+  const quills = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
+  upgrade(quills, 'porcupine-quills');
+  const quillCommand = quills.update(context(1)).at(0);
+  assert.deepEqual(
+    {
+      kind: quillCommand.kind,
+      count: quillCommand.count,
+      pierce: quillCommand.pierce,
+    },
+    { kind: 'spawnProjectileBurst', count: 3, pierce: 1 },
+  );
+
   const coil = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
   upgrade(coil, 'electric-eel-coil');
   const coilCommands = coil.update(context(1));

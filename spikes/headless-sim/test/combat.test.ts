@@ -430,6 +430,48 @@ test('stepProjectiles: pierce lets the projectile continue to a second target', 
   assert.equal(projectiles.isLive(pId), false, 'pierce exhausted after second hit, projectile despawns');
 });
 
+test('stepProjectiles: pierced projectiles remember durable targets across ticks', () => {
+  const projectiles = createProjectilePool(2);
+  const enemies = createEnemyPool(3);
+  const grid = new BruteForceGrid();
+  const events = makeEvents();
+
+  const first = enemies.spawn();
+  enemies.data.posX[first] = 0;
+  enemies.data.posY[first] = 0;
+  enemies.data.radius[first] = 1;
+  enemies.data.hp[first] = 100;
+  grid.insert(enemies.idOf(first), 0, 0);
+
+  const pSlot = projectiles.spawn();
+  const pId = projectiles.idOf(pSlot);
+  projectiles.data.posX[pSlot] = 0;
+  projectiles.data.posY[pSlot] = 0;
+  projectiles.data.velX[pSlot] = 0;
+  projectiles.data.velY[pSlot] = 0;
+  projectiles.data.lifetime[pSlot] = 90;
+  projectiles.data.hitRadius[pSlot] = 1;
+  projectiles.data.pierce[pSlot] = 2;
+  projectiles.data.faction[pSlot] = 0;
+  projectiles.data.damage[pSlot] = 10;
+
+  stepProjectiles(projectiles, enemies, grid, 1, 1000, 1000, 1, events, () => {});
+  assert.equal(enemies.data.hp[first], 90);
+  stepProjectiles(projectiles, enemies, grid, 1, 1000, 1000, 1, events, () => {});
+  assert.equal(enemies.data.hp[first], 90, 'the same durable enemy is not farmed on the next tick');
+  assert.equal(projectiles.isLive(pId), true);
+
+  const second = enemies.spawn();
+  enemies.data.posX[second] = 0;
+  enemies.data.posY[second] = 0;
+  enemies.data.radius[second] = 1;
+  enemies.data.hp[second] = 100;
+  grid.insert(enemies.idOf(second), 0, 0);
+  stepProjectiles(projectiles, enemies, grid, 1, 1000, 1000, 1, events, () => {});
+  assert.equal(enemies.data.hp[first], 90);
+  assert.equal(enemies.data.hp[second], 90, 'the next unique target still receives the pierce hit');
+});
+
 test('stepProjectiles: faction 1 projectile never damages enemies', () => {
   const projectiles = createProjectilePool(4);
   const enemies = createEnemyPool(4);

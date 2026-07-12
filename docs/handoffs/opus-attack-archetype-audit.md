@@ -37,7 +37,7 @@ report on the remaining overlap and the smallest next set of distinct families.
 | Attack | Current behavior | Intended role today |
 | --- | --- | --- |
 | Starter Auto-Fire | aimed physical projectile at a nearby enemy | reliable basic ranged damage |
-| Porcupine Quills | aimed fan of 5/9 physical projectiles | defensive forward cone / crowd pressure |
+| Porcupine Quills | aimed fan of 3/5 piercing physical projectiles | defensive forward lane / crowd pressure |
 | Puffer Pouch | gather pulse at Bud; knockback pulse at Adapted | positioning and crowd control |
 | Electric Eel Coil | instant nearest-target strike; Bud chains once, Adapted chains three times | guaranteed strike / chain damage |
 | Firefly Colony | 2/4 orbiting contact fireflies | defensive space control while moving |

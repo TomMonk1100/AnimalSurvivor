@@ -44,6 +44,8 @@ export interface TraitCombatCommand {
   readonly arc?: number;
   /** Additional unique enemies after the initial chain-lightning strike. */
   readonly jumps?: number;
+  /** Additional enemies a projectile may hit after its first collision. */
+  readonly pierce?: number;
   readonly range: number;
   /** Required by spawnZone; mapped to a compact numeric pool role. */
   readonly tag?: string;
@@ -269,6 +271,9 @@ function validateCommand(
       finite('command.facing', command.facing);
       finite('command.dirX', command.dirX);
       finite('command.dirY', command.dirY);
+      if (command.pierce !== undefined && (!Number.isSafeInteger(command.pierce) || command.pierce < 0 || command.pierce > 255)) {
+        throw new RangeError('command.pierce must be an integer in [0, 255]');
+      }
       break;
     case 'orbitingDamage':
       if (!Number.isSafeInteger(command.count) || command.count < 1 || command.count > MAX_ORBITING_DAMAGE_COUNT) {
@@ -397,7 +402,7 @@ function spawnProjectile(
   data.damage[slot] = command.damage;
   data.lifetime[slot] = options.projectileLifetimeTicks;
   data.hitRadius[slot] = options.projectileHitRadius;
-  data.pierce[slot] = options.projectilePierce;
+  data.pierce[slot] = command.pierce ?? options.projectilePierce;
   data.faction[slot] = 0;
   return true;
 }

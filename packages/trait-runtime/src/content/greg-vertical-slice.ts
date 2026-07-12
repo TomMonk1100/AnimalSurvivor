@@ -6,8 +6,8 @@
  * Keep the exported names and types exactly.
  *
  * porcupine-quills  (socket: back)
- *   bud:      periodic compact projectile burst.
- *   adapted:  larger/faster burst (defensive close-range flavor).
+ *   bud:      periodic three-quill piercing volley.
+ *   adapted:  five-quill piercing lane with deeper penetration.
  * puffer-pouch      (socket: head)
  *   bud:      periodic telegraphed inhale/exhale pulse.
  *   adapted:  wider gather + knockback pulse.
@@ -46,10 +46,11 @@ export const PORCUPINE_QUILLS: TraitDefinition = {
         emit: {
           kind: 'spawnProjectileBurst',
           targeting: 'nearest',
-          count: 5,
+          count: 3,
           damage: 4,
-          speed: 6,
-          spread: 0.4,
+          speed: 8,
+          spread: 0.38,
+          pierce: 1,
         },
       },
     },
@@ -61,10 +62,11 @@ export const PORCUPINE_QUILLS: TraitDefinition = {
         emit: {
           kind: 'spawnProjectileBurst',
           targeting: 'nearest',
-          count: 9,
+          count: 5,
           damage: 6,
-          speed: 9,
-          spread: 0.4,
+          speed: 10,
+          spread: 0.52,
+          pierce: 2,
         },
       },
     },

@@ -40,6 +40,7 @@ function makeCommand(): Command {
     facing: BLANK_COMMAND.facing,
     spread: BLANK_COMMAND.spread,
     jumps: BLANK_COMMAND.jumps,
+    pierce: BLANK_COMMAND.pierce,
     range: BLANK_COMMAND.range,
     amount: BLANK_COMMAND.amount,
     intervalTicks: BLANK_COMMAND.intervalTicks,
@@ -67,6 +68,7 @@ export function resetCommand(cmd: Command): void {
   cmd.facing = BLANK_COMMAND.facing;
   cmd.spread = BLANK_COMMAND.spread;
   cmd.jumps = BLANK_COMMAND.jumps;
+  cmd.pierce = BLANK_COMMAND.pierce;
   cmd.range = BLANK_COMMAND.range;
   cmd.amount = BLANK_COMMAND.amount;
   cmd.intervalTicks = BLANK_COMMAND.intervalTicks;

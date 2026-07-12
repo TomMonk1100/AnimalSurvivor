@@ -28,7 +28,7 @@ describe('active adaptation presentation', () => {
         id: 'puffer-pouch:adapted', title: 'Puffer Pouch', stageLabel: 'Adapted', cadence: 'Every 1.3 seconds',
       }),
     ]);
-    expect(cards[0]?.effect).toMatch(/quill burst/i);
+    expect(cards[0]?.effect).toMatch(/pierce/i);
     expect(cards[1]?.effect).toMatch(/Pushes nearby enemies away/i);
     expect(Object.keys(cards[0] ?? {})).toEqual(['id', 'title', 'stageLabel', 'effect', 'cadence']);
   });

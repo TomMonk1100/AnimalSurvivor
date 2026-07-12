@@ -8,6 +8,7 @@ import {
   idGeneration,
   idSlot,
   makeId,
+  MAX_PROJECTILE_HIT_HISTORY,
   NO_ENTITY,
   type EnemyPool,
   type EntityId,
@@ -97,6 +98,8 @@ export function createProjectilePool(capacity: number): Pool<ProjectilePool> {
     lifetime: new Uint16Array(capacity),
     hitRadius: new Float32Array(capacity),
     pierce: new Uint8Array(capacity),
+    hitCount: new Uint16Array(capacity),
+    hitHistory: new Int32Array(capacity * MAX_PROJECTILE_HIT_HISTORY),
     faction: new Uint8Array(capacity),
   });
 }

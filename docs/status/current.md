@@ -18,7 +18,7 @@ Greg has a deterministic browser survival loop with:
   six warned elite requests, and **The Final Threat**;
 - five active-attack slots: Greg’s starter Auto-Fire plus up to four acquired
   choices from six trait families;
-- Quills, Puffer, **Electric Eel Coil** (an instant nearest-target strike that
+- **Quills** (a piercing forward volley), Puffer, **Electric Eel Coil** (an instant nearest-target strike that
   chains to nearby unhit foes), **Firefly Colony** (orbiting contact fireflies), and **Mantis Scythes**
   (an auto-aimed directional scythe sweep), plus **Gecko Pads** (damaging pads at Greg's feet
   after he travels 150 units at Bud or 110 units at Adapted; they do not slow), with the

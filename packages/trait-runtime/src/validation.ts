@@ -26,6 +26,7 @@
  *                               reach, or Float32-safe per-hit damage.
  *   - invalidOrbitingDamage  : orbitingDamage lacks a bounded fly count,
  *                               positive orbit/contact radii, speed, or damage.
+ *   - invalidProjectilePierce: projectile pierce is outside the fixed u8 bound.
  *   - visualKeyCollision      : two definitions share a visualKey.
  *
  * The shipped CATALOG must validate with ok=true and zero issues.
@@ -49,6 +50,7 @@ const NON_NEGATIVE_FIELDS: readonly (keyof CommandTemplate)[] = [
   'count',
   'damage',
   'speed',
+  'pierce',
   'radius',
   'strength',
   'durationTicks',
@@ -73,6 +75,7 @@ const INTEGER_FIELDS: readonly (keyof CommandTemplate)[] = [
   'count',
   'durationTicks',
   'jumps',
+  'pierce',
   'intervalTicks',
 ];
 
@@ -81,6 +84,7 @@ const MAX_FLOAT32 = 3.4028234663852886e38;
 const MAX_EXECUTABLE_CHAIN_JUMPS = 7;
 /** Keeps one orbit pulse bounded even if future content adds more fireflies. */
 const MAX_EXECUTABLE_ORBITING_DAMAGE_COUNT = 16;
+const MAX_EXECUTABLE_PROJECTILE_PIERCE = 255;
 
 function pushIssue(
   issues: ValidationIssue[],
@@ -263,6 +267,23 @@ function validateOrbitingDamageTemplate(
   }
 }
 
+function validateProjectilePierceTemplate(
+  subjectId: string,
+  template: CommandTemplate | undefined,
+  issues: ValidationIssue[],
+): void {
+  if (template?.kind !== 'spawnProjectileBurst' && template?.kind !== 'radialProjectileBurst') return;
+  if (template.pierce === undefined) return;
+  if (!Number.isSafeInteger(template.pierce) || template.pierce < 0 || template.pierce > MAX_EXECUTABLE_PROJECTILE_PIERCE) {
+    pushIssue(
+      issues,
+      'invalidProjectilePierce',
+      `Projectile pierce must be an integer in [0, ${MAX_EXECUTABLE_PROJECTILE_PIERCE}].`,
+      subjectId,
+    );
+  }
+}
+
 function validateBehavior(
   subjectId: string,
   behavior: BehaviorDefinition,
@@ -298,6 +319,7 @@ function validateBehavior(
       validateChainDamageTemplate(subjectId, behavior.emit, issues);
       validateMeleeArcTemplate(subjectId, behavior.emit, issues);
       validateOrbitingDamageTemplate(subjectId, behavior.emit, issues);
+      validateProjectilePierceTemplate(subjectId, behavior.emit, issues);
       break;
     }
     case 'multiPhase': {
@@ -334,6 +356,7 @@ function validateBehavior(
           validateChainDamageTemplate(phaseSubject, phase.emit, issues);
           validateMeleeArcTemplate(phaseSubject, phase.emit, issues);
           validateOrbitingDamageTemplate(phaseSubject, phase.emit, issues);
+          validateProjectilePierceTemplate(phaseSubject, phase.emit, issues);
         }
       }
       break;
@@ -360,6 +383,7 @@ function validateBehavior(
       validateChainDamageTemplate(subjectId, behavior.emit, issues);
       validateMeleeArcTemplate(subjectId, behavior.emit, issues);
       validateOrbitingDamageTemplate(subjectId, behavior.emit, issues);
+      validateProjectilePierceTemplate(subjectId, behavior.emit, issues);
       break;
     }
   }

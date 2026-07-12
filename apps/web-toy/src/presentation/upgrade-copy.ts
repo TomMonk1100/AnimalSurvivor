@@ -30,9 +30,9 @@ export function presentUpgrade(
     return {
       title: 'Porcupine Quills', badge: mythicReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE',
       socket: 'Back attachment',
-      description: offer.resultStage === 'bud' ? 'Automatically fires a compact quill burst at nearby enemies.'
+      description: offer.resultStage === 'bud' ? 'Fires three forward quills that pierce through one extra enemy each.'
         : mythicReady ? 'Completes Thornstorm Mantle: gather enemies, then fire a radial quill storm.'
-          : 'Fires a wider, faster quill burst at nearby enemies.',
+          : 'Fires five wider quills that pierce through two extra enemies each.',
       pairingHint: mythicReady ? null : 'Adapt Puffer Pouch too to evolve both into Thornstorm Mantle.',
     };
   }

@@ -13,6 +13,8 @@
  */
 export type EntityId = number;
 export const NO_ENTITY: EntityId = -1;
+/** Fixed history budget for a projectile's unique enemy collisions. */
+export const MAX_PROJECTILE_HIT_HISTORY = 256;
 
 export function makeId(slotIndex: number, generation: number): EntityId {
   return ((generation & 0xffff) << 16) | (slotIndex & 0xffff);
@@ -111,6 +113,10 @@ export interface ProjectilePool extends PoolBase {
   readonly hitRadius: Float32Array;
   /** Remaining pierce count. 0 = despawn on next hit. */
   readonly pierce: Uint8Array;
+  /** Number of unique enemy ids already struck by this projectile. */
+  readonly hitCount: Uint16Array;
+  /** Flat per-slot history; only the first hitCount entries are meaningful. */
+  readonly hitHistory: Int32Array;
   /** 0 = player faction, 1 = enemy faction. */
   readonly faction: Uint8Array;
 }

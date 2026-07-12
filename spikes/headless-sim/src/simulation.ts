@@ -79,7 +79,7 @@
  *                      zoneDamageCooldown(u16), archetype(u8),
  *                      xpDrop, marked(u8)
  *         projectiles: posX, posY, velX, velY, damage, lifetime(u16),
- *                      hitRadius, pierce(u8), faction(u8)
+ *                      hitRadius, pierce(u8), hitCount/history, faction(u8)
  *         pickups:     posX, posY, xp, radius
  *         zones:       posX, posY, radius, damage, lifetime(u16),
  *                      intervalTicks(u16), pulseCooldown(u16), tag(u8)
@@ -89,6 +89,7 @@
  * field is read positionally off the typed arrays in the fixed order above.
  */
 import {
+  MAX_PROJECTILE_HIT_HISTORY,
   NO_ENTITY,
   type EntityId,
   type PlayerState,
@@ -971,6 +972,11 @@ export function createSimulation(
           writer.u16(data.lifetime[slot]!);
           writer.f32(data.hitRadius[slot]!);
           writer.u8(data.pierce[slot]!);
+          writer.u16(data.hitCount[slot]!);
+          const historyStart = slot * MAX_PROJECTILE_HIT_HISTORY;
+          for (let hitIndex = 0; hitIndex < data.hitCount[slot]!; hitIndex++) {
+            writer.i32(data.hitHistory[historyStart + hitIndex]!);
+          }
           writer.u8(data.faction[slot]!);
         }
       }

@@ -22,7 +22,7 @@
  * pre-check aliveness for no real benefit.
  */
 import type { EnemyPool, PickupPool, Pool, PoolBase, ProjectilePool, ZonePool } from './types.js';
-import { makeId, idSlot, idGeneration } from './types.js';
+import { makeId, idSlot, idGeneration, MAX_PROJECTILE_HIT_HISTORY } from './types.js';
 
 type TypedNumArray =
   | Uint8Array
@@ -172,6 +172,8 @@ export function createProjectilePool(capacity: number): Pool<ProjectilePool> {
     lifetime: new Uint16Array(capacity),
     hitRadius: new Float32Array(capacity),
     pierce: new Uint8Array(capacity),
+    hitCount: new Uint16Array(capacity),
+    hitHistory: new Int32Array(capacity * MAX_PROJECTILE_HIT_HISTORY),
     faction: new Uint8Array(capacity),
   };
   return createPool(capacity, data);

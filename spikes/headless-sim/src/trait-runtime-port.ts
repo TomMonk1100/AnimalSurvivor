@@ -45,6 +45,8 @@ export interface TraitRuntimeCommandView {
   readonly arc?: number;
   /** Optional while lightweight runtime fixtures adopt chain-lightning hops. */
   readonly jumps?: number;
+  /** Optional while lightweight runtime fixtures adopt piercing volleys. */
+  readonly pierce?: number;
   readonly range: number;
   /** Optional for compatibility with minimal runtime fixtures. */
   readonly tag?: string;

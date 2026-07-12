@@ -5,7 +5,7 @@ describe('upgrade card copy', () => {
   it('explains Greg Bud attachments and their sockets', () => {
     const quills = presentUpgrade({ traitId: 'porcupine-quills', resultStage: 'bud' }, []);
     expect(quills).toMatchObject({ badge: 'NEW', socket: 'Back attachment' });
-    expect(quills.description).toMatch(/Automatically fires/);
+    expect(quills.description).toMatch(/pierce/i);
     expect(quills.pairingHint).toMatch(/Puffer Pouch/);
   });
 

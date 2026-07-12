@@ -206,6 +206,8 @@ test('three pool factories each expose their pool-specific arrays', () => {
   assert.ok(enemies.data.hp instanceof Float32Array);
   assert.ok(enemies.data.marked instanceof Uint8Array);
   assert.ok(projectiles.data.pierce instanceof Uint8Array);
+  assert.ok(projectiles.data.hitCount instanceof Uint16Array);
+  assert.ok(projectiles.data.hitHistory instanceof Int32Array);
   assert.ok(projectiles.data.lifetime instanceof Uint16Array);
   assert.ok(pickups.data.xp instanceof Float32Array);
   assert.equal(enemies.data.capacity, 2);

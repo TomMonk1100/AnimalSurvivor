@@ -62,7 +62,7 @@ Elite requests are at **2:00**, **3:40**, **4:30**, **5:15**, **5:45**, and
 Greg begins with Auto-Fire and can choose up to four of six additional attack
 families:
 
-- **Porcupine Quills** — targeted quill bursts.
+- **Porcupine Quills** — forward piercing volleys; Adapted adds wider coverage and deeper penetration.
 - **Puffer Pouch** — gather, then Adapted push control.
 - **Electric Eel Coil** — instant strike on the nearest threat, then chains to
   nearby unhit foes (1 at Bud, 3 at Adapted).

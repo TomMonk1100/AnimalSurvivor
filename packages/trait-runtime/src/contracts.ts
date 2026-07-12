@@ -117,6 +117,8 @@ export interface Command {
   facing: number; // radians
   spread: number; // radians
   jumps: number;
+  /** Additional enemies a projectile may hit after its first collision. */
+  pierce: number;
   range: number;
   amount: number; // shield amount / damage-per-tick for zones
   /** Per-zone damage cadence, in ticks. Meaningful for spawnZone commands. */
@@ -146,6 +148,7 @@ export const BLANK_COMMAND: Readonly<Command> = {
   facing: 0,
   spread: 0,
   jumps: 0,
+  pierce: 0,
   range: 0,
   amount: 0,
   intervalTicks: 0,
@@ -208,6 +211,8 @@ export interface CommandTemplate {
   facing?: number;
   spread?: number;
   jumps?: number;
+  /** Additional enemies a projectile may hit after its first collision. */
+  pierce?: number;
   range?: number;
   amount?: number;
   /** Per-zone damage cadence, in ticks. Meaningful for spawnZone commands. */

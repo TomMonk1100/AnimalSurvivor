@@ -161,3 +161,10 @@ test('orbitingDamage requires bounded firefly count, orbit radius, contact range
   });
   assert.ok(codes(c).includes('invalidOrbitingDamage'));
 });
+
+test('projectile pierce stays within the fixed unsigned-byte bound', () => {
+  const c = clone();
+  const emit = c.traits[0]!.stages.bud.behavior.emit!;
+  emit.pierce = 256;
+  assert.ok(codes(c).includes('invalidProjectilePierce'));
+});

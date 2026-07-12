@@ -20,7 +20,7 @@ eight-minute pacing target, and a larger first attack set.
 Greg begins with **Auto-Fire**, which occupies one active-attack slot. He can
 choose up to four of six available trait families:
 
-1. **Porcupine Quills** — targeted quill bursts.
+1. **Porcupine Quills** — targeted 3/5-quill piercing volleys.
 2. **Puffer Pouch** — gather, then Adapted knockback control.
 3. **Electric Eel Coil** — an instant strike on the nearest threat that chains
    to nearby unhit foes (1 chain at Bud, 3 at Adapted).

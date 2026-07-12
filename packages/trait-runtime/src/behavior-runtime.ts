@@ -180,6 +180,7 @@ function emitCommand(
   if (template.facing !== undefined) cmd.facing = template.facing;
   if (template.spread !== undefined) cmd.spread = template.spread;
   if (template.jumps !== undefined) cmd.jumps = template.jumps;
+  if (template.pierce !== undefined) cmd.pierce = template.pierce;
   if (template.range !== undefined) cmd.range = template.range;
   if (template.amount !== undefined) {
     // `amount` represents damage-per-tick for spawn zones but can represent a

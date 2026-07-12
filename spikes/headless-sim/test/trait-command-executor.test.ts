@@ -134,6 +134,20 @@ test('directed targeting honors the command-authored range', () => {
   assert.equal(context.projectiles.data.count, 0);
 });
 
+test('directed projectile bursts carry authored pierce instead of the global fallback', () => {
+  const { context } = setup();
+  const stats = createTraitCommandExecutor({ projectilePierce: 0 }).execute(source(command({
+    kind: 'spawnProjectileBurst',
+    count: 1,
+    damage: 4,
+    speed: 3,
+    pierce: 2,
+  })), context);
+
+  assert.equal(stats.projectilesSpawned, 1);
+  assert.equal(context.projectiles.data.pierce[0], 2);
+});
+
 test('executes an evenly spaced sixteen-shot radial burst', () => {
   const { context } = setup();
   const executor = createTraitCommandExecutor({ projectileSpeedUnit: 1 });
