@@ -87,12 +87,21 @@ export interface CategorySnapshot {
   readonly x: Float32Array;
   readonly y: Float32Array;
   readonly radius: Float32Array;
+  /** Presentation-only numeric payload (XP value, projectile damage, etc.). */
+  readonly value: Float32Array;
+  /** Read-only motion copied when the authoritative category owns velocity. */
+  readonly velocityX: Float32Array;
+  readonly velocityY: Float32Array;
   /** Current health copied for enemies; zero for projectiles and pickups. */
   readonly hp: Float32Array;
   /** Maximum health copied for enemies; zero for projectiles and pickups. */
   readonly maxHp: Float32Array;
   readonly archetype: Uint8Array;
   readonly role: Uint8Array;
+  /** Compact authored combat source used only to choose a renderer VFX family. */
+  readonly source: Uint8Array;
+  /** 1 when the source event/projectile was an authoritative critical result. */
+  readonly critical: Uint8Array;
   /** Simulation-owned priority mark copied for renderer-only weak-point feedback. */
   readonly marked: Uint8Array;
 }

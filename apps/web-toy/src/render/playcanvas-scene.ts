@@ -61,10 +61,17 @@
  */
 import * as pc from 'playcanvas';
 import type { BiomeId, SimConfig } from '@sim';
-import { POWER_PICKUP_KIND, powerPickupCapacityForXpCap } from '@sim';
+import {
+  COMBAT_DAMAGE_SOURCE,
+  DEFAULT_CONFIG,
+  idSlot,
+  POWER_PICKUP_KIND,
+  powerPickupCapacityForXpCap,
+  RUN_ENEMY_ROLE,
+  ZONE_TAG,
+} from '@sim';
 import { getPaletteDefinition, isPaletteId, type PaletteId } from '../profile/palettes';
-import type { TraitPresentationEventView, TraitVisualAttachmentView } from '@sim';
-import { DEFAULT_CONFIG, RUN_ENEMY_ROLE, ZONE_TAG } from '@sim';
+import type { RunDirectorEventView, TraitPresentationEventView, TraitVisualAttachmentView } from '@sim';
 import type {
   HeroId,
   RendererAdapter,
@@ -73,7 +80,10 @@ import type {
   RenderSnapshot,
 } from '../contracts';
 import { lerp } from './interpolation';
-import { createInstancedCategoryBatch } from './instanced-category-batch';
+import {
+  createInstancedCategoryBatch,
+  type InstancedCategoryBatch,
+} from './instanced-category-batch';
 import { InstancedTransformStore, type SpriteMotionOptions } from './instanced-transform-store';
 import { createHeroPresentation } from '../hero/hero-presentation';
 import type { CombatFeedbackSnapshot } from '../presentation/combat-feedback';
@@ -88,6 +98,25 @@ import { clampCameraTarget } from './camera-bounds';
 import { createDamageNumberPresentation } from './damage-number-presentation';
 import type { CombatPresentationEventView } from '../presentation/combat-presentation-events';
 import { projectCombatDefensePresentationEvents } from '../presentation/combat-defense-presentation';
+import {
+  createEnemyThreatPresentation,
+  ENEMY_THREAT_PALETTES,
+  type EnemyThreatPaletteId,
+} from './enemy-threat-presentation';
+import {
+  createLootVisualPresentation,
+  LOOT_VISUAL_STYLE,
+} from './loot-visual-presentation';
+import { VfxTransformStore } from './vfx-transform-store';
+import {
+  COMBAT_IMPACT_STYLE,
+  createCombatImpactPresentation,
+} from './combat-impact-presentation';
+import {
+  WILDGUARD_VFX_ATLAS_URL,
+  wildguardVfxAtlasUv,
+  type WildguardVfxSprite,
+} from './wildguard-vfx-atlas';
 
 /** Backing-store size cap: CSS size * min(devicePixelRatio, RESOLUTION_CAP). */
 const RESOLUTION_CAP = 2;
@@ -109,13 +138,15 @@ const CAMERA_ORTHO_HEIGHT = 190;
 const CLEAR_COLOR = new pc.Color(0.12, 0.23, 0.12);
 
 const PLAYER_COLOR = new pc.Color(0.2, 0.9, 0.95); // cyan
-const PROJECTILE_COLOR = new pc.Color(0.95, 0.85, 0.2); // yellow
-const PICKUP_COLOR = new pc.Color(0.27, 0.9, 0.36); // green
+// Wildguard combat language: warm = hero power, cold mint/gold = rewards,
+// coral/magenta = danger. These lanes stay readable over either arena floor.
+const PROJECTILE_COLOR = new pc.Color(1, 0.76, 0.18); // heroic gold
+const PICKUP_COLOR = new pc.Color(0.16, 1, 0.66); // cold mint, never grass green
 const BOMB_PICKUP_COLOR = new pc.Color(1, 0.3, 0.1); // urgent ember-orange
 const MAGNET_PICKUP_COLOR = new pc.Color(0.4, 0.62, 1); // map-wide pull blue
-const FOOD_PICKUP_COLOR = new pc.Color(1, 0.48, 0.2); // warm restorative fruit
+const FOOD_PICKUP_COLOR = new pc.Color(0.44, 1, 0.22); // bright restorative bloom
 const GECKO_PAD_COLOR = new pc.Color(0.24, 1, 0.58); // mint
-const HOSTILE_PROJECTILE_COLOR = new pc.Color(1, 0.32, 0.1); // orange-red
+const HOSTILE_PROJECTILE_COLOR = new pc.Color(1, 0.22, 0.24); // hot coral-red
 /** Fixed role treatments: never a unique material or mesh per enemy. */
 const ELITE_ENEMY_COLOR = new pc.Color(1, 0.58, 0.12); // amber
 const RANGED_ENEMY_COLOR = new pc.Color(0.18, 0.52, 1); // cobalt-blue
@@ -145,6 +176,8 @@ export interface DamageNumberRendererControls {
    * shields, armor blocks, and dodges. This never feeds back into the sim.
    */
   setCombatPresentationEvents(events: readonly CombatPresentationEventView[]): void;
+  /** Supplies time-bounded director warnings to the renderer's danger layer. */
+  setDirectorEvents?(events: readonly RunDirectorEventView[]): void;
 }
 
 /**
@@ -244,6 +277,74 @@ function bindCutoutSpriteTexture(
   };
 }
 
+/**
+ * A shared atlas material keeps the overhaul's illustrated marks vivid over
+ * the arena without adding a texture or material per enemy/projectile. The
+ * texture itself is decoded only once below and supplied to every semantic
+ * cell material.
+ */
+function createVfxAtlasMaterial(
+  color: pc.Color,
+  sprite: WildguardVfxSprite,
+  opacity = 1,
+): pc.StandardMaterial {
+  const material = new pc.StandardMaterial();
+  const uv = wildguardVfxAtlasUv(sprite);
+  material.useLighting = false;
+  material.diffuse.copy(color);
+  material.emissive.copy(color);
+  material.opacity = opacity;
+  material.diffuseMapTiling.set(uv.tilingX, uv.tilingY);
+  material.diffuseMapOffset.set(uv.offsetX, uv.offsetY);
+  material.opacityMapTiling.set(uv.tilingX, uv.tilingY);
+  material.opacityMapOffset.set(uv.offsetX, uv.offsetY);
+  material.blendType = pc.BLEND_ADDITIVEALPHA;
+  material.depthWrite = false;
+  material.cull = pc.CULLFACE_NONE;
+  material.update();
+  return material;
+}
+
+/** Shares one decoded transparent atlas across all finite VFX materials. */
+function bindVfxAtlasTexture(
+  device: pc.GraphicsDevice,
+  materials: readonly pc.StandardMaterial[],
+): CutoutTextureBinding {
+  const texture = new pc.Texture(device, { mipmaps: true });
+  texture.addressU = pc.ADDRESS_CLAMP_TO_EDGE;
+  texture.addressV = pc.ADDRESS_CLAMP_TO_EDGE;
+  texture.minFilter = pc.FILTER_LINEAR_MIPMAP_LINEAR;
+  texture.magFilter = pc.FILTER_LINEAR;
+
+  for (const material of materials) {
+    material.diffuseMap = texture;
+    material.diffuseMapChannel = 'rgb';
+    material.opacityMap = texture;
+    material.opacityMapChannel = 'a';
+    material.update();
+  }
+
+  let disposed = false;
+  if (typeof Image !== 'undefined') {
+    const image = new Image();
+    image.decoding = 'async';
+    image.onload = () => {
+      if (disposed) return;
+      texture.setSource(image);
+      for (const material of materials) material.update();
+    };
+    image.src = WILDGUARD_VFX_ATLAS_URL;
+  }
+
+  return {
+    dispose(): void {
+      if (disposed) return;
+      disposed = true;
+      texture.destroy();
+    },
+  };
+}
+
 /** A short, soft creature contact shadow kept below gameplay entities. */
 function createShadowMaterial(): pc.StandardMaterial {
   const material = new pc.StandardMaterial();
@@ -278,6 +379,48 @@ function parseHexColor(hex: string): pc.Color {
     ((value >> 8) & 0xff) / 255,
     (value & 0xff) / 255,
   );
+}
+
+interface VfxRoutedBatch {
+  readonly store: VfxTransformStore;
+  readonly batch: InstancedCategoryBatch;
+  /** The art-directed maximum opacity before descriptor attenuation. */
+  readonly baseOpacity: number;
+  opacityTotal: number;
+  opacityCount: number;
+}
+
+/**
+ * Descriptor families are routed into a small number of retained instanced
+ * draws. The material uniform is batch-scoped, so an opacity average avoids
+ * per-instance material churn while still making the descriptor's fade value
+ * visible on the GPU.
+ */
+function resetRoutedBatchOpacity(route: VfxRoutedBatch): void {
+  route.opacityTotal = 0;
+  route.opacityCount = 0;
+}
+
+function recordRoutedBatchOpacity(route: VfxRoutedBatch, opacity: number): void {
+  const safeOpacity = Number.isFinite(opacity) ? Math.min(1, Math.max(0, opacity)) : 0;
+  route.opacityTotal += safeOpacity;
+  route.opacityCount++;
+}
+
+function syncRoutedBatchOpacity(route: VfxRoutedBatch): void {
+  const averageOpacity = route.opacityCount > 0
+    ? route.opacityTotal / route.opacityCount
+    : 0;
+  route.batch.setOpacity(route.baseOpacity * averageOpacity);
+}
+
+function sumBatchViews(
+  batches: readonly InstancedCategoryBatch[],
+  field: 'liveViews' | 'highWaterViews',
+): number {
+  let total = 0;
+  for (const batch of batches) total += batch[field];
+  return total;
 }
 
 function clearColorForPalette(biomeId: BiomeId, paletteId: PaletteId): pc.Color {
@@ -416,6 +559,120 @@ export function createRenderer(
   const enemyShadowMaterial = createShadowMaterial();
   const playerMaterial = createCreatureMaterial(PLAYER_COLOR);
 
+  // One compact generated atlas supplies the whole new combat vocabulary.
+  // Each entry below is a shared semantic material, never an entity-specific
+  // allocation; inactive categories cost no draw calls.
+  const playerProjectileAccentMaterial = createVfxAtlasMaterial(
+    new pc.Color(1, 0.82, 0.32), 'arcaneComet', 0.9,
+  );
+  const spitProjectileAccentMaterial = createVfxAtlasMaterial(
+    new pc.Color(0.76, 1, 0.74), 'spitComet', 0.96,
+  );
+  const criticalProjectileAccentMaterial = createVfxAtlasMaterial(
+    new pc.Color(1, 0.96, 0.66), 'critStar', 1,
+  );
+  const xpAccentMaterial = createVfxAtlasMaterial(
+    new pc.Color(0.48, 1, 0.78), 'xpDiamond', 0.94,
+  );
+  const xpHaloMaterial = createVfxAtlasMaterial(
+    new pc.Color(0.18, 0.96, 0.82), 'wardGlyph', 0.42,
+  );
+  const bombAccentMaterial = createVfxAtlasMaterial(
+    new pc.Color(1, 0.52, 0.12), 'bomb', 0.9,
+  );
+  const magnetAccentMaterial = createVfxAtlasMaterial(
+    new pc.Color(0.48, 0.72, 1), 'magnet', 0.92,
+  );
+  const foodAccentMaterial = createVfxAtlasMaterial(
+    new pc.Color(0.72, 1, 0.36), 'frostBurst', 0.82,
+  );
+  // Collection descriptors carry a real style, not merely an animation
+  // curve. Route their six languages to six atlas cells so a crystal comet,
+  // bomb nova, magnet vortex, and food bloom remain recognizable while they
+  // travel toward Greg.
+  const xpMoteCollectionMaterial = createVfxAtlasMaterial(
+    new pc.Color(0.46, 1, 0.78), 'windSpiral', 0.82,
+  );
+  const xpGemCollectionMaterial = createVfxAtlasMaterial(
+    new pc.Color(0.62, 1, 0.84), 'arcaneComet', 0.88,
+  );
+  const xpPrismCollectionMaterial = createVfxAtlasMaterial(
+    new pc.Color(1, 0.84, 0.26), 'critStar', 0.96,
+  );
+  const bombCollectionMaterial = createVfxAtlasMaterial(
+    new pc.Color(1, 0.34, 0.1), 'bomb', 0.96,
+  );
+  const magnetCollectionMaterial = createVfxAtlasMaterial(
+    new pc.Color(0.36, 0.7, 1), 'magnet', 0.9,
+  );
+  const foodCollectionMaterial = createVfxAtlasMaterial(
+    new pc.Color(0.68, 1, 0.34), 'frostBurst', 0.9,
+  );
+  const hostileProjectileAccentMaterial = createVfxAtlasMaterial(
+    new pc.Color(1, 0.38, 0.28), 'hostileComet', 0.98,
+  );
+  const hostileTrailAccentMaterial = createVfxAtlasMaterial(
+    new pc.Color(1, 0.12, 0.28), 'hostileSlash', 0.72,
+  );
+  // A threat descriptor's palette is now a GPU routing key. Danger stays
+  // warm, but chargers, elites, apex threats, Saltwind tells, and support
+  // pulses keep their authored hue rather than collapsing into one red ring.
+  const threatTelegraphMaterials: Record<EnemyThreatPaletteId, pc.StandardMaterial> = {
+    hostile: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.hostile.primary), 'emberRing', 0.62),
+    charger: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.charger.primary), 'hostileSlash', 0.68),
+    elite: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.elite.primary), 'wardGlyph', 0.7),
+    boss: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.boss.accent), 'hostileSlash', 0.78),
+    saltwind: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.saltwind.primary), 'earthWave', 0.7),
+    support: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.support.primary), 'frostBurst', 0.6),
+  };
+  const threatRingMaterials: Record<EnemyThreatPaletteId, pc.StandardMaterial> = {
+    hostile: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.hostile.accent), 'emberRing', 0.72),
+    charger: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.charger.primary), 'emberRing', 0.74),
+    elite: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.elite.primary), 'emberRing', 0.74),
+    boss: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.boss.primary), 'emberRing', 0.82),
+    saltwind: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.saltwind.accent), 'emberRing', 0.74),
+    support: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.support.accent), 'wardGlyph', 0.58),
+  };
+  const eliteAuraMaterials = {
+    elite: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.elite.primary), 'wardGlyph', 0.58),
+    boss: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.boss.accent), 'wardGlyph', 0.72),
+  } as const;
+  const normalImpactMaterial = createVfxAtlasMaterial(
+    new pc.Color(1, 0.78, 0.24), 'critStar', 0.78,
+  );
+  const criticalImpactMaterial = createVfxAtlasMaterial(
+    new pc.Color(1, 0.98, 0.72), 'critStar', 1,
+  );
+  const playerImpactMaterial = createVfxAtlasMaterial(
+    new pc.Color(1, 0.22, 0.26), 'emberRing', 0.88,
+  );
+  const vfxAtlasMaterials: readonly pc.StandardMaterial[] = [
+    playerProjectileAccentMaterial,
+    spitProjectileAccentMaterial,
+    criticalProjectileAccentMaterial,
+    xpAccentMaterial,
+    xpHaloMaterial,
+    bombAccentMaterial,
+    magnetAccentMaterial,
+    foodAccentMaterial,
+    xpMoteCollectionMaterial,
+    xpGemCollectionMaterial,
+    xpPrismCollectionMaterial,
+    bombCollectionMaterial,
+    magnetCollectionMaterial,
+    foodCollectionMaterial,
+    hostileProjectileAccentMaterial,
+    hostileTrailAccentMaterial,
+    ...Object.values(threatTelegraphMaterials),
+    ...Object.values(threatRingMaterials),
+    eliteAuraMaterials.elite,
+    eliteAuraMaterials.boss,
+    normalImpactMaterial,
+    criticalImpactMaterial,
+    playerImpactMaterial,
+  ];
+  const vfxAtlasTextureBinding = bindVfxAtlasTexture(app.graphicsDevice, vfxAtlasMaterials);
+
   const walkerTextureBinding = bindCutoutSpriteTexture(
     app.graphicsDevice,
     WILDGUARD_ENEMY_SPRITE_URLS.walker,
@@ -528,6 +785,17 @@ export function createRenderer(
       widthSegments: 1,
       lengthSegments: 1,
     }),
+  );
+  // VFX use two normalized silhouettes: a textured top-down card for core,
+  // comet, burst, and telegraph marks; and a faceted ring for spatial danger
+  // reads. They are reused by every fixed instanced visual layer below.
+  const vfxCardMesh = pc.Mesh.fromGeometry(
+    app.graphicsDevice,
+    new pc.PlaneGeometry({ halfExtents: new pc.Vec2(0.5, 0.5), widthSegments: 1, lengthSegments: 1 }),
+  );
+  const vfxRingMesh = pc.Mesh.fromGeometry(
+    app.graphicsDevice,
+    new pc.TorusGeometry({ tubeRadius: 0.09, ringRadius: 0.46, segments: 14, sides: 5 }),
   );
   const walkerEnemyBatch = createInstancedCategoryBatch(
     app.graphicsDevice,
@@ -698,6 +966,139 @@ export function createRenderer(
     projectileMesh,
     hostileProjectileMaterial,
   );
+  const playerProjectileAccentBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'hero-projectile-accent', config.projectileCap,
+    vfxCardMesh, playerProjectileAccentMaterial, 0.54,
+  );
+  const spitProjectileAccentBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'spit-projectile-accent', config.projectileCap,
+    vfxCardMesh, spitProjectileAccentMaterial, 0.57,
+  );
+  const criticalProjectileAccentBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'critical-projectile-accent', config.projectileCap,
+    vfxCardMesh, criticalProjectileAccentMaterial, 0.66,
+  );
+  const xpAccentBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'xp-prism-accent', config.pickupCap,
+    vfxCardMesh, xpAccentMaterial, 0.5,
+  );
+  const xpHaloBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'xp-reward-halo', config.pickupCap,
+    vfxCardMesh, xpHaloMaterial, 0.31,
+  );
+  const bombAccentBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'bomb-reward-accent', powerPickupCapacity,
+    vfxCardMesh, bombAccentMaterial, 0.68,
+  );
+  const magnetAccentBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'magnet-reward-accent', powerPickupCapacity,
+    vfxCardMesh, magnetAccentMaterial, 0.67,
+  );
+  const foodAccentBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'food-reward-accent', powerPickupCapacity,
+    vfxCardMesh, foodAccentMaterial, 0.66,
+  );
+  function createRoutedVfxBatch(
+    name: string,
+    capacity: number,
+    mesh: pc.Mesh,
+    material: pc.Material,
+    localY: number,
+    baseOpacity: number,
+  ): VfxRoutedBatch {
+    return {
+      store: new VfxTransformStore(capacity),
+      batch: createInstancedCategoryBatch(
+        app.graphicsDevice, entitiesRoot, name, capacity, mesh, material, localY,
+      ),
+      baseOpacity,
+      opacityTotal: 0,
+      opacityCount: 0,
+    };
+  }
+
+  // The collection pool is globally capped at 72 descriptors. Each semantic
+  // route receives the same fixed backing capacity, while the presenter
+  // guarantees the *combined* live count never exceeds that 72-item budget.
+  const xpMoteCollectionRoute = createRoutedVfxBatch(
+    'xp-mote-collection-comets', 72, vfxCardMesh, xpMoteCollectionMaterial, 0.58, 0.82,
+  );
+  const xpGemCollectionRoute = createRoutedVfxBatch(
+    'xp-gem-collection-comets', 72, vfxCardMesh, xpGemCollectionMaterial, 0.58, 0.88,
+  );
+  const xpPrismCollectionRoute = createRoutedVfxBatch(
+    'xp-prism-collection-novas', 72, vfxCardMesh, xpPrismCollectionMaterial, 0.58, 0.96,
+  );
+  const bombCollectionRoute = createRoutedVfxBatch(
+    'bomb-collection-novas', 72, vfxCardMesh, bombCollectionMaterial, 0.58, 0.96,
+  );
+  const magnetCollectionRoute = createRoutedVfxBatch(
+    'magnet-collection-vortices', 72, vfxCardMesh, magnetCollectionMaterial, 0.58, 0.9,
+  );
+  const foodCollectionRoute = createRoutedVfxBatch(
+    'food-collection-blooms', 72, vfxCardMesh, foodCollectionMaterial, 0.58, 0.9,
+  );
+  const collectionRoutes: readonly VfxRoutedBatch[] = [
+    xpMoteCollectionRoute,
+    xpGemCollectionRoute,
+    xpPrismCollectionRoute,
+    bombCollectionRoute,
+    magnetCollectionRoute,
+    foodCollectionRoute,
+  ];
+
+  const hostileProjectileAccentBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'hostile-projectile-core', 72,
+    vfxCardMesh, hostileProjectileAccentMaterial, 0.72,
+  );
+  const hostileTrailAccentBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'hostile-projectile-trails', 72,
+    vfxCardMesh, hostileTrailAccentMaterial, 0.48,
+  );
+  const threatTelegraphRoutes: Record<EnemyThreatPaletteId, VfxRoutedBatch> = {
+    hostile: createRoutedVfxBatch('hostile-telegraphs', 24, vfxCardMesh, threatTelegraphMaterials.hostile, 0.16, 0.62),
+    charger: createRoutedVfxBatch('charger-telegraphs', 24, vfxCardMesh, threatTelegraphMaterials.charger, 0.16, 0.68),
+    elite: createRoutedVfxBatch('elite-telegraphs', 24, vfxCardMesh, threatTelegraphMaterials.elite, 0.16, 0.7),
+    boss: createRoutedVfxBatch('boss-telegraphs', 24, vfxCardMesh, threatTelegraphMaterials.boss, 0.16, 0.78),
+    saltwind: createRoutedVfxBatch('saltwind-telegraphs', 24, vfxCardMesh, threatTelegraphMaterials.saltwind, 0.16, 0.7),
+    support: createRoutedVfxBatch('support-telegraphs', 24, vfxCardMesh, threatTelegraphMaterials.support, 0.16, 0.6),
+  };
+  const threatRingRoutes: Record<EnemyThreatPaletteId, VfxRoutedBatch> = {
+    hostile: createRoutedVfxBatch('hostile-contact-rings', 16, vfxRingMesh, threatRingMaterials.hostile, 0.19, 0.72),
+    charger: createRoutedVfxBatch('charger-contact-rings', 16, vfxRingMesh, threatRingMaterials.charger, 0.19, 0.74),
+    elite: createRoutedVfxBatch('elite-contact-rings', 16, vfxRingMesh, threatRingMaterials.elite, 0.19, 0.74),
+    boss: createRoutedVfxBatch('boss-contact-rings', 16, vfxRingMesh, threatRingMaterials.boss, 0.19, 0.82),
+    saltwind: createRoutedVfxBatch('saltwind-contact-rings', 16, vfxRingMesh, threatRingMaterials.saltwind, 0.19, 0.74),
+    support: createRoutedVfxBatch('support-contact-rings', 16, vfxRingMesh, threatRingMaterials.support, 0.19, 0.58),
+  };
+  const eliteAuraRoutes = {
+    elite: createRoutedVfxBatch('elite-aura-glyphs', 6, vfxCardMesh, eliteAuraMaterials.elite, 0.14, 0.58),
+    boss: createRoutedVfxBatch('boss-aura-glyphs', 6, vfxCardMesh, eliteAuraMaterials.boss, 0.14, 0.72),
+  } as const;
+  const threatTelegraphRouteList = Object.values(threatTelegraphRoutes);
+  const threatRingRouteList = Object.values(threatRingRoutes);
+  const eliteAuraRouteList: readonly VfxRoutedBatch[] = [eliteAuraRoutes.elite, eliteAuraRoutes.boss];
+  const routedVfxBatches: readonly VfxRoutedBatch[] = [
+    ...collectionRoutes,
+    ...threatTelegraphRouteList,
+    ...threatRingRouteList,
+    ...eliteAuraRouteList,
+  ];
+  const routedVfxBatchViews: readonly InstancedCategoryBatch[] = routedVfxBatches.map(
+    (route) => route.batch,
+  );
+  const normalImpactBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'enemy-hit-sparks', 48,
+    vfxCardMesh, normalImpactMaterial, 0.82,
+  );
+  const criticalImpactBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'critical-hit-sparks', 48,
+    vfxCardMesh, criticalImpactMaterial, 0.86,
+  );
+  const playerImpactBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'player-danger-bursts', 48,
+    vfxCardMesh, playerImpactMaterial, 0.84,
+  );
   const razorstepZoneBatch = createInstancedCategoryBatch(
     app.graphicsDevice,
     entitiesRoot,
@@ -757,6 +1158,54 @@ export function createRenderer(
   const razorstepZoneTransforms = new InstancedTransformStore(config.zoneCap);
   const stinkCloudZoneTransforms = new InstancedTransformStore(config.zoneCap);
   const royalStinkZoneTransforms = new InstancedTransformStore(config.zoneCap);
+  // These stores are all fixed-capacity and renderer-owned. They turn the
+  // projection modules' bounded descriptors into GPU instance matrices with
+  // no per-entity scene nodes or simulation writes.
+  const vfxTransforms = {
+    playerProjectileAccent: new VfxTransformStore(config.projectileCap),
+    spitProjectileAccent: new VfxTransformStore(config.projectileCap),
+    criticalProjectileAccent: new VfxTransformStore(config.projectileCap),
+    xpAccent: new VfxTransformStore(config.pickupCap),
+    xpHalo: new VfxTransformStore(config.pickupCap),
+    bombAccent: new VfxTransformStore(powerPickupCapacity),
+    magnetAccent: new VfxTransformStore(powerPickupCapacity),
+    foodAccent: new VfxTransformStore(powerPickupCapacity),
+    hostileProjectileAccent: new VfxTransformStore(72),
+    hostileTrailAccent: new VfxTransformStore(72),
+    normalImpacts: new VfxTransformStore(48),
+    criticalImpacts: new VfxTransformStore(48),
+    playerImpacts: new VfxTransformStore(48),
+  };
+  // Kept as a retained array so resetting all VFX pools does not allocate an
+  // `Object.values(...)` array in the frame loop.
+  const vfxTransformStores: readonly VfxTransformStore[] = [
+    vfxTransforms.playerProjectileAccent,
+    vfxTransforms.spitProjectileAccent,
+    vfxTransforms.criticalProjectileAccent,
+    vfxTransforms.xpAccent,
+    vfxTransforms.xpHalo,
+    vfxTransforms.bombAccent,
+    vfxTransforms.magnetAccent,
+    vfxTransforms.foodAccent,
+    vfxTransforms.hostileProjectileAccent,
+    vfxTransforms.hostileTrailAccent,
+    vfxTransforms.normalImpacts,
+    vfxTransforms.criticalImpacts,
+    vfxTransforms.playerImpacts,
+    ...routedVfxBatches.map((route) => route.store),
+  ];
+  const lootVisuals = createLootVisualPresentation({
+    xpCapacity: config.pickupCap,
+    powerCapacity: powerPickupCapacity,
+    collectionCapacity: 72,
+  });
+  const enemyThreatVisuals = createEnemyThreatPresentation({
+    maxProjectileTrails: 72,
+    maxTelegraphs: 24,
+    maxContactRings: 16,
+    maxEliteBossAuras: 6,
+  });
+  const combatImpactVisuals = createCombatImpactPresentation({ capacity: 48 });
   // This one mutable object is intentionally reused on every frame. Its clock
   // is derived from prev/curr snapshot ticks below, never from wall time, and
   // it is passed only to alpha-cutout enemy planes (not projectiles or zones).
@@ -770,13 +1219,91 @@ export function createRenderer(
     liftPulse: 0.026,
     facingSwayRadians: 0.035,
   };
+  const lootSpriteMotion: SpriteMotionOptions = {
+    timeSeconds: 0,
+    artFacingRadians: 0,
+    movementThreshold: 0.002,
+    pulseRadiansPerSecond: 7.4,
+    longAxisPulse: 0.11,
+    crossAxisPulse: 0.08,
+    liftPulse: 0.08,
+    facingSwayRadians: 0.08,
+  };
 
   let ready = true;
   let lastDrawCalls = 0;
   let qualityTier: RenderQualityTier = initialQualityTier;
   let resolutionCap = qualityTier === 'reduced' ? 1 : RESOLUTION_CAP;
   let cameraAspect = 1;
-  let pendingCombatDefenseEvents: readonly TraitPresentationEventView[] = Object.freeze([]);
+  const emptyTraitPresentationEvents: readonly TraitPresentationEventView[] = Object.freeze([]);
+  const emptyCombatPresentationEvents: readonly CombatPresentationEventView[] = Object.freeze([]);
+  const emptyDirectorEvents: readonly RunDirectorEventView[] = Object.freeze([]);
+  let pendingCombatDefenseEvents: readonly TraitPresentationEventView[] = emptyTraitPresentationEvents;
+  let pendingCombatImpactEvents: readonly CombatPresentationEventView[] = emptyCombatPresentationEvents;
+  let pendingDirectorEvents: readonly RunDirectorEventView[] = emptyDirectorEvents;
+  let lastVisualTick = -1;
+  const previousProjectileIndexBySlot = new Int32Array(config.projectileCap);
+  const previousProjectileStampBySlot = new Uint32Array(config.projectileCap);
+  let previousProjectileLookupStamp = 0;
+  const threatOwnedTraitTelegraphScratch: TraitPresentationEventView[] = [];
+
+  function collectionRouteForStyle(style: number): VfxRoutedBatch | null {
+    switch (style) {
+      case LOOT_VISUAL_STYLE.xpMote: return xpMoteCollectionRoute;
+      case LOOT_VISUAL_STYLE.xpGem: return xpGemCollectionRoute;
+      case LOOT_VISUAL_STYLE.xpPrism: return xpPrismCollectionRoute;
+      case LOOT_VISUAL_STYLE.bomb: return bombCollectionRoute;
+      case LOOT_VISUAL_STYLE.magnet: return magnetCollectionRoute;
+      case LOOT_VISUAL_STYLE.food: return foodCollectionRoute;
+      default: return null;
+    }
+  }
+
+  function isThreatOwnedTraitTelegraph(event: TraitPresentationEventView): boolean {
+    if (event.kind !== 'telegraph') return false;
+    switch (event.tag) {
+      case 'boss-charge':
+      case 'boss-volley':
+      case 'saltwind-charge':
+      case 'saltwind-sandstorm':
+      case 'support-pulse':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Boss/support telegraphs are rendered by the threat system, which owns
+   * their palette, opacity, and warning hierarchy. Keep trait-command effects
+   * for player commands so an enemy warning does not get drawn twice.
+   */
+  function traitCommandEventsWithoutThreatTelegraphs(
+    events: readonly TraitPresentationEventView[],
+  ): readonly TraitPresentationEventView[] {
+    let firstThreatEvent = -1;
+    for (let index = 0; index < events.length; index++) {
+      if (isThreatOwnedTraitTelegraph(events[index]!)) {
+        firstThreatEvent = index;
+        break;
+      }
+    }
+    if (firstThreatEvent < 0) return events;
+    threatOwnedTraitTelegraphScratch.length = 0;
+    for (const event of events) {
+      if (!isThreatOwnedTraitTelegraph(event)) threatOwnedTraitTelegraphScratch.push(event);
+    }
+    return threatOwnedTraitTelegraphScratch;
+  }
+
+  function nextPreviousProjectileLookupStamp(): number {
+    previousProjectileLookupStamp = (previousProjectileLookupStamp + 1) >>> 0;
+    if (previousProjectileLookupStamp === 0) {
+      previousProjectileStampBySlot.fill(0);
+      previousProjectileLookupStamp = 1;
+    }
+    return previousProjectileLookupStamp;
+  }
 
   function resize(): void {
     const cssWidth = Math.max(1, canvas.clientWidth);
@@ -787,6 +1314,259 @@ export function createRenderer(
     app.graphicsDevice.resizeCanvas(cssWidth, cssHeight);
   }
   resize();
+
+  function sceneX(worldX: number): number {
+    return worldX - worldHalfWidth;
+  }
+
+  function sceneZ(worldY: number): number {
+    return worldHalfHeight - worldY;
+  }
+
+  /**
+   * Composes all high-polish world VFX from read-only snapshot/event views.
+   * This is intentionally the only integration point: every individual layer
+   * is still an instanced batch and all presentation modules have a strict
+   * fixed budget, so visual intensity cannot turn into simulation or scene
+   * graph growth.
+   */
+  function writeCombatVisualOverhaul(
+    prev: RenderSnapshot,
+    curr: RenderSnapshot,
+    alpha: number,
+    presentationEvents: readonly TraitPresentationEventView[],
+  ): void {
+    if (curr.tick < lastVisualTick) {
+      lootVisuals.reset();
+      enemyThreatVisuals.reset();
+      combatImpactVisuals.reset();
+    }
+    lastVisualTick = curr.tick;
+    for (const store of vfxTransformStores) store.reset();
+    for (const route of routedVfxBatches) resetRoutedBatchOpacity(route);
+
+    const safeAlpha = Math.min(1, Math.max(0, alpha));
+    const projectileLookupStamp = nextPreviousProjectileLookupStamp();
+    for (let index = 0; index < prev.projectiles.count; index++) {
+      const id = prev.projectiles.id[index]!;
+      const slot = idSlot(id);
+      if (slot >= previousProjectileIndexBySlot.length) continue;
+      previousProjectileIndexBySlot[slot] = index;
+      previousProjectileStampBySlot[slot] = projectileLookupStamp;
+    }
+
+    // Player projectiles retain their cheap physical core batch below, then
+    // receive a source/crit-aware illustrated accent that faces actual copied
+    // velocity. The two layers make shots readable at both close and crowded
+    // launch-camera distance.
+    for (let index = 0; index < curr.projectiles.count; index++) {
+      if (curr.projectiles.role[index] !== 0) continue;
+      const id = curr.projectiles.id[index]!;
+      const slot = idSlot(id);
+      const previousIndex = slot < previousProjectileIndexBySlot.length
+        && previousProjectileStampBySlot[slot] === projectileLookupStamp
+        && prev.projectiles.id[previousProjectileIndexBySlot[slot]!] === id
+        ? previousProjectileIndexBySlot[slot]!
+        : -1;
+      const velocityX = curr.projectiles.velocityX[index] ?? 0;
+      const velocityY = curr.projectiles.velocityY[index] ?? 0;
+      // A newly spawned/reused slot has no matching prior snapshot. Rendering
+      // it at its authoritative current point avoids a one-frame backwards
+      // streak from an unrelated predecessor's velocity or position.
+      const worldX = previousIndex >= 0
+        ? lerp(prev.projectiles.x[previousIndex]!, curr.projectiles.x[index]!, safeAlpha)
+        : curr.projectiles.x[index]!;
+      const worldY = previousIndex >= 0
+        ? lerp(prev.projectiles.y[previousIndex]!, curr.projectiles.y[index]!, safeAlpha)
+        : curr.projectiles.y[index]!;
+      const baseScale = Math.max(3.6, curr.projectiles.radius[index]! * 2.25);
+      const isCritical = curr.projectiles.critical[index] === 1;
+      const source = curr.projectiles.source[index] ?? 0;
+      const yaw = Math.atan2(velocityX, -velocityY);
+      const coreScale = baseScale * (isCritical ? 1.22 : 1);
+      const store = source === COMBAT_DAMAGE_SOURCE.heroSpit
+        ? vfxTransforms.spitProjectileAccent
+        : vfxTransforms.playerProjectileAccent;
+      store.push(sceneX(worldX), sceneZ(worldY), coreScale, 1, coreScale, 0.2, yaw);
+      if (isCritical) {
+        const starScale = coreScale * 1.28;
+        vfxTransforms.criticalProjectileAccent.push(
+          sceneX(worldX), sceneZ(worldY), starScale, 1, starScale, 0.36, -yaw,
+        );
+      }
+    }
+
+    const loot = lootVisuals.update(prev, curr, safeAlpha);
+    for (let index = 0; index < loot.xp.count; index++) {
+      const x = sceneX(loot.xp.x[index]!);
+      const z = sceneZ(loot.xp.y[index]!);
+      // Runtime pickup radii are deliberately generous for collection; the
+      // card scale is therefore art-directed rather than a raw collision read.
+      const coreScale = loot.xp.scale[index]! * 3.35;
+      const haloScale = loot.xp.haloScale[index]! * (qualityTier === 'standard' ? 3.35 : 0);
+      const lift = loot.xp.lift[index]! + 0.06;
+      const spin = loot.xp.spinRadians[index]!;
+      vfxTransforms.xpAccent.push(x, z, coreScale, 1, coreScale, lift + 0.18, spin);
+      if (qualityTier === 'standard') {
+        vfxTransforms.xpHalo.push(x, z, haloScale, 1, haloScale, lift, -spin * 0.6);
+      }
+    }
+    for (let index = 0; index < loot.power.count; index++) {
+      const style = loot.power.style[index]!;
+      const x = sceneX(loot.power.x[index]!);
+      const z = sceneZ(loot.power.y[index]!);
+      const scale = loot.power.scale[index]! * 1.16;
+      const lift = loot.power.lift[index]! + 0.22;
+      const spin = loot.power.spinRadians[index]!;
+      if (style === LOOT_VISUAL_STYLE.bomb) {
+        vfxTransforms.bombAccent.push(x, z, scale, 1, scale, lift, spin);
+      } else if (style === LOOT_VISUAL_STYLE.magnet) {
+        vfxTransforms.magnetAccent.push(x, z, scale, 1, scale, lift, spin);
+      } else if (style === LOOT_VISUAL_STYLE.food) {
+        vfxTransforms.foodAccent.push(x, z, scale, 1, scale, lift, spin);
+      }
+    }
+    if (qualityTier === 'standard') {
+      for (let index = 0; index < loot.collections.count; index++) {
+        const route = collectionRouteForStyle(loot.collections.style[index]!);
+        if (route === null) continue;
+        const written = route.store.pushRibbon(
+          sceneX(loot.collections.tailX[index]!),
+          sceneZ(loot.collections.tailY[index]!),
+          sceneX(loot.collections.headX[index]!),
+          sceneZ(loot.collections.headY[index]!),
+          Math.max(0.7, loot.collections.trailWidth[index]! * 3.1),
+          0.42,
+        );
+        if (written) recordRoutedBatchOpacity(route, loot.collections.opacity[index]!);
+      }
+    }
+
+    const threat = enemyThreatVisuals.update({
+      previous: prev,
+      current: curr,
+      alpha: safeAlpha,
+      directorEvents: pendingDirectorEvents,
+      traitPresentationEvents: presentationEvents,
+    });
+    pendingDirectorEvents = emptyDirectorEvents;
+    let hostileProjectileOpacityTotal = 0;
+    let hostileProjectileOpacityCount = 0;
+    for (const projectile of threat.hostileProjectiles) {
+      const coreScale = projectile.headRadius * 2.1 * (projectile.critical ? 1.2 : 1);
+      const coreWritten = vfxTransforms.hostileProjectileAccent.push(
+        sceneX(projectile.headX), sceneZ(projectile.headY), coreScale, 1, coreScale, 0.28,
+        Math.atan2(Math.cos(projectile.headingRadians), -Math.sin(projectile.headingRadians)),
+      );
+      if (coreWritten) {
+        hostileProjectileOpacityTotal += projectile.opacity;
+        hostileProjectileOpacityCount++;
+      }
+      if (qualityTier === 'standard') {
+        vfxTransforms.hostileTrailAccent.pushRibbon(
+          sceneX(projectile.tailX), sceneZ(projectile.tailY),
+          sceneX(projectile.headX), sceneZ(projectile.headY),
+          Math.max(0.8, projectile.tailWidth * 2.5),
+          0.1,
+        );
+      }
+    }
+    for (const telegraph of threat.telegraphs) {
+      const x = sceneX(telegraph.x);
+      const z = sceneZ(telegraph.y);
+      const pulse = 0.78 + telegraph.pulse * 0.38;
+      const route = threatTelegraphRoutes[telegraph.palette];
+      let written = false;
+      if (telegraph.style === 'lane') {
+        const yaw = Math.atan2(telegraph.dirX, -telegraph.dirY);
+        written = route.store.push(
+          x, z,
+          Math.max(7, telegraph.thickness * 2.4) * pulse,
+          1,
+          Math.max(telegraph.radius * 1.15, telegraph.length) * pulse,
+          0.06,
+          yaw,
+        );
+      } else {
+        const scale = Math.max(18, telegraph.radius * 2) * pulse;
+        written = route.store.push(x, z, scale, 1, scale, 0.06, telegraph.pulse * Math.PI);
+      }
+      if (written) recordRoutedBatchOpacity(route, telegraph.opacity);
+    }
+    for (const ring of threat.contactRings) {
+      const scale = ring.radius * 2 * (0.92 + ring.pulse * 0.2);
+      const route = threatRingRoutes[ring.palette];
+      if (route.store.push(sceneX(ring.x), sceneZ(ring.y), scale, 1, scale, 0.12, ring.pulse)) {
+        recordRoutedBatchOpacity(route, ring.opacity);
+      }
+    }
+    for (const aura of threat.eliteBossAuras) {
+      const scale = aura.outerRadius * 2 * (0.9 + aura.pulse * 0.14);
+      const route = eliteAuraRoutes[aura.palette];
+      if (route.store.push(sceneX(aura.x), sceneZ(aura.y), scale, 1, scale, 0.08, -aura.pulse)) {
+        recordRoutedBatchOpacity(route, aura.opacity);
+      }
+    }
+    for (const route of routedVfxBatches) syncRoutedBatchOpacity(route);
+    const hostileProjectileOpacity = hostileProjectileOpacityCount > 0
+      ? hostileProjectileOpacityTotal / hostileProjectileOpacityCount
+      : 0;
+    hostileProjectileAccentBatch.setOpacity(0.98 * hostileProjectileOpacity);
+    hostileTrailAccentBatch.setOpacity(0.72 * hostileProjectileOpacity);
+
+    // Exact resolved combat events provide the contact beat. The projector
+    // retains them for a handful of simulation ticks, so a clean ivory spark
+    // or an oversized white-gold crit burst remains legible even if a browser
+    // frame lands between fixed updates.
+    const impacts = combatImpactVisuals.update(pendingCombatImpactEvents, curr.tick);
+    let normalImpactOpacityTotal = 0;
+    let normalImpactOpacityCount = 0;
+    let criticalImpactOpacityTotal = 0;
+    let criticalImpactOpacityCount = 0;
+    let playerImpactOpacityTotal = 0;
+    let playerImpactOpacityCount = 0;
+    for (let index = 0; index < impacts.impacts.count; index++) {
+      const style = impacts.impacts.style[index]!;
+      const impactOpacity = Math.min(1, Math.max(0, impacts.impacts.opacity[index]!));
+      const scale = impacts.impacts.coreScale[index]! * (0.68 + impactOpacity * 0.32);
+      const lift = impacts.impacts.lift[index]! + 0.3;
+      const spin = impacts.impacts.spinRadians[index]!;
+      const store = style === COMBAT_IMPACT_STYLE.criticalEnemyHit
+        ? vfxTransforms.criticalImpacts
+        : style === COMBAT_IMPACT_STYLE.playerHit
+          ? vfxTransforms.playerImpacts
+          : vfxTransforms.normalImpacts;
+      const written = store.push(
+        sceneX(impacts.impacts.x[index]!),
+        sceneZ(impacts.impacts.y[index]!),
+        scale,
+        1,
+        scale,
+        lift,
+        spin,
+      );
+      if (!written) continue;
+      if (style === COMBAT_IMPACT_STYLE.criticalEnemyHit) {
+        criticalImpactOpacityTotal += impactOpacity;
+        criticalImpactOpacityCount++;
+      } else if (style === COMBAT_IMPACT_STYLE.playerHit) {
+        playerImpactOpacityTotal += impactOpacity;
+        playerImpactOpacityCount++;
+      } else {
+        normalImpactOpacityTotal += impactOpacity;
+        normalImpactOpacityCount++;
+      }
+    }
+    normalImpactBatch.setOpacity(
+      normalImpactOpacityCount > 0 ? 0.78 * normalImpactOpacityTotal / normalImpactOpacityCount : 0,
+    );
+    criticalImpactBatch.setOpacity(
+      criticalImpactOpacityCount > 0 ? criticalImpactOpacityTotal / criticalImpactOpacityCount : 0,
+    );
+    playerImpactBatch.setOpacity(
+      playerImpactOpacityCount > 0 ? 0.88 * playerImpactOpacityTotal / playerImpactOpacityCount : 0,
+    );
+  }
 
   function render(
     prev: RenderSnapshot,
@@ -825,12 +1605,16 @@ export function createRenderer(
         : [...traitPresentationEvents, ...pendingCombatDefenseEvents];
     // Input events are per rendered frame; consume the supplemental bridge so
     // repeated render calls cannot replay one block/dodge as multiple effects.
-    pendingCombatDefenseEvents = Object.freeze([]);
+    pendingCombatDefenseEvents = emptyTraitPresentationEvents;
 
     heroPresentation.update(prev, curr, alpha, traitVisualState, presentationEvents);
     combatFeedbackPresentation.update(combatFeedback);
-    traitCommandPresentation.update(curr.tick, presentationEvents);
+    traitCommandPresentation.update(
+      curr.tick,
+      traitCommandEventsWithoutThreatTelegraphs(presentationEvents),
+    );
     damageNumberPresentation.update(curr.tick, cameraTarget.x, cameraTarget.y, cameraAspect);
+    writeCombatVisualOverhaul(prev, curr, alpha, presentationEvents);
     // The cyan sphere is a resilient loading/error fallback. Greg takes over
     // asynchronously once the audited glTF has loaded and initialized.
     playerEntity.enabled = curr.playerAlive && !heroPresentation.ready;
@@ -843,7 +1627,9 @@ export function createRenderer(
     camera.setPosition(cameraSceneX, CAMERA_HEIGHT, cameraSceneZ + CAMERA_FOLLOW_BACK_OFFSET);
     camera.lookAt(cameraSceneX, 0, cameraSceneZ, 0, 0, -1);
 
-    enemySpriteMotion.timeSeconds = lerp(prev.tick, curr.tick, alpha) / config.hz;
+    const presentationTimeSeconds = lerp(prev.tick, curr.tick, alpha) / config.hz;
+    enemySpriteMotion.timeSeconds = presentationTimeSeconds;
+    lootSpriteMotion.timeSeconds = presentationTimeSeconds;
     walkerEnemyTransforms.update(
       prev.enemies,
       curr.enemies,
@@ -1020,6 +1806,11 @@ export function createRenderer(
       -worldHalfWidth,
       worldHalfHeight,
       -1,
+      undefined,
+      1,
+      undefined,
+      undefined,
+      lootSpriteMotion,
     );
     // Collision radii are intentionally generous for rare pickups, so keep
     // their visual scale readable rather than rendering a 12-unit collection
@@ -1033,6 +1824,9 @@ export function createRenderer(
       -1,
       POWER_PICKUP_KIND.bomb,
       0.42,
+      undefined,
+      undefined,
+      lootSpriteMotion,
     );
     transformStores.magnetPickup.update(
       prev.powerPickups,
@@ -1043,6 +1837,9 @@ export function createRenderer(
       -1,
       POWER_PICKUP_KIND.magnet,
       0.4,
+      undefined,
+      undefined,
+      lootSpriteMotion,
     );
     transformStores.foodPickup.update(
       prev.powerPickups,
@@ -1053,6 +1850,9 @@ export function createRenderer(
       -1,
       POWER_PICKUP_KIND.food,
       0.38,
+      undefined,
+      undefined,
+      lootSpriteMotion,
     );
     transformStores.zone.update(
       prev.zones,
@@ -1104,10 +1904,24 @@ export function createRenderer(
     markedEnemyBatch.sync(markedEnemyTransforms);
     projectileBatch.sync(transformStores.projectile);
     hostileProjectileBatch.sync(hostileProjectileTransforms);
+    playerProjectileAccentBatch.sync(vfxTransforms.playerProjectileAccent);
+    spitProjectileAccentBatch.sync(vfxTransforms.spitProjectileAccent);
+    criticalProjectileAccentBatch.sync(vfxTransforms.criticalProjectileAccent);
     pickupBatch.sync(transformStores.pickup);
+    xpAccentBatch.sync(vfxTransforms.xpAccent);
+    xpHaloBatch.sync(vfxTransforms.xpHalo);
     bombPickupBatch.sync(transformStores.bombPickup);
     magnetPickupBatch.sync(transformStores.magnetPickup);
     foodPickupBatch.sync(transformStores.foodPickup);
+    bombAccentBatch.sync(vfxTransforms.bombAccent);
+    magnetAccentBatch.sync(vfxTransforms.magnetAccent);
+    foodAccentBatch.sync(vfxTransforms.foodAccent);
+    hostileProjectileAccentBatch.sync(vfxTransforms.hostileProjectileAccent);
+    hostileTrailAccentBatch.sync(vfxTransforms.hostileTrailAccent);
+    for (const route of routedVfxBatches) route.batch.sync(route.store);
+    normalImpactBatch.sync(vfxTransforms.normalImpacts);
+    criticalImpactBatch.sync(vfxTransforms.criticalImpacts);
+    playerImpactBatch.sync(vfxTransforms.playerImpacts);
     zoneBatch.sync(transformStores.zone);
     razorstepZoneBatch.sync(razorstepZoneTransforms);
     stinkCloudZoneBatch.sync(stinkCloudZoneTransforms);
@@ -1142,10 +1956,24 @@ export function createRenderer(
         markedEnemyBatch.liveViews +
         projectileBatch.liveViews +
         hostileProjectileBatch.liveViews +
+        playerProjectileAccentBatch.liveViews +
+        spitProjectileAccentBatch.liveViews +
+        criticalProjectileAccentBatch.liveViews +
         pickupBatch.liveViews +
+        xpAccentBatch.liveViews +
+        xpHaloBatch.liveViews +
         bombPickupBatch.liveViews +
         magnetPickupBatch.liveViews +
         foodPickupBatch.liveViews +
+        bombAccentBatch.liveViews +
+        magnetAccentBatch.liveViews +
+        foodAccentBatch.liveViews +
+        hostileProjectileAccentBatch.liveViews +
+        hostileTrailAccentBatch.liveViews +
+        sumBatchViews(routedVfxBatchViews, 'liveViews') +
+        normalImpactBatch.liveViews +
+        criticalImpactBatch.liveViews +
+        playerImpactBatch.liveViews +
         zoneBatch.liveViews +
         razorstepZoneBatch.liveViews +
         stinkCloudZoneBatch.liveViews +
@@ -1165,10 +1993,24 @@ export function createRenderer(
         markedEnemyBatch.highWaterViews +
         projectileBatch.highWaterViews +
         hostileProjectileBatch.highWaterViews +
+        playerProjectileAccentBatch.highWaterViews +
+        spitProjectileAccentBatch.highWaterViews +
+        criticalProjectileAccentBatch.highWaterViews +
         pickupBatch.highWaterViews +
+        xpAccentBatch.highWaterViews +
+        xpHaloBatch.highWaterViews +
         bombPickupBatch.highWaterViews +
         magnetPickupBatch.highWaterViews +
         foodPickupBatch.highWaterViews +
+        bombAccentBatch.highWaterViews +
+        magnetAccentBatch.highWaterViews +
+        foodAccentBatch.highWaterViews +
+        hostileProjectileAccentBatch.highWaterViews +
+        hostileTrailAccentBatch.highWaterViews +
+        sumBatchViews(routedVfxBatchViews, 'highWaterViews') +
+        normalImpactBatch.highWaterViews +
+        criticalImpactBatch.highWaterViews +
+        playerImpactBatch.highWaterViews +
         zoneBatch.highWaterViews +
         razorstepZoneBatch.highWaterViews +
         stinkCloudZoneBatch.highWaterViews +
@@ -1214,10 +2056,24 @@ export function createRenderer(
     markedEnemyBatch.dispose();
     projectileBatch.dispose();
     hostileProjectileBatch.dispose();
+    playerProjectileAccentBatch.dispose();
+    spitProjectileAccentBatch.dispose();
+    criticalProjectileAccentBatch.dispose();
     pickupBatch.dispose();
+    xpAccentBatch.dispose();
+    xpHaloBatch.dispose();
     bombPickupBatch.dispose();
     magnetPickupBatch.dispose();
     foodPickupBatch.dispose();
+    bombAccentBatch.dispose();
+    magnetAccentBatch.dispose();
+    foodAccentBatch.dispose();
+    hostileProjectileAccentBatch.dispose();
+    hostileTrailAccentBatch.dispose();
+    for (const route of routedVfxBatches) route.batch.dispose();
+    normalImpactBatch.dispose();
+    criticalImpactBatch.dispose();
+    playerImpactBatch.dispose();
     zoneBatch.dispose();
     razorstepZoneBatch.dispose();
     stinkCloudZoneBatch.dispose();
@@ -1234,10 +2090,13 @@ export function createRenderer(
     markedEnemyMesh.destroy();
     enemyShadowMesh.destroy();
     zoneMesh.destroy();
+    vfxCardMesh.destroy();
+    vfxRingMesh.destroy();
     walkerTextureBinding.dispose();
     runnerTextureBinding.dispose();
     bruteTextureBinding.dispose();
     bossTextureBinding.dispose();
+    vfxAtlasTextureBinding.dispose();
     walkerEnemyMaterial.destroy();
     runnerEnemyMaterial.destroy();
     bruteEnemyMaterial.destroy();
@@ -1261,6 +2120,7 @@ export function createRenderer(
     stinkCloudZoneMaterial.destroy();
     royalStinkZoneMaterial.destroy();
     playerMaterial.destroy();
+    for (const material of vfxAtlasMaterials) material.destroy();
     damageNumberPresentation.dispose();
     traitCommandPresentation.dispose();
     combatFeedbackPresentation.dispose();
@@ -1286,6 +2146,12 @@ export function createRenderer(
     },
     setCombatPresentationEvents(events): void {
       pendingCombatDefenseEvents = projectCombatDefensePresentationEvents(events);
+      pendingCombatImpactEvents = events;
+    },
+    setDirectorEvents(events): void {
+      // The driver owns the source array and calls this immediately before
+      // render; the threat presenter consumes/copies only its fixed-tick facts.
+      pendingDirectorEvents = events;
     },
     setPalette,
     stats,

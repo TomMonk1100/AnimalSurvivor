@@ -9,8 +9,13 @@ function enemies(entries: Array<{ id: number; role: number; hp: number; maxHp: n
   const x = new Float32Array(capacity);
   const y = new Float32Array(capacity);
   const radius = new Float32Array(capacity);
+  const value = new Float32Array(capacity);
+  const velocityX = new Float32Array(capacity);
+  const velocityY = new Float32Array(capacity);
   const archetype = new Uint8Array(capacity);
   const role = new Uint8Array(capacity);
+  const source = new Uint8Array(capacity);
+  const critical = new Uint8Array(capacity);
   const hp = new Float32Array(capacity);
   const maxHp = new Float32Array(capacity);
   const marked = new Uint8Array(capacity);
@@ -20,7 +25,10 @@ function enemies(entries: Array<{ id: number; role: number; hp: number; maxHp: n
     hp[index] = entry.hp;
     maxHp[index] = entry.maxHp;
   });
-  return { category: 'enemy', count: capacity, id, x, y, radius, archetype, role, hp, maxHp, marked };
+  return {
+    category: 'enemy', count: capacity, id, x, y, radius, value, velocityX, velocityY,
+    archetype, role, source, critical, hp, maxHp, marked,
+  };
 }
 
 describe('boss health presentation', () => {

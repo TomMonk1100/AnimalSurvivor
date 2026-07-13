@@ -17,6 +17,13 @@ export interface InstanceMatrices {
  */
 export interface InstancedCategoryBatch {
   sync(instances: InstanceMatrices): void;
+  /**
+   * Overrides the shared material-opacity uniform for this one instanced draw.
+   * It is intentionally batch-scoped: renderers use it only after routing
+   * descriptors into bounded semantic lanes, never by allocating a material
+   * for each instance.
+   */
+  setOpacity(opacity: number): void;
   readonly liveViews: number;
   readonly highWaterViews: number;
   dispose(): void;
@@ -64,6 +71,7 @@ export function createInstancedCategoryBatch(
   let liveViews = 0;
   let highWaterViews = 0;
   let disposed = false;
+  let lastOpacity = Number.NaN;
 
   function sync(instances: InstanceMatrices): void {
     if (disposed) {
@@ -108,8 +116,22 @@ export function createInstancedCategoryBatch(
     liveViews = 0;
   }
 
+  function setOpacity(opacity: number): void {
+    if (disposed) return;
+    const safeOpacity = Number.isFinite(opacity)
+      ? Math.min(1, Math.max(0, opacity))
+      : 0;
+    if (safeOpacity === lastOpacity) return;
+    // StandardMaterial exposes its per-mesh uniform under this name. Keeping
+    // the override on the MeshInstance means several semantic lanes can share
+    // one atlas material without mutating one another mid-frame.
+    meshInstance.setParameter('material_opacity', safeOpacity);
+    lastOpacity = safeOpacity;
+  }
+
   return {
     sync,
+    setOpacity,
     get liveViews(): number {
       return liveViews;
     },

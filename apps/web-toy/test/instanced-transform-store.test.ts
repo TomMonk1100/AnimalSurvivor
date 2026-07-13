@@ -24,10 +24,15 @@ function snapshot(entries: readonly Entry[], category: ViewCategory = 'enemy'): 
   const x = new Float32Array(capacity);
   const y = new Float32Array(capacity);
   const radius = new Float32Array(capacity);
+  const value = new Float32Array(capacity);
+  const velocityX = new Float32Array(capacity);
+  const velocityY = new Float32Array(capacity);
   const hp = new Float32Array(capacity);
   const maxHp = new Float32Array(capacity);
   const archetype = new Uint8Array(capacity);
   const role = new Uint8Array(capacity);
+  const source = new Uint8Array(capacity);
+  const critical = new Uint8Array(capacity);
   const marked = new Uint8Array(capacity);
 
   entries.forEach((entry, index) => {
@@ -42,7 +47,10 @@ function snapshot(entries: readonly Entry[], category: ViewCategory = 'enemy'): 
     marked[index] = entry.marked ?? 0;
   });
 
-  return { category, count: capacity, id, x, y, radius, hp, maxHp, archetype, role, marked };
+  return {
+    category, count: capacity, id, x, y, radius, value, velocityX, velocityY,
+    hp, maxHp, archetype, role, source, critical, marked,
+  };
 }
 
 function matrix(store: InstancedTransformStore, index: number): number[] {

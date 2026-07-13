@@ -107,6 +107,29 @@ type EffectMaterial = Exclude<TraitCommandEffectKind, 'zone-spawn'>
 
 type OrbitingVisualMaterial = 'orbiting-damage' | 'monarch-brood-orbit';
 
+/**
+ * A compact library of reusable accent silhouettes.  These are deliberately
+ * shared across every trait rather than allocating a bespoke particle system
+ * for each command.  The authored base mesh still owns a trait's identity;
+ * the accent supplies the readable cast, travel, impact, and afterglow beat.
+ */
+export type TraitCommandVisualAccent = 'crown' | 'comet' | 'slash' | 'ridge' | 'halo' | 'rune';
+
+/** Visual stage names are public so presentation behaviour stays focused-testable. */
+export type TraitCommandVisualStage = 'cast' | 'travel' | 'impact' | 'aftermath';
+
+/**
+ * Renderer-only choreography for a command family. None of these values
+ * influence simulation hitboxes, timing, or targeting.
+ */
+export interface TraitCommandVisualBlueprint {
+  readonly accent: TraitCommandVisualAccent;
+  readonly castScale: number;
+  readonly travelDistance: number;
+  readonly impactScale: number;
+  readonly aftermathOpacity: number;
+}
+
 export interface TraitCommandEffectProfile {
   readonly kind: TraitCommandEffectKind;
   readonly material: EffectMaterial;
@@ -187,8 +210,12 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
     fallbackRadius: 66, minimumRadius: 16, maximumRadius: 190, directed: true,
   },
   'quill-volley': {
-    kind: 'directed-burst', material: 'quill-volley', motion: 'expand', lifetimeTicks: 13,
-    fallbackRadius: 58, minimumRadius: 14, maximumRadius: 170, directed: true,
+    // The individual simulation projectiles already carry the long-range
+    // read. Keep this renderer-only source cue close to Greg as a sharp
+    // muzzle volley; treating its fallback radius like an area effect turned
+    // rapid quills into giant translucent yellow panels over the arena.
+    kind: 'directed-burst', material: 'quill-volley', motion: 'expand', lifetimeTicks: 7,
+    fallbackRadius: 18, minimumRadius: 7, maximumRadius: 28, directed: true,
   },
   'owl-volley': {
     kind: 'directed-burst', material: 'owl-volley', motion: 'expand', lifetimeTicks: 14,
@@ -259,8 +286,11 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
     fallbackRadius: 100, minimumRadius: 24, maximumRadius: 260, directed: false,
   },
   'melee-arc': {
-    kind: 'melee-arc', material: 'melee-arc', motion: 'expand', lifetimeTicks: 8,
-    fallbackRadius: 68, minimumRadius: 20, maximumRadius: 150, directed: true,
+    // Mantis owns a wide cleave, but this ground sector is a presentation
+    // flourish—not a literal hitbox. A full authored range made repeated
+    // scythes reach the screen edge and obscure the combat space.
+    kind: 'melee-arc', material: 'melee-arc', motion: 'expand', lifetimeTicks: 6,
+    fallbackRadius: 42, minimumRadius: 16, maximumRadius: 52, directed: true,
   },
   'greg-fox-swipe': {
     kind: 'melee-arc', material: 'greg-fox-swipe', motion: 'expand', lifetimeTicks: 10,
@@ -333,10 +363,12 @@ const COLORS: Readonly<Record<EffectMaterial, pc.Color>> = Object.freeze({
   'support-pulse': new pc.Color(0.3, 1, 0.42),
   'directed-burst': new pc.Color(1, 0.8, 0.16),
   'rush-rake': new pc.Color(0.35, 0.92, 1),
-  'greg-fox-swipe': new pc.Color(1, 0.58, 0.2),
-  'greg-rush-rake': new pc.Color(0.42, 0.96, 1),
-  'benny-trample-wave': new pc.Color(1, 0.54, 0.16),
-  'gracie-spit': new pc.Color(0.52, 1, 0.38),
+  // Hero signatures own a hot amber / earth / mint language. Enemy danger
+  // remains reserved for the scene's red-coral threat treatment.
+  'greg-fox-swipe': new pc.Color(1, 0.76, 0.22),
+  'greg-rush-rake': new pc.Color(1, 0.62, 0.12),
+  'benny-trample-wave': new pc.Color(1, 0.38, 0.08),
+  'gracie-spit': new pc.Color(0.2, 1, 0.7),
   'fluffy-shield': new pc.Color(0.46, 0.9, 1),
   'armor-block': new pc.Color(1, 0.8, 0.38),
   'fox-dodge': new pc.Color(0.7, 0.98, 1),
@@ -385,14 +417,16 @@ const OPACITY: Readonly<Record<EffectMaterial, number>> = Object.freeze({
   'support-pulse': 0.48,
   'directed-burst': 0.72,
   'rush-rake': 0.82,
-  'greg-fox-swipe': 0.96,
-  'greg-rush-rake': 0.9,
-  'benny-trample-wave': 0.9,
-  'gracie-spit': 0.9,
+  'greg-fox-swipe': 0.98,
+  'greg-rush-rake': 0.96,
+  'benny-trample-wave': 0.96,
+  'gracie-spit': 0.94,
   'fluffy-shield': 0.82,
   'armor-block': 0.9,
   'fox-dodge': 0.84,
-  'quill-volley': 0.92,
+  // A bright needle burst should punctuate the spawned quills, not blanket
+  // the hero whenever a high-cadence volley refreshes.
+  'quill-volley': 0.58,
   'owl-volley': 0.86,
   'radial-burst': 0.62,
   'thornstorm-volley': 0.84,
@@ -407,7 +441,9 @@ const OPACITY: Readonly<Record<EffectMaterial, number>> = Object.freeze({
   'area-damage': 0.66,
   'crab-crush': 0.86,
   'meteor-impact': 0.96,
-  'melee-arc': 0.9,
+  // The scythe arc stays bright at its leading edge through the accent, while
+  // the broad floor sector remains transparent enough to preserve targets.
+  'melee-arc': 0.68,
   'gecko-zone-spawn': 0.58,
   'razorstep-zone-spawn': 0.66,
   'skunk-cloud': 0.72,
@@ -468,6 +504,157 @@ function positiveOr(value: number, fallback: number): number {
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+const VISUAL_BLUEPRINTS = Object.freeze({
+  /** Broad claw language: a bright authored arc followed by a moving rake echo. */
+  heroSlash: Object.freeze({
+    accent: 'slash', castScale: 0.42, travelDistance: 0.58, impactScale: 1.34, aftermathOpacity: 0.24,
+  } satisfies TraitCommandVisualBlueprint),
+  /** Benny's signature is a traveling ridge, never a generic round explosion. */
+  earthWave: Object.freeze({
+    accent: 'ridge', castScale: 0.46, travelDistance: 0.7, impactScale: 1.42, aftermathOpacity: 0.32,
+  } satisfies TraitCommandVisualBlueprint),
+  /** Projectile families get a compact muzzle/comet punctuation before the real projectile takes over. */
+  projectile: Object.freeze({
+    accent: 'comet', castScale: 0.34, travelDistance: 0.74, impactScale: 1.2, aftermathOpacity: 0.22,
+  } satisfies TraitCommandVisualBlueprint),
+  /** Quills are a compact launch punctuation; the real projectiles own range. */
+  quillVolley: Object.freeze({
+    accent: 'comet', castScale: 0.24, travelDistance: 0.38, impactScale: 0.72, aftermathOpacity: 0.08,
+  } satisfies TraitCommandVisualBlueprint),
+  /** Mantis keeps a broad directional scythe, confined to a crisp close cleave. */
+  mantisCleave: Object.freeze({
+    accent: 'slash', castScale: 0.28, travelDistance: 0.32, impactScale: 0.8, aftermathOpacity: 0.1,
+  } satisfies TraitCommandVisualBlueprint),
+  /** Area weapons earn a sharp impact crown, readable through a dense swarm. */
+  impact: Object.freeze({
+    accent: 'crown', castScale: 0.38, travelDistance: 0.18, impactScale: 1.5, aftermathOpacity: 0.28,
+  } satisfies TraitCommandVisualBlueprint),
+  /** Telegraphs are held runes that resolve into a single brighter warning pulse. */
+  telegraph: Object.freeze({
+    accent: 'halo', castScale: 0.58, travelDistance: 0.42, impactScale: 1.04, aftermathOpacity: 0.46,
+  } satisfies TraitCommandVisualBlueprint),
+  /** Shields and sonar have a controlled, non-damaging information language. */
+  aura: Object.freeze({
+    accent: 'rune', castScale: 0.5, travelDistance: 0.08, impactScale: 1.08, aftermathOpacity: 0.48,
+  } satisfies TraitCommandVisualBlueprint),
+});
+
+/**
+ * Selects a compact shared accent without giving every trait a separate VFX
+ * system. The base mesh remains source-specific; this only choreographs its
+ * readable second layer.
+ */
+export function resolveTraitCommandVisualBlueprint(
+  profile: TraitCommandEffectProfile,
+): TraitCommandVisualBlueprint {
+  switch (profile.material) {
+    case 'greg-fox-swipe':
+    case 'greg-rush-rake':
+      return VISUAL_BLUEPRINTS.heroSlash;
+    case 'melee-arc':
+      return VISUAL_BLUEPRINTS.mantisCleave;
+    case 'benny-trample-wave':
+      return VISUAL_BLUEPRINTS.earthWave;
+    case 'gracie-spit':
+    case 'directed-burst':
+    case 'rush-rake':
+    case 'owl-volley':
+    case 'thornstorm-volley':
+      return VISUAL_BLUEPRINTS.projectile;
+    case 'quill-volley':
+      return VISUAL_BLUEPRINTS.quillVolley;
+    case 'telegraph':
+    case 'thornstorm-telegraph':
+    case 'thunderbug-telegraph':
+    case 'boss-charge':
+    case 'boss-volley':
+    case 'saltwind-charge':
+    case 'saltwind-sandstorm':
+    case 'support-pulse':
+    case 'gracie-scout':
+      return VISUAL_BLUEPRINTS.telegraph;
+    case 'fluffy-shield':
+    case 'armor-block':
+    case 'fox-dodge':
+    case 'gather':
+    case 'orbiting-damage':
+    case 'firefly-contact':
+    case 'monarch-brood-orbit':
+    case 'trait-cue':
+    case 'mark-pulse':
+    case 'bat-ears-sonar':
+    case 'midnight-radar-sonar':
+    case 'gecko-zone-spawn':
+    case 'razorstep-zone-spawn':
+    case 'skunk-cloud':
+    case 'royal-stink-cloud':
+      return VISUAL_BLUEPRINTS.aura;
+    default:
+      return VISUAL_BLUEPRINTS.impact;
+  }
+}
+
+/**
+ * A deterministic four-beat timeline. Pulse/telegraph effects hold their
+ * cast warning longer; attacks reach their impact beat much faster.
+ */
+export function resolveTraitCommandVisualStage(
+  progress: number,
+  profile: TraitCommandEffectProfile,
+): TraitCommandVisualStage {
+  const bounded = clamp(finiteOr(progress, 0), 0, 1);
+  // Trample is structurally emitted as a telegraph so sequential simulation
+  // waves can share that command family, but visually it is an immediate
+  // attacking earth front—not a slow enemy warning.
+  const heldWarning = profile.material !== 'benny-trample-wave'
+    && (profile.kind === 'telegraph'
+    || profile.kind === 'mark-pulse'
+    || profile.kind === 'zone-spawn'
+    || profile.kind === 'trait-cue');
+  if (heldWarning) {
+    if (bounded < 0.3) return 'cast';
+    if (bounded < 0.72) return 'travel';
+    if (bounded < 0.9) return 'impact';
+    return 'aftermath';
+  }
+  if (bounded < 0.16) return 'cast';
+  if (bounded < 0.58) return 'travel';
+  if (bounded < 0.82) return 'impact';
+  return 'aftermath';
+}
+
+/**
+ * Upgrade rank is not part of the render snapshot. Existing authored command
+ * signals are, so this safely scales only the presentation silhouette from
+ * count, strength, and damage while keeping every effect bounded.
+ */
+export function resolveTraitCommandVisualIntensity(
+  event: TraitCommandPresentationEvent,
+  profile: TraitCommandEffectProfile,
+): number {
+  const countSignal = clamp((Math.max(0, finiteOr(event.count, 0)) - 1) / 10, 0, 1);
+  const strengthSignal = clamp(Math.max(0, finiteOr(event.strength, 0)) / 8, 0, 1);
+  const damageSignal = clamp(Math.max(0, finiteOr(event.damage, 0)) / 80, 0, 1);
+  const commandSignal = Math.max(countSignal, strengthSignal, damageSignal);
+  const heroSignature = profile.material === 'greg-fox-swipe'
+    || profile.material === 'greg-rush-rake'
+    || profile.material === 'benny-trample-wave'
+    || profile.material === 'gracie-spit';
+  return clamp(1 + commandSignal * 0.3 + (heroSignature ? 0.06 : 0), 1, 1.36);
+}
+
+/**
+ * Most commands keep the presentation pool's natural capacity. Porcupine
+ * Quills and Mantis Scythes intentionally coalesce to one live cue: the
+ * former already has real projectile meshes, while the latter is a broad
+ * floor sweep whose duplicate sectors add noise without new information.
+ */
+export function resolveTraitCommandVisualConcurrencyCap(
+  profile: TraitCommandEffectProfile,
+): number | null {
+  return profile.material === 'quill-volley' || profile.material === 'melee-arc' ? 1 : null;
 }
 
 function resolvedChainHitCount(event: TraitCommandPresentationEvent): number {
@@ -702,12 +889,105 @@ function resolveAspect(event: TraitCommandPresentationEvent, profile: TraitComma
   return clamp(0.42 + spread / Math.PI, 0.42, 1);
 }
 
+function resolveAccentTravel(progress: number, stage: TraitCommandVisualStage): number {
+  switch (stage) {
+    case 'cast': return 0;
+    case 'travel': return clamp((progress - 0.16) / 0.5, 0.08, 0.86);
+    case 'impact': return 1;
+    case 'aftermath': return 0.9;
+  }
+}
+
+function resolveAccentScale(
+  radius: number,
+  intensity: number,
+  blueprint: TraitCommandVisualBlueprint,
+  stage: TraitCommandVisualStage,
+): number {
+  const factor = stage === 'cast'
+    ? blueprint.castScale * 0.38
+    : stage === 'travel'
+      ? 0.18 + blueprint.impactScale * 0.2
+      : stage === 'impact'
+        ? blueprint.impactScale * 0.42
+        : blueprint.impactScale * 0.3;
+  return Math.max(1, radius * factor * intensity);
+}
+
+function resolveAccentOpacity(
+  baseOpacity: number,
+  blueprint: TraitCommandVisualBlueprint,
+  stage: TraitCommandVisualStage,
+): number {
+  const stageOpacity = stage === 'cast'
+    ? 0.82
+    : stage === 'travel'
+      ? 0.9
+      : stage === 'impact'
+        ? 1
+        : blueprint.aftermathOpacity;
+  return baseOpacity * stageOpacity;
+}
+
+function resolveStagedAccent(
+  blueprint: TraitCommandVisualBlueprint,
+  stage: TraitCommandVisualStage,
+): TraitCommandVisualAccent {
+  if (stage === 'impact') return 'crown';
+  if (
+    stage === 'aftermath'
+    && (blueprint.accent === 'comet' || blueprint.accent === 'slash' || blueprint.accent === 'ridge')
+  ) return 'halo';
+  return blueprint.accent;
+}
+
+function resolveAccentLateralScale(accent: TraitCommandVisualAccent): number {
+  switch (accent) {
+    case 'comet': return 0.42;
+    case 'slash': return 0.66;
+    case 'ridge': return 0.82;
+    default: return 1;
+  }
+}
+
+function resolveAccentLongitudinalScale(accent: TraitCommandVisualAccent): number {
+  switch (accent) {
+    case 'comet': return 1.22;
+    case 'slash': return 1.16;
+    case 'ridge': return 1.2;
+    default: return 1;
+  }
+}
+
 function createMaterial(role: EffectMaterial): pc.StandardMaterial {
   const material = new pc.StandardMaterial();
   material.useLighting = false;
   material.diffuse.set(0, 0, 0);
   material.emissive.copy(COLORS[role]);
   material.opacity = OPACITY[role];
+  material.blendType = pc.BLEND_ADDITIVEALPHA;
+  material.depthWrite = false;
+  material.cull = pc.CULLFACE_NONE;
+  material.update();
+  return material;
+}
+
+/**
+ * The accent layer is intentionally a slightly brighter sibling material,
+ * not a second texture or particle emitter. It gives impacts a crisp core at
+ * virtually no asset cost and stays inside the existing bounded mesh pools.
+ */
+function createAccentMaterial(role: EffectMaterial): pc.StandardMaterial {
+  const source = COLORS[role];
+  const material = new pc.StandardMaterial();
+  material.useLighting = false;
+  material.diffuse.set(0, 0, 0);
+  material.emissive.set(
+    Math.min(1, source.r * 1.16 + 0.08),
+    Math.min(1, source.g * 1.16 + 0.08),
+    Math.min(1, source.b * 1.16 + 0.08),
+  );
+  material.opacity = Math.min(1, OPACITY[role] * 0.92 + 0.16);
   material.blendType = pc.BLEND_ADDITIVEALPHA;
   material.depthWrite = false;
   material.cull = pc.CULLFACE_NONE;
@@ -814,6 +1094,22 @@ function appendRibbon(builder: GroundMeshBuilder, points: readonly GroundPoint[]
   }
 }
 
+function appendGroundDiamond(
+  builder: GroundMeshBuilder,
+  centerX: number,
+  centerZ: number,
+  halfWidth: number,
+  halfLength: number,
+): void {
+  appendGroundQuad(
+    builder,
+    [centerX - halfWidth, centerZ],
+    [centerX, centerZ + halfLength],
+    [centerX + halfWidth, centerZ],
+    [centerX, centerZ - halfLength],
+  );
+}
+
 function createGroundMesh(device: pc.GraphicsDevice, build: (builder: GroundMeshBuilder) => void): pc.Mesh {
   const builder: GroundMeshBuilder = { positions: [], indices: [] };
   build(builder);
@@ -878,51 +1174,70 @@ function createRakeMesh(device: pc.GraphicsDevice): pc.Mesh {
   });
 }
 
-/** A broad, layered fox claw sweep for Greg's non-projectile starter attack. */
+/**
+ * A broad, layered fox claw sweep for Greg's non-projectile starter attack.
+ * The thick inner crescent reads as the shoulder cast, the three long curved
+ * claws carry the travel beat, and the diamonds catch the terminal impact.
+ */
 function createFoxSwipeMesh(device: pc.GraphicsDevice): pc.Mesh {
   return createGroundMesh(device, (builder) => {
-    appendArcBand(builder, -0.98, 0.98, 0.32, 0.44, 9);
-    appendArcBand(builder, -0.9, 0.9, 0.58, 0.7, 10);
-    appendArcBand(builder, -0.82, 0.82, 0.84, 1, 9);
-    for (const angle of [-0.48, 0, 0.48]) appendGroundRay(builder, angle, 0.58, 1.04, 0.052);
+    appendArcBand(builder, -1.06, 1.06, 0.18, 0.32, 9);
+    appendArcBand(builder, -0.98, 0.98, 0.52, 0.66, 10);
+    appendArcBand(builder, -0.88, 0.88, 0.82, 1, 10);
+    for (const offset of [-0.42, 0, 0.42]) {
+      appendRibbon(builder, [
+        [offset * 0.12, 0.16],
+        [offset * 0.48, 0.42],
+        [offset * 0.78, 0.72],
+        [offset * 1.04, 1.08],
+      ], 0.055);
+      appendGroundDiamond(builder, offset * 1.06, 1.1, 0.075, 0.12);
+    }
   });
 }
 
-/** Three curved rakes stay distinct from one large fox starter swipe. */
+/** Three fast claw lanes stay distinct from one large fox starter swipe. */
 function createRushRakeSweepMesh(device: pc.GraphicsDevice): pc.Mesh {
   return createGroundMesh(device, (builder) => {
-    for (const offset of [-0.34, 0, 0.34]) {
+    for (const offset of [-0.38, 0, 0.38]) {
       appendRibbon(builder, [
-        [offset * 0.18, 0.05],
-        [offset * 0.62, 0.34],
-        [offset, 0.72],
-        [offset * 1.18, 1.04],
-      ], 0.05);
+        [offset * 0.12, 0.04],
+        [offset * 0.68, 0.32],
+        [offset * 0.36, 0.68],
+        [offset * 1.16, 1.12],
+      ], 0.058);
+      appendGroundDiamond(builder, offset * 1.18, 1.12, 0.062, 0.11);
     }
-    appendArcBand(builder, -0.46, 0.46, 0.1, 0.17, 5);
+    appendArcBand(builder, -0.52, 0.52, 0.08, 0.2, 5);
   });
 }
 
-/** A central glob plus escaping droplets makes Gracie's projectile unmistakable. */
+/** A central glob, long comet tail, and escaping droplets make Gracie's projectile unmistakable. */
 function createSpitVolleyMesh(device: pc.GraphicsDevice): pc.Mesh {
   return createGroundMesh(device, (builder) => {
-    appendArcBand(builder, 0, Math.PI * 2, 0.06, 0.24, 7);
-    appendGroundRay(builder, 0, 0.16, 1, 0.14);
-    appendGroundRay(builder, -0.22, 0.3, 0.84, 0.075);
-    appendGroundRay(builder, 0.22, 0.3, 0.84, 0.075);
-    appendGroundRay(builder, -0.48, 0.46, 0.7, 0.052);
-    appendGroundRay(builder, 0.48, 0.46, 0.7, 0.052);
+    appendArcBand(builder, 0, Math.PI * 2, 0.05, 0.28, 8);
+    appendGroundRay(builder, 0, 0.12, 1.12, 0.17);
+    appendGroundDiamond(builder, 0, 0.88, 0.17, 0.22);
+    appendGroundRay(builder, -0.25, 0.26, 0.94, 0.074);
+    appendGroundRay(builder, 0.25, 0.26, 0.94, 0.074);
+    appendGroundRay(builder, -0.54, 0.44, 0.76, 0.05);
+    appendGroundRay(builder, 0.54, 0.44, 0.76, 0.05);
   });
 }
 
-/** Wide fractured ridges communicate an advancing Trample earth wave. */
+/** Wide fractured ridges and stone plates communicate an advancing Trample earth wave. */
 function createTrampleWaveMesh(device: pc.GraphicsDevice): pc.Mesh {
   return createGroundMesh(device, (builder) => {
-    appendArcBand(builder, -1.08, 1.08, 0.28, 0.42, 10);
-    appendArcBand(builder, -0.96, 0.96, 0.56, 0.7, 10);
-    appendArcBand(builder, -0.82, 0.82, 0.82, 1, 9);
-    for (const offset of [-0.68, -0.34, 0, 0.34, 0.68]) {
-      appendGroundRay(builder, offset * 0.48, 0.5, 0.96, 0.042);
+    appendArcBand(builder, -1.12, 1.12, 0.18, 0.34, 10);
+    appendArcBand(builder, -1.02, 1.02, 0.48, 0.64, 11);
+    appendArcBand(builder, -0.9, 0.9, 0.78, 1, 10);
+    for (const [x, z, width] of [
+      [-0.74, 0.72, 0.16], [-0.38, 0.9, 0.13], [0, 0.98, 0.18], [0.38, 0.9, 0.13], [0.74, 0.72, 0.16],
+    ] as const) {
+      appendGroundDiamond(builder, x, z, width, 0.12);
+    }
+    for (const offset of [-0.72, -0.36, 0, 0.36, 0.72]) {
+      appendGroundRay(builder, offset * 0.46, 0.42, 1.02, 0.046);
     }
   });
 }
@@ -958,14 +1273,20 @@ function createFoxDodgeMesh(device: pc.GraphicsDevice): pc.Mesh {
   });
 }
 
-/** A brass thorn fan: narrow enough to read as a volley, never as an area aura. */
+/**
+ * A brass thorn volley made of separated needle strokes. There is no filled
+ * arc band here: at launch-camera scale a broad additive base read as a flat
+ * yellow panel instead of individual quills.
+ */
 function createQuillVolleyMesh(device: pc.GraphicsDevice): pc.Mesh {
   return createGroundMesh(device, (builder) => {
-    for (const offset of [-0.46, -0.23, 0, 0.23, 0.46]) {
-      const length = 0.82 + (offset === 0 ? 0.18 : 0);
-      appendGroundRay(builder, offset, 0.06, length, 0.048);
+    for (const offset of [-0.31, -0.155, 0, 0.155, 0.31]) {
+      const length = 0.72 + (offset === 0 ? 0.18 : 0);
+      appendGroundRay(builder, offset, 0.06, length, 0.032);
+      const tip = polarPoint(offset, length);
+      appendGroundDiamond(builder, tip[0], tip[1], 0.034, 0.068);
     }
-    appendArcBand(builder, -0.52, 0.52, 0.06, 0.15, 5);
+    appendGroundDiamond(builder, 0, 0.045, 0.06, 0.075);
   });
 }
 
@@ -1137,6 +1458,69 @@ function createBoltRibbonMesh(device: pc.GraphicsDevice): pc.Mesh {
   });
 }
 
+/** Shared impact crown: broad enough to survive a crowded launch camera. */
+function createImpactCrownMesh(device: pc.GraphicsDevice): pc.Mesh {
+  return createGroundMesh(device, (builder) => {
+    appendGroundDiamond(builder, 0, 0, 0.22, 0.22);
+    for (let index = 0; index < 10; index++) {
+      const angle = Math.PI * 2 * index / 10 + 0.08;
+      appendGroundRay(builder, angle, 0.2, index % 2 === 0 ? 1 : 0.74, 0.075);
+    }
+  });
+}
+
+/** A tight launch comet for projectile casts and their authorial travel beat. */
+function createCometAccentMesh(device: pc.GraphicsDevice): pc.Mesh {
+  return createGroundMesh(device, (builder) => {
+    appendRibbon(builder, [[0, -0.7], [0.12, -0.2], [-0.08, 0.32], [0, 0.88]], 0.12);
+    appendGroundDiamond(builder, 0, 0.78, 0.16, 0.2);
+    appendGroundRay(builder, Math.PI, 0.14, 0.72, 0.055);
+  });
+}
+
+/** A small, bright follow-through rake layered above all melee crescents. */
+function createSlashAccentMesh(device: pc.GraphicsDevice): pc.Mesh {
+  return createGroundMesh(device, (builder) => {
+    appendRibbon(builder, [[-0.34, -0.52], [-0.08, -0.12], [0.16, 0.34], [0.42, 0.72]], 0.075);
+    appendRibbon(builder, [[-0.12, -0.62], [0.12, -0.2], [0.34, 0.22], [0.56, 0.55]], 0.055);
+    appendGroundDiamond(builder, 0.48, 0.64, 0.09, 0.14);
+  });
+}
+
+/** Chunky forward fractures turn every Trample beat into a visible earth front. */
+function createRidgeAccentMesh(device: pc.GraphicsDevice): pc.Mesh {
+  return createGroundMesh(device, (builder) => {
+    appendRibbon(builder, [[-0.68, -0.08], [-0.44, 0.26], [-0.22, 0.16], [0.02, 0.62], [0.24, 0.46], [0.62, 0.9]], 0.08);
+    appendRibbon(builder, [[-0.54, 0.36], [-0.2, 0.7], [0.08, 0.56], [0.38, 1]], 0.065);
+    appendGroundDiamond(builder, -0.1, 0.72, 0.13, 0.11);
+    appendGroundDiamond(builder, 0.44, 0.94, 0.1, 0.12);
+  });
+}
+
+/** A neutral readable rune for telegraphs, shields, zones, and sonar. */
+function createRuneAccentMesh(device: pc.GraphicsDevice): pc.Mesh {
+  return createGroundMesh(device, (builder) => {
+    appendArcBand(builder, 0, Math.PI * 2, 0.56, 0.66, 10);
+    for (let index = 0; index < 4; index++) {
+      const angle = Math.PI * 0.5 * index + Math.PI * 0.25;
+      const point = polarPoint(angle, 0.88);
+      appendGroundDiamond(builder, point[0], point[1], 0.08, 0.12);
+    }
+    appendGroundDiamond(builder, 0, 0, 0.16, 0.16);
+  });
+}
+
+function createAccentMeshes(device: pc.GraphicsDevice): Readonly<Record<TraitCommandVisualAccent, pc.Mesh>> {
+  return {
+    crown: createImpactCrownMesh(device),
+    comet: createCometAccentMesh(device),
+    slash: createSlashAccentMesh(device),
+    ridge: createRidgeAccentMesh(device),
+    halo: createBrokenHaloMesh(device, Math.PI / 10),
+    rune: createRuneAccentMesh(device),
+  };
+}
+
 function createFireflyMesh(device: pc.GraphicsDevice): pc.Mesh {
   return createGroundMesh(device, (builder) => {
     // A true lantern-wing silhouette: the old three-line spark vanished into
@@ -1246,6 +1630,8 @@ function resolveEffectSpinDegrees(material: EffectMaterial, progress: number): n
 interface EffectSlot {
   readonly entity: pc.Entity;
   readonly meshInstance: pc.MeshInstance;
+  readonly accentEntity: pc.Entity;
+  readonly accentMeshInstance: pc.MeshInstance;
   active: boolean;
   profile: TraitCommandEffectProfile | null;
   material: EffectMaterial;
@@ -1256,6 +1642,9 @@ interface EffectSlot {
   radius: number;
   aspect: number;
   yawDegrees: number;
+  dirX: number;
+  dirY: number;
+  intensity: number;
 }
 
 interface ChainLightningSegmentSlot {
@@ -1268,11 +1657,14 @@ interface ChainLightningSegmentSlot {
   fromY: number;
   toX: number;
   toY: number;
+  intensity: number;
 }
 
 interface MeleeArcSlot {
   readonly entity: pc.Entity;
   readonly meshInstance: pc.MeshInstance;
+  readonly accentEntity: pc.Entity;
+  readonly accentMeshInstance: pc.MeshInstance;
   active: boolean;
   tick: number;
   expiresAtTick: number;
@@ -1280,6 +1672,9 @@ interface MeleeArcSlot {
   y: number;
   radius: number;
   yawDegrees: number;
+  dirX: number;
+  dirY: number;
+  intensity: number;
 }
 
 /**
@@ -1289,6 +1684,8 @@ interface MeleeArcSlot {
 interface GenericMeleeSlashSlot {
   readonly entity: pc.Entity;
   readonly meshInstance: pc.MeshInstance;
+  readonly accentEntity: pc.Entity;
+  readonly accentMeshInstance: pc.MeshInstance;
   active: boolean;
   mesh: pc.Mesh;
   material: EffectMaterial;
@@ -1300,6 +1697,7 @@ interface GenericMeleeSlashSlot {
   dirY: number;
   radius: number;
   yawDegrees: number;
+  intensity: number;
 }
 
 interface OrbitingDamageSlot {
@@ -1316,6 +1714,7 @@ interface OrbitingDamageSlot {
   radius: number;
   speed: number;
   facing: number;
+  intensity: number;
 }
 
 /** One actual firefly-to-enemy contact, captured by the authoritative executor. */
@@ -1337,6 +1736,7 @@ function resetSlot(slot: EffectSlot): void {
   slot.active = false;
   slot.profile = null;
   slot.entity.enabled = false;
+  slot.accentEntity.enabled = false;
 }
 
 function resetChainLightningSlot(slot: ChainLightningSegmentSlot): void {
@@ -1347,11 +1747,13 @@ function resetChainLightningSlot(slot: ChainLightningSegmentSlot): void {
 function resetMeleeArcSlot(slot: MeleeArcSlot): void {
   slot.active = false;
   slot.entity.enabled = false;
+  slot.accentEntity.enabled = false;
 }
 
 function resetGenericMeleeSlashSlot(slot: GenericMeleeSlashSlot): void {
   slot.active = false;
   slot.entity.enabled = false;
+  slot.accentEntity.enabled = false;
 }
 
 function resetOrbitingDamageSlot(slot: OrbitingDamageSlot): void {
@@ -1387,7 +1789,10 @@ export function createTraitCommandPresentation(
 
   const materials = new Map<EffectMaterial, pc.StandardMaterial>();
   for (const role of Object.keys(COLORS) as EffectMaterial[]) materials.set(role, createMaterial(role));
+  const accentMaterials = new Map<EffectMaterial, pc.StandardMaterial>();
+  for (const role of Object.keys(COLORS) as EffectMaterial[]) accentMaterials.set(role, createAccentMaterial(role));
   const effectMeshes = createEffectMeshes(device);
+  const accentMeshes = createAccentMeshes(device);
   const orbitingMeshes = createOrbitingMeshes(device);
   const fireflyContactLinkMesh = createBoltRibbonMesh(device);
   // Mantis uses separate, prebuilt crescent meshes. They retain the exact
@@ -1412,6 +1817,7 @@ export function createTraitCommandPresentation(
   // disposal.
   const dynamicMeshKeepers = [
     ...Object.values(effectMeshes),
+    ...Object.values(accentMeshes),
     ...Object.values(orbitingMeshes),
     fireflyContactLinkMesh,
     ...meleeArcMeshes,
@@ -1422,15 +1828,23 @@ export function createTraitCommandPresentation(
   const slots: EffectSlot[] = [];
   for (let index = 0; index < capacity; index++) {
     const entity = new pc.Entity(`trait-command-effect-${index}`);
+    const accentEntity = new pc.Entity(`trait-command-accent-${index}`);
     const meshInstance = new pc.MeshInstance(effectMeshes.telegraph, materials.get('telegraph')!);
+    const accentMeshInstance = new pc.MeshInstance(accentMeshes.crown, accentMaterials.get('telegraph')!);
     entity.addComponent('render', {
       meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
     });
+    accentEntity.addComponent('render', {
+      meshInstances: [accentMeshInstance], castShadows: false, receiveShadows: false,
+    });
     entity.enabled = false;
+    accentEntity.enabled = false;
     parent.addChild(entity);
+    parent.addChild(accentEntity);
     slots.push({
-      entity, meshInstance, active: false, profile: null, material: 'telegraph', tick: 0, expiresAtTick: 0,
-      x: 0, y: 0, radius: 0, aspect: 1, yawDegrees: 0,
+      entity, meshInstance, accentEntity, accentMeshInstance,
+      active: false, profile: null, material: 'telegraph', tick: 0, expiresAtTick: 0,
+      x: 0, y: 0, radius: 0, aspect: 1, yawDegrees: 0, dirX: 1, dirY: 0, intensity: 1,
     });
   }
 
@@ -1440,30 +1854,46 @@ export function createTraitCommandPresentation(
     const variantSlots = meleeArcSlots[variantIndex]!;
     for (let index = 0; index < meleeArcSlotsPerVariant; index++) {
       const entity = new pc.Entity(`mantis-scythe-arc-${variantIndex}-${index}`);
+      const accentEntity = new pc.Entity(`mantis-scythe-accent-${variantIndex}-${index}`);
       const meshInstance = new pc.MeshInstance(meleeArcMeshes[variantIndex]!, materials.get('melee-arc')!);
+      const accentMeshInstance = new pc.MeshInstance(accentMeshes.slash, accentMaterials.get('melee-arc')!);
       entity.addComponent('render', {
         meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
       });
+      accentEntity.addComponent('render', {
+        meshInstances: [accentMeshInstance], castShadows: false, receiveShadows: false,
+      });
       entity.enabled = false;
+      accentEntity.enabled = false;
       parent.addChild(entity);
+      parent.addChild(accentEntity);
       variantSlots.push({
-        entity, meshInstance, active: false, tick: 0, expiresAtTick: 0,
-        x: 0, y: 0, radius: 0, yawDegrees: 0,
+        entity, meshInstance, accentEntity, accentMeshInstance,
+        active: false, tick: 0, expiresAtTick: 0,
+        x: 0, y: 0, radius: 0, yawDegrees: 0, dirX: 1, dirY: 0, intensity: 1,
       });
     }
   }
   const genericMeleeSlashSlots: GenericMeleeSlashSlot[] = [];
   for (let index = 0; index < meleeArcSlotsPerVariant; index++) {
     const entity = new pc.Entity(`generic-melee-slash-${index}`);
+    const accentEntity = new pc.Entity(`generic-melee-accent-${index}`);
     const meshInstance = new pc.MeshInstance(genericMeleeSlashMesh, materials.get('melee-arc')!);
+    const accentMeshInstance = new pc.MeshInstance(accentMeshes.slash, accentMaterials.get('melee-arc')!);
     entity.addComponent('render', {
       meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
     });
+    accentEntity.addComponent('render', {
+      meshInstances: [accentMeshInstance], castShadows: false, receiveShadows: false,
+    });
     entity.enabled = false;
+    accentEntity.enabled = false;
     parent.addChild(entity);
+    parent.addChild(accentEntity);
     genericMeleeSlashSlots.push({
-      entity, meshInstance, active: false, mesh: genericMeleeSlashMesh, material: 'melee-arc', tick: 0, expiresAtTick: 0,
-      x: 0, y: 0, dirX: 1, dirY: 0, radius: 0, yawDegrees: 0,
+      entity, meshInstance, accentEntity, accentMeshInstance,
+      active: false, mesh: genericMeleeSlashMesh, material: 'melee-arc', tick: 0, expiresAtTick: 0,
+      x: 0, y: 0, dirX: 1, dirY: 0, radius: 0, yawDegrees: 0, intensity: 1,
     });
   }
 
@@ -1479,7 +1909,7 @@ export function createTraitCommandPresentation(
     parent.addChild(entity);
     orbitingDamageSlots.push({
       entity, meshInstance, active: false, material: 'orbiting-damage', tick: 0, expiresAtTick: 0,
-      originX: 0, originY: 0, count: 1, index: 0, radius: 0, speed: 0, facing: 0,
+      originX: 0, originY: 0, count: 1, index: 0, radius: 0, speed: 0, facing: 0, intensity: 1,
     });
   }
 
@@ -1534,7 +1964,7 @@ export function createTraitCommandPresentation(
     parent.addChild(entity);
     chainLightningSlots.push({
       entity, meshInstance, active: false, tick: 0, expiresAtTick: 0,
-      fromX: 0, fromY: 0, toX: 0, toY: 0,
+      fromX: 0, fromY: 0, toX: 0, toY: 0, intensity: 1,
     });
   }
 
@@ -1563,21 +1993,26 @@ export function createTraitCommandPresentation(
     }
 
     const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    const blueprint = resolveTraitCommandVisualBlueprint(profile);
+    const stage = resolveTraitCommandVisualStage(progress, profile);
     const scale = profile.motion === 'expand'
       ? 0.22 + progress * 0.78
       : profile.motion === 'contract'
         ? 1 - progress * 0.7
         : 0.72 + Math.sin(progress * Math.PI) * 0.22;
-    const radius = Math.max(1, slot.radius * scale);
+    // Intensity expands the authored silhouette a little, never the combat
+    // area. The simulation still owns radius, damage, and contact timing.
+    const radius = Math.max(1, slot.radius * scale * (1 + (slot.intensity - 1) * 0.24));
     const fadeRate = profile.motion === 'pulse' ? 0.32 : 0.68;
     const opacity = OPACITY[slot.material] * (1 - progress * fadeRate);
     const radialScale = radius / EFFECT_UNIT_RADIUS;
+    const groundHeight = GROUND_EFFECT_HEIGHT + Math.min(0.55, radius * 0.006);
     slot.meshInstance.mesh = effectMeshes[slot.material];
     slot.meshInstance.material = materials.get(slot.material)!;
     slot.meshInstance.setParameter('material_opacity', opacity);
     slot.entity.setLocalPosition(
       slot.x - worldHalfWidth,
-      GROUND_EFFECT_HEIGHT + Math.min(0.55, radius * 0.006),
+      groundHeight,
       worldHalfHeight - slot.y,
     );
     slot.entity.setLocalEulerAngles(0, slot.yawDegrees + resolveEffectSpinDegrees(slot.material, progress), 0);
@@ -1587,6 +2022,36 @@ export function createTraitCommandPresentation(
       radialScale,
     );
     slot.entity.enabled = true;
+
+    // The companion layer is an authored flourish rather than a hitbox. It
+    // moves from the cast point toward the direction only for directed
+    // commands, so it never pretends to know a target that the sim did not
+    // resolve.
+    const accentTravel = profile.directed
+      ? slot.radius * blueprint.travelDistance * resolveAccentTravel(progress, stage)
+      : 0;
+    const accentRadius = resolveAccentScale(slot.radius, slot.intensity, blueprint, stage);
+    const accentOpacity = resolveAccentOpacity(opacity, blueprint, stage);
+    const accent = resolveStagedAccent(blueprint, stage);
+    slot.accentMeshInstance.mesh = accentMeshes[accent];
+    slot.accentMeshInstance.material = accentMaterials.get(slot.material)!;
+    slot.accentMeshInstance.setParameter('material_opacity', accentOpacity);
+    slot.accentEntity.setLocalPosition(
+      slot.x + slot.dirX * accentTravel - worldHalfWidth,
+      groundHeight + 0.14 + (stage === 'impact' ? 0.16 : 0),
+      worldHalfHeight - (slot.y + slot.dirY * accentTravel),
+    );
+    slot.accentEntity.setLocalEulerAngles(
+      0,
+      slot.yawDegrees + resolveEffectSpinDegrees(slot.material, progress) * 1.45,
+      0,
+    );
+    slot.accentEntity.setLocalScale(
+      accentRadius * resolveAccentLateralScale(accent),
+      1,
+      accentRadius * resolveAccentLongitudinalScale(accent),
+    );
+    slot.accentEntity.enabled = accentOpacity > 0.01;
   }
 
   function updateMeleeArcSlot(slot: MeleeArcSlot, tick: number): void {
@@ -1596,12 +2061,16 @@ export function createTraitCommandPresentation(
       return;
     }
     const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    const profile = PROFILES['melee-arc'];
+    const blueprint = resolveTraitCommandVisualBlueprint(profile);
+    const stage = resolveTraitCommandVisualStage(progress, profile);
     // A quick outward sweep reads like a claw cut rather than a stationary
     // defensive aura. The authoritative damage itself remains instantaneous.
-    const radius = Math.max(1, slot.radius * (0.32 + progress * 0.68));
+    const radius = Math.max(1, slot.radius * (0.32 + progress * 0.68) * (1 + (slot.intensity - 1) * 0.24));
     const radialScale = radius / MELEE_ARC_UNIT_RADIUS;
+    const opacity = OPACITY['melee-arc'] * (1 - progress * 0.68);
     slot.meshInstance.material = materials.get('melee-arc')!;
-    slot.meshInstance.setParameter('material_opacity', OPACITY['melee-arc'] * (1 - progress * 0.68));
+    slot.meshInstance.setParameter('material_opacity', opacity);
     slot.entity.setLocalPosition(
       slot.x - worldHalfWidth,
       MELEE_ARC_HEIGHT,
@@ -1614,6 +2083,26 @@ export function createTraitCommandPresentation(
       radialScale,
     );
     slot.entity.enabled = true;
+
+    const accent = resolveStagedAccent(blueprint, stage);
+    const accentTravel = slot.radius * blueprint.travelDistance * resolveAccentTravel(progress, stage);
+    const accentRadius = resolveAccentScale(slot.radius, slot.intensity, blueprint, stage);
+    const accentOpacity = resolveAccentOpacity(opacity, blueprint, stage);
+    slot.accentMeshInstance.mesh = accentMeshes[accent];
+    slot.accentMeshInstance.material = accentMaterials.get('melee-arc')!;
+    slot.accentMeshInstance.setParameter('material_opacity', accentOpacity);
+    slot.accentEntity.setLocalPosition(
+      slot.x + slot.dirX * accentTravel - worldHalfWidth,
+      MELEE_ARC_HEIGHT + 0.18 + (stage === 'impact' ? 0.12 : 0),
+      worldHalfHeight - (slot.y + slot.dirY * accentTravel),
+    );
+    slot.accentEntity.setLocalEulerAngles(0, slot.yawDegrees + progress * 16, 0);
+    slot.accentEntity.setLocalScale(
+      accentRadius * resolveAccentLateralScale(accent),
+      1,
+      accentRadius * resolveAccentLongitudinalScale(accent),
+    );
+    slot.accentEntity.enabled = accentOpacity > 0.01;
   }
 
   function updateGenericMeleeSlashSlot(slot: GenericMeleeSlashSlot, tick: number): void {
@@ -1623,41 +2112,65 @@ export function createTraitCommandPresentation(
       return;
     }
     const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    const profile = PROFILES[slot.material];
+    const blueprint = resolveTraitCommandVisualBlueprint(profile);
+    const stage = resolveTraitCommandVisualStage(progress, profile);
     const opacity = OPACITY[slot.material] * (1 - progress * 0.72);
     slot.meshInstance.mesh = slot.mesh;
     slot.meshInstance.material = materials.get(slot.material)!;
     slot.meshInstance.setParameter('material_opacity', opacity);
     const isHeroSweep = slot.material === 'greg-fox-swipe' || slot.material === 'greg-rush-rake';
+    let centerX = slot.x;
+    let centerY = slot.y;
+    let scaleX: number;
+    let scaleZ: number;
     if (isHeroSweep) {
-      const radialScale = Math.max(1, slot.radius * (0.28 + progress * 0.72)) / MELEE_ARC_UNIT_RADIUS;
+      const radialScale = Math.max(1, slot.radius * (0.28 + progress * 0.72) * (1 + (slot.intensity - 1) * 0.24))
+        / MELEE_ARC_UNIT_RADIUS;
       // These authored hero shapes are directional attack cues, not literal
       // hit-sector overlays. They originate at the attacker and expand across
       // the same resolved heading that the simulation used for damage.
-      slot.entity.setLocalPosition(
-        slot.x - worldHalfWidth,
-        GENERIC_MELEE_SLASH_HEIGHT,
-        worldHalfHeight - slot.y,
-      );
-      slot.entity.setLocalEulerAngles(0, slot.yawDegrees, 0);
-      slot.entity.setLocalScale(radialScale, 1, radialScale);
-      slot.entity.enabled = true;
-      return;
+      scaleX = radialScale;
+      scaleZ = radialScale;
+    } else {
+      const length = Math.max(2, slot.radius * (0.26 + progress * 0.62) * (1 + (slot.intensity - 1) * 0.18));
+      const width = Math.max(1.1, slot.radius * 0.03 * (1 - progress * 0.25) * slot.intensity);
+      // Position the streak forward from Greg. Unlike a sector mesh it claims
+      // no exact angular coverage, which keeps arbitrary future arc values
+      // visually honest while preserving a readable directional attack cue.
+      centerX = slot.x + slot.dirX * length * 0.42;
+      centerY = slot.y + slot.dirY * length * 0.42;
+      scaleX = width;
+      scaleZ = length;
     }
-    const length = Math.max(2, slot.radius * (0.26 + progress * 0.62));
-    const width = Math.max(1.1, slot.radius * 0.03 * (1 - progress * 0.25));
-    // Position the streak forward from Greg. Unlike a sector mesh it claims
-    // no exact angular coverage, which keeps arbitrary future arc values
-    // visually honest while preserving a readable directional attack cue.
-    const centerX = slot.x + slot.dirX * length * 0.42;
-    const centerY = slot.y + slot.dirY * length * 0.42;
     slot.entity.setLocalPosition(
       centerX - worldHalfWidth,
       GENERIC_MELEE_SLASH_HEIGHT,
       worldHalfHeight - centerY,
     );
     slot.entity.setLocalEulerAngles(0, slot.yawDegrees, 0);
-    slot.entity.setLocalScale(width, 1, length);
+    slot.entity.setLocalScale(scaleX, 1, scaleZ);
     slot.entity.enabled = true;
+
+    const accent = resolveStagedAccent(blueprint, stage);
+    const accentTravel = slot.radius * blueprint.travelDistance * resolveAccentTravel(progress, stage);
+    const accentRadius = resolveAccentScale(slot.radius, slot.intensity, blueprint, stage);
+    const accentOpacity = resolveAccentOpacity(opacity, blueprint, stage);
+    slot.accentMeshInstance.mesh = accentMeshes[accent];
+    slot.accentMeshInstance.material = accentMaterials.get(slot.material)!;
+    slot.accentMeshInstance.setParameter('material_opacity', accentOpacity);
+    slot.accentEntity.setLocalPosition(
+      slot.x + slot.dirX * accentTravel - worldHalfWidth,
+      GENERIC_MELEE_SLASH_HEIGHT + 0.18 + (stage === 'impact' ? 0.14 : 0),
+      worldHalfHeight - (slot.y + slot.dirY * accentTravel),
+    );
+    slot.accentEntity.setLocalEulerAngles(0, slot.yawDegrees + progress * 18, 0);
+    slot.accentEntity.setLocalScale(
+      accentRadius * resolveAccentLateralScale(accent),
+      1,
+      accentRadius * resolveAccentLongitudinalScale(accent),
+    );
+    slot.accentEntity.enabled = accentOpacity > 0.01;
   }
 
   function updateOrbitingDamageSlot(slot: OrbitingDamageSlot, tick: number): void {
@@ -1673,7 +2186,10 @@ export function createTraitCommandPresentation(
     const x = slot.originX + Math.cos(angle) * slot.radius;
     const y = slot.originY + Math.sin(angle) * slot.radius;
     const isMonarch = slot.material === 'monarch-brood-orbit';
-    const scale = FIREFLY_ORBIT_SIZE * (isMonarch ? 1.28 : 1) * (0.86 + Math.sin(progress * Math.PI) * 0.18);
+    const scale = FIREFLY_ORBIT_SIZE
+      * (isMonarch ? 1.28 : 1)
+      * slot.intensity
+      * (0.86 + Math.sin(progress * Math.PI) * 0.18);
     const tangentYawDegrees = Math.atan2(-Math.sin(angle), -Math.cos(angle)) * 180 / Math.PI;
     slot.meshInstance.mesh = orbitingMeshes[slot.material];
     slot.meshInstance.material = materials.get(slot.material)!;
@@ -1753,7 +2269,7 @@ export function createTraitCommandPresentation(
       return;
     }
     const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
-    const thickness = Math.max(0.7, CHAIN_LIGHTNING_THICKNESS * (1 - progress * 0.38));
+    const thickness = Math.max(0.7, CHAIN_LIGHTNING_THICKNESS * slot.intensity * (1 - progress * 0.38));
     const midpointX = (slot.fromX + slot.toX) * 0.5;
     const midpointY = (slot.fromY + slot.toY) * 0.5;
     // Scene +Z is simulation -Y; local +Z is the jagged bolt's travel axis.
@@ -1774,7 +2290,25 @@ export function createTraitCommandPresentation(
     const emittedTick = normalizedTick(event.tick);
     const lifetimeTicks = resolveLifetime(event, profile);
     if (emittedTick + lifetimeTicks <= currentTick) return;
-    const slot = slots.find((candidate) => !candidate.active);
+    const concurrencyCap = resolveTraitCommandVisualConcurrencyCap(profile);
+    let slot: EffectSlot | undefined;
+    if (concurrencyCap !== null) {
+      let activeCount = 0;
+      let oldest: EffectSlot | undefined;
+      for (const candidate of slots) {
+        if (!candidate.active || candidate.material !== profile.material) continue;
+        activeCount++;
+        if (oldest === undefined || candidate.tick < oldest.tick) oldest = candidate;
+      }
+      if (activeCount >= concurrencyCap && oldest !== undefined) {
+        // Coalesce an over-eager visual stream into its newest cue. This is
+        // presentation-only: the authoritative projectile burst remains
+        // untouched and still renders through the regular projectile layer.
+        resetSlot(oldest);
+        slot = oldest;
+      }
+    }
+    slot ??= slots.find((candidate) => !candidate.active);
     if (slot === undefined) {
       overflowCount++;
       return;
@@ -1789,6 +2323,52 @@ export function createTraitCommandPresentation(
     slot.radius = resolveTraitCommandEffectRadius(event, profile);
     slot.aspect = resolveAspect(event, profile);
     slot.yawDegrees = resolveYawDegrees(event);
+    const rawDirX = finiteOr(event.dirX, 0);
+    const rawDirY = finiteOr(event.dirY, 0);
+    const directionLength = Math.sqrt(rawDirX * rawDirX + rawDirY * rawDirY);
+    // Facing is a safe visual fallback when a directed cue carries no vector.
+    const yawRadians = slot.yawDegrees * Math.PI / 180;
+    slot.dirX = directionLength > 1e-8 ? rawDirX / directionLength : Math.sin(yawRadians);
+    slot.dirY = directionLength > 1e-8 ? rawDirY / directionLength : -Math.cos(yawRadians);
+    slot.intensity = resolveTraitCommandVisualIntensity(event, profile);
+  }
+
+  /**
+   * Exact Mantis sectors and the generic melee fallback use different pools,
+   * so apply the shared source cap across both before starting a new sweep.
+   * This preserves a wide scythe silhouette while refusing to stack opaque
+   * duplicate sectors over the same combat moment.
+   */
+  function coalesceMeleeArcVisuals(profile: TraitCommandEffectProfile): void {
+    const concurrencyCap = resolveTraitCommandVisualConcurrencyCap(profile);
+    if (concurrencyCap === null) return;
+
+    let activeCount = 0;
+    let oldestMeleeArc: MeleeArcSlot | undefined;
+    let oldestGenericSlash: GenericMeleeSlashSlot | undefined;
+    for (const variantSlots of meleeArcSlots) {
+      for (const candidate of variantSlots) {
+        if (!candidate.active) continue;
+        activeCount++;
+        if (oldestMeleeArc === undefined || candidate.tick < oldestMeleeArc.tick) oldestMeleeArc = candidate;
+      }
+    }
+    for (const candidate of genericMeleeSlashSlots) {
+      if (!candidate.active || candidate.material !== profile.material) continue;
+      activeCount++;
+      if (oldestGenericSlash === undefined || candidate.tick < oldestGenericSlash.tick) {
+        oldestGenericSlash = candidate;
+      }
+    }
+    if (activeCount < concurrencyCap) return;
+    if (
+      oldestMeleeArc !== undefined
+      && (oldestGenericSlash === undefined || oldestMeleeArc.tick <= oldestGenericSlash.tick)
+    ) {
+      resetMeleeArcSlot(oldestMeleeArc);
+    } else if (oldestGenericSlash !== undefined) {
+      resetGenericMeleeSlashSlot(oldestGenericSlash);
+    }
   }
 
   function startMeleeArc(
@@ -1800,6 +2380,7 @@ export function createTraitCommandPresentation(
     const emittedTick = normalizedTick(event.tick);
     const lifetimeTicks = resolveLifetime(event, profile);
     if (emittedTick + lifetimeTicks <= currentTick) return;
+    coalesceMeleeArcVisuals(profile);
     const variantIndex = resolveMeleeArcVariantIndex(event.arc);
     if (variantIndex === null) {
       startGenericMeleeSlash(event, profile, emittedTick, lifetimeTicks);
@@ -1817,6 +2398,13 @@ export function createTraitCommandPresentation(
     slot.y = finiteOr(event.originY, 0);
     slot.radius = resolveTraitCommandEffectRadius(event, profile);
     slot.yawDegrees = resolveMeleeArcYawDegrees(event);
+    const rawDirX = finiteOr(event.dirX, 0);
+    const rawDirY = finiteOr(event.dirY, 0);
+    const directionLength = Math.sqrt(rawDirX * rawDirX + rawDirY * rawDirY);
+    const yawRadians = slot.yawDegrees * Math.PI / 180;
+    slot.dirX = directionLength > 1e-8 ? rawDirX / directionLength : Math.sin(yawRadians);
+    slot.dirY = directionLength > 1e-8 ? rawDirY / directionLength : -Math.cos(yawRadians);
+    slot.intensity = resolveTraitCommandVisualIntensity(event, profile);
   }
 
   function startGenericMeleeSlash(
@@ -1842,6 +2430,7 @@ export function createTraitCommandPresentation(
     slot.dirY = length > 1e-8 ? rawDirY / length : 0;
     slot.radius = resolveTraitCommandEffectRadius(event, profile);
     slot.yawDegrees = resolveYawDegrees(event);
+    slot.intensity = resolveTraitCommandVisualIntensity(event, profile);
     slot.material = profile.material;
     slot.mesh = profile.material === 'greg-fox-swipe'
       ? foxSwipeMesh
@@ -1870,6 +2459,7 @@ export function createTraitCommandPresentation(
       overflowCount++;
       return;
     }
+    const intensity = resolveTraitCommandVisualIntensity(event, profile);
     let assigned = 0;
     for (const slot of orbitingDamageSlots) {
       if (slot.active) continue;
@@ -1886,6 +2476,7 @@ export function createTraitCommandPresentation(
       slot.radius = resolveTraitCommandEffectRadius(event, profile);
       slot.speed = finiteOr(event.speed, 0);
       slot.facing = finiteOr(event.facing, 0);
+      slot.intensity = intensity;
       if (assigned >= count) break;
     }
   }
@@ -1932,6 +2523,7 @@ export function createTraitCommandPresentation(
     if (emittedTick + CHAIN_LIGHTNING_LIFETIME_TICKS <= currentTick) return;
     const hitX = event.resolvedHitX!;
     const hitY = event.resolvedHitY!;
+    const intensity = resolveTraitCommandVisualIntensity(event, PROFILES['chain-lightning']);
     let fromX = finiteOr(event.originX, 0);
     let fromY = finiteOr(event.originY, 0);
     for (let index = 0; index < hitCount; index++) {
@@ -1957,6 +2549,7 @@ export function createTraitCommandPresentation(
       slot.fromY = fromY;
       slot.toX = toX;
       slot.toY = toY;
+      slot.intensity = intensity;
       fromX = toX;
       fromY = toY;
     }
@@ -2005,11 +2598,20 @@ export function createTraitCommandPresentation(
     },
     reset,
     dispose() {
-      for (const slot of slots) slot.entity.destroy();
-      for (const variantSlots of meleeArcSlots) {
-        for (const slot of variantSlots) slot.entity.destroy();
+      for (const slot of slots) {
+        slot.entity.destroy();
+        slot.accentEntity.destroy();
       }
-      for (const slot of genericMeleeSlashSlots) slot.entity.destroy();
+      for (const variantSlots of meleeArcSlots) {
+        for (const slot of variantSlots) {
+          slot.entity.destroy();
+          slot.accentEntity.destroy();
+        }
+      }
+      for (const slot of genericMeleeSlashSlots) {
+        slot.entity.destroy();
+        slot.accentEntity.destroy();
+      }
       for (const slot of orbitingDamageSlots) slot.entity.destroy();
       for (const slot of orbitContactSlots) {
         slot.linkEntity.destroy();
@@ -2018,6 +2620,7 @@ export function createTraitCommandPresentation(
       for (const slot of chainLightningSlots) slot.entity.destroy();
       for (const keeper of dynamicMeshKeepers) keeper.destroy();
       for (const material of materials.values()) material.destroy();
+      for (const material of accentMaterials.values()) material.destroy();
     },
   };
 }

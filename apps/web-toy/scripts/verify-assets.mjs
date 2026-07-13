@@ -29,6 +29,7 @@ const enemySprites = [
   { relativePath: 'ui/enemies/rootback-v1.png', width: 1536, height: 1024, maxBytes: 1_500_000 },
   { relativePath: 'ui/enemies/hollowhart-warden-v1.png', width: 1254, height: 1254, maxBytes: 1_500_000 },
 ];
+const vfxAtlas = { relativePath: 'ui/vfx/wildguard-prism-atlas-v1.png', width: 1024, height: 1024, maxBytes: 900_000 };
 const foxPath = 'vendor/quaternius/ultimate_animated_animals/Fox.gltf';
 const gladeFiles = [
   'Bark_NormalTree.jpg',
@@ -330,6 +331,20 @@ function main() {
     totalBytes += asset.bytes;
   }
 
+  const atlas = requiredFile(vfxAtlas.relativePath);
+  if (atlas.bytes > vfxAtlas.maxBytes) {
+    fail(`${vfxAtlas.relativePath} exceeds ${vfxAtlas.maxBytes} bytes (${atlas.bytes})`);
+  }
+  const atlasContents = readFileSync(atlas.absolutePath);
+  const atlasInfo = pngInfo(atlasContents, vfxAtlas.relativePath);
+  if (atlasInfo.width !== vfxAtlas.width || atlasInfo.height !== vfxAtlas.height
+    || atlasInfo.bitDepth !== 8 || atlasInfo.colorType !== 6) {
+    fail(`${vfxAtlas.relativePath} must be an 8-bit RGBA ${vfxAtlas.width}x${vfxAtlas.height} PNG; got ${JSON.stringify(atlasInfo)}`);
+  }
+  if (!ledger.includes(`\`${vfxAtlas.relativePath}\``)) fail(`${vfxAtlas.relativePath} is absent from ASSET_LEDGER.md`);
+  assertLedgerHash(ledger, vfxAtlas.relativePath, sha256(atlasContents));
+  totalBytes += atlas.bytes;
+
   const fox = requiredFile(foxPath);
   if (fox.bytes > MAX_FOX_BYTES) fail(`${foxPath} exceeds ${MAX_FOX_BYTES} bytes (${fox.bytes})`);
   if (!ledger.includes(`\`${foxPath}\``)) fail(`${foxPath} is absent from ASSET_LEDGER.md`);
@@ -382,7 +397,7 @@ function main() {
     fail(`runtime asset payload exceeds ${MAX_RUNTIME_ASSET_BYTES} bytes (${totalBytes})`);
   }
 
-  console.log(`[verify-assets] ${portraitFiles.length} hero portraits + ${bossPortraitFiles.length} boss portraits + key art + terrain + ${playableHeroSprites.length} playable hero sprites + ${enemySprites.length} enemy sprites + Fox glTF + ${gladeFiles.length} curated glade files validated; ${totalBytes} source bytes within budget`);
+  console.log(`[verify-assets] ${portraitFiles.length} hero portraits + ${bossPortraitFiles.length} boss portraits + key art + terrain + ${playableHeroSprites.length} playable hero sprites + ${enemySprites.length} enemy sprites + one VFX atlas + Fox glTF + ${gladeFiles.length} curated glade files validated; ${totalBytes} source bytes within budget`);
 }
 
 try {

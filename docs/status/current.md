@@ -1,8 +1,8 @@
 # Current Project Status
 
-**Updated:** 2026-07-12 — V1.1 implementation handoff added
-**Active milestone:** V1.1 feature-complete candidate; owner playtest and balance evidence next
-**Project state:** Playtestable V1.1 candidate with deterministic implementation coverage; fresh human retest remains open
+**Updated:** 2026-07-13 — V1.1 visual-overhaul handoff added
+**Active milestone:** V1.1 feature-complete visual-overhaul candidate; owner playtest and balance evidence next
+**Project state:** Playtestable V1.1 candidate with deterministic implementation coverage and a renderer-only combat-language overhaul; fresh human retest remains open
 **Budget model:** AI subscription usage; no additional cash
 
 The external blind Claude swarm package has been reconciled in
@@ -19,6 +19,39 @@ This section is the authoritative V1.1 handoff. It supersedes older references
 below to three-rank starter mastery, six neutral cards, or placeholder starter
 projectiles. It records implemented behavior, not a claim that balance, final
 art, device QA, or human playtesting is complete.
+
+### Visual-overhaul addendum — 2026-07-13
+
+The renderer now has one intentional **Wildguard combat language**, built as a
+presentation-only layer over the deterministic simulation rather than a new
+particle engine or combat system.
+
+- **Hero power:** attack commands use staged cast, travel, impact, and
+  aftermath layers. Greg's claw/rake, Benny's earth fronts, and Gracie's
+  comet-spit are materially different silhouettes; rank/count/strength scale
+  the same read instead of flooding the screen with unrelated effects.
+- **Rewards:** XP is a tiered mint-and-gold reward field with deterministic
+  bob/pulse/spin, distinct high-value prisms, and bounded comet choreography
+  on collection. Bomb, Magnet, and Food retain unique silhouettes with their
+  own celebration language.
+- **Danger:** hostile shots now have bright coral cores and directional tails;
+  charger lanes, nearby contact rings, and elite/boss auras make danger visible
+  before or at contact. Boss/director warnings reuse the same high-contrast
+  danger lane rather than blending into the forest palette.
+- **Hits:** authoritative combat events drive persistent ivory normal sparks,
+  white-gold critical bursts, and coral player-danger flashes in addition to
+  the optional white/yellow damage numbers.
+- **Cost boundary:** all high-volume layers are fixed-capacity GPU-instanced
+  batches. The shared 1024px VFX atlas is the sole new runtime bitmap; reduced
+  quality removes halos and travel trails before core rewards, warnings, or hit
+  markers. Simulation state, replay hashes, input, and combat outcomes remain
+  untouched.
+
+The precise atlas provenance and cleanup are recorded in
+[`docs/release/v1-1-visual-overhaul-prompts.md`](../release/v1-1-visual-overhaul-prompts.md).
+Automated gates establish deterministic safety and bounded renderer behavior;
+a fresh owner pass is still the authority for whether the visual contrast feels
+right on the intended display.
 
 ### Six delivered pillars
 

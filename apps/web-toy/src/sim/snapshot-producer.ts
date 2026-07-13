@@ -26,10 +26,15 @@ function createCategorySnapshot(category: ViewCategory, capacity: number): Categ
     x: new Float32Array(capacity),
     y: new Float32Array(capacity),
     radius: new Float32Array(capacity),
+    value: new Float32Array(capacity),
+    velocityX: new Float32Array(capacity),
+    velocityY: new Float32Array(capacity),
     hp: new Float32Array(capacity),
     maxHp: new Float32Array(capacity),
     archetype: new Uint8Array(capacity),
     role: new Uint8Array(capacity),
+    source: new Uint8Array(capacity),
+    critical: new Uint8Array(capacity),
     marked: new Uint8Array(capacity),
   };
 }
@@ -69,10 +74,15 @@ function captureEnemies(out: CategorySnapshot, sim: Simulation): void {
     out.x[n] = data.posX[slot]!;
     out.y[n] = data.posY[slot]!;
     out.radius[n] = data.radius[slot]!;
+    out.value[n] = data.xpDrop[slot]!;
+    out.velocityX[n] = 0;
+    out.velocityY[n] = 0;
     out.hp[n] = data.hp[slot]!;
     out.maxHp[n] = data.maxHp[slot]!;
     out.archetype[n] = data.archetype[slot]!;
     out.role[n] = sim.enemyPresentationRole(out.id[n]!);
+    out.source[n] = 0;
+    out.critical[n] = 0;
     out.marked[n] = data.marked[slot]!;
     n++;
   }
@@ -88,10 +98,15 @@ function captureProjectiles(out: CategorySnapshot, pool: Pool<ProjectilePool>): 
     out.x[n] = data.posX[slot]!;
     out.y[n] = data.posY[slot]!;
     out.radius[n] = PROJECTILE_VIEW_RADIUS;
+    out.value[n] = data.damage[slot]!;
+    out.velocityX[n] = data.velX[slot]!;
+    out.velocityY[n] = data.velY[slot]!;
     out.hp[n] = 0;
     out.maxHp[n] = 0;
     out.archetype[n] = 0;
     out.role[n] = data.faction[slot]!;
+    out.source[n] = data.source[slot]!;
+    out.critical[n] = data.critical[slot]!;
     out.marked[n] = 0;
     n++;
   }
@@ -107,10 +122,15 @@ function capturePickups(out: CategorySnapshot, pool: Pool<PickupPool>): void {
     out.x[n] = data.posX[slot]!;
     out.y[n] = data.posY[slot]!;
     out.radius[n] = data.radius[slot]!;
+    out.value[n] = data.xp[slot]!;
+    out.velocityX[n] = 0;
+    out.velocityY[n] = 0;
     out.hp[n] = 0;
     out.maxHp[n] = 0;
     out.archetype[n] = 0;
     out.role[n] = 0;
+    out.source[n] = 0;
+    out.critical[n] = 0;
     out.marked[n] = 0;
     n++;
   }
@@ -131,10 +151,15 @@ function capturePowerPickups(out: CategorySnapshot, pool: Pool<PowerPickupPool>)
     out.x[n] = data.posX[slot]!;
     out.y[n] = data.posY[slot]!;
     out.radius[n] = data.radius[slot]!;
+    out.value[n] = 0;
+    out.velocityX[n] = 0;
+    out.velocityY[n] = 0;
     out.hp[n] = 0;
     out.maxHp[n] = 0;
     out.archetype[n] = 0;
     out.role[n] = data.kind[slot]!;
+    out.source[n] = 0;
+    out.critical[n] = 0;
     out.marked[n] = 0;
     n++;
   }
@@ -151,10 +176,15 @@ function captureZones(out: CategorySnapshot, pool: Pool<ZonePool>): void {
     out.x[n] = data.posX[slot]!;
     out.y[n] = data.posY[slot]!;
     out.radius[n] = data.radius[slot]!;
+    out.value[n] = 0;
+    out.velocityX[n] = 0;
+    out.velocityY[n] = 0;
     out.hp[n] = 0;
     out.maxHp[n] = 0;
     out.archetype[n] = 0;
     out.role[n] = data.tag[slot]!;
+    out.source[n] = data.source[slot]!;
+    out.critical[n] = data.critical[slot]!;
     out.marked[n] = 0;
     n++;
   }

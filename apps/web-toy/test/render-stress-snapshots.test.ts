@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CONFIG } from '@sim';
+import { COMBAT_DAMAGE_SOURCE, DEFAULT_CONFIG } from '@sim';
 import { createRenderStressHarness } from '../src/stress/render-stress-snapshots';
 
 describe('renderer-only stress snapshots', () => {
@@ -41,6 +41,27 @@ describe('renderer-only stress snapshots', () => {
     expect(Array.from(a.curr.enemies.x)).toEqual(Array.from(b.curr.enemies.x));
     expect(Array.from(a.curr.enemies.hp)).toEqual(Array.from(b.curr.enemies.hp));
     expect(Array.from(a.curr.projectiles.y)).toEqual(Array.from(b.curr.projectiles.y));
+    expect(Array.from(a.curr.projectiles.velocityX)).toEqual(Array.from(b.curr.projectiles.velocityX));
+    expect(Array.from(a.curr.projectiles.source)).toEqual(Array.from(b.curr.projectiles.source));
+  });
+
+  it('seeds all visual-overhaul paths with tiered XP and mixed projectile families', () => {
+    const harness = createRenderStressHarness(DEFAULT_CONFIG);
+    harness.update(1234);
+    const { pickups, projectiles } = harness.curr;
+
+    expect(Array.from(pickups.value.slice(0, 6))).toEqual([1, 3, 9, 1, 3, 9]);
+    expect(Array.from(projectiles.role.slice(0, 4))).toEqual([0, 0, 0, 1]);
+    expect(Array.from(projectiles.source.slice(0, 4))).toEqual([
+      COMBAT_DAMAGE_SOURCE.playerProjectile,
+      COMBAT_DAMAGE_SOURCE.traitProjectile,
+      COMBAT_DAMAGE_SOURCE.heroSpit,
+      COMBAT_DAMAGE_SOURCE.enemyProjectile,
+    ]);
+    expect(Array.from(projectiles.critical.slice(0, 4))).toEqual([1, 0, 0, 1]);
+    expect(Array.from(projectiles.value.slice(0, 4))).toEqual([12, 24, 36, 18]);
+    expect(Array.from(projectiles.velocityX.slice(0, projectiles.count)).some((value) => Math.abs(value) > 0.1)).toBe(true);
+    expect(Array.from(projectiles.velocityY.slice(0, projectiles.count)).some((value) => Math.abs(value) > 0.1)).toBe(true);
   });
 
   it('does not alias previous and current buffers', () => {

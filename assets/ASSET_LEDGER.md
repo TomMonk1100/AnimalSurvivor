@@ -118,6 +118,7 @@ and transformations recorded in `docs/release/v1-visual-art-prompts.md`.
 | `ui/enemies/thornwing-v1.png` | Built-in OpenAI image generation, chroma-key alpha cleanup | 2026-07-12 | None | `1613017699e230ee6af600e8ca05de60579040ff52fc79f5d2b95305a6be0133` | Transparent Thornwing skitter runner-enemy sprite; source `exec-3017b2fa-f91d-4720-854c-8461bddff706.png` |
 | `ui/enemies/rootback-v1.png` | Built-in OpenAI image generation, chroma-key alpha cleanup | 2026-07-12 | None | `f4ca503943579d3e01081ab4af36c046be2af9c790d3623de1ca5a4747b1e7f0` | Transparent Rootback colossus brute-enemy sprite; source `exec-45a83ab6-2b49-4e05-a47b-d0c60c62a328.png` |
 | `ui/enemies/hollowhart-warden-v1.png` | Built-in OpenAI image generation, chroma-key alpha cleanup | 2026-07-12 | None | `df391827764ba1ae6e0ae5294195c57d6bfb0321e4a632c37982da324ceb6954` | Transparent Hollowhart Warden Forest boss sprite; source `exec-9b1b1a0f-3d23-4711-a9c5-a84070223505.png` |
+| `ui/vfx/wildguard-prism-atlas-v1.png` | Built-in OpenAI image generation, chroma-key alpha cleanup, 1024px derivative | 2026-07-13 | None | `1c54ebf0409076cc0b0c087898c3448a0da1055fb86ea435b8a18941b75b19f9` | Compact 4×4 transparent VFX atlas for shared hero attack, XP/reward, danger, and impact motifs; source `exec-362ca417-fa7d-44d6-8f65-024e7dcb9f17.png`; exact prompt and cleanup parameters in `docs/release/v1-1-visual-overhaul-prompts.md` |
 
 ### Generated enemy sprite source audit
 

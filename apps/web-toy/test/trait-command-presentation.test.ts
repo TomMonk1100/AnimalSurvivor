@@ -6,6 +6,10 @@ import {
   projectHeroDefenseEffect,
   projectTraitCommandEffect,
   resolveMeleeArcVariantIndex,
+  resolveTraitCommandVisualBlueprint,
+  resolveTraitCommandVisualConcurrencyCap,
+  resolveTraitCommandVisualIntensity,
+  resolveTraitCommandVisualStage,
   resolveTraitCommandEffectRadius,
   type TraitCommandPresentationEvent,
 } from '../src/render/trait-command-presentation';
@@ -72,9 +76,11 @@ describe('trait command presentation profiles', () => {
     expect(hasResolvedMeleeArc(resolved)).toBe(true);
     const profile = projectTraitCommandEffect(resolved)!;
     expect(profile.kind).toBe('melee-arc');
+    // The renderer deliberately caps this decorative sector below the
+    // authoritative 88-unit combat range so a wide cleave stays readable.
     expect(resolveTraitCommandEffectRadius(command({
       kind: 'meleeArc', dirX: 1, dirY: 0, arc: 1.6, range: 88, radius: 999, meleeArcResolved: true,
-    }), profile)).toBe(88);
+    }), profile)).toBe(52);
   });
 
   it('uses exact fixed Mantis sectors and safely routes arbitrary arcs to the generic slash fallback', () => {
@@ -212,6 +218,46 @@ describe('trait command presentation profiles', () => {
     }))?.material).toBe('thornstorm-volley');
   });
 
+  it('keeps rapid Porcupine Quills as one compact launch cue while its real projectiles carry range', () => {
+    const quills = projectTraitCommandEffect(command({
+      kind: 'spawnProjectileBurst', sourceId: 'porcupine-quills', count: 5,
+    }))!;
+    const genericBurst = projectTraitCommandEffect(command({
+      kind: 'spawnProjectileBurst', sourceId: 'test-burst', count: 5,
+    }))!;
+
+    const quillRadius = resolveTraitCommandEffectRadius(command({
+      kind: 'spawnProjectileBurst', sourceId: 'porcupine-quills', count: 5,
+    }), quills);
+    const genericRadius = resolveTraitCommandEffectRadius(command({
+      kind: 'spawnProjectileBurst', sourceId: 'test-burst', count: 5,
+    }), genericBurst);
+
+    expect(quills).toMatchObject({ material: 'quill-volley', lifetimeTicks: 7, maximumRadius: 28 });
+    expect(quillRadius).toBeLessThanOrEqual(28);
+    expect(quillRadius).toBeLessThan(genericRadius);
+    expect(resolveTraitCommandVisualConcurrencyCap(quills)).toBe(1);
+    expect(resolveTraitCommandVisualConcurrencyCap(genericBurst)).toBeNull();
+    expect(resolveTraitCommandVisualBlueprint(quills)).toMatchObject({
+      accent: 'comet', travelDistance: 0.38, aftermathOpacity: 0.08,
+    });
+  });
+
+  it('keeps Mantis Scythes as one localized wide cleave instead of a screen-sized sector', () => {
+    const mantis = projectTraitCommandEffect(command({
+      kind: 'meleeArc', sourceId: 'mantis-scythes', arc: 1.6, range: 999, meleeArcResolved: true,
+    }))!;
+
+    expect(mantis).toMatchObject({ material: 'melee-arc', lifetimeTicks: 6, maximumRadius: 52 });
+    expect(resolveTraitCommandEffectRadius(command({
+      kind: 'meleeArc', sourceId: 'mantis-scythes', arc: 1.6, range: 999, meleeArcResolved: true,
+    }), mantis)).toBe(52);
+    expect(resolveTraitCommandVisualConcurrencyCap(mantis)).toBe(1);
+    expect(resolveTraitCommandVisualBlueprint(mantis)).toMatchObject({
+      accent: 'slash', travelDistance: 0.32, impactScale: 0.8, aftermathOpacity: 0.1,
+    });
+  });
+
   it('uses the authored Thunderbug charge treatment when its tag is available', () => {
     const profile = projectTraitCommandEffect(command({ tag: 'thunderbug-charge' }));
     expect(profile?.material).toBe('thunderbug-telegraph');
@@ -250,5 +296,54 @@ describe('trait command presentation profiles', () => {
     const few = resolveTraitCommandEffectRadius(command({ kind: 'radialProjectileBurst', count: 2 }), profile);
     const many = resolveTraitCommandEffectRadius(command({ kind: 'radialProjectileBurst', count: 16 }), profile);
     expect(many).toBeGreaterThan(few);
+  });
+
+  it('projects source-aware cast, travel, impact, and aftermath visual language', () => {
+    const foxProfile = projectTraitCommandEffect(command({
+      kind: 'meleeArc', sourceId: 'greg-fox-swipe', tag: 'greg-fox-swipe',
+      arc: 1.72, range: 96, meleeArcResolved: true,
+    }))!;
+    const trampleProfile = projectTraitCommandEffect(command({
+      kind: 'telegraph', sourceId: 'benny-trample', tag: 'benny-trample-wave', radius: 48,
+    }))!;
+    const spitProfile = projectTraitCommandEffect(command({
+      kind: 'spawnProjectileBurst', sourceId: 'gracie-spit', tag: 'gracie-spit', count: 3,
+    }))!;
+    const warningProfile = projectTraitCommandEffect(command({ tag: 'boss-charge', dirX: 1 }))!;
+
+    expect(resolveTraitCommandVisualBlueprint(foxProfile)).toMatchObject({
+      accent: 'slash', travelDistance: expect.any(Number), impactScale: expect.any(Number),
+    });
+    expect(resolveTraitCommandVisualBlueprint(trampleProfile)).toMatchObject({ accent: 'ridge' });
+    expect(resolveTraitCommandVisualBlueprint(spitProfile)).toMatchObject({ accent: 'comet' });
+    expect(resolveTraitCommandVisualBlueprint(warningProfile)).toMatchObject({ accent: 'halo' });
+
+    expect(resolveTraitCommandVisualStage(0.08, foxProfile)).toBe('cast');
+    expect(resolveTraitCommandVisualStage(0.36, foxProfile)).toBe('travel');
+    expect(resolveTraitCommandVisualStage(0.7, foxProfile)).toBe('impact');
+    expect(resolveTraitCommandVisualStage(0.92, foxProfile)).toBe('aftermath');
+    // Trample keeps its simulation compatibility tag but still attacks on the
+    // fast visual timeline instead of reading as an enemy warning.
+    expect(resolveTraitCommandVisualStage(0.7, trampleProfile)).toBe('impact');
+    // Telegraphs deliberately hold their warning language longer than attacks.
+    expect(resolveTraitCommandVisualStage(0.36, warningProfile)).toBe('travel');
+    expect(resolveTraitCommandVisualStage(0.8, warningProfile)).toBe('impact');
+  });
+
+  it('uses only bounded existing command signals to scale upgraded visual silhouettes', () => {
+    const profile = projectTraitCommandEffect(command({ kind: 'spawnProjectileBurst' }))!;
+    const baseline = resolveTraitCommandVisualIntensity(command({
+      kind: 'spawnProjectileBurst', count: 1, damage: 0, strength: 0,
+    }), profile);
+    const upgraded = resolveTraitCommandVisualIntensity(command({
+      kind: 'spawnProjectileBurst', count: 12, damage: 100, strength: 12,
+    }), profile);
+    const malformed = resolveTraitCommandVisualIntensity(command({
+      kind: 'spawnProjectileBurst', count: Number.NaN, damage: Number.POSITIVE_INFINITY, strength: -1,
+    }), profile);
+
+    expect(upgraded).toBeGreaterThan(baseline);
+    expect(upgraded).toBeLessThanOrEqual(1.36);
+    expect(malformed).toBe(baseline);
   });
 });

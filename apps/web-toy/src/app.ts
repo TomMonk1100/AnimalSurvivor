@@ -1868,6 +1868,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       if (renderStress !== null) renderStress.update(driver.tick);
       renderer.setDamageNumberEvents?.(driver.combatPresentationEvents);
       renderer.setCombatPresentationEvents?.(driver.combatPresentationEvents);
+      renderer.setDirectorEvents?.(driver.directorEvents);
       renderer.render(
         renderStress?.prev ?? driver.prev,
         renderStress?.curr ?? driver.curr,
