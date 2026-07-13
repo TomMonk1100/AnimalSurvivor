@@ -5,6 +5,7 @@ import {
   type TraitVisualAttachmentView,
   type UniversalUpgradeCatalog,
 } from '@sim';
+import { presentMasteryRank } from './mastery-fusions';
 
 export interface UpgradePresentation {
   readonly title: string;
@@ -18,184 +19,226 @@ function hasAdapted(state: readonly TraitVisualAttachmentView[], traitId: string
   return state.some((visual) => visual.sourceId === traitId && visual.stage === 'adapted' && visual.enabled);
 }
 
+function hasMaster(state: readonly TraitVisualAttachmentView[], traitId: string): boolean {
+  return state.some((visual) => visual.sourceId === traitId
+    && visual.enabled
+    && (visual.isMaster === true || visual.rank === 5));
+}
+
+function hasRankMetadata(offer: TraitUpgradeOfferView): boolean {
+  return typeof offer.resultRank === 'number' || typeof offer.isMaster === 'boolean';
+}
+
+function reachesMaster(offer: TraitUpgradeOfferView): boolean {
+  return offer.isMaster === true || offer.resultRank === 5;
+}
+
+function pairReady(
+  offer: TraitUpgradeOfferView,
+  state: readonly TraitVisualAttachmentView[],
+  firstTraitId: string,
+  secondTraitId: string,
+): boolean {
+  const partner = offer.traitId === firstTraitId
+    ? secondTraitId
+    : offer.traitId === secondTraitId ? firstTraitId : null;
+  if (partner === null) return false;
+  // Legacy V1 offers only carried Bud/Adapted. V1.1 requires two actual
+  // Masters and a separate free fusion action, not an upgrade side effect.
+  return hasRankMetadata(offer)
+    ? reachesMaster(offer) && hasMaster(state, partner)
+    : offer.resultStage === 'adapted' && hasAdapted(state, partner);
+}
+
+function traitBadge(offer: TraitUpgradeOfferView, legacyBadge: string, fusionReady: boolean): string {
+  const badge = presentMasteryRank(offer.resultRank, offer.isMaster, legacyBadge);
+  return fusionReady && hasRankMetadata(offer) ? `${badge} · FUSION READY` : fusionReady ? 'MYTHIC READY' : badge;
+}
+
+function pairingHint(
+  offer: TraitUpgradeOfferView,
+  fusionReady: boolean,
+  partnerTitle: string,
+  legacyHint: string,
+): string | null {
+  if (fusionReady) return null;
+  return hasRankMetadata(offer)
+    ? `Master ${partnerTitle} too, then choose a free Fuse now action.`
+    : legacyHint;
+}
+
+function fusionReadyDescription(offer: TraitUpgradeOfferView, legacyDescription: string): string {
+  return hasRankMetadata(offer)
+    ? legacyDescription.replace(/^Completes /, 'Ready to fuse into ')
+    : legacyDescription;
+}
+
 /** Plain-language, renderer-independent card content for the launch catalog. */
 export function presentUpgrade(
   offer: TraitUpgradeOfferView,
   visualState: readonly TraitVisualAttachmentView[],
   heroName = 'Greg',
 ): UpgradePresentation {
-  const mythicReady = offer.resultStage === 'adapted'
-    && ((offer.traitId === 'porcupine-quills' && hasAdapted(visualState, 'puffer-pouch'))
-      || (offer.traitId === 'puffer-pouch' && hasAdapted(visualState, 'porcupine-quills')));
+  const mythicReady = pairReady(offer, visualState, 'porcupine-quills', 'puffer-pouch');
 
   if (offer.traitId === 'porcupine-quills') {
     return {
-      title: 'Porcupine Quills', badge: mythicReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE',
+      title: 'Porcupine Quills', badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE', mythicReady),
       socket: 'Back attachment',
       description: offer.resultStage === 'bud' ? `Fires three forward quills that pierce through one extra enemy each.`
-        : mythicReady ? `Completes Thornstorm Mantle: gather enemies, then fire a radial quill storm around ${heroName}.`
+        : mythicReady ? fusionReadyDescription(offer, `Completes Thornstorm Mantle: gather enemies, then fire a radial quill storm around ${heroName}.`)
           : 'Fires five wider quills that pierce through two extra enemies each.',
-      pairingHint: mythicReady ? null : 'Adapt Puffer Pouch too to evolve both into Thornstorm Mantle.',
+      pairingHint: pairingHint(offer, mythicReady, 'Puffer Pouch', 'Adapt Puffer Pouch too to evolve both into Thornstorm Mantle.'),
     };
   }
   if (offer.traitId === 'puffer-pouch') {
     return {
-      title: 'Puffer Pouch', badge: mythicReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE',
+      title: 'Puffer Pouch', badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE', mythicReady),
       socket: 'Head attachment',
       description: offer.resultStage === 'bud' ? `Periodically pulls nearby enemies toward ${heroName}.`
-        : mythicReady ? `Completes Thornstorm Mantle: gather enemies, then fire a radial quill storm around ${heroName}.`
+        : mythicReady ? fusionReadyDescription(offer, `Completes Thornstorm Mantle: gather enemies, then fire a radial quill storm around ${heroName}.`)
           : 'Becomes a wider pulse that knocks nearby enemies away.',
-      pairingHint: mythicReady ? null : 'Adapt Porcupine Quills too to evolve both into Thornstorm Mantle.',
+      pairingHint: pairingHint(offer, mythicReady, 'Porcupine Quills', 'Adapt Porcupine Quills too to evolve both into Thornstorm Mantle.'),
     };
   }
-  const thunderbugReady = offer.resultStage === 'adapted'
-    && ((offer.traitId === 'electric-eel-coil' && hasAdapted(visualState, 'firefly-colony'))
-      || (offer.traitId === 'firefly-colony' && hasAdapted(visualState, 'electric-eel-coil')));
-  const razorstepReady = offer.resultStage === 'adapted'
-    && ((offer.traitId === 'mantis-scythes' && hasAdapted(visualState, 'gecko-pads'))
-      || (offer.traitId === 'gecko-pads' && hasAdapted(visualState, 'mantis-scythes')));
-  const midnightReady = offer.resultStage === 'adapted'
-    && ((offer.traitId === 'owl-pinions' && hasAdapted(visualState, 'bat-ears'))
-      || (offer.traitId === 'bat-ears' && hasAdapted(visualState, 'owl-pinions')));
-  const meteorReady = offer.resultStage === 'adapted'
-    && ((offer.traitId === 'crab-pincers' && hasAdapted(visualState, 'armadillo-greaves'))
-      || (offer.traitId === 'armadillo-greaves' && hasAdapted(visualState, 'crab-pincers')));
-  const royalReady = offer.resultStage === 'adapted'
-    && ((offer.traitId === 'skunk-brush' && hasAdapted(visualState, 'monarch-brood'))
-      || (offer.traitId === 'monarch-brood' && hasAdapted(visualState, 'skunk-brush')));
+  const thunderbugReady = pairReady(offer, visualState, 'electric-eel-coil', 'firefly-colony');
+  const razorstepReady = pairReady(offer, visualState, 'mantis-scythes', 'gecko-pads');
+  const midnightReady = pairReady(offer, visualState, 'owl-pinions', 'bat-ears');
+  const meteorReady = pairReady(offer, visualState, 'crab-pincers', 'armadillo-greaves');
+  const royalReady = pairReady(offer, visualState, 'skunk-brush', 'monarch-brood');
   if (offer.traitId === 'electric-eel-coil') {
     return {
       title: 'Electric Eel Coil',
-      badge: thunderbugReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
+      badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE', thunderbugReady),
       socket: 'Tail attachment',
       description: offer.resultStage === 'bud'
         ? 'Instantly strikes the nearest enemy, then chains to 1 nearby unhit foe.'
         : thunderbugReady
-          ? `Completes Thunderbug Dynamo: telegraph a larger chain discharge around ${heroName}.`
+          ? fusionReadyDescription(offer, `Completes Thunderbug Dynamo: telegraph a larger chain discharge around ${heroName}.`)
           : 'Instantly strikes the nearest enemy, then chains to 3 nearby unhit foes.',
-      pairingHint: thunderbugReady ? null : 'Adapt Firefly Colony too to evolve both into Thunderbug Dynamo.',
+      pairingHint: pairingHint(offer, thunderbugReady, 'Firefly Colony', 'Adapt Firefly Colony too to evolve both into Thunderbug Dynamo.'),
     };
   }
   if (offer.traitId === 'firefly-colony') {
     return {
       title: 'Firefly Colony',
-      badge: thunderbugReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
+      badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE', thunderbugReady),
       socket: 'Orbiting body attachment',
       description: offer.resultStage === 'bud'
         ? `Two fireflies orbit ${heroName} and zap the nearest enemy they touch.`
         : thunderbugReady
-          ? `Completes Thunderbug Dynamo: telegraph a larger chain discharge around ${heroName}.`
+          ? fusionReadyDescription(offer, `Completes Thunderbug Dynamo: telegraph a larger chain discharge around ${heroName}.`)
           : 'Four fireflies orbit wider and zap nearby enemies on contact.',
-      pairingHint: thunderbugReady ? null : 'Adapt Electric Eel Coil too to evolve both into Thunderbug Dynamo.',
+      pairingHint: pairingHint(offer, thunderbugReady, 'Electric Eel Coil', 'Adapt Electric Eel Coil too to evolve both into Thunderbug Dynamo.'),
     };
   }
   if (offer.traitId === 'mantis-scythes') {
     return {
       title: 'Mantis Scythes',
-      badge: razorstepReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
+      badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE', razorstepReady),
       socket: 'Left shoulder attachment',
       description: offer.resultStage === 'bud'
         ? 'Auto-aims a narrow scythe sweep through nearby enemies.'
         : razorstepReady
-          ? `Completes Razorstep Chimera: movement leaves stronger scythe pads at ${heroName}'s feet.`
+          ? fusionReadyDescription(offer, `Completes Razorstep Chimera: movement leaves stronger scythe pads at ${heroName}'s feet.`)
           : 'Auto-aims a wider, stronger scythe sweep through nearby enemies.',
-      pairingHint: razorstepReady ? null : 'Adapt Gecko Pads too to evolve both into Razorstep Chimera.',
+      pairingHint: pairingHint(offer, razorstepReady, 'Gecko Pads', 'Adapt Gecko Pads too to evolve both into Razorstep Chimera.'),
     };
   }
   if (offer.traitId === 'gecko-pads') {
     return {
       title: 'Gecko Pads',
-      badge: razorstepReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
+      badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE', razorstepReady),
       socket: 'Right shoulder attachment',
       description: offer.resultStage === 'bud'
         ? `After moving, leaves a damaging pad at ${heroName}'s feet.`
         : razorstepReady
-          ? `Completes Razorstep Chimera: movement leaves stronger scythe pads at ${heroName}'s feet.`
+          ? fusionReadyDescription(offer, `Completes Razorstep Chimera: movement leaves stronger scythe pads at ${heroName}'s feet.`)
           : `After moving, leaves larger, stronger damaging pads at ${heroName}'s feet.`,
-      pairingHint: razorstepReady ? null : 'Adapt Mantis Scythes too to evolve both into Razorstep Chimera.',
+      pairingHint: pairingHint(offer, razorstepReady, 'Mantis Scythes', 'Adapt Mantis Scythes too to evolve both into Razorstep Chimera.'),
     };
   }
   if (offer.traitId === 'owl-pinions') {
     return {
       title: 'Owl Pinions',
-      badge: midnightReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
+      badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE', midnightReady),
       socket: 'Wing attachments',
       description: offer.resultStage === 'bud'
         ? 'Fires a four-feather spread at the nearest threat.'
         : midnightReady
-          ? `Completes Midnight Radar: mark a wide cluster and keep your aim on the marked hunt around ${heroName}.`
+          ? fusionReadyDescription(offer, `Completes Midnight Radar: mark a wide cluster and keep your aim on the marked hunt around ${heroName}.`)
           : 'Fires a wider seven-feather spread.',
-      pairingHint: midnightReady ? null : 'Adapt Bat Ears too to evolve both into Midnight Radar.',
+      pairingHint: pairingHint(offer, midnightReady, 'Bat Ears', 'Adapt Bat Ears too to evolve both into Midnight Radar.'),
     };
   }
   if (offer.traitId === 'bat-ears') {
     return {
       title: 'Bat Ears',
-      badge: midnightReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE',
+      badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE', midnightReady),
       socket: 'Head attachment',
       description: offer.resultStage === 'bud'
         ? 'Echo-marks a nearby cluster; every automatic attack prioritizes the marked prey.'
         : midnightReady
-          ? `Completes Midnight Radar: mark a wide cluster and keep your aim on the marked hunt around ${heroName}.`
+          ? fusionReadyDescription(offer, `Completes Midnight Radar: mark a wide cluster and keep your aim on the marked hunt around ${heroName}.`)
           : 'Echo-marks a larger cluster for priority targeting.',
-      pairingHint: midnightReady ? null : 'Adapt Owl Pinions too to evolve both into Midnight Radar.',
+      pairingHint: pairingHint(offer, midnightReady, 'Owl Pinions', 'Adapt Owl Pinions too to evolve both into Midnight Radar.'),
     };
   }
   if (offer.traitId === 'crab-pincers') {
     return {
       title: 'Crab Pincers',
-      badge: meteorReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE',
+      badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE', meteorReady),
       socket: 'Shoulder attachments',
       description: offer.resultStage === 'bud'
         ? 'Crushes nearby enemies with a compact area strike.'
         : meteorReady
-          ? 'Completes Meteor Mauler: a heavy close-range impact crushes the nearest crowd.'
+          ? fusionReadyDescription(offer, 'Completes Meteor Mauler: a heavy close-range impact crushes the nearest crowd.')
           : 'Crushes a wider area for heavier damage.',
-      pairingHint: meteorReady ? null : 'Adapt Armadillo Greaves too to evolve both into Meteor Mauler.',
+      pairingHint: pairingHint(offer, meteorReady, 'Armadillo Greaves', 'Adapt Armadillo Greaves too to evolve both into Meteor Mauler.'),
     };
   }
   if (offer.traitId === 'armadillo-greaves') {
     return {
       title: 'Armadillo Greaves',
-      badge: meteorReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE',
+      badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE', meteorReady),
       socket: 'Back attachment',
       description: offer.resultStage === 'bud'
         ? 'Shoves nearby threats away from your body.'
         : meteorReady
-          ? 'Completes Meteor Mauler: a heavy close-range impact crushes the nearest crowd.'
+          ? fusionReadyDescription(offer, 'Completes Meteor Mauler: a heavy close-range impact crushes the nearest crowd.')
           : 'Creates a stronger defensive shove around you.',
-      pairingHint: meteorReady ? null : 'Adapt Crab Pincers too to evolve both into Meteor Mauler.',
+      pairingHint: pairingHint(offer, meteorReady, 'Crab Pincers', 'Adapt Crab Pincers too to evolve both into Meteor Mauler.'),
     };
   }
   if (offer.traitId === 'skunk-brush') {
     return {
       title: 'Skunk Brush',
-      badge: royalReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE',
+      badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE', royalReady),
       socket: 'Tail attachment',
       description: offer.resultStage === 'bud'
         ? 'Leaves a damaging stink cloud that punishes pursuit.'
         : royalReady
-          ? 'Completes Royal Stinkcloud: a monarch-crowned hazard surrounds you.'
+          ? fusionReadyDescription(offer, 'Completes Royal Stinkcloud: a monarch-crowned hazard surrounds you.')
           : 'Leaves a larger, stronger stink cloud.',
-      pairingHint: royalReady ? null : 'Adapt Monarch Brood too to evolve both into Royal Stinkcloud.',
+      pairingHint: pairingHint(offer, royalReady, 'Monarch Brood', 'Adapt Monarch Brood too to evolve both into Royal Stinkcloud.'),
     };
   }
   if (offer.traitId === 'monarch-brood') {
     return {
       title: 'Monarch Brood',
-      badge: royalReady ? 'MYTHIC READY' : offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE',
+      badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE', royalReady),
       socket: 'Orbiting body attachment',
       description: offer.resultStage === 'bud'
         ? `Two monarchs orbit ${heroName} and sting nearby enemies on contact.`
         : royalReady
-          ? 'Completes Royal Stinkcloud: a monarch-crowned hazard surrounds you.'
+          ? fusionReadyDescription(offer, 'Completes Royal Stinkcloud: a monarch-crowned hazard surrounds you.')
           : 'Three monarchs orbit wider and sting nearby enemies more often.',
-      pairingHint: royalReady ? null : 'Adapt Skunk Brush too to evolve both into Royal Stinkcloud.',
+      pairingHint: pairingHint(offer, royalReady, 'Skunk Brush', 'Adapt Skunk Brush too to evolve both into Royal Stinkcloud.'),
     };
   }
   return {
     title: offer.traitId.split('-').map((part) => part[0]?.toUpperCase() + part.slice(1)).join(' '),
-    badge: offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE', socket: 'Body attachment',
+    badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE', false), socket: 'Body attachment',
     description: offer.resultStage === 'bud' ? 'Adds a new visible animal adaptation.' : 'Strengthens this animal adaptation.',
     pairingHint: null,
   };

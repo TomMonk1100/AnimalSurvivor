@@ -2,7 +2,7 @@
  * LEAD-OWNED benchmark. Repeatable Node microbenchmark for the trait runtime.
  *
  * Scenario: three resolved Mythics active (six ingredient traits taken to
- * Adapted, then evolved), 18,000 fixed ticks, exercising the command buffer and
+ * Master, then explicitly fused), 18,000 fixed ticks, exercising the command buffer and
  * a visual-state read each tick. Reports mean/median/p95/p99/worst tick time,
  * command totals by kind, an allocation/heap signal, and the final canonical
  * hash (also printed by a second `--hash-only` process for cross-process
@@ -30,8 +30,19 @@ function buildThreeMythics(seed: number): TraitRuntime {
     'gecko-pads',
   ];
   for (const id of pairs) {
-    rt.applyUpgrade(id);
-    rt.applyUpgrade(id);
+    for (let rank = 0; rank < 5; rank++) {
+      const result = rt.applyUpgrade(id);
+      if (!result.outcome.ok) throw new Error(`failed to Master benchmark trait ${id}`);
+    }
+  }
+  // V1.1 deliberately makes fusions a visible, free player choice. The
+  // benchmark must exercise that same explicit path rather than relying on
+  // the pre-V1.1 automatic-evolution side effect.
+  for (let fusionIndex = 0; fusionIndex < 3; fusionIndex++) {
+    const offer = rt.availableFusions()[0];
+    if (offer === undefined) throw new Error(`expected fusion offer ${fusionIndex + 1}`);
+    const result = rt.fuseEvolution(offer.evolutionId);
+    if (!result.outcome.ok) throw new Error(`failed to fuse benchmark evolution ${offer.evolutionId}`);
   }
   return rt;
 }

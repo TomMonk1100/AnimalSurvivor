@@ -97,6 +97,7 @@ import {
   type EnemyPool,
   type ProjectilePool,
   type PickupPool,
+  type PowerPickupPool,
   type SimEvents,
   type SpatialGrid,
   type TickInput,
@@ -111,7 +112,13 @@ import { createRng } from './rng.js';
 import { createClock } from './clock.js';
 import { createReplayRecorder, deserializeReplay, serializeReplay } from './replay.js';
 import { createHashWriter } from './state-hash.js';
-import { createEnemyPool, createProjectilePool, createPickupPool, createZonePool } from './pools.js';
+import {
+  createEnemyPool,
+  createProjectilePool,
+  createPickupPool,
+  createPowerPickupPool,
+  createZonePool,
+} from './pools.js';
 import { createSpatialGrid } from './spatial-grid.js';
 import { selectPriorityTarget } from './targeting.js';
 import { createWaveDirector } from './wave-director.js';
@@ -124,6 +131,21 @@ import {
   stepProjectiles,
 } from './combat.js';
 import {
+  COMBAT_DAMAGE_SOURCE,
+  createCombatDamageResolver,
+  createCombatPresentationEventBuffer,
+  type CombatDamageResolver,
+  type CombatPresentationEventView,
+} from './combat-resolution.js';
+import {
+  collectPowerPickups,
+  powerPickupCapacityForXpCap,
+  powerPickupKindForDeathRoll,
+  POWER_PICKUP_DROP_ROLL_RANGE,
+  spawnPowerPickup as spawnWorldPowerPickup,
+  type PowerPickupKind,
+} from './power-pickups.js';
+import {
   MAX_CHAIN_JUMPS,
   MAX_ORBITING_DAMAGE_COUNT,
   createTraitCommandExecutor,
@@ -134,6 +156,8 @@ import {
   type TraitRuntimeCommandSource,
   type TraitRuntimeCommandView,
   type TraitRuntimeFactory,
+  type TraitFusionOfferView,
+  type TraitFuseResultView,
   type TraitVisualAttachmentView,
 } from './trait-runtime-port.js';
 import {
@@ -194,6 +218,7 @@ export interface SimulationOptions {
 
 const EMPTY_RUN_OFFERS: readonly RunUpgradeOfferView[] = Object.freeze([]);
 const EMPTY_TRAIT_VISUALS: readonly TraitVisualAttachmentView[] = Object.freeze([]);
+const EMPTY_FUSION_OFFERS: readonly TraitFusionOfferView[] = Object.freeze([]);
 const EMPTY_UNIVERSAL_RANKS: readonly number[] = Object.freeze([]);
 /** Kept in lockstep with the executor so every authoritative hit can render. */
 export const MAX_TRAIT_PRESENTATION_CHAIN_HITS = MAX_CHAIN_JUMPS + 1;
@@ -262,12 +287,16 @@ export interface Simulation {
   readonly enemies: Pool<EnemyPool>;
   readonly projectiles: Pool<ProjectilePool>;
   readonly pickups: Pool<PickupPool>;
+  /** Separate bounded world-pickup pool for Bomb, Magnet, and Food tokens. */
+  readonly powerPickups: Pool<PowerPickupPool>;
   /** Persistent player damage pads; compact numeric tags are renderer-ready. */
   readonly zones: Pool<ZonePool>;
   readonly grid: SpatialGrid;
   readonly waveDirector: WaveDirector;
   /** XP silently dropped because the pickup pool was full at kill time. Diagnostic only. */
   readonly xpLostToFullPickupPool: number;
+  /** Rare world tokens rejected because their separate bounded pool was full. */
+  readonly powerPickupsLostToFullPool: number;
   readonly traitCatalogFingerprint: string | null;
   readonly universalUpgradeCatalog: UniversalUpgradeCatalog | null;
   readonly universalUpgradeCatalogFingerprint: string | null;
@@ -287,12 +316,21 @@ export interface Simulation {
   readonly universalUpgradeSlotsUsed: number;
   readonly pendingUpgradeOffers: readonly RunUpgradeOfferView[];
   readonly upgradeSelectionPending: boolean;
+  /** Free Master-pair evolutions currently available in deterministic recipe order. */
+  readonly availableFusions: readonly TraitFusionOfferView[];
   /**
    * Renderer-only copies of commands executed during the most recent advancing
    * tick. This reusable output is empty after a paused step and excluded from
    * deterministic gameplay state.
    */
   readonly traitPresentationEvents: readonly TraitPresentationEventView[];
+  /**
+   * Bounded resolved combat feedback from the most recent advancing tick.
+   * This is renderer-only output and is empty after a paused tick.
+   */
+  readonly combatPresentationEvents: readonly CombatPresentationEventView[];
+  /** Number of feedback events safely coalesced away this tick due to the cap. */
+  readonly combatPresentationEventsDropped: number;
   /**
    * Read-only presentation classification for a live enemy id. This mirrors
    * the run adapter's already-authoritative role and is intentionally not a
@@ -301,8 +339,18 @@ export interface Simulation {
    * affecting simulation state.
    */
   enemyPresentationRole(id: EntityId): RunEnemyRole;
+  /** Authoritative, capacity-bounded spawn hook for world pickup directors. */
+  spawnPowerPickup(
+    kind: Exclude<PowerPickupKind, 'xp'>,
+    x: number,
+    y: number,
+    amount?: number,
+    radius?: number,
+  ): boolean;
   step(input: TickInput): SimEvents;
   selectUpgrade(id: string): UpgradeSelection;
+  /** Resolve a free, explicit V1.1 Master fusion without consuming a level-up. */
+  fuseEvolution(evolutionId: string): UpgradeSelection;
   traitVisualState(): readonly TraitVisualAttachmentView[];
   hash(): string;
   getReplay(): ReplayRecord;
@@ -319,6 +367,10 @@ function resetEvents(events: SimEvents): void {
   events.enemiesSpawned = 0;
   events.enemyProjectilesFired = 0;
   events.projectilesFired = 0;
+  events.powerPickupsCollected = 0;
+  events.bombsTriggered = 0;
+  events.magnetsTriggered = 0;
+  events.foodCollected = 0;
 }
 
 export function createSimulation(
@@ -329,6 +381,13 @@ export function createSimulation(
   if (!Number.isFinite(seed)) throw new RangeError(`createSimulation: seed must be finite (received ${seed})`);
   const configFingerprint = fingerprintConfig(config);
   const rng = createRng(seed);
+  // Combat rolls deliberately use a separate deterministic stream. Adding a
+  // crit/dodge roll must never perturb wave spawns, offers, or authored run
+  // events that consume the legacy simulation RNG.
+  const combatRng = createRng((Math.trunc(seed) ^ 0x9e3779b9) >>> 0);
+  // Independent from both combat and wave RNG. A rare pickup drop cannot
+  // perturb crit/dodge outcomes or authored spawning/offer schedules.
+  const powerPickupRng = createRng((Math.trunc(seed) ^ 0x85ebca6b) >>> 0);
   const clock = createClock(config.hz);
   const traitRuntime = options.traitRuntimeFactory === undefined
     ? null
@@ -400,11 +459,21 @@ export function createSimulation(
     level: 1,
     invulnTicks: 0,
     alive: true,
+    critChance: hero.critChance,
+    critMultiplier: hero.critMultiplier,
+    dodgeChance: hero.dodgeChance,
+    armor: hero.armor,
+    shield: hero.shieldMax,
+    shieldMax: hero.shieldMax,
+    shieldRechargeDelayTicks: hero.shieldRechargeDelayTicks,
+    shieldRechargeTicksRemaining: 0,
+    shieldRechargePerTick: hero.shieldRechargePerTick,
   };
 
   const enemies = createEnemyPool(config.enemyCap);
   const projectiles = createProjectilePool(config.projectileCap);
   const pickups = createPickupPool(config.pickupCap);
+  const powerPickups = createPowerPickupPool(powerPickupCapacityForXpCap(config.pickupCap));
   const zones = createZonePool(config.zoneCap);
   const grid = createSpatialGrid(config.worldWidth, config.worldHeight, config.gridCellSize, config.enemyCap);
   const waveDirector = createWaveDirector(config.waves);
@@ -423,6 +492,8 @@ export function createSimulation(
   basicWeapon.range = config.weapon.range * basicAttack.rangeMultiplier;
   basicWeapon.pierce = basicAttack.pierce;
   let basicProjectileCount = basicAttack.projectileCount;
+  /** Selected hero starter mastery rank, projected from the universal catalog. */
+  let basicAttackMasteryRank = 0;
   if (runDirector !== null && config.archetypes.length < 4) {
     throw new Error('run director integration requires at least four simulation archetypes');
   }
@@ -441,7 +512,18 @@ export function createSimulation(
     enemiesSpawned: 0,
     enemyProjectilesFired: 0,
     projectilesFired: 0,
+    powerPickupsCollected: 0,
+    bombsTriggered: 0,
+    magnetsTriggered: 0,
+    foodCollected: 0,
   };
+  const combatPresentationEventBuffer = createCombatPresentationEventBuffer();
+  const combat: CombatDamageResolver = createCombatDamageResolver({
+    player,
+    rng: combatRng,
+    eventBuffer: combatPresentationEventBuffer,
+    getTick: () => clock.tick,
+  });
   const traitPresentationEventStorage: MutableTraitPresentationEvent[] = [];
   const traitPresentationEvents: MutableTraitPresentationEvent[] = [];
   let rushRakeState: RushRakeState = createRushRakeState();
@@ -455,10 +537,26 @@ export function createSimulation(
   const rushRakeNearMissActive = new Uint8Array(config.enemyCap);
   const rushRakeNearMissGeneration = new Uint16Array(config.enemyCap);
   rushRakePendingTicks.fill(-1);
+  /** A bounded Trample cast may carry up to five sequential earth-wave impacts. */
+  const groundWavePendingTicks = new Int32Array(8);
+  const groundWaveOriginX = new Float32Array(8);
+  const groundWaveOriginY = new Float32Array(8);
+  const groundWaveDirX = new Float32Array(8);
+  const groundWaveDirY = new Float32Array(8);
+  const groundWaveRadius = new Float32Array(8);
+  const groundWaveDamage = new Float32Array(8);
+  const groundWaveCritical = new Uint8Array(8);
+  const groundWaveIndex = new Uint8Array(8);
+  groundWavePendingTicks.fill(-1);
   const rushRakeClusters: RushRakeCluster[] = [];
   const bennyPulseScratch: EntityId[] = [];
+  const heroMeleeScratch: EntityId[] = [];
   const gracieScoutTargets: GracieScoutTarget[] = [];
   let traitPresentationCommandSource: TraitRuntimeCommandSource | null = null;
+  // Hero starter cues are emitted before trait commands. Keep the external
+  // trait command index separate from its renderer-event slot so a Fox Swipe,
+  // Trample, or Spit cue can never be overwritten by command zero.
+  let traitPresentationCommandOffset = 0;
   const traitPresentationCommandCapture: TraitRuntimeCommandSource = {
     get length() {
       return traitPresentationCommandSource?.length ?? 0;
@@ -469,7 +567,8 @@ export function createSimulation(
         throw new Error('trait presentation command capture is not active');
       }
       const command = source.at(index);
-      let event = traitPresentationEventStorage[index];
+      const eventIndex = traitPresentationCommandOffset + index;
+      let event = traitPresentationEventStorage[eventIndex];
       if (event === undefined) {
         event = {
           kind: command.kind,
@@ -504,7 +603,7 @@ export function createSimulation(
           resolvedOrbitSourceX: new Float32Array(MAX_TRAIT_PRESENTATION_ORBIT_HITS),
           resolvedOrbitSourceY: new Float32Array(MAX_TRAIT_PRESENTATION_ORBIT_HITS),
         };
-        traitPresentationEventStorage[index] = event;
+        traitPresentationEventStorage[eventIndex] = event;
       } else {
         event.kind = command.kind;
         event.sourceId = command.sourceId;
@@ -532,7 +631,7 @@ export function createSimulation(
         event.resolvedHitCount = 0;
         event.resolvedOrbitHitCount = 0;
       }
-      traitPresentationEvents[index] = event;
+      traitPresentationEvents[eventIndex] = event;
       return command;
     },
   };
@@ -540,44 +639,50 @@ export function createSimulation(
   function resetTraitPresentationEvents(): void {
     traitPresentationEvents.length = 0;
     traitPresentationCommandSource = null;
+    traitPresentationCommandOffset = 0;
   }
 
-  function appendRushRakePresentationEvent(
+  /** Records a real resolved swipe for the renderer without granting it writes. */
+  function appendHeroMeleeArcPresentationEvent(
+    sourceId: string,
+    tag: string,
     tick: number,
     originX: number,
     originY: number,
     aimX: number,
     aimY: number,
-    waveIndex: number,
+    arc: number,
+    range: number,
     damage: number,
+    waveIndex = 0,
   ): void {
     const index = traitPresentationEvents.length;
     let event = traitPresentationEventStorage[index];
     if (event === undefined) {
       event = {
-        kind: 'spawnProjectileBurst',
-        sourceId: 'greg-rush-rake',
+        kind: 'meleeArc',
+        sourceId,
         tick,
-        targeting: 'movement-facing',
+        targeting: 'none',
         originX,
         originY,
         dirX: aimX,
         dirY: aimY,
-        count: 3,
+        count: 1,
         damage,
-        speed: basicWeapon.projectileSpeed,
-        radius: basicWeapon.hitRadius * 1.2,
-        strength: 1.4,
+        speed: 0,
+        radius: range,
+        strength: 1,
         durationTicks: 0,
         intervalTicks: 0,
         amount: waveIndex,
-        arc: 0,
-        meleeArcResolved: false,
+        arc,
+        meleeArcResolved: true,
         facing: Math.atan2(aimY, aimX),
-        spread: 0.22,
+        spread: 0,
         jumps: 0,
-        range: 80,
-        tag: 'greg-rush-rake',
+        range,
+        tag,
         resolvedHitCount: 0,
         resolvedHitX: new Float32Array(MAX_TRAIT_PRESENTATION_CHAIN_HITS),
         resolvedHitY: new Float32Array(MAX_TRAIT_PRESENTATION_CHAIN_HITS),
@@ -589,29 +694,29 @@ export function createSimulation(
       };
       traitPresentationEventStorage[index] = event;
     } else {
-      event.kind = 'spawnProjectileBurst';
-      event.sourceId = 'greg-rush-rake';
+      event.kind = 'meleeArc';
+      event.sourceId = sourceId;
       event.tick = tick;
-      event.targeting = 'movement-facing';
+      event.targeting = 'none';
       event.originX = originX;
       event.originY = originY;
       event.dirX = aimX;
       event.dirY = aimY;
-      event.count = 3;
+      event.count = 1;
       event.damage = damage;
-      event.speed = basicWeapon.projectileSpeed;
-      event.radius = basicWeapon.hitRadius * 1.2;
-      event.strength = 1.4;
+      event.speed = 0;
+      event.radius = range;
+      event.strength = 1;
       event.durationTicks = 0;
       event.intervalTicks = 0;
       event.amount = waveIndex;
-      event.arc = 0;
-      event.meleeArcResolved = false;
+      event.arc = arc;
+      event.meleeArcResolved = true;
       event.facing = Math.atan2(aimY, aimX);
-      event.spread = 0.22;
+      event.spread = 0;
       event.jumps = 0;
-      event.range = 80;
-      event.tag = 'greg-rush-rake';
+      event.range = range;
+      event.tag = tag;
       event.resolvedHitCount = 0;
       event.resolvedOrbitHitCount = 0;
     }
@@ -700,6 +805,61 @@ export function createSimulation(
     traitPresentationEvents.push(event);
   }
 
+  /** Resolve one close-range hero sweep against the authoritative spatial grid. */
+  function resolveHeroMeleeArc(
+    originX: number,
+    originY: number,
+    aimX: number,
+    aimY: number,
+    range: number,
+    arc: number,
+    rawDamage: number,
+    sourceId: string,
+    tag: string,
+    waveIndex = 0,
+  ): number {
+    const aimLength = Math.hypot(aimX, aimY);
+    if (aimLength <= 1e-6 || range <= 0 || arc <= 0) return 0;
+    const dirX = aimX / aimLength;
+    const dirY = aimY / aimLength;
+    const cosineThreshold = Math.cos(Math.min(Math.PI * 2, arc) * 0.5);
+    const hitCount = grid.queryRadius(originX, originY, range + maxEnemyRadius, heroMeleeScratch);
+    // Greg's Melee Affinity is deliberately applied at the common close-hit
+    // boundary: it strengthens Fox Swipe, Rush Rake, and the tagged melee
+    // animal attacks handled by the trait executor without touching ranged
+    // pickups such as Quills or Spit Volley.
+    const meleeAffinity = hero.id === 'greg' ? hero.meleeDamageMultiplier : 1;
+    const resolvedDamage = combat.resolveOutgoingDamage(rawDamage * meleeAffinity, sourceId);
+    let affected = 0;
+    for (let index = 0; index < hitCount; index++) {
+      const enemySlot = enemies.slotOf(heroMeleeScratch[index]!);
+      if (enemySlot < 0) continue;
+      const data = enemies.data;
+      const dx = data.posX[enemySlot]! - originX;
+      const dy = data.posY[enemySlot]! - originY;
+      const distance = Math.hypot(dx, dy);
+      if (distance > range + data.radius[enemySlot]!) continue;
+      if (distance > 1e-6 && (dx * dirX + dy * dirY) / distance < cosineThreshold) continue;
+      const killed = combat.damageEnemy(enemies, enemySlot, resolvedDamage, sourceId);
+      affected++;
+      if (killed) killEnemy(enemySlot);
+    }
+    appendHeroMeleeArcPresentationEvent(
+      sourceId,
+      tag,
+      clock.tick,
+      originX,
+      originY,
+      dirX,
+      dirY,
+      arc,
+      range,
+      resolvedDamage.amount,
+      waveIndex,
+    );
+    return affected;
+  }
+
   function collectRushRakeClusters(): void {
     rushRakeClusters.length = 0;
     const data = enemies.data;
@@ -761,47 +921,24 @@ export function createSimulation(
     if (!player.alive) return;
     const aimX = rushRakePendingAimX[slot]!;
     const aimY = rushRakePendingAimY[slot]!;
-    const baseAngle = Math.atan2(aimY, aimX);
-    const rushWeapon = {
-      ...basicWeapon,
-      // Rush Rake is nine piercing projectiles across three waves. Its payoff
-      // is coverage and movement-facing placement, not a hidden multiplier
-      // that eclipses the entire starter weapon while the player simply walks.
-      // A full combo contains nine piercing projectiles; the lower per-quill
-      // damage keeps its dense coverage near a modest bonus over Auto-Fire
-      // instead of four times the starter's sustained output in the proof lab.
-      damage: basicWeapon.damage * 0.35,
-      hitRadius: basicWeapon.hitRadius,
-      pierce: Math.max(1, basicWeapon.pierce),
-    };
-    const projectileCount = 3;
-    let firedAny = false;
-    for (let projectileIndex = 0; projectileIndex < projectileCount; projectileIndex++) {
-      const angle = baseAngle + 0.22 * (projectileIndex - 1);
-      if (spawnProjectile(
-        projectiles,
-        rushRakePendingOriginX[slot]!,
-        rushRakePendingOriginY[slot]!,
-        Math.cos(angle),
-        Math.sin(angle),
-        rushWeapon,
-        0,
-      )) {
-        events.projectilesFired++;
-        firedAny = true;
-      }
-    }
-    if (firedAny) {
-      appendRushRakePresentationEvent(
-        clock.tick,
-        rushRakePendingOriginX[slot]!,
-        rushRakePendingOriginY[slot]!,
-        aimX,
-        aimY,
-        0,
-        rushWeapon.damage,
-      );
-    }
+    // V1.1 turns Rush Rake into the committed close-combo its name promises:
+    // three expanding claw arcs, not a second projectile weapon.
+    const waveIndex = Math.max(0, Math.min(2, slot));
+    const originX = rushRakePendingOriginX[slot]! + aimX * waveIndex * 8;
+    const originY = rushRakePendingOriginY[slot]! + aimY * waveIndex * 8;
+    resolveHeroMeleeArc(
+      originX,
+      originY,
+      aimX,
+      aimY,
+      58 + waveIndex * 12,
+      1.25 + waveIndex * 0.2,
+      basicWeapon.damage * (0.44 + waveIndex * 0.06),
+      'greg-rush-rake',
+      'greg-rush-rake',
+      waveIndex,
+    );
+    // `resolveHeroMeleeArc` always emits the physical cue, even on a miss.
   }
 
   function stepGregRushRake(distanceMovedThisTick: number): void {
@@ -825,6 +962,96 @@ export function createSimulation(
     }
   }
 
+  /** Queue a single Trample cast as several deterministic forward impacts. */
+  function scheduleBennyTrample(aimX: number, aimY: number): boolean {
+    const length = Math.hypot(aimX, aimY);
+    if (length <= 1e-6) return false;
+    const dirX = aimX / length;
+    const dirY = aimY / length;
+    const rank = basicAttackMasteryRank;
+    const waveCount = Math.min(
+      groundWavePendingTicks.length,
+      basicAttack.groundWaveCount + Math.floor((rank + 1) / 2) + (rank === 5 ? 1 : 0),
+    );
+    const resolved = combat.resolveOutgoingDamage(basicWeapon.damage, 'benny-trample');
+    let queued = 0;
+    for (let wave = 0; wave < waveCount; wave++) {
+      const slot = groundWavePendingTicks.findIndex((tick) => tick < 0);
+      if (slot < 0) break;
+      groundWavePendingTicks[slot] = clock.tick + wave * basicAttack.groundWaveSpacingTicks;
+      groundWaveOriginX[slot] = player.x;
+      groundWaveOriginY[slot] = player.y;
+      groundWaveDirX[slot] = dirX;
+      groundWaveDirY[slot] = dirY;
+      groundWaveRadius[slot] = basicAttack.groundWaveRadius + rank * 5 + wave * 2;
+      groundWaveDamage[slot] = Math.fround(resolved.amount * (0.88 + wave * 0.1));
+      groundWaveCritical[slot] = resolved.critical ? 1 : 0;
+      groundWaveIndex[slot] = wave;
+      queued++;
+    }
+    return queued > 0;
+  }
+
+  function fireBennyTrampleWave(slot: number): void {
+    const wave = groundWaveIndex[slot]!;
+    const dirX = groundWaveDirX[slot]!;
+    const dirY = groundWaveDirY[slot]!;
+    const distance = basicAttack.groundWaveStartDistance
+      + wave * (basicAttack.groundWaveStride + basicAttackMasteryRank * 2);
+    const originX = groundWaveOriginX[slot]! + dirX * distance;
+    const originY = groundWaveOriginY[slot]! + dirY * distance;
+    const radius = groundWaveRadius[slot]!;
+    const damage = groundWaveDamage[slot]!;
+    const hitCount = grid.queryRadius(originX, originY, radius + maxEnemyRadius, heroMeleeScratch);
+    let affected = 0;
+    for (let index = 0; index < hitCount; index++) {
+      const enemySlot = enemies.slotOf(heroMeleeScratch[index]!);
+      if (enemySlot < 0) continue;
+      const data = enemies.data;
+      const dx = data.posX[enemySlot]! - originX;
+      const dy = data.posY[enemySlot]! - originY;
+      const enemyRadius = data.radius[enemySlot]!;
+      if (dx * dx + dy * dy > (radius + enemyRadius) * (radius + enemyRadius)) continue;
+      const killed = combat.damageEnemy(enemies, enemySlot, {
+        amount: damage,
+        critical: groundWaveCritical[slot] === 1,
+      }, 'benny-trample');
+      affected++;
+      if (killed) {
+        killEnemy(enemySlot);
+        continue;
+      }
+      // A small deterministic shove makes the line read as a genuine stampede
+      // rather than a hidden area-damage circle.
+      data.posX[enemySlot] = clamp(data.posX[enemySlot]! + dirX * (5 + wave * 1.5), 0, worldWidth);
+      data.posY[enemySlot] = clamp(data.posY[enemySlot]! + dirY * (5 + wave * 1.5), 0, worldHeight);
+      grid.update(enemies.idOf(enemySlot), data.posX[enemySlot]!, data.posY[enemySlot]!);
+    }
+    appendHeroPresentationEvent(
+      'telegraph',
+      'benny-trample',
+      'benny-trample-wave',
+      clock.tick,
+      originX,
+      originY,
+      dirX,
+      dirY,
+      affected,
+      damage,
+      radius,
+      1 + wave * 0.2,
+      20,
+    );
+  }
+
+  function stepBennyTrample(): void {
+    for (let slot = 0; slot < groundWavePendingTicks.length; slot++) {
+      if (groundWavePendingTicks[slot] !== clock.tick) continue;
+      fireBennyTrampleWave(slot);
+      groundWavePendingTicks[slot] = -1;
+    }
+  }
+
   function applyBennyBracePulse(
     originX: number,
     originY: number,
@@ -833,6 +1060,7 @@ export function createSimulation(
     knockbackStrength: number,
   ): void {
     const hitCount = grid.queryRadius(originX, originY, radius, bennyPulseScratch);
+    const resolvedDamage = combat.resolveOutgoingDamage(damage * traitDamageMultiplier, 'benny-brace');
     let affected = 0;
     for (let index = 0; index < hitCount; index++) {
       const enemySlot = enemies.slotOf(bennyPulseScratch[index]!);
@@ -842,9 +1070,9 @@ export function createSimulation(
       const dy = data.posY[enemySlot]! - originY;
       const distance = Math.sqrt(dx * dx + dy * dy);
       if (distance > radius) continue;
-      data.hp[enemySlot] = data.hp[enemySlot]! - damage * traitDamageMultiplier;
+      const killed = combat.damageEnemy(enemies, enemySlot, resolvedDamage, 'benny-brace');
       affected++;
-      if (data.hp[enemySlot]! <= 0) {
+      if (killed) {
         killEnemy(enemySlot);
         continue;
       }
@@ -864,7 +1092,7 @@ export function createSimulation(
       lastMoveDirX,
       lastMoveDirY,
       affected,
-      damage * traitDamageMultiplier,
+      resolvedDamage.amount,
       radius,
       knockbackStrength,
     );
@@ -939,6 +1167,7 @@ export function createSimulation(
   let lastMoveDirX = 0;
   let lastMoveDirY = 0;
   let xpLostToFullPickupPool = 0;
+  let powerPickupsLostToFullPool = 0;
   let totalKills = 0;
   let bossEntityId: EntityId = NO_ENTITY;
   let bossDefeatedThisTick = false;
@@ -982,9 +1211,25 @@ export function createSimulation(
     basicWeapon.projectileSpeed = config.weapon.projectileSpeed * basicAttack.projectileSpeedMultiplier;
     basicWeapon.pierce = basicAttack.pierce + stats.basicAttackPierceBonus;
     basicProjectileCount = basicAttack.projectileCount + stats.basicAttackProjectileCountBonus;
+    basicAttackMasteryRank = stats.basicAttackMasteryRank;
     traitDamageMultiplier = hero.weaponDamageMultiplier * stats.weaponDamageMultiplier;
     traitCooldownMultiplier = hero.weaponCooldownMultiplier * stats.weaponCooldownMultiplier;
     xpGainMultiplier = stats.xpMultiplier;
+
+    // Defensive/crit cards modify the selected hero's base identity rather
+    // than overwriting it. Dodge has a hard cap so Fox cannot become immune.
+    player.critChance = clamp(hero.critChance + stats.critChanceBonus, 0, 0.5);
+    player.critMultiplier = hero.critMultiplier;
+    player.dodgeChance = clamp(hero.dodgeChance + stats.dodgeChanceBonus, 0, 0.35);
+    player.armor = Math.max(0, hero.armor + stats.armorBonus);
+    const nextShieldMax = Math.max(0, hero.shieldMax + stats.shieldMaxBonus);
+    if (nextShieldMax > (player.shieldMax ?? 0)) {
+      player.shield = Math.fround((player.shield ?? 0) + nextShieldMax - (player.shieldMax ?? 0));
+    }
+    player.shieldMax = nextShieldMax;
+    player.shield = Math.min(nextShieldMax, Math.max(0, player.shield ?? 0));
+    player.shieldRechargeDelayTicks = hero.shieldRechargeDelayTicks;
+    player.shieldRechargePerTick = hero.shieldRechargePerTick + stats.shieldRechargePerTickBonus;
 
     const nextMaxHp = basePlayerMaxHp + stats.maxHpBonus;
     if (nextMaxHp > player.maxHp) player.hp += nextMaxHp - player.maxHp;
@@ -1067,7 +1312,17 @@ export function createSimulation(
     );
   }
 
-  function killEnemy(eSlot: number): void {
+  function spawnPowerPickup(
+    kind: Exclude<PowerPickupKind, 'xp'>,
+    x: number,
+    y: number,
+    amount?: number,
+    radius?: number,
+  ): boolean {
+    return spawnWorldPowerPickup(powerPickups, kind, x, y, amount, radius);
+  }
+
+  function killEnemy(eSlot: number, suppressPowerPickupDrop = false): void {
     const x = enemies.data.posX[eSlot]!;
     const y = enemies.data.posY[eSlot]!;
     const xpDrop = enemies.data.xpDrop[eSlot]!;
@@ -1089,14 +1344,26 @@ export function createSimulation(
     } else {
       pickups.data.posX[pSlot] = x;
       pickups.data.posY[pSlot] = y;
+      pickups.data.kind[pSlot] = 0; // POWER_PICKUP_KIND.xp; stays in dense XP pool.
       pickups.data.xp[pSlot] = xpDrop;
       // Rare elite drops are a visibly larger, easier-to-spot XP token while
       // retaining one bounded pickup per kill and the same authoritative XP
       // value. Ordinary 1-XP motes remain at radius 4.
       pickups.data.radius[pSlot] = 4 + Math.min(5, Math.floor(Math.sqrt(xpDrop) / 2));
     }
+    if (!suppressPowerPickupDrop) {
+      const deathRoll = powerPickupRng.int(0, POWER_PICKUP_DROP_ROLL_RANGE);
+      const kind = powerPickupKindForDeathRoll(deathRoll, role === RUN_ENEMY_ROLE.boss);
+      if (kind !== null && !spawnWorldPowerPickup(powerPickups, kind, x, y)) {
+        powerPickupsLostToFullPool++;
+      }
+    }
     events.kills++;
     totalKills++;
+  }
+
+  function isBossEnemySlot(slot: number): boolean {
+    return enemyRoles[slot] === RUN_ENEMY_ROLE.boss;
   }
 
   if (runDirector !== null) {
@@ -1140,6 +1407,7 @@ export function createSimulation(
       // post-run upgrade choice.
       resetEvents(events);
       resetTraitPresentationEvents();
+      combatPresentationEventBuffer.reset();
       return events;
     }
     // Canonicalize before both recording and simulation so a serialize/deserialize
@@ -1154,12 +1422,14 @@ export function createSimulation(
     if (canonicalInput.paused) {
       resetEvents(events);
       resetTraitPresentationEvents();
+      combatPresentationEventBuffer.reset();
       return events;
     }
 
     clock.advance();
     resetEvents(events);
     resetTraitPresentationEvents();
+    combatPresentationEventBuffer.reset();
 
     const dt = clock.dt;
     const playerXBeforeMove = player.x;
@@ -1167,6 +1437,7 @@ export function createSimulation(
 
     if (player.alive) {
       if (player.invulnTicks > 0) player.invulnTicks--;
+      combat.stepShieldRecharge();
 
       let mx = canonicalInput.moveX;
       let my = canonicalInput.moveY;
@@ -1238,6 +1509,7 @@ export function createSimulation(
           );
         },
       },
+      combat,
     );
 
     const distanceMovedThisTick = Math.hypot(
@@ -1270,32 +1542,96 @@ export function createSimulation(
           const dirX = enemies.data.posX[tSlot]! - player.x;
           const dirY = enemies.data.posY[tSlot]! - player.y;
           const targetAngle = Math.atan2(dirY, dirX);
+          const aimX = Math.cos(targetAngle);
+          const aimY = Math.sin(targetAngle);
           let firedAny = false;
-          for (let projectileIndex = 0; projectileIndex < basicProjectileCount; projectileIndex++) {
-            const spreadRadians = basicAttack.spreadDegrees * (Math.PI / 180)
-              * (projectileIndex - (basicProjectileCount - 1) / 2);
-            const shotAngle = targetAngle + spreadRadians;
-            const fired = spawnProjectile(
-              projectiles,
-              player.x,
-              player.y,
-              Math.cos(shotAngle),
-              Math.sin(shotAngle),
-              basicWeapon,
-              0,
-            );
-            if (fired) {
-              events.projectilesFired++;
+          switch (basicAttack.pattern) {
+            case 'meleeArc': {
+              // Master Fox Swipe is a real two-claw finish, not a copy-only
+              // damage scalar. The opposed aim offsets leave two visible
+              // arcs in the presentation stream and each sweep resolves
+              // through the same authoritative crit/hit path.
+              const swipeCount = basicAttackMasteryRank === 5 ? 2 : 1;
+              const swipeArc = Math.min(Math.PI * 1.95, basicAttack.arcRadians + basicAttackMasteryRank * 0.12);
+              for (let swipeIndex = 0; swipeIndex < swipeCount; swipeIndex++) {
+                const offsetRadians = swipeCount === 2 ? (swipeIndex === 0 ? -0.16 : 0.16) : 0;
+                const swipeAngle = targetAngle + offsetRadians;
+                resolveHeroMeleeArc(
+                  player.x,
+                  player.y,
+                  Math.cos(swipeAngle),
+                  Math.sin(swipeAngle),
+                  basicWeapon.range,
+                  swipeArc,
+                  basicWeapon.damage,
+                  'greg-fox-swipe',
+                  'greg-fox-swipe',
+                  swipeIndex,
+                );
+              }
               firedAny = true;
+              break;
+            }
+            case 'groundWave':
+              firedAny = scheduleBennyTrample(aimX, aimY);
+              break;
+            case 'projectile': {
+              // One crit roll per spit cast keeps an upgraded fan readable:
+              // every glob is visibly yellow or white together.
+              const resolvedDamage = combat.resolveOutgoingDamage(basicWeapon.damage, 'gracie-spit');
+              const projectileCount = basicProjectileCount + (basicAttackMasteryRank === 5 ? 1 : 0);
+              const spreadDegrees = basicAttack.spreadDegrees + (basicAttackMasteryRank >= 3 ? 14 : 0);
+              for (let projectileIndex = 0; projectileIndex < projectileCount; projectileIndex++) {
+                const spreadRadians = spreadDegrees * (Math.PI / 180)
+                  * (projectileIndex - (projectileCount - 1) / 2);
+                const shotAngle = targetAngle + spreadRadians;
+                const fired = spawnProjectile(
+                  projectiles,
+                  player.x,
+                  player.y,
+                  Math.cos(shotAngle),
+                  Math.sin(shotAngle),
+                  basicWeapon,
+                  0,
+                  resolvedDamage.critical,
+                  COMBAT_DAMAGE_SOURCE.heroSpit,
+                  resolvedDamage.amount,
+                );
+                if (fired) {
+                  events.projectilesFired++;
+                  firedAny = true;
+                }
+              }
+              if (firedAny) {
+                appendHeroPresentationEvent(
+                  'telegraph',
+                  'gracie-spit',
+                  'gracie-spit',
+                  clock.tick,
+                  player.x,
+                  player.y,
+                  aimX,
+                  aimY,
+                  projectileCount,
+                  resolvedDamage.amount,
+                  basicWeapon.hitRadius * 2,
+                  1,
+                  12,
+                );
+              }
+              break;
             }
           }
-          if (firedAny) {
-            weaponCooldown = basicWeapon.cooldownTicks;
-          }
+          if (firedAny) weaponCooldown = basicWeapon.cooldownTicks;
           // no target found or pool full: do NOT reset cooldown, retry next tick
         }
       }
     }
+
+    // This runs after the starter attack schedules its cast, so Trample's
+    // first earth-wave lands on the cast tick while subsequent waves retain
+    // their deterministic spacing on later ticks.
+    stepBennyTrample();
 
     if (traitRuntime !== null && traitExecutor !== null) {
       const commands = traitRuntime.update({
@@ -1310,6 +1646,7 @@ export function createSimulation(
       });
       if (player.alive) {
         traitPresentationCommandSource = commands;
+        traitPresentationCommandOffset = traitPresentationEvents.length;
         try {
           const traitStats = traitExecutor.execute(traitPresentationCommandCapture, {
             tick: clock.tick,
@@ -1322,8 +1659,10 @@ export function createSimulation(
             zones,
             enemyGrid: grid,
             killEnemy,
+            combat,
+            meleeDamageMultiplier: hero.id === 'greg' ? hero.meleeDamageMultiplier : 1,
             onChainDamageHit(commandIndex, hitIndex, x, y): void {
-              const event = traitPresentationEvents[commandIndex];
+              const event = traitPresentationEvents[traitPresentationCommandOffset + commandIndex];
               if (
                 event === undefined
                 || event.kind !== 'chainDamage'
@@ -1337,7 +1676,7 @@ export function createSimulation(
               event.resolvedHitCount = hitIndex + 1;
             },
             onOrbitingDamageHit(commandIndex, hitIndex, flyX, flyY, targetX, targetY): void {
-              const event = traitPresentationEvents[commandIndex];
+              const event = traitPresentationEvents[traitPresentationCommandOffset + commandIndex];
               if (
                 event === undefined
                 || event.kind !== 'orbitingDamage'
@@ -1353,7 +1692,7 @@ export function createSimulation(
               event.resolvedOrbitHitCount = hitIndex + 1;
             },
             onMeleeArcResolved(commandIndex, dirX, dirY): void {
-              const event = traitPresentationEvents[commandIndex];
+              const event = traitPresentationEvents[traitPresentationCommandOffset + commandIndex];
               if (event === undefined || event.kind !== 'meleeArc') return;
               event.dirX = dirX;
               event.dirY = dirY;
@@ -1368,6 +1707,7 @@ export function createSimulation(
           throw error;
         } finally {
           traitPresentationCommandSource = null;
+          traitPresentationCommandOffset = 0;
         }
       }
     }
@@ -1379,6 +1719,7 @@ export function createSimulation(
       enemies,
       enemyGrid: grid,
       killEnemy,
+      combat,
     });
 
     stepProjectiles(
@@ -1393,9 +1734,24 @@ export function createSimulation(
       killEnemy,
       player,
       config.player.invulnTicksOnHit,
+      combat,
     );
 
     if (player.alive) {
+      // Resolve rare world tokens before ordinary XP collection. A same-tick
+      // Bomb + Magnet therefore vacuum-collects the Bomb's freshly spawned
+      // motes exactly once, all in deterministic power-pool slot order.
+      collectPowerPickups({
+        powerPickups,
+        xpPickups: pickups,
+        player,
+        enemies,
+        killEnemy,
+        isBoss: isBossEnemySlot,
+        combat,
+        events,
+        xpMultiplier: xpGainMultiplier,
+      });
       attractPickups(pickups, player, dt, pickupAttractionRadius, pickupAttractionSpeed);
       collectPickups(pickups, player, events, xpGainMultiplier);
       applyXpThresholds(player, config.xpThresholds, events);
@@ -1450,6 +1806,30 @@ export function createSimulation(
     return selection;
   }
 
+  function fuseEvolution(evolutionId: string): UpgradeSelection {
+    if (typeof evolutionId !== 'string' || evolutionId.length === 0) {
+      throw new TypeError('Simulation.fuseEvolution: evolutionId must be a non-empty string');
+    }
+    if (runDirector !== null && runDirector.outcome !== 'running') {
+      throw new Error('Simulation.fuseEvolution: run has ended');
+    }
+    const action = traitRuntime?.fuseEvolution;
+    if (action === undefined) {
+      throw new Error('Simulation.fuseEvolution: trait runtime does not support V1.1 fusions');
+    }
+    const result: TraitFuseResultView = action.call(traitRuntime, evolutionId);
+    if (!result.outcome.ok) {
+      throw new Error(`Simulation.fuseEvolution: ${result.outcome.kind} (${evolutionId})`);
+    }
+    const selection: UpgradeSelection = {
+      tick: clock.tick,
+      kind: 'fusion',
+      id: `fusion:${evolutionId}`,
+    };
+    replayRecorder.recordUpgrade(selection);
+    return selection;
+  }
+
   function traitVisualState(): readonly TraitVisualAttachmentView[] {
     return traitRuntime?.visualState() ?? EMPTY_TRAIT_VISUALS;
   }
@@ -1473,6 +1853,16 @@ export function createSimulation(
     writer.u32(rngState.b);
     writer.u32(rngState.c);
     writer.u32(rngState.d);
+    const combatRngState = combatRng.getState();
+    writer.u32(combatRngState.a);
+    writer.u32(combatRngState.b);
+    writer.u32(combatRngState.c);
+    writer.u32(combatRngState.d);
+    const powerPickupRngState = powerPickupRng.getState();
+    writer.u32(powerPickupRngState.a);
+    writer.u32(powerPickupRngState.b);
+    writer.u32(powerPickupRngState.c);
+    writer.u32(powerPickupRngState.d);
 
     writer.f32(player.x);
     writer.f32(player.y);
@@ -1485,6 +1875,15 @@ export function createSimulation(
     writer.u32(player.level);
     writer.u32(player.invulnTicks);
     writer.u8(player.alive ? 1 : 0);
+    writer.f32(player.critChance ?? 0.05);
+    writer.f32(player.critMultiplier ?? 2);
+    writer.f32(player.dodgeChance ?? 0);
+    writer.f32(player.armor ?? 0);
+    writer.f32(player.shield ?? 0);
+    writer.f32(player.shieldMax ?? 0);
+    writer.u16(Math.max(0, Math.min(0xffff, Math.floor(player.shieldRechargeDelayTicks ?? 0))));
+    writer.u16(Math.max(0, Math.min(0xffff, Math.floor(player.shieldRechargeTicksRemaining ?? 0))));
+    writer.f32(player.shieldRechargePerTick ?? 0);
 
     writer.u32(weaponCooldown);
     writer.f32(weapon.damage);
@@ -1496,6 +1895,7 @@ export function createSimulation(
     writer.f32(traitCooldownMultiplier);
     writer.f32(lastMoveDirX);
     writer.f32(lastMoveDirY);
+    writer.u32(basicAttackMasteryRank);
     writer.u8(hero.id === 'greg' ? 1 : 0);
     if (hero.id === 'greg') {
       writer.i32(rushRakeState.tick);
@@ -1519,6 +1919,17 @@ export function createSimulation(
       writer.i32(bennyBraceState.tick);
       writer.u32(bennyBraceState.charge);
       writer.u32(bennyBraceState.cooldownTicksRemaining);
+      for (let slot = 0; slot < groundWavePendingTicks.length; slot++) {
+        writer.i32(groundWavePendingTicks[slot]!);
+        writer.f32(groundWaveOriginX[slot]!);
+        writer.f32(groundWaveOriginY[slot]!);
+        writer.f32(groundWaveDirX[slot]!);
+        writer.f32(groundWaveDirY[slot]!);
+        writer.f32(groundWaveRadius[slot]!);
+        writer.f32(groundWaveDamage[slot]!);
+        writer.u8(groundWaveCritical[slot]!);
+        writer.u8(groundWaveIndex[slot]!);
+      }
     }
     writer.u8(hero.id === 'gracie' ? 1 : 0);
     if (hero.id === 'gracie') {
@@ -1579,6 +1990,8 @@ export function createSimulation(
             writer.i32(data.hitHistory[historyStart + hitIndex]!);
           }
           writer.u8(data.faction[slot]!);
+          writer.u8(data.critical[slot]!);
+          writer.u8(data.source[slot]!);
         }
       }
     }
@@ -1593,7 +2006,25 @@ export function createSimulation(
         if (data.alive[slot] === 1) {
           writer.f32(data.posX[slot]!);
           writer.f32(data.posY[slot]!);
+          writer.u8(data.kind[slot]!);
           writer.f32(data.xp[slot]!);
+          writer.f32(data.radius[slot]!);
+        }
+      }
+    }
+
+    // rare non-XP world pickups
+    {
+      const data = powerPickups.data;
+      writer.u32(data.count);
+      for (let slot = 0; slot < data.capacity; slot++) {
+        writer.u8(data.alive[slot]!);
+        writer.u16(data.generation[slot]!);
+        if (data.alive[slot] === 1) {
+          writer.f32(data.posX[slot]!);
+          writer.f32(data.posY[slot]!);
+          writer.u8(data.kind[slot]!);
+          writer.f32(data.amount[slot]!);
           writer.f32(data.radius[slot]!);
         }
       }
@@ -1615,6 +2046,8 @@ export function createSimulation(
           writer.u16(data.intervalTicks[slot]!);
           writer.u16(data.pulseCooldown[slot]!);
           writer.u8(data.tag[slot]!);
+          writer.u8(data.critical[slot]!);
+          writer.u8(data.source[slot]!);
         }
       }
     }
@@ -1640,6 +2073,8 @@ export function createSimulation(
           case 'trait':
             writer.str(offer.traitId);
             writer.str(offer.resultStage);
+            writer.u32(offer.resultRank ?? (offer.resultStage === 'bud' ? 1 : 2));
+            writer.u8(offer.isMaster === true ? 1 : 0);
             break;
           case 'universal':
             writer.str(offer.upgradeId);
@@ -1692,6 +2127,7 @@ export function createSimulation(
     enemies,
     projectiles,
     pickups,
+    powerPickups,
     zones,
     grid,
     waveDirector,
@@ -1730,15 +2166,29 @@ export function createSimulation(
     get upgradeSelectionPending() {
       return runUpgradeQueue?.blocked ?? false;
     },
+    get availableFusions() {
+      return traitRuntime?.availableFusions?.() ?? EMPTY_FUSION_OFFERS;
+    },
     get traitPresentationEvents() {
       return traitPresentationEvents;
+    },
+    get combatPresentationEvents() {
+      return combatPresentationEventBuffer.events;
+    },
+    get combatPresentationEventsDropped() {
+      return combatPresentationEventBuffer.dropped;
     },
     get xpLostToFullPickupPool() {
       return xpLostToFullPickupPool;
     },
+    get powerPickupsLostToFullPool() {
+      return powerPickupsLostToFullPool;
+    },
     enemyPresentationRole,
+    spawnPowerPickup,
     step,
     selectUpgrade,
+    fuseEvolution,
     traitVisualState,
     hash,
     getReplay,
@@ -1789,7 +2239,15 @@ export function runReplay(
       record.upgradeSelections[selectionIndex]!.tick === sim.tick
     ) {
       const expectedSelection = record.upgradeSelections[selectionIndex]!;
-      const appliedSelection = sim.selectUpgrade(expectedSelection.id);
+      const appliedSelection = expectedSelection.kind === 'fusion'
+        ? (() => {
+          const prefix = 'fusion:';
+          if (!expectedSelection.id.startsWith(prefix)) {
+            throw new Error('runReplay: fusion selection id is missing its prefix');
+          }
+          return sim.fuseEvolution(expectedSelection.id.slice(prefix.length));
+        })()
+        : sim.selectUpgrade(expectedSelection.id);
       if (
         appliedSelection.kind !== expectedSelection.kind ||
         appliedSelection.id !== expectedSelection.id

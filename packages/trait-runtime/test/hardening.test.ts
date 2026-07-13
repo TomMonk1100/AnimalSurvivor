@@ -120,7 +120,7 @@ test('deserialize rejects duplicated timers and forged Mythics', () => {
   });
   assert.throws(
     () => TraitRuntime.deserialize(JSON.stringify(forgedMythic)),
-    /ingredient is not consumed Adapted state/,
+    /ingredient is not consumed Master state/,
   );
 });
 

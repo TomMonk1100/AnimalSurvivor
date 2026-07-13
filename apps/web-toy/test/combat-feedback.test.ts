@@ -125,6 +125,26 @@ describe('combat feedback projection', () => {
     expect(result.cues.map((cue) => cue.kind)).toEqual(['pickup']);
   });
 
+  it('includes collected Bomb, Magnet, and Food tokens in the bounded pickup feedback path', () => {
+    const { previous, current } = snapshots();
+    previous.playerX = current.playerX = 0;
+    previous.playerY = current.playerY = 0;
+    // One normal mote and two rare world tokens vanish within the live pickup
+    // radius. They intentionally coalesce into one readable bloom rather than
+    // adding an unbounded visual event per token.
+    entity(previous.pickups, 0, 91, 4, 0, 1);
+    entity(previous.powerPickups, 0, 92, 8, 0, 12);
+    entity(previous.powerPickups, 1, 93, 12, 0, 12);
+
+    const result = projectCombatFeedback(previous, current);
+    expect(result.cues.map((cue) => cue.kind)).toEqual(['pickup']);
+    expect(result.cues[0]).toMatchObject({
+      x: 8,
+      y: 0,
+      intensity: Math.sqrt(3),
+    });
+  });
+
   it('emits an explicit terminal player-death cue and remains deterministic', () => {
     const { previous, current } = snapshots(88);
     current.playerAlive = false;

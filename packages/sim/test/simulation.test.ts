@@ -53,11 +53,11 @@ const HOT_CONFIG: SimConfig = {
   waves: HOT_WAVES,
 };
 
-test('sim runs 600 ticks under a hot config without throwing; enemies spawn, projectiles fire, at least one kill and pickup collection happen', () => {
+test('sim runs 600 ticks under a hot config without throwing; enemies spawn, Fox Swipe lands, and kills/pickups resolve', () => {
   const sim = createSimulation(HOT_CONFIG, 12345);
 
   let sawEnemies = false;
-  let totalProjectilesFired = 0;
+  let totalFoxSwipes = 0;
   let totalKills = 0;
   let totalPickups = 0;
 
@@ -65,7 +65,7 @@ test('sim runs 600 ticks under a hot config without throwing; enemies spawn, pro
     for (let t = 0; t < 600; t++) {
       const events = sim.step(circleInput(t));
       if (sim.enemies.data.count > 0) sawEnemies = true;
-      totalProjectilesFired += events.projectilesFired;
+      totalFoxSwipes += sim.traitPresentationEvents.filter((event) => event.sourceId === 'greg-fox-swipe').length;
       totalKills += events.kills;
       totalPickups += events.pickupsCollected;
     }
@@ -73,12 +73,12 @@ test('sim runs 600 ticks under a hot config without throwing; enemies spawn, pro
 
   assert.equal(sim.tick, 600);
   assert.ok(sawEnemies, 'expected enemies.data.count > 0 at some point');
-  assert.ok(totalProjectilesFired > 0, 'expected at least one projectile fired');
+  assert.ok(totalFoxSwipes > 0, 'expected at least one real Fox Swipe');
   assert.ok(totalKills > 0, 'expected at least one kill by tick 600');
   assert.ok(totalPickups > 0, 'expected at least one pickup collection by tick 600');
 });
 
-test('Greg Rush Rake charges from movement and emits three deterministic projectile waves', () => {
+test('Greg Rush Rake charges from movement and emits three deterministic melee waves', () => {
   const config: SimConfig = {
     ...DEFAULT_CONFIG,
     worldWidth: 2_000_000,
@@ -90,15 +90,15 @@ test('Greg Rush Rake charges from movement and emits three deterministic project
   const waveTicks: number[] = [];
 
   for (let step = 0; step < 26; step++) {
-    const events = sim.step({ moveX: step === 0 ? 1 : 0, moveY: 0, paused: false });
-    if (events.projectilesFired > 0) waveTicks.push(sim.tick);
+    sim.step({ moveX: step === 0 ? 1 : 0, moveY: 0, paused: false });
+    if (sim.traitPresentationEvents.some((event) => event.sourceId === 'greg-rush-rake')) waveTicks.push(sim.tick);
     if (sim.traitPresentationEvents.some((event) => event.sourceId === 'greg-rush-rake')) {
       assert.equal(sim.traitPresentationEvents.filter((event) => event.sourceId === 'greg-rush-rake').length, 1);
     }
   }
 
   assert.deepEqual(waveTicks, [1, 13, 25]);
-  assert.equal(sim.projectiles.data.count, 9);
+  assert.equal(sim.projectiles.data.count, 0, 'Rush Rake is no longer a disguised projectile weapon');
 
   const replay = sim.getReplay();
   const control = createSimulation(config, 8080);
@@ -174,12 +174,26 @@ test('marked prey redirects every founding hero starter attack', () => {
     sim.enemies.data.marked[markedSlot] = 1;
     spawnStationaryEnemy(sim, sim.player.x + 32, sim.player.y);
 
+    const markedId = sim.enemies.idOf(markedSlot);
     const events = sim.step({ moveX: 0, moveY: 0, paused: false });
-    assert.ok(events.projectilesFired > 0, `${heroId} should fire a starter attack`);
-    assert.ok(
-      sim.projectiles.data.velX[0]! < 0,
-      `${heroId} should prioritize the farther marked target over the closer unmarked threat`,
-    );
+    if (heroId === 'greg') {
+      assert.ok(
+        sim.combatPresentationEvents.some((event) => event.sourceId === 'greg-fox-swipe' && event.targetId === markedId),
+        'Greg should cleave the farther marked target before the closer threat',
+      );
+    } else if (heroId === 'benny') {
+      assert.ok(events.projectilesFired === 0, 'Benny starter attacks are physical earth waves, not projectiles');
+      assert.ok(
+        sim.traitPresentationEvents.some((event) => event.sourceId === 'benny-trample' && event.dirX < 0),
+        'Benny should aim his first Trample wave toward the farther marked target',
+      );
+    } else {
+      assert.ok(events.projectilesFired > 0, 'Gracie should fire her projectile starter attack');
+      assert.ok(
+        sim.projectiles.data.velX[0]! < 0,
+        'Gracie should prioritize the farther marked target over the closer unmarked threat',
+      );
+    }
   }
 });
 

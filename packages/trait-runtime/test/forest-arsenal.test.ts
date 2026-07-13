@@ -4,6 +4,7 @@ import {
   GREG_FOREST_ARSENAL_CATALOG,
   TraitRuntime,
   getCatalog,
+  rankStagesFor,
   type RuntimeContext,
 } from '../src/index.js';
 
@@ -22,6 +23,10 @@ function context(tick: number, overrides: Partial<RuntimeContext> = {}): Runtime
 function upgrade(runtime: TraitRuntime, id: string): void {
   const result = runtime.applyUpgrade(id);
   assert.equal(result.outcome.ok, true, `${id} should be a legal upgrade`);
+}
+
+function master(runtime: TraitRuntime, id: string): void {
+  for (let rank = 1; rank <= 5; rank++) upgrade(runtime, id);
 }
 
 test('Forest Arsenal exposes twelve launch attack families and six supported Mythics', () => {
@@ -125,11 +130,11 @@ test('Forest Arsenal exposes twelve launch attack families and six supported Myt
   );
 
   const mythic = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
-  upgrade(mythic, 'electric-eel-coil');
-  upgrade(mythic, 'electric-eel-coil');
-  upgrade(mythic, 'firefly-colony');
-  const result = mythic.applyUpgrade('firefly-colony');
-  assert.equal(result.evolved, 'thunderbug-dynamo');
+  master(mythic, 'electric-eel-coil');
+  master(mythic, 'firefly-colony');
+  assert.equal(mythic.availableFusions()[0]?.evolutionId, 'thunderbug-dynamo');
+  const result = mythic.fuseEvolution('thunderbug-dynamo');
+  assert.equal(result.outcome.ok, true);
   assert.equal(mythic.update(context(1)).at(0).tag, 'thunderbug-charge');
   for (let tick = 2; tick <= 18; tick++) assert.equal(mythic.update(context(tick)).length, 0);
   const discharge = mythic.update(context(19));
@@ -218,6 +223,19 @@ test('the default catalog keeps Firefly Colony on its real orbit/contact attack'
   assert.equal(adapted.emit?.kind, 'orbitingDamage');
 });
 
+test('every Forest attack has five executable ranks and a distinct Master behavior', () => {
+  for (const trait of GREG_FOREST_ARSENAL_CATALOG.traits) {
+    const ranks = rankStagesFor(trait);
+    for (const rank of [1, 2, 3, 4, 5] as const) {
+      assert.ok(ranks[rank], `${trait.id} rank ${rank} must exist`);
+    }
+    const behaviors = [2, 3, 4, 5].map((rank) => JSON.stringify(ranks[rank as 2 | 3 | 4 | 5].behavior));
+    assert.notEqual(behaviors[0], behaviors[1], `${trait.id} rank 3 must change behavior`);
+    assert.notEqual(behaviors[1], behaviors[2], `${trait.id} rank 4 must change behavior`);
+    assert.notEqual(behaviors[2], behaviors[3], `${trait.id} Master rank must change behavior`);
+  }
+});
+
 test('twelve candidates make the three-acquired-attack cap a real choice while upgrades stay legal', () => {
   const runtime = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG });
   assert.deepEqual(
@@ -251,6 +269,24 @@ test('twelve candidates make the three-acquired-attack cap a real choice while u
     });
   }
   assert.equal(runtime.applyUpgrade('electric-eel-coil').outcome.ok, true, 'an owned Bud can still adapt');
+});
+
+test('a Master fusion frees one acquired logical slot', () => {
+  const runtime = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG });
+  master(runtime, 'electric-eel-coil');
+  master(runtime, 'firefly-colony');
+  upgrade(runtime, 'porcupine-quills');
+  assert.equal(runtime.activeAttackSlots(), 3);
+
+  const fusion = runtime.fuseEvolution('thunderbug-dynamo');
+  assert.equal(fusion.outcome.ok, true);
+  assert.equal(runtime.activeAttackSlots(), 2);
+
+  // The tail/body-orbit attachment footprint remains occupied by the fused
+  // attack, but a new head attack can use the freed logical slot.
+  assert.equal(runtime.applyUpgrade('puffer-pouch').outcome.ok, true);
+  assert.equal(runtime.activeAttackSlots(), 3);
+  assert.equal(runtime.applyUpgrade('mantis-scythes').outcome.kind, 'loadoutFull');
 });
 
 test('neutral damage and attack-speed multipliers apply to trait commands', () => {

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   hasResolvedOrbitContact,
   hasResolvedMeleeArc,
+  projectHeroCombatFeedbackEffect,
+  projectHeroDefenseEffect,
   projectTraitCommandEffect,
   resolveMeleeArcVariantIndex,
   resolveTraitCommandEffectRadius,
@@ -93,6 +95,39 @@ describe('trait command presentation profiles', () => {
       .toBe('benny-brace');
     expect(projectTraitCommandEffect(command({ tag: 'gracie-scout' }))?.material)
       .toBe('gracie-scout');
+  });
+
+  it('gives V1.1 hero signatures source-aware attack and defense profiles', () => {
+    expect(projectTraitCommandEffect(command({
+      kind: 'meleeArc', sourceId: 'greg-fox-swipe', tag: 'greg-fox-swipe',
+      arc: 1.72, range: 96, meleeArcResolved: true,
+    }))).toMatchObject({ kind: 'melee-arc', material: 'greg-fox-swipe', directed: true });
+    expect(projectTraitCommandEffect(command({
+      kind: 'meleeArc', sourceId: 'greg-rush-rake', tag: 'greg-rush-rake',
+      arc: 1.5, range: 76, meleeArcResolved: true,
+    }))).toMatchObject({ kind: 'melee-arc', material: 'greg-rush-rake', directed: true });
+    expect(projectTraitCommandEffect(command({
+      kind: 'telegraph', sourceId: 'benny-trample', tag: 'benny-trample-wave', radius: 48,
+    }))).toMatchObject({ kind: 'telegraph', material: 'benny-trample-wave', directed: true });
+    expect(projectTraitCommandEffect(command({
+      kind: 'spawnProjectileBurst', sourceId: 'gracie-spit', tag: 'gracie-spit', count: 3,
+    }))).toMatchObject({ kind: 'directed-burst', material: 'gracie-spit', directed: true });
+    expect(projectTraitCommandEffect(command({
+      kind: 'telegraph', sourceId: 'gracie-spit', tag: 'gracie-spit', count: 3,
+    }))).toMatchObject({ kind: 'directed-burst', material: 'gracie-spit', directed: true });
+
+    expect(projectHeroDefenseEffect('fluffy-shield')).toMatchObject({
+      kind: 'trait-cue', material: 'fluffy-shield', motion: 'pulse',
+    });
+    expect(projectHeroDefenseEffect('unknown', 'armor-block')).toMatchObject({
+      kind: 'trait-cue', material: 'armor-block', motion: 'pulse',
+    });
+    expect(projectHeroCombatFeedbackEffect('unknown', 'fox-dodge')).toMatchObject({
+      kind: 'trait-cue', material: 'fox-dodge', motion: 'expand',
+    });
+    expect(projectHeroDefenseEffect('fox-dodge')?.material).toBe('fox-dodge');
+    expect(projectTraitCommandEffect(command({ kind: 'grantShield', sourceId: 'fluffy-shield' }))?.material)
+      .toBe('fluffy-shield');
   });
 
   it('projects Bat Ears echo marks as a violet sonar pulse and Midnight Radar as cyan', () => {

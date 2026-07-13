@@ -23,7 +23,13 @@ export {
   type AttackDamageLabStatus,
   type AttackDamageLabSummary,
 } from './attack-damage-lab.js';
-export { createEnemyPool, createProjectilePool, createPickupPool, createZonePool } from './pools.js';
+export {
+  createEnemyPool,
+  createProjectilePool,
+  createPickupPool,
+  createPowerPickupPool,
+  createZonePool,
+} from './pools.js';
 export {
   ZONE_TAG,
   zoneTagFromCommandTag,
@@ -49,8 +55,39 @@ export {
   attractPickups,
   applyXpThresholds,
   spawnProjectile,
+  spawnProjectileWithStats,
   xpRequiredForNextLevel,
 } from './combat.js';
+export {
+  COMBAT_DAMAGE_SOURCE,
+  COMBAT_PRESENTATION_EVENT_KIND,
+  MAX_COMBAT_PRESENTATION_EVENTS,
+  armorDamageMultiplier,
+  combatDamageSourceIdFromCode,
+  createCombatDamageResolver,
+  createCombatPresentationEventBuffer,
+  type CombatDamageResolver,
+  type CombatDamageResolverOptions,
+  type CombatPresentationEventBuffer,
+  type CombatPresentationEventKind,
+  type CombatPresentationEventView,
+  type ResolvedOutgoingDamage,
+  type ResolvedPlayerDamage,
+} from './combat-resolution.js';
+export {
+  DEFAULT_BOMB_BOSS_MAX_HP_FRACTION,
+  DEFAULT_FOOD_HEAL_FRACTION,
+  DEFAULT_POWER_PICKUP_RADIUS,
+  POWER_PICKUP_DROP_ROLL_RANGE,
+  POWER_PICKUP_KIND,
+  collectPowerPickups,
+  powerPickupCapacityForXpCap,
+  powerPickupKindForDeathRoll,
+  powerPickupKindFromCode,
+  spawnPowerPickup,
+  type PowerPickupCollectionContext,
+  type PowerPickupKind,
+} from './power-pickups.js';
 export {
   createSimulation,
   runReplay,
@@ -70,7 +107,11 @@ export {
   type TraitUpgradeApplyResultView,
   type TraitUpgradeOfferView,
   type TraitUpgradeOutcomeView,
+  type TraitUpgradeRank,
   type TraitUpgradeStage,
+  type TraitFusionOfferView,
+  type TraitFuseOutcomeView,
+  type TraitFuseResultView,
   type TraitVisualAttachmentView,
 } from './trait-runtime-port.js';
 export {

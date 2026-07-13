@@ -1,49 +1,34 @@
 /**
- * AGENT B — OWNED.
+ * Mutable build state: logical attack capacity, rank progression, explicit
+ * Master fusions, socket occupancy, and renderer-facing snapshots.
  *
- * Mutable build state: socket occupancy, upgrade progression, and the
- * renderer-facing visual snapshot. Operates on the plain RuntimeState object
- * (the canonical serializable form). Does NOT manage behavior timers — that is
- * behavior-runtime's job (timers are reconciled from state each update).
+ * Important split:
+ *   - logical slots count executable attacks (a fusion costs one);
+ *   - visual sockets retain the ingredient footprint of the fused form.
  *
- * Upgrade rules (see spec "Upgrade and socket rules"):
- *   - Applying an unowned trait: if ALL its sockets are free -> create Bud.
- *     Returns { outcome: {ok, kind:'created', stage:'bud'}, evolved: null }.
- *   - If any required socket is held by another owner -> socketConflict, and
- *     STATE IS NOT MUTATED. heldBy lists the current owners of the conflicting
- *     sockets, in socket declaration order, de-duplicated preserving order.
- *   - Applying an owned Bud trait -> advance to Adapted ('advanced').
- *   - Applying an owned Adapted trait with no completable recipe -> 'maxed'
- *     (a trait cannot advance beyond Adapted without a recipe).
- *   - Applying a trait already consumed by a Mythic -> 'alreadyMythic'
- *     (duplicates after Mythic must not retrigger evolution).
- *   - Unknown trait id -> 'unknownTrait'.
- *   - After a successful create/advance, call resolvePending() exactly once;
- *     if it resolves an evolution, set result.evolved to that id.
- *
- * Determinism: no RNG, no wall clock, no allocation-per-tick concerns (upgrades
- * are rare events).
+ * The split lets a fusion free a combat slot without lying to the renderer
+ * about which body attachments remain visible.
  */
 
 import type {
+  ApplyOutcome,
   ApplyResult,
   Catalog,
+  FuseResult,
   OwnedTrait,
   RuntimeState,
   TraitDefinition,
   VisualAttachmentState,
 } from './contracts.js';
-import type { SocketId, TraitId, TraitStage } from './ids.js';
+import type { SocketId, TraitId, TraitRank, TraitStage } from './ids.js';
+import { MASTER_RANK } from './ids.js';
 import { STATE_VERSION } from './serialization.js';
-import { resolvePending } from './evolution-resolver.js';
+import { availableFusions, fuseEvolution as fuseEvolutionState } from './evolution-resolver.js';
 import { getCatalog } from './definitions.js';
 import { fingerprintCatalog } from './state-hash.js';
+import { isMasterRank, rankStageFor } from './rank-progression.js';
 
-/**
- * Fresh empty state. version = current STATE_VERSION (import from serialization
- * is NOT allowed to avoid a cycle; hardcode the same integer and keep in sync,
- * or accept it as a parameter). Use offerRngState = seed >>> 0.
- */
+/** Fresh empty state. Use offerRngState = seed >>> 0. */
 export function createInitialState(
   _seed: number,
   catalogFingerprint = fingerprintCatalog(getCatalog()),
@@ -62,153 +47,166 @@ export function createInitialState(
 }
 
 function findTraitDef(catalog: Catalog, traitId: TraitId): TraitDefinition | undefined {
-  return catalog.traits.find((t) => t.id === traitId);
+  return catalog.traits.find((trait) => trait.id === traitId);
 }
 
 function findOwned(state: RuntimeState, traitId: TraitId): OwnedTrait | undefined {
-  return state.owned.find((o) => o.id === traitId);
+  return state.owned.find((owned) => owned.id === traitId);
 }
 
-/** Apply one upgrade of `traitId`. Pure w.r.t. RNG; mutates state on success. */
+/**
+ * Number of live logical attack slots. Disabled ingredient records are
+ * intentionally excluded: each resolved evolution replaces two attacks with
+ * one executable owner.
+ */
+export function activeAttackSlots(state: RuntimeState): number {
+  let slots = state.evolutions.length;
+  for (const owned of state.owned) {
+    if (!owned.disabled) slots++;
+  }
+  return slots;
+}
+
+function result(catalog: Catalog, state: RuntimeState, outcome: ApplyOutcome): ApplyResult {
+  return {
+    outcome,
+    evolved: null,
+    fusionReady: availableFusions(catalog, state),
+  };
+}
+
+/** Apply one rank of `traitId`. Fusions are deliberately a separate action. */
 export function applyUpgrade(
-  _catalog: Catalog,
-  _state: RuntimeState,
-  _traitId: TraitId,
+  catalog: Catalog,
+  state: RuntimeState,
+  traitId: TraitId,
 ): ApplyResult {
-  const traitDef = findTraitDef(_catalog, _traitId);
+  const traitDef = findTraitDef(catalog, traitId);
   if (!traitDef) {
-    return { outcome: { ok: false, kind: 'unknownTrait', traitId: _traitId }, evolved: null };
+    return result(catalog, state, { ok: false, kind: 'unknownTrait', traitId });
   }
 
-  const owned = findOwned(_state, _traitId);
-
-  if (owned && owned.disabled) {
-    return { outcome: { ok: false, kind: 'alreadyMythic', traitId: _traitId }, evolved: null };
+  const owned = findOwned(state, traitId);
+  if (owned?.disabled) {
+    return result(catalog, state, { ok: false, kind: 'alreadyMythic', traitId });
   }
 
-  let didMutate = false;
-
-  if (!owned) {
-    const capacity = _catalog.maxActiveTraits;
-    // `owned` intentionally retains disabled Mythic ingredients. A resolved
-    // evolution therefore still occupies the two acquisition footprints that
-    // created it instead of silently freeing active-attack slots.
-    if (capacity !== undefined && _state.owned.length >= capacity) {
-      return {
-        outcome: { ok: false, kind: 'loadoutFull', traitId: _traitId, capacity },
-        evolved: null,
-      };
+  if (owned === undefined) {
+    const capacity = catalog.maxActiveTraits;
+    if (capacity !== undefined && activeAttackSlots(state) >= capacity) {
+      return result(catalog, state, { ok: false, kind: 'loadoutFull', traitId, capacity });
     }
-    // Check every required socket is free.
+
     const conflictSockets: SocketId[] = [];
     const heldBySeen = new Set<string>();
     const heldBy: string[] = [];
     for (const socket of traitDef.sockets) {
-      const currentOwner = _state.sockets[socket];
-      if (currentOwner !== undefined) {
-        conflictSockets.push(socket);
-        if (!heldBySeen.has(currentOwner)) {
-          heldBySeen.add(currentOwner);
-          heldBy.push(currentOwner);
-        }
+      const currentOwner = state.sockets[socket];
+      if (currentOwner === undefined) continue;
+      conflictSockets.push(socket);
+      if (!heldBySeen.has(currentOwner)) {
+        heldBySeen.add(currentOwner);
+        heldBy.push(currentOwner);
       }
     }
     if (conflictSockets.length > 0) {
-      return {
-        outcome: {
-          ok: false,
-          kind: 'socketConflict',
-          traitId: _traitId,
-          sockets: conflictSockets,
-          heldBy,
-        },
-        evolved: null,
-      };
+      return result(catalog, state, {
+        ok: false,
+        kind: 'socketConflict',
+        traitId,
+        sockets: conflictSockets,
+        heldBy,
+      });
     }
 
-    // All sockets free: create Bud.
-    _state.owned.push({ id: _traitId, stage: 'bud', disabled: false });
-    for (const socket of traitDef.sockets) {
-      _state.sockets[socket] = _traitId;
-    }
-    didMutate = true;
-  } else if (owned.stage === 'bud') {
-    owned.stage = 'adapted';
-    didMutate = true;
-  } else {
-    // owned.stage === 'adapted', not disabled: cannot advance without a recipe.
-    return { outcome: { ok: false, kind: 'maxed', traitId: _traitId }, evolved: null };
+    state.owned.push({ id: traitId, stage: 'bud', rank: 1, disabled: false });
+    for (const socket of traitDef.sockets) state.sockets[socket] = traitId;
+    return result(catalog, state, {
+      ok: true,
+      kind: 'created',
+      traitId,
+      stage: 'bud',
+      rank: 1,
+    });
   }
 
-  let evolved: string | null = null;
-  if (didMutate) {
-    evolved = resolvePending(_catalog, _state);
+  if (owned.rank === MASTER_RANK) {
+    return result(catalog, state, { ok: false, kind: 'maxed', traitId });
   }
 
-  const finalOwned = findOwned(_state, _traitId);
-  const stage = finalOwned!.stage;
-  const kind = stage === 'bud' ? 'created' : 'advanced';
-
-  if (kind === 'created') {
-    return {
-      outcome: { ok: true, kind: 'created', traitId: _traitId, stage: 'bud' },
-      evolved,
-    };
-  }
-  return {
-    outcome: { ok: true, kind: 'advanced', traitId: _traitId, stage: 'adapted' },
-    evolved,
-  };
+  const nextRank = (owned.rank + 1) as TraitRank;
+  owned.rank = nextRank;
+  // Every advancement after rank 1 maps to the renderer's existing Adapted
+  // attachment bucket until rank-specific art is authored.
+  owned.stage = 'adapted';
+  return result(catalog, state, {
+    ok: true,
+    kind: 'advanced',
+    traitId,
+    stage: 'adapted',
+    rank: nextRank,
+  });
 }
 
-/** locked | bud | adapted | mythic for a trait id given current state. */
-export function stageOf(_state: RuntimeState, _traitId: TraitId): TraitStage {
-  const owned = findOwned(_state, _traitId);
-  if (!owned) return 'locked';
+/** Explicitly fuse one currently compatible Master pair. */
+export function fuseEvolution(
+  catalog: Catalog,
+  state: RuntimeState,
+  evolutionId: string,
+): FuseResult {
+  return fuseEvolutionState(catalog, state, evolutionId);
+}
+
+/** Exact rank for an owned independent attack, or null when locked/fused. */
+export function rankOf(state: RuntimeState, traitId: TraitId): TraitRank | null {
+  const owned = findOwned(state, traitId);
+  if (owned === undefined || owned.disabled) return null;
+  return owned.rank;
+}
+
+/** Legacy status for callers that have not yet migrated to rankOf. */
+export function stageOf(state: RuntimeState, traitId: TraitId): TraitStage {
+  const owned = findOwned(state, traitId);
+  if (owned === undefined) return 'locked';
   if (owned.disabled) return 'mythic';
   return owned.stage;
 }
 
-/** Current owner id of a socket, or undefined if free. */
-export function socketOwner(_state: RuntimeState, _socket: SocketId): string | undefined {
-  return _state.sockets[_socket];
+/** Current owner id of a visual socket, or undefined if free. */
+export function socketOwner(state: RuntimeState, socket: SocketId): string | undefined {
+  return state.sockets[socket];
 }
 
-/**
- * Renderer-facing snapshot. One entry per visible source:
- *   - each owned, non-disabled trait -> stage 'bud' | 'adapted', its sockets,
- *     its stage visualKey, enabled true.
- *   - each resolved evolution -> stage 'mythic', occupiedSockets, mythic
- *     visualKey, enabled true.
- * Disabled (consumed) traits are NOT emitted (their silhouette is the Mythic).
- * Order: owned traits in acquisition order, then evolutions in resolution order.
- */
-export function visualState(
-  _catalog: Catalog,
-  _state: RuntimeState,
-): VisualAttachmentState[] {
+/** Renderer-facing snapshot. It never grants renderer write access to state. */
+export function visualState(catalog: Catalog, state: RuntimeState): VisualAttachmentState[] {
   const result: VisualAttachmentState[] = [];
 
-  for (const owned of _state.owned) {
+  for (const owned of state.owned) {
     if (owned.disabled) continue;
-    const traitDef = findTraitDef(_catalog, owned.id);
+    const traitDef = findTraitDef(catalog, owned.id);
     if (!traitDef) continue;
-    const stageDef = traitDef.stages[owned.stage];
+    const stageDef = rankStageFor(traitDef, owned.rank);
     result.push({
       sourceId: owned.id,
       stage: owned.stage,
+      rank: owned.rank,
+      isMaster: isMasterRank(owned.rank),
+      logicalSlotCost: 1,
       sockets: traitDef.sockets,
       visualKey: stageDef.visualKey,
       enabled: true,
     });
   }
 
-  for (const resolved of _state.evolutions) {
-    const evoDef = _catalog.evolutions.find((e) => e.id === resolved.id);
+  for (const resolved of state.evolutions) {
+    const evoDef = catalog.evolutions.find((evolution) => evolution.id === resolved.id);
     if (!evoDef) continue;
     result.push({
       sourceId: resolved.id,
       stage: 'mythic',
+      rank: null,
+      isMaster: false,
+      logicalSlotCost: 1,
       sockets: evoDef.occupiedSockets,
       visualKey: evoDef.visualKey,
       enabled: true,

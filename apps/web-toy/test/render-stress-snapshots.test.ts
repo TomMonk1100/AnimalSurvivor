@@ -8,9 +8,11 @@ describe('renderer-only stress snapshots', () => {
     expect(harness.enemies).toBe(1000);
     expect(harness.projectiles).toBe(500);
     expect(harness.pickups).toBe(200);
+    expect(harness.powerPickups).toBe(3);
     expect(harness.curr.enemies.count).toBe(1000);
     expect(harness.curr.projectiles.count).toBe(500);
     expect(harness.curr.pickups.count).toBe(200);
+    expect(harness.curr.powerPickups.count).toBe(3);
     expect(Array.from(harness.curr.enemies.hp.slice(0, harness.enemies))).toEqual(
       Array(harness.enemies).fill(100),
     );
@@ -26,6 +28,7 @@ describe('renderer-only stress snapshots', () => {
     expect(Array.from(harness.curr.projectiles.archetype.slice(0, harness.projectiles))).toEqual(
       Array(harness.projectiles).fill(0),
     );
+    expect(Array.from(harness.curr.powerPickups.role.slice(0, harness.powerPickups))).toEqual([1, 2, 3]);
   });
 
   it('is deterministic and keeps adjacent snapshot ticks', () => {

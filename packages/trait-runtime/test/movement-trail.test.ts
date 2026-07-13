@@ -30,6 +30,10 @@ function upgrade(runtime: TraitRuntime, traitId: string) {
   return result;
 }
 
+function master(runtime: TraitRuntime, traitId: string): void {
+  for (let rank = 1; rank <= 5; rank++) upgrade(runtime, traitId);
+}
+
 function geckoTimer(runtime: TraitRuntime) {
   const timer = runtime.getState().timers.find((candidate) => candidate.ownerId === 'gecko-pads');
   assert.ok(timer, 'expected a Gecko movement-trail timer');
@@ -100,11 +104,10 @@ test('movement distance quantization saturates safely instead of overflowing ser
 
 test('Razorstep Chimera consumes Mantis and Gecko and leaves stronger movement-gated pads', () => {
   const runtime = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
-  upgrade(runtime, 'mantis-scythes');
-  upgrade(runtime, 'mantis-scythes');
-  upgrade(runtime, 'gecko-pads');
-  const result = upgrade(runtime, 'gecko-pads');
-  assert.equal(result.evolved, 'razorstep-chimera');
+  master(runtime, 'mantis-scythes');
+  master(runtime, 'gecko-pads');
+  const result = runtime.fuseEvolution('razorstep-chimera');
+  assert.equal(result.outcome.ok, true);
   assert.equal(runtime.stageOf('mantis-scythes'), 'mythic');
   assert.equal(runtime.stageOf('gecko-pads'), 'mythic');
   assert.equal(runtime.socketOwner('leftShoulder'), 'razorstep-chimera');

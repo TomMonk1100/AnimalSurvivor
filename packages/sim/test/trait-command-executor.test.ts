@@ -9,6 +9,9 @@ import {
 import { createZonePool } from '../src/pools.js';
 import { BruteForceGrid, createEnemyPool, createProjectilePool } from './helpers-c.js';
 import { ZONE_TAG } from '../src/zones.js';
+import { createCombatDamageResolver, createCombatPresentationEventBuffer } from '../src/combat-resolution.js';
+import { createRng } from '../src/rng.js';
+import type { PlayerState } from '../src/types.js';
 
 function command(overrides: Partial<TraitCombatCommand> = {}): TraitCombatCommand {
   return {
@@ -495,7 +498,7 @@ test('zone requests reject the newest command deterministically when the fixed p
   assert.equal(context.zones.data.tag[0], ZONE_TAG.geckoPad);
 });
 
-test('executes authored marking and still rejects unsupported shield state', () => {
+test('executes authored marking and rejects a shield command only when no player resolver is supplied', () => {
   const { context, grid } = setup();
   const markedA = spawnEnemy(context, grid, 10, 0);
   const markedB = spawnEnemy(context, grid, 16, 0);
@@ -512,8 +515,34 @@ test('executes authored marking and still rejects unsupported shield state', () 
   assert.equal(context.enemies.data.marked[markedB], 1);
   assert.throws(
     () => createTraitCommandExecutor().execute(source(command({ kind: 'grantShield', amount: 5 })), context),
-    /unsupported simulation state: grantShield/,
+    /grantShield requires the simulation combat resolver/,
   );
+});
+
+test('executes grantShield through the shared simulation combat resolver', () => {
+  const { context } = setup();
+  const player: PlayerState = {
+    x: 0, y: 0, hp: 100, maxHp: 100, speed: 0, radius: 4, pickupRadius: 10,
+    xp: 0, level: 1, invulnTicks: 0, alive: true,
+    critChance: 0, critMultiplier: 2, dodgeChance: 0, armor: 0,
+    shield: 0, shieldMax: 12, shieldRechargeDelayTicks: 0,
+    shieldRechargeTicksRemaining: 0, shieldRechargePerTick: 0,
+  };
+  const withCombat: TraitCommandExecutionContext = {
+    ...context,
+    combat: createCombatDamageResolver({
+      player,
+      rng: createRng(7),
+      eventBuffer: createCombatPresentationEventBuffer(),
+      getTick: () => context.tick,
+    }),
+  };
+  const stats = createTraitCommandExecutor().execute(
+    source(command({ kind: 'grantShield', amount: 5 })),
+    withCombat,
+  );
+  assert.equal(stats.shieldGrants, 1);
+  assert.equal(player.shield, 5);
 });
 
 test('rejects malformed chain data before any command in the batch mutates combat state', () => {

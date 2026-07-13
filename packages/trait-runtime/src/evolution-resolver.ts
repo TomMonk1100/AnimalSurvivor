@@ -1,62 +1,99 @@
 /**
- * AGENT B — OWNED.
+ * Deterministic, explicit Master fusion resolution.
  *
- * Deterministic Mythic recipe resolution.
- *
- * resolvePending scans evolutions in CATALOG order. It resolves AT MOST ONE
- * evolution per call (spec: "emits exactly one evolution event"). An evolution
- * resolves when:
- *   - it is not already in state.evolutions, AND
- *   - both ingredient traits are owned at stage 'adapted' and NOT disabled.
- *
- * On resolution (all mutations atomic; deterministic):
- *   - append { id, ingredients } to state.evolutions (resolution order);
- *   - set both ingredient traits' `disabled = true` (kept inspectable for
- *     save/debug; their behavior loops are dropped by behavior-runtime);
- *   - reassign every socket currently held by either ingredient to the
- *     evolution id (occupiedSockets stays occupied; sockets are not freed);
- *   - return the resolved evolution id.
- *
- * If nothing resolves, return null. Calling again after resolution must NOT
- * re-resolve the same evolution (idempotent), so applying duplicates after
- * Mythic never retriggers.
+ * A pair becomes available only after both independent attacks reach rank 5.
+ * Availability is a pure query in catalog order; resolution happens only when
+ * the caller explicitly selects an evolution id. This keeps a player-visible
+ * "Fuse now / Later" decision out of the upgrade side effect.
  */
 
-import type { Catalog, RuntimeState } from './contracts.js';
-import type { EvolutionId } from './ids.js';
+import type {
+  Catalog,
+  FuseResult,
+  FusionOffer,
+  RuntimeState,
+} from './contracts.js';
+import { MASTER_RANK, type EvolutionId } from './ids.js';
 
-export function resolvePending(_catalog: Catalog, _state: RuntimeState): EvolutionId | null {
-  for (const evoDef of _catalog.evolutions) {
-    if (_state.evolutions.some((e) => e.id === evoDef.id)) continue;
+function isReady(
+  catalog: Catalog,
+  state: RuntimeState,
+  evolutionId: EvolutionId,
+): boolean {
+  const definition = catalog.evolutions.find((candidate) => candidate.id === evolutionId);
+  if (definition === undefined) return false;
+  if (state.evolutions.some((resolved) => resolved.id === evolutionId)) return false;
 
-    const [ingredientAId, ingredientBId] = evoDef.ingredients;
-    const ownedA = _state.owned.find((o) => o.id === ingredientAId);
-    const ownedB = _state.owned.find((o) => o.id === ingredientBId);
+  const [ingredientAId, ingredientBId] = definition.ingredients;
+  const ownedA = state.owned.find((owned) => owned.id === ingredientAId);
+  const ownedB = state.owned.find((owned) => owned.id === ingredientBId);
+  return ownedA !== undefined
+    && ownedB !== undefined
+    && !ownedA.disabled
+    && !ownedB.disabled
+    && ownedA.rank === MASTER_RANK
+    && ownedB.rank === MASTER_RANK;
+}
 
-    if (
-      !ownedA ||
-      !ownedB ||
-      ownedA.stage !== 'adapted' ||
-      ownedB.stage !== 'adapted' ||
-      ownedA.disabled ||
-      ownedB.disabled
-    ) {
-      continue;
-    }
+/** Return all compatible Master-pair choices in authored catalog order. */
+export function availableFusions(catalog: Catalog, state: RuntimeState): FusionOffer[] {
+  const offers: FusionOffer[] = [];
+  for (const evolution of catalog.evolutions) {
+    if (!isReady(catalog, state, evolution.id)) continue;
+    offers.push({
+      evolutionId: evolution.id,
+      ingredients: [evolution.ingredients[0], evolution.ingredients[1]],
+      freesLogicalSlot: true,
+    });
+  }
+  return offers;
+}
 
-    _state.evolutions.push({ id: evoDef.id, ingredients: [ingredientAId, ingredientBId] });
-    ownedA.disabled = true;
-    ownedB.disabled = true;
-
-    for (const socket of Object.keys(_state.sockets) as (keyof typeof _state.sockets)[]) {
-      const owner = _state.sockets[socket];
-      if (owner === ingredientAId || owner === ingredientBId) {
-        _state.sockets[socket] = evoDef.id;
-      }
-    }
-
-    return evoDef.id;
+/**
+ * Resolve exactly one requested Master fusion.
+ *
+ * Disabled ingredient records and visual sockets are retained deliberately,
+ * but capacity calculations count the resulting evolution as one logical
+ * attack. Socket reassignment keeps renderer attachment ownership truthful.
+ */
+export function fuseEvolution(
+  catalog: Catalog,
+  state: RuntimeState,
+  evolutionId: EvolutionId,
+): FuseResult {
+  const definition = catalog.evolutions.find((candidate) => candidate.id === evolutionId);
+  if (definition === undefined) {
+    return { outcome: { ok: false, kind: 'unknownEvolution', evolutionId } };
+  }
+  if (state.evolutions.some((resolved) => resolved.id === evolutionId)) {
+    return { outcome: { ok: false, kind: 'alreadyFused', evolutionId } };
+  }
+  if (!isReady(catalog, state, evolutionId)) {
+    return { outcome: { ok: false, kind: 'notMastered', evolutionId } };
   }
 
-  return null;
+  const [ingredientAId, ingredientBId] = definition.ingredients;
+  const ownedA = state.owned.find((owned) => owned.id === ingredientAId)!;
+  const ownedB = state.owned.find((owned) => owned.id === ingredientBId)!;
+
+  state.evolutions.push({ id: definition.id, ingredients: [ingredientAId, ingredientBId] });
+  ownedA.disabled = true;
+  ownedB.disabled = true;
+
+  for (const socket of Object.keys(state.sockets) as (keyof typeof state.sockets)[]) {
+    const owner = state.sockets[socket];
+    if (owner === ingredientAId || owner === ingredientBId) {
+      state.sockets[socket] = definition.id;
+    }
+  }
+
+  return {
+    outcome: {
+      ok: true,
+      kind: 'fused',
+      evolutionId: definition.id,
+      ingredients: [ingredientAId, ingredientBId],
+      logicalSlotCost: 1,
+    },
+  };
 }

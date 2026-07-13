@@ -1,4 +1,4 @@
-import type { SimConfig } from '@sim';
+import { powerPickupCapacityForXpCap, type SimConfig } from '@sim';
 import type { CategorySnapshot, RenderSnapshot } from '../contracts';
 import { createSnapshot } from '../sim/snapshot-producer';
 
@@ -8,6 +8,8 @@ export interface RenderStressHarness {
   readonly enemies: number;
   readonly projectiles: number;
   readonly pickups: number;
+  /** One renderer-only exemplar per rare pickup kind. */
+  readonly powerPickups: number;
   update(tick: number): void;
 }
 
@@ -51,6 +53,7 @@ function fillSnapshot(
   enemies: number,
   projectiles: number,
   pickups: number,
+  powerPickups: number,
 ): void {
   out.tick = tick;
   out.playerX = config.player.startX;
@@ -65,6 +68,10 @@ function fillSnapshot(
   fillCategory(out.enemies, enemies, 40, 9, out.playerX, out.playerY, 3.5, tick);
   fillCategory(out.projectiles, projectiles, 25, 8, out.playerX, out.playerY, 2, tick + 37);
   fillCategory(out.pickups, pickups, 20, 10, out.playerX, out.playerY, 2.5, tick + 79);
+  fillCategory(out.powerPickups, powerPickups, 3, 18, out.playerX, out.playerY, 12, tick + 113);
+  // Exercise the three bounded renderer batches without inventing a fourth
+  // gameplay kind. Stress snapshots remain presentation-only.
+  for (let index = 0; index < powerPickups; index++) out.powerPickups.role[index] = index + 1;
 }
 
 /**
@@ -78,11 +85,12 @@ export function createRenderStressHarness(config: SimConfig): RenderStressHarnes
   const enemies = Math.min(1000, config.enemyCap);
   const projectiles = Math.min(500, config.projectileCap);
   const pickups = Math.min(200, config.pickupCap);
+  const powerPickups = Math.min(3, powerPickupCapacityForXpCap(config.pickupCap));
 
   function update(tick: number): void {
-    fillSnapshot(prev, config, Math.max(0, tick - 1), enemies, projectiles, pickups);
-    fillSnapshot(curr, config, tick, enemies, projectiles, pickups);
+    fillSnapshot(prev, config, Math.max(0, tick - 1), enemies, projectiles, pickups, powerPickups);
+    fillSnapshot(curr, config, tick, enemies, projectiles, pickups, powerPickups);
   }
   update(0);
-  return { prev, curr, enemies, projectiles, pickups, update };
+  return { prev, curr, enemies, projectiles, pickups, powerPickups, update };
 }

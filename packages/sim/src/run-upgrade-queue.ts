@@ -30,6 +30,9 @@ export interface TraitRunUpgradeOffer {
   readonly id: string;
   readonly traitId: string;
   readonly resultStage: TraitUpgradeOfferView['resultStage'];
+  /** Exact V1.1 rank after selection when the injected runtime supports it. */
+  readonly resultRank?: TraitUpgradeOfferView['resultRank'];
+  readonly isMaster?: boolean;
 }
 
 export interface UniversalRunUpgradeOffer {
@@ -255,6 +258,8 @@ class RuntimeRunUpgradeQueue implements RunUpgradeQueue {
           id: traitOfferId(offer.traitId),
           traitId: offer.traitId,
           resultStage: offer.resultStage,
+          ...(offer.resultRank === undefined ? {} : { resultRank: offer.resultRank }),
+          ...(offer.isMaster === undefined ? {} : { isMaster: offer.isMaster }),
         }));
       }
     }

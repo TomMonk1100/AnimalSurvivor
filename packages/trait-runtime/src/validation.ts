@@ -41,9 +41,8 @@ import type {
   ValidationIssue,
   ValidationResult,
 } from './contracts.js';
-import { isSocketId, type OwnedStage, type TraitId } from './ids.js';
-
-const OWNED_STAGES: readonly OwnedStage[] = ['bud', 'adapted'];
+import { isSocketId, TRAIT_RANKS, type TraitId } from './ids.js';
+import { rankStagesFor } from './rank-progression.js';
 
 /** Fields whose values must be finite and >= 0 (they represent magnitudes/counts). */
 const NON_NEGATIVE_FIELDS: readonly (keyof CommandTemplate)[] = [
@@ -449,19 +448,20 @@ export function validateCatalog(_catalog: Catalog): ValidationResult {
       }
     }
 
-    for (const stageName of OWNED_STAGES) {
-      const stage = trait.stages?.[stageName];
+    const rankStages = rankStagesFor(trait);
+    for (const rank of TRAIT_RANKS) {
+      const stage = rankStages[rank];
       if (!stage) {
         pushIssue(
           issues,
           'missingStage',
-          `Trait "${trait.id}" is missing stage "${stageName}".`,
+          `Trait "${trait.id}" is missing rank "${rank}".`,
           trait.id,
         );
         continue;
       }
-      recordVisualKey(stage.visualKey, `${trait.id}:${stageName}`);
-      validateBehavior(`${trait.id}:${stageName}`, stage.behavior, issues);
+      recordVisualKey(stage.visualKey, `${trait.id}:rank${rank}`);
+      validateBehavior(`${trait.id}:rank${rank}`, stage.behavior, issues);
     }
   }
 
@@ -538,7 +538,11 @@ export function validateCatalog(_catalog: Catalog): ValidationResult {
   }
 
   for (const [key, owners] of visualKeyOwners) {
-    if (owners.length > 1) {
+    // Ranks 2–5 deliberately share the available Adapted attachment art for
+    // the same attack until rank-specific assets exist. A key may therefore
+    // repeat inside one trait, but never across different traits/evolutions.
+    const distinctSourceIds = new Set(owners.map((owner) => owner.split(':')[0]!));
+    if (distinctSourceIds.size > 1) {
       pushIssue(
         issues,
         'visualKeyCollision',

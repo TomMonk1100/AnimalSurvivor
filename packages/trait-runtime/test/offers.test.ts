@@ -22,22 +22,22 @@ test('different seeds can produce different selections', () => {
   assert.notDeepEqual(a, b);
 });
 
-test('offers exclude maxed (adapted) and socket-blocked traits', () => {
+test('offers exclude Mastered and socket-blocked traits while favoring owned ranks', () => {
   const s = createInitialState(0);
-  // Max out porcupine-quills to adapted (maxed without a recipe).
-  applyUpgrade(catalog, s, 'porcupine-quills');
-  applyUpgrade(catalog, s, 'porcupine-quills');
+  // Master porcupine-quills; only a compatible Master pair may fuse it now.
+  for (let rank = 1; rank <= 5; rank++) applyUpgrade(catalog, s, 'porcupine-quills');
   // Occupy both shoulders so shoulder-traits become impossible offers.
   applyUpgrade(catalog, s, 'mantis-scythes');
 
   const offers = generateOffers(catalog, s, createRng(3), 20); // ask for more than exist
   const ids = offers.map((o) => o.traitId);
 
-  // Adapted trait is excluded.
+  // Mastered trait is excluded from normal upgrade offers.
   assert.ok(!ids.includes('porcupine-quills'));
-  // mantis-scythes is now bud -> offered as an advance to adapted.
+  // Mantis rank 1 is prioritized as an owned advance to rank 2.
   const mantis = offers.find((o) => o.traitId === 'mantis-scythes');
   assert.equal(mantis?.resultStage, 'adapted');
+  assert.equal(mantis?.resultRank, 2);
   // Shoulder-blocked locked traits are excluded (owl/crab need both shoulders).
   assert.ok(!ids.includes('owl-pinions'));
   assert.ok(!ids.includes('crab-pincers'));

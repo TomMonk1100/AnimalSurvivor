@@ -38,16 +38,16 @@ describe('active attack loadout', () => {
       .toMatch(/Scout marks/);
   });
 
-  it('keeps each Mythic at two active-attack slots', () => {
+  it('counts each fused evolution as one logical attack slot', () => {
     const loadout = presentActiveAttackLoadout([
       visual({ sourceId: 'thornstorm-mantle', stage: 'mythic', sockets: ['head', 'back'], visualKey: 'thornstorm-mantle:mythic' }),
       visual({ sourceId: 'thunderbug-dynamo', stage: 'mythic', sockets: ['tail', 'bodyOrbit'], visualKey: 'thunderbug-dynamo:mythic' }),
     ]);
-    expect(loadout.slotsUsed).toBe(4);
-    expect(loadout.cards.map((card) => card.slotCost)).toEqual([1, 2, 2]);
+    expect(loadout.slotsUsed).toBe(3);
+    expect(loadout.cards.map((card) => card.slotCost)).toEqual([1, 1, 1]);
   });
 
-  it('counts Razorstep as two slots after it consumes Mantis and Gecko', () => {
+  it('frees one logical slot when Razorstep replaces Mantis and Gecko', () => {
     const loadout = presentActiveAttackLoadout([
       visual({
         sourceId: 'mantis-scythes',
@@ -69,11 +69,11 @@ describe('active attack loadout', () => {
       }),
     ]);
 
-    expect(loadout.slotsUsed).toBe(3);
+    expect(loadout.slotsUsed).toBe(2);
     expect(loadout.cards.map((card) => card.id)).toEqual([
       'greg-auto-fire:starter',
       'razorstep-chimera:mythic',
     ]);
-    expect(loadout.cards.map((card) => card.slotCost)).toEqual([1, 2]);
+    expect(loadout.cards.map((card) => card.slotCost)).toEqual([1, 1]);
   });
 });

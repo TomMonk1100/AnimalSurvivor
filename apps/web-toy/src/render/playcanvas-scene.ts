@@ -61,6 +61,7 @@
  */
 import * as pc from 'playcanvas';
 import type { BiomeId, SimConfig } from '@sim';
+import { POWER_PICKUP_KIND, powerPickupCapacityForXpCap } from '@sim';
 import { getPaletteDefinition, isPaletteId, type PaletteId } from '../profile/palettes';
 import type { TraitPresentationEventView, TraitVisualAttachmentView } from '@sim';
 import { DEFAULT_CONFIG, RUN_ENEMY_ROLE, ZONE_TAG } from '@sim';
@@ -84,6 +85,9 @@ import { createQuaterniusGladePresentation } from './quaternius-glade-presentati
 import { createContextLossController } from './context-loss-controller';
 import { WILDGUARD_ENEMY_SPRITE_URLS } from './wildguard-enemy-sprites';
 import { clampCameraTarget } from './camera-bounds';
+import { createDamageNumberPresentation } from './damage-number-presentation';
+import type { CombatPresentationEventView } from '../presentation/combat-presentation-events';
+import { projectCombatDefensePresentationEvents } from '../presentation/combat-defense-presentation';
 
 /** Backing-store size cap: CSS size * min(devicePixelRatio, RESOLUTION_CAP). */
 const RESOLUTION_CAP = 2;
@@ -107,6 +111,9 @@ const CLEAR_COLOR = new pc.Color(0.12, 0.23, 0.12);
 const PLAYER_COLOR = new pc.Color(0.2, 0.9, 0.95); // cyan
 const PROJECTILE_COLOR = new pc.Color(0.95, 0.85, 0.2); // yellow
 const PICKUP_COLOR = new pc.Color(0.27, 0.9, 0.36); // green
+const BOMB_PICKUP_COLOR = new pc.Color(1, 0.3, 0.1); // urgent ember-orange
+const MAGNET_PICKUP_COLOR = new pc.Color(0.4, 0.62, 1); // map-wide pull blue
+const FOOD_PICKUP_COLOR = new pc.Color(1, 0.48, 0.2); // warm restorative fruit
 const GECKO_PAD_COLOR = new pc.Color(0.24, 1, 0.58); // mint
 const HOSTILE_PROJECTILE_COLOR = new pc.Color(1, 0.32, 0.1); // orange-red
 /** Fixed role treatments: never a unique material or mesh per enemy. */
@@ -128,6 +135,17 @@ const DENIAL_SCALE_MULTIPLIER = 1.16;
 const FLANKER_SCALE_MULTIPLIER = 1.54;
 const SUPPORT_SCALE_MULTIPLIER = 1.56;
 const MARKED_ENEMY_SCALE_MULTIPLIER = 1.45;
+
+/** Optional extension kept outside the frozen generic renderer contract. */
+export interface DamageNumberRendererControls {
+  setDamageNumbersEnabled(enabled: boolean): void;
+  setDamageNumberEvents(events: readonly CombatPresentationEventView[]): void;
+  /**
+   * Hands off already-resolved defensive combat outcomes for renderer-only
+   * shields, armor blocks, and dodges. This never feeds back into the sim.
+   */
+  setCombatPresentationEvents(events: readonly CombatPresentationEventView[]): void;
+}
 
 /**
  * All authored enemy sheets are rendered advancing toward lower-left. The
@@ -281,9 +299,12 @@ export function createRenderer(
   initialBiomeId: BiomeId = 'forest',
   initialQualityTier: RenderQualityTier = 'standard',
   initialPaletteId: PaletteId = 'forest',
-): RendererAdapter {
+): RendererAdapter & DamageNumberRendererControls {
   const worldHalfWidth = config.worldWidth / 2;
   const worldHalfHeight = config.worldHeight / 2;
+  // Mirror the simulation's separate bounded token pool. This is a renderer
+  // capacity only; it never owns collection, drops, or token lifetime.
+  const powerPickupCapacity = powerPickupCapacityForXpCap(config.pickupCap);
 
   const app = new pc.Application(canvas, {
     graphicsDeviceOptions: {
@@ -369,6 +390,9 @@ export function createRenderer(
 
   const projectileMaterial = createFlatMaterial(PROJECTILE_COLOR);
   const pickupMaterial = createFlatMaterial(PICKUP_COLOR);
+  const bombPickupMaterial = createFlatMaterial(BOMB_PICKUP_COLOR);
+  const magnetPickupMaterial = createFlatMaterial(MAGNET_PICKUP_COLOR);
+  const foodPickupMaterial = createFlatMaterial(FOOD_PICKUP_COLOR);
   const zoneMaterial = createZoneMaterial(GECKO_PAD_COLOR);
 
   // Each art family keeps a small set of shared tint materials. The texture is
@@ -441,6 +465,7 @@ export function createRenderer(
     worldHalfWidth,
     worldHalfHeight,
   );
+  const damageNumberPresentation = createDamageNumberPresentation(canvas, CAMERA_ORTHO_HEIGHT);
 
   // --- Hardware-instanced category views ---------------------------------
   // Every hostile role is still one fixed GPU batch, but core archetypes now
@@ -472,6 +497,21 @@ export function createRenderer(
   const pickupMesh = pc.Mesh.fromGeometry(
     app.graphicsDevice,
     new pc.ConeGeometry({ baseRadius: 0.36, height: 0.92, heightSegments: 1, capSegments: 4 }),
+  );
+  // Rare tokens use deliberately distinct silhouettes as well as colors: a
+  // faceted charge (Bomb), a ring (Magnet), and a rounded food orb. Each
+  // remains one bounded instanced draw batch, never one entity per pickup.
+  const bombPickupMesh = pc.Mesh.fromGeometry(
+    app.graphicsDevice,
+    new pc.ConeGeometry({ baseRadius: 0.62, height: 1.14, heightSegments: 1, capSegments: 6 }),
+  );
+  const magnetPickupMesh = pc.Mesh.fromGeometry(
+    app.graphicsDevice,
+    new pc.TorusGeometry({ tubeRadius: 0.17, ringRadius: 0.46, segments: 10, sides: 6 }),
+  );
+  const foodPickupMesh = pc.Mesh.fromGeometry(
+    app.graphicsDevice,
+    new pc.SphereGeometry({ radius: 0.54, latitudeBands: 5, longitudeBands: 7 }),
   );
   const markedEnemyMesh = pc.Mesh.fromGeometry(
     app.graphicsDevice,
@@ -532,6 +572,33 @@ export function createRenderer(
     pickupMesh,
     pickupMaterial,
     0.22,
+  );
+  const bombPickupBatch = createInstancedCategoryBatch(
+    app.graphicsDevice,
+    entitiesRoot,
+    'bomb-pickup',
+    powerPickupCapacity,
+    bombPickupMesh,
+    bombPickupMaterial,
+    0.28,
+  );
+  const magnetPickupBatch = createInstancedCategoryBatch(
+    app.graphicsDevice,
+    entitiesRoot,
+    'magnet-pickup',
+    powerPickupCapacity,
+    magnetPickupMesh,
+    magnetPickupMaterial,
+    0.3,
+  );
+  const foodPickupBatch = createInstancedCategoryBatch(
+    app.graphicsDevice,
+    entitiesRoot,
+    'food-pickup',
+    powerPickupCapacity,
+    foodPickupMesh,
+    foodPickupMaterial,
+    0.3,
   );
   const zoneBatch = createInstancedCategoryBatch(
     app.graphicsDevice,
@@ -662,6 +729,9 @@ export function createRenderer(
   const transformStores = {
     projectile: new InstancedTransformStore(config.projectileCap),
     pickup: new InstancedTransformStore(config.pickupCap),
+    bombPickup: new InstancedTransformStore(powerPickupCapacity),
+    magnetPickup: new InstancedTransformStore(powerPickupCapacity),
+    foodPickup: new InstancedTransformStore(powerPickupCapacity),
     zone: new InstancedTransformStore(config.zoneCap),
   };
   const archetypeIndex = (name: string, fallback: number): number => {
@@ -706,6 +776,7 @@ export function createRenderer(
   let qualityTier: RenderQualityTier = initialQualityTier;
   let resolutionCap = qualityTier === 'reduced' ? 1 : RESOLUTION_CAP;
   let cameraAspect = 1;
+  let pendingCombatDefenseEvents: readonly TraitPresentationEventView[] = Object.freeze([]);
 
   function resize(): void {
     const cssWidth = Math.max(1, canvas.clientWidth);
@@ -747,9 +818,19 @@ export function createRenderer(
     const cameraSceneX = cameraTarget.x - worldHalfWidth;
     const cameraSceneZ = worldHalfHeight - cameraTarget.y;
 
-    heroPresentation.update(prev, curr, alpha, traitVisualState, traitPresentationEvents);
+    const presentationEvents = pendingCombatDefenseEvents.length === 0
+      ? traitPresentationEvents
+      : traitPresentationEvents.length === 0
+        ? pendingCombatDefenseEvents
+        : [...traitPresentationEvents, ...pendingCombatDefenseEvents];
+    // Input events are per rendered frame; consume the supplemental bridge so
+    // repeated render calls cannot replay one block/dodge as multiple effects.
+    pendingCombatDefenseEvents = Object.freeze([]);
+
+    heroPresentation.update(prev, curr, alpha, traitVisualState, presentationEvents);
     combatFeedbackPresentation.update(combatFeedback);
-    traitCommandPresentation.update(curr.tick, traitPresentationEvents);
+    traitCommandPresentation.update(curr.tick, presentationEvents);
+    damageNumberPresentation.update(curr.tick, cameraTarget.x, cameraTarget.y, cameraAspect);
     // The cyan sphere is a resilient loading/error fallback. Greg takes over
     // asynchronously once the audited glTF has loaded and initialized.
     playerEntity.enabled = curr.playerAlive && !heroPresentation.ready;
@@ -940,6 +1021,39 @@ export function createRenderer(
       worldHalfHeight,
       -1,
     );
+    // Collision radii are intentionally generous for rare pickups, so keep
+    // their visual scale readable rather than rendering a 12-unit collection
+    // radius as a giant world object. The role filter is the copied sim kind.
+    transformStores.bombPickup.update(
+      prev.powerPickups,
+      curr.powerPickups,
+      alpha,
+      -worldHalfWidth,
+      worldHalfHeight,
+      -1,
+      POWER_PICKUP_KIND.bomb,
+      0.42,
+    );
+    transformStores.magnetPickup.update(
+      prev.powerPickups,
+      curr.powerPickups,
+      alpha,
+      -worldHalfWidth,
+      worldHalfHeight,
+      -1,
+      POWER_PICKUP_KIND.magnet,
+      0.4,
+    );
+    transformStores.foodPickup.update(
+      prev.powerPickups,
+      curr.powerPickups,
+      alpha,
+      -worldHalfWidth,
+      worldHalfHeight,
+      -1,
+      POWER_PICKUP_KIND.food,
+      0.38,
+    );
     transformStores.zone.update(
       prev.zones,
       curr.zones,
@@ -991,6 +1105,9 @@ export function createRenderer(
     projectileBatch.sync(transformStores.projectile);
     hostileProjectileBatch.sync(hostileProjectileTransforms);
     pickupBatch.sync(transformStores.pickup);
+    bombPickupBatch.sync(transformStores.bombPickup);
+    magnetPickupBatch.sync(transformStores.magnetPickup);
+    foodPickupBatch.sync(transformStores.foodPickup);
     zoneBatch.sync(transformStores.zone);
     razorstepZoneBatch.sync(razorstepZoneTransforms);
     stinkCloudZoneBatch.sync(stinkCloudZoneTransforms);
@@ -1026,6 +1143,9 @@ export function createRenderer(
         projectileBatch.liveViews +
         hostileProjectileBatch.liveViews +
         pickupBatch.liveViews +
+        bombPickupBatch.liveViews +
+        magnetPickupBatch.liveViews +
+        foodPickupBatch.liveViews +
         zoneBatch.liveViews +
         razorstepZoneBatch.liveViews +
         stinkCloudZoneBatch.liveViews +
@@ -1046,6 +1166,9 @@ export function createRenderer(
         projectileBatch.highWaterViews +
         hostileProjectileBatch.highWaterViews +
         pickupBatch.highWaterViews +
+        bombPickupBatch.highWaterViews +
+        magnetPickupBatch.highWaterViews +
+        foodPickupBatch.highWaterViews +
         zoneBatch.highWaterViews +
         razorstepZoneBatch.highWaterViews +
         stinkCloudZoneBatch.highWaterViews +
@@ -1092,6 +1215,9 @@ export function createRenderer(
     projectileBatch.dispose();
     hostileProjectileBatch.dispose();
     pickupBatch.dispose();
+    bombPickupBatch.dispose();
+    magnetPickupBatch.dispose();
+    foodPickupBatch.dispose();
     zoneBatch.dispose();
     razorstepZoneBatch.dispose();
     stinkCloudZoneBatch.dispose();
@@ -1101,6 +1227,9 @@ export function createRenderer(
     bruteEnemyMesh.destroy();
     projectileMesh.destroy();
     pickupMesh.destroy();
+    bombPickupMesh.destroy();
+    magnetPickupMesh.destroy();
+    foodPickupMesh.destroy();
     bossEnemyMesh.destroy();
     markedEnemyMesh.destroy();
     enemyShadowMesh.destroy();
@@ -1124,11 +1253,15 @@ export function createRenderer(
     projectileMaterial.destroy();
     hostileProjectileMaterial.destroy();
     pickupMaterial.destroy();
+    bombPickupMaterial.destroy();
+    magnetPickupMaterial.destroy();
+    foodPickupMaterial.destroy();
     zoneMaterial.destroy();
     razorstepZoneMaterial.destroy();
     stinkCloudZoneMaterial.destroy();
     royalStinkZoneMaterial.destroy();
     playerMaterial.destroy();
+    damageNumberPresentation.dispose();
     traitCommandPresentation.dispose();
     combatFeedbackPresentation.dispose();
     heroPresentation.dispose();
@@ -1145,6 +1278,15 @@ export function createRenderer(
     render,
     resize,
     setQualityTier,
+    setDamageNumbersEnabled(enabled): void {
+      damageNumberPresentation.setEnabled(enabled);
+    },
+    setDamageNumberEvents(events): void {
+      damageNumberPresentation.setEvents(events);
+    },
+    setCombatPresentationEvents(events): void {
+      pendingCombatDefenseEvents = projectCombatDefensePresentationEvents(events);
+    },
     setPalette,
     stats,
     get ready(): boolean {

@@ -119,10 +119,29 @@ export interface ProjectilePool extends PoolBase {
   readonly hitHistory: Int32Array;
   /** 0 = player faction, 1 = enemy faction. */
   readonly faction: Uint8Array;
+  /** 1 when this projectile's authored emission rolled critical. */
+  readonly critical: Uint8Array;
+  /** Stable compact damage-source role; see combat-resolution.ts. */
+  readonly source: Uint8Array;
 }
 
 export interface PickupPool extends PoolBase {
+  /** Stable compact pickup kind; XP is always 0 for this XP-only pool. */
+  readonly kind: Uint8Array;
   readonly xp: Float32Array;
+  readonly radius: Float32Array;
+}
+
+/**
+ * Bounded non-XP world pickup pool. Keeping these separate from XP motes
+ * ensures a rare Bomb, Magnet, or Food token can never be dropped because a
+ * dense kill wave temporarily filled the XP pool.
+ */
+export interface PowerPickupPool extends PoolBase {
+  /** Stable compact pickup kind; see POWER_PICKUP_KIND in pickups.ts. */
+  readonly kind: Uint8Array;
+  /** Authored effect amount; zero selects the deterministic kind default. */
+  readonly amount: Float32Array;
   readonly radius: Float32Array;
 }
 
@@ -146,6 +165,10 @@ export interface ZonePool extends PoolBase {
   readonly pulseCooldown: Uint16Array;
   /** Stable numeric visual/gameplay role; see ZONE_TAG in zones.ts. */
   readonly tag: Uint8Array;
+  /** 1 when this zone's placement emission rolled critical. */
+  readonly critical: Uint8Array;
+  /** Stable compact damage-source role; see combat-resolution.ts. */
+  readonly source: Uint8Array;
 }
 
 /**
@@ -286,6 +309,24 @@ export interface PlayerState {
   /** Ticks of contact-damage immunity remaining. */
   invulnTicks: number;
   alive: boolean;
+  /** Base chance in [0, 1] that a player-authored attack crits. */
+  critChance?: number;
+  /** Critical damage multiplier; defaults to 2 when absent for old callers. */
+  critMultiplier?: number;
+  /** Incoming-hit avoidance chance in [0, 1]. */
+  dodgeChance?: number;
+  /** Non-negative armor rating; resolver converts it to diminishing reduction. */
+  armor?: number;
+  /** Current rechargeable shield health. */
+  shield?: number;
+  /** Maximum rechargeable shield health. */
+  shieldMax?: number;
+  /** Ticks after shield damage before regeneration may resume. */
+  shieldRechargeDelayTicks?: number;
+  /** Mutable remaining recharge delay. */
+  shieldRechargeTicksRemaining?: number;
+  /** Shield restored each advancing simulation tick after the delay. */
+  shieldRechargePerTick?: number;
 }
 
 /** Per-tick gameplay events, reset each step. */
@@ -299,6 +340,14 @@ export interface SimEvents {
   enemyProjectilesFired: number;
   /** Player and trait projectiles emitted this tick. */
   projectilesFired: number;
+  /** Non-XP world pickups consumed this tick. */
+  powerPickupsCollected: number;
+  /** Screen-clearing Bomb pickups resolved this tick. */
+  bombsTriggered: number;
+  /** Map-wide Magnet pickups resolved this tick. */
+  magnetsTriggered: number;
+  /** Food pickups consumed this tick. */
+  foodCollected: number;
 }
 
 export interface TickInput {
@@ -313,10 +362,10 @@ export interface TickInput {
 // ---------------------------------------------------------------------------
 
 export interface UpgradeSelection {
-  /** Simulation tick at which this typed run upgrade was selected. */
+  /** Simulation tick at which this typed run upgrade or free fusion was selected. */
   tick: number;
-  kind: 'trait' | 'universal' | 'essence';
-  /** Stable prefixed key, for example `trait:porcupine-quills`. */
+  kind: 'trait' | 'universal' | 'essence' | 'fusion';
+  /** Stable prefixed key, for example `trait:porcupine-quills` or `fusion:thornstorm-mantle`. */
   id: string;
 }
 

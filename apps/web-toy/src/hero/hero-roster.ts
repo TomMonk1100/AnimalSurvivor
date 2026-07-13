@@ -23,20 +23,20 @@ interface HeroVisualDetails {
 
 const VISUALS: Readonly<Record<HeroId, HeroVisualDetails>> = Object.freeze({
   greg: Object.freeze({
-    characterLine: 'A proper gentleman who keeps every adaptation immaculate.',
-    statLine: 'Balanced health · speed · pickup · attack cadence',
+    characterLine: 'A proper gentleman whose Fox Swipe rewards fearless close-range footwork.',
+    statLine: 'Baseline dodge · Melee Affinity · balanced health and speed',
     palette: ['#b7653d', '#f1c27d', '#253342'] as const,
     silhouette: 'long ears · brush tail',
   }),
   benny: Object.freeze({
-    characterLine: 'A gentle giant learning that taking up space can protect everyone.',
-    statLine: '+28 starting HP · slower movement and cadence',
+    characterLine: 'A gentle giant whose Trample turns a clear lane into a rolling earthwave.',
+    statLine: '+28 starting HP · Thick Skin armor · slower movement and cadence',
     palette: ['#6f7890', '#c3d0dc', '#d69052'] as const,
     silhouette: 'horns · broad shoulders',
   }),
   gracie: Object.freeze({
-    characterLine: 'A discerning collector who knows a trend when it arrives.',
-    statLine: '+18 pickup radius · lighter body · faster cadence',
+    characterLine: 'A discerning collector whose escalating Spit keeps threats at a stylish distance.',
+    statLine: '+18 pickup radius · Fluffy Shield · lighter body · faster cadence',
     palette: ['#e8d7bd', '#b78c70', '#8bd8bb'] as const,
     silhouette: 'soft ears · wool crest',
   }),

@@ -16,10 +16,10 @@ const HZ = DEFAULT_CONFIG.hz;
 const DT_MS = 1000 / HZ;
 const FIVE_MIN_TICKS = HZ * 60 * 5; // 18000 ticks @ 60hz
 const PROPOSE_GOLDENS = process.env.ANIMAL_SURVIVOR_GOLDEN_MODE === 'propose';
-// Rebaselined after the reviewed opening-arrival, XP pacing, and adaptation
-// density pass; deterministic proposal runs agreed before this expectation
-// changed.
-const EXPECTED_FIVE_MINUTE_HASH = 'd23c536f1a478d8d';
+// Rebaselined for V1.1 after the authored hero kits, Mastery/Fusion state, and
+// world-pickup state became part of the deterministic simulation contract.
+// The headless control, fixed-tick driver, and repeated seeded run agree.
+const EXPECTED_FIVE_MINUTE_HASH = 'd8e7284a69f074be';
 
 /** Headless control: step a bare simulation with autopilot inputs keyed on pre-step tick. */
 function headlessControl(seed: number, ticks: number): string {

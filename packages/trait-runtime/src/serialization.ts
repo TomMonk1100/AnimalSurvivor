@@ -16,11 +16,12 @@ import type {
   ResolvedEvolution,
   RuntimeState,
 } from './contracts.js';
-import type { OwnedStage, SocketId } from './ids.js';
-import { SOCKETS, isSocketId } from './ids.js';
+import type { OwnedStage, SocketId, TraitRank } from './ids.js';
+import { MASTER_RANK, SOCKETS, isSocketId, isTraitRank } from './ids.js';
 import { fingerprintCatalog } from './state-hash.js';
+import { legacyStageForRank, rankStageFor } from './rank-progression.js';
 
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 3;
 
 export class SerializationError extends Error {
   constructor(message: string) {
@@ -53,7 +54,12 @@ export function serializeState(state: RuntimeState): string {
     version: state.version,
     catalogFingerprint: state.catalogFingerprint,
     tick: state.tick,
-    owned: state.owned.map((o) => ({ id: o.id, stage: o.stage, disabled: o.disabled })),
+    owned: state.owned.map((o) => ({
+      id: o.id,
+      stage: o.stage,
+      rank: o.rank,
+      disabled: o.disabled,
+    })),
     sockets,
     evolutions: state.evolutions.map((e) => ({
       id: e.id,
@@ -103,8 +109,14 @@ export function deserializeState(json: string): RuntimeState {
     const o = item as Record<string, unknown>;
     if (typeof o['id'] !== 'string' || o['id'] === '') return fail(`owned[${i}].id`);
     if (o['stage'] !== 'bud' && o['stage'] !== 'adapted') return fail(`owned[${i}].stage`);
+    if (!isTraitRank(o['rank'])) return fail(`owned[${i}].rank`);
     if (typeof o['disabled'] !== 'boolean') return fail(`owned[${i}].disabled`);
-    return { id: o['id'], stage: o['stage'] as OwnedStage, disabled: o['disabled'] };
+    return {
+      id: o['id'],
+      stage: o['stage'] as OwnedStage,
+      rank: o['rank'] as TraitRank,
+      disabled: o['disabled'],
+    };
   });
 
   // sockets
@@ -180,7 +192,12 @@ export function validateStateAgainstCatalog(state: RuntimeState, catalog: Catalo
   for (const owned of state.owned) {
     if (ownedById.has(owned.id)) fail(`duplicate owned trait: ${owned.id}`);
     if (!traitById.has(owned.id)) fail(`unknown owned trait: ${owned.id}`);
-    if (owned.disabled && owned.stage !== 'adapted') fail(`disabled trait is not adapted: ${owned.id}`);
+    if (owned.stage !== legacyStageForRank(owned.rank)) {
+      fail(`owned stage/rank mismatch: ${owned.id}`);
+    }
+    if (owned.disabled && owned.rank !== MASTER_RANK) {
+      fail(`disabled trait is not Master rank: ${owned.id}`);
+    }
     ownedById.set(owned.id, owned);
   }
 
@@ -198,8 +215,8 @@ export function validateStateAgainstCatalog(state: RuntimeState, catalog: Catalo
     }
     for (const ingredient of resolved.ingredients) {
       const owned = ownedById.get(ingredient);
-      if (owned === undefined || owned.stage !== 'adapted' || !owned.disabled) {
-        fail(`evolution ingredient is not consumed Adapted state: ${resolved.id}`);
+      if (owned === undefined || owned.rank !== MASTER_RANK || !owned.disabled) {
+        fail(`evolution ingredient is not consumed Master state: ${resolved.id}`);
       }
       if (consumedTraits.has(ingredient)) fail(`trait consumed by multiple evolutions: ${ingredient}`);
       consumedTraits.add(ingredient);
@@ -210,6 +227,14 @@ export function validateStateAgainstCatalog(state: RuntimeState, catalog: Catalo
     if (owned.disabled !== consumedTraits.has(owned.id)) {
       fail(`disabled trait/evolution mismatch: ${owned.id}`);
     }
+  }
+
+  if (
+    catalog.maxActiveTraits !== undefined
+    && state.owned.filter((owned) => !owned.disabled).length + state.evolutions.length
+      > catalog.maxActiveTraits
+  ) {
+    fail('active logical attack capacity exceeded');
   }
 
   const expectedSockets: Partial<Record<SocketId, string>> = {};
@@ -249,7 +274,7 @@ export function validateStateAgainstCatalog(state: RuntimeState, catalog: Catalo
     }
 
     const behavior = owned !== undefined
-      ? traitById.get(owned.id)!.stages[owned.stage].behavior
+      ? rankStageFor(traitById.get(owned.id)!, owned.rank).behavior
       : evolution!.behavior;
     if (behavior.kind === 'multiPhase') {
       const phases = behavior.phases!;

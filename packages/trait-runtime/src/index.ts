@@ -11,21 +11,26 @@ import type {
   Catalog,
   Command,
   CommandBuffer,
+  FuseResult,
+  FusionOffer,
   RuntimeContext,
   RuntimeState,
   UpgradeOffer,
   VisualAttachmentState,
 } from './contracts.js';
-import type { TraitId, TraitStage } from './ids.js';
+import type { EvolutionId, TraitId, TraitRank, TraitStage } from './ids.js';
 import { getCatalog } from './definitions.js';
 import { validateCatalog } from './validation.js';
 import {
   applyUpgrade as applyUpgradeState,
+  activeAttackSlots,
   createInitialState,
+  rankOf,
   socketOwner,
   stageOf,
   visualState,
 } from './build-state.js';
+import { availableFusions, fuseEvolution as fuseEvolutionState } from './evolution-resolver.js';
 import { ensureTimers, stepBehaviors } from './behavior-runtime.js';
 import { createCommandBuffer } from './command-buffer.js';
 import { generateOffers } from './offer-director.js';
@@ -120,6 +125,21 @@ export class TraitRuntime {
     return result;
   }
 
+  /** Compatible Master-pair fusions in deterministic catalog order. */
+  availableFusions(): readonly FusionOffer[] {
+    return availableFusions(this.catalog, this.state);
+  }
+
+  /** Explicitly resolve one player-selected Master fusion. */
+  fuseEvolution(evolutionId: EvolutionId): FuseResult {
+    const result = fuseEvolutionState(this.catalog, this.state, evolutionId);
+    if (result.outcome.ok) {
+      // Disable both ingredient loops and activate the fused loop atomically.
+      ensureTimers(this.catalog, this.state);
+    }
+    return result;
+  }
+
   /** Deterministic upgrade offers; advances and persists the offer RNG. */
   offers(count: number): UpgradeOffer[] {
     const rng = restoreRng(this.state.offerRngState);
@@ -130,6 +150,16 @@ export class TraitRuntime {
 
   stageOf(traitId: TraitId): TraitStage {
     return stageOf(this.state, traitId);
+  }
+
+  /** Exact rank for an independent active attack; null when locked/fused. */
+  rankOf(traitId: TraitId): TraitRank | null {
+    return rankOf(this.state, traitId);
+  }
+
+  /** Current logical attack-slot usage (a fusion costs one). */
+  activeAttackSlots(): number {
+    return activeAttackSlots(this.state);
   }
 
   socketOwner(socket: Parameters<typeof socketOwner>[1]): string | undefined {
@@ -191,6 +221,9 @@ export type {
   CommandKind,
   CommandTemplate,
   EvolutionDefinition,
+  FuseOutcome,
+  FuseResult,
+  FusionOffer,
   OwnedTrait,
   ResolvedEvolution,
   RuntimeContext,
@@ -205,7 +238,13 @@ export type {
   VisualAttachmentState,
 } from './contracts.js';
 export { COMMAND_KINDS, BLANK_COMMAND } from './contracts.js';
-export { getCatalog, getTrait, getEvolution, findEvolutionForPair } from './definitions.js';
+export {
+  getCatalog,
+  getTrait,
+  getEvolution,
+  findEvolutionForPair,
+  getRankBehavior,
+} from './definitions.js';
 export { validateCatalog } from './validation.js';
 export { createRng, restoreRng } from './rng.js';
 export {
@@ -217,7 +256,23 @@ export {
 } from './serialization.js';
 export { fingerprintCatalog, hashState } from './state-hash.js';
 export { generateOffers } from './offer-director.js';
-export { visualState, stageOf, socketOwner, applyUpgrade, createInitialState } from './build-state.js';
+export {
+  visualState,
+  stageOf,
+  rankOf,
+  socketOwner,
+  activeAttackSlots,
+  applyUpgrade,
+  fuseEvolution,
+  createInitialState,
+} from './build-state.js';
+export { availableFusions } from './evolution-resolver.js';
+export {
+  rankStageFor,
+  rankStagesFor,
+  legacyStageForRank,
+  isMasterRank,
+} from './rank-progression.js';
 export { ensureTimers, stepBehaviors } from './behavior-runtime.js';
 export { createCommandBuffer } from './command-buffer.js';
 export {

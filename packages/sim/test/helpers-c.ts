@@ -101,11 +101,14 @@ export function createProjectilePool(capacity: number): Pool<ProjectilePool> {
     hitCount: new Uint16Array(capacity),
     hitHistory: new Int32Array(capacity * MAX_PROJECTILE_HIT_HISTORY),
     faction: new Uint8Array(capacity),
+    critical: new Uint8Array(capacity),
+    source: new Uint8Array(capacity),
   });
 }
 
 export function createPickupPool(capacity: number): Pool<PickupPool> {
   return new TestPool<PickupPool>(capacity, {
+    kind: new Uint8Array(capacity),
     xp: new Float32Array(capacity),
     radius: new Float32Array(capacity),
   });

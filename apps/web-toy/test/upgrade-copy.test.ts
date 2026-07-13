@@ -18,6 +18,24 @@ describe('upgrade card copy', () => {
     expect(pouch.description).toMatch(/Thornstorm Mantle/);
   });
 
+  it('uses exact V1.1 ranks and makes Master fusion an explicit free action', () => {
+    const rankThree = presentUpgrade({
+      traitId: 'porcupine-quills', resultStage: 'adapted', resultRank: 3, isMaster: false,
+    }, []);
+    expect(rankThree.badge).toBe('Rank 3/5');
+    expect(rankThree.pairingHint).toMatch(/Master Puffer Pouch.*free Fuse now/i);
+
+    const master = presentUpgrade({
+      traitId: 'porcupine-quills', resultStage: 'adapted', resultRank: 5, isMaster: true,
+    }, [{
+      sourceId: 'puffer-pouch', stage: 'adapted', rank: 5, isMaster: true, logicalSlotCost: 1,
+      sockets: ['head'], visualKey: 'puffer-pouch:adapted', enabled: true,
+    }]);
+    expect(master.badge).toBe('MASTER · Rank 5/5 · FUSION READY');
+    expect(master.description).toMatch(/^Ready to fuse into Thornstorm Mantle/);
+    expect(master.pairingHint).toBeNull();
+  });
+
   it('explains the second attack pair and its Thunderbug evolution', () => {
     const coil = presentUpgrade({ traitId: 'electric-eel-coil', resultStage: 'bud' }, []);
     expect(coil).toMatchObject({ title: 'Electric Eel Coil', badge: 'NEW ATTACK', socket: 'Tail attachment' });
@@ -92,7 +110,7 @@ describe('upgrade card copy', () => {
     expect(presentRunUpgrade({
       kind: 'universal', id: 'universal:xp-magnet', upgradeId: 'xp-magnet', currentRank: 1, nextRank: 2, maxRank: 5,
     }, [])).toMatchObject({
-      title: 'XP Magnet', badge: 'RANK 2/5', socket: 'Neutral run upgrade',
+      title: 'Mote Draw', badge: 'RANK 2/5', socket: 'Neutral run upgrade',
       description: expect.stringContaining('pull XP motes'),
     });
     expect(presentRunUpgrade({ kind: 'essence', id: 'essence-cache', amount: 5 }, [])).toMatchObject({
@@ -100,9 +118,10 @@ describe('upgrade card copy', () => {
     });
     expect(presentRunUpgrade({
       kind: 'universal', id: 'universal:basic-attack:benny-brace-burst',
-      upgradeId: 'basic-attack:benny-brace-burst', currentRank: 1, nextRank: 2, maxRank: 3,
+      upgradeId: 'basic-attack:benny-brace-burst', currentRank: 1, nextRank: 2, maxRank: 5,
     }, [], 'Benny', getUniversalUpgradeCatalogForHero('benny'))).toMatchObject({
-      title: 'Brace Bloom', badge: 'RANK 2/3', socket: 'Starter mastery',
+      title: 'Trample Mastery', badge: 'RANK 2/5', socket: 'Starter mastery',
+      description: expect.stringContaining('earth waves'),
     });
   });
 });

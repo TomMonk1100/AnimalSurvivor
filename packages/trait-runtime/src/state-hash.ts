@@ -14,7 +14,8 @@
 
 import type { Catalog, RuntimeState } from './contracts.js';
 import type { SocketId } from './ids.js';
-import { SOCKETS } from './ids.js';
+import { SOCKETS, TRAIT_RANKS } from './ids.js';
+import { rankStagesFor } from './rank-progression.js';
 
 /**
  * Stable 64-bit hash (two 32-bit FNV-1a lanes) rendered as 16 lowercase hex
@@ -40,10 +41,10 @@ function canonicalCatalog(catalog: Catalog): string {
   const traits = [...catalog.traits]
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .map((t) => {
-      const stages = (['bud', 'adapted'] as const)
-        .map((s) => {
-          const st = t.stages[s];
-          return `${s}=${st.visualKey}|${JSON.stringify(st.behavior)}`;
+      const stages = TRAIT_RANKS
+        .map((rank) => {
+          const stage = rankStagesFor(t)[rank];
+          return `rank${rank}=${stage.visualKey}|${JSON.stringify(stage.behavior)}`;
         })
         .join(';');
       return `T:${t.id}|sockets=${[...t.sockets].sort().join(',')}|tags=${[...t.tags]
@@ -72,7 +73,7 @@ export function fingerprintCatalog(catalog: Catalog): string {
 function canonicalState(state: RuntimeState): string {
   const owned = [...state.owned]
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map((o) => `${o.id}:${o.stage}:${o.disabled ? 1 : 0}`)
+    .map((o) => `${o.id}:${o.rank}:${o.stage}:${o.disabled ? 1 : 0}`)
     .join(',');
 
   const sockets = SOCKETS.map((s: SocketId) => `${s}=${state.sockets[s] ?? ''}`).join(',');

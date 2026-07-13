@@ -11,11 +11,31 @@
 export type TraitId = string;
 export type EvolutionId = string;
 
-/** Progression stages. `locked` = not owned. */
-export type TraitStage = 'locked' | 'bud' | 'adapted' | 'mythic';
+/**
+ * Authoritative independent-attack progression. Rank 5 is always Master.
+ *
+ * The numeric form is deliberate: it serializes cleanly, is easy for the
+ * simulation to compare, and does not couple progression to presentation
+ * labels such as the legacy Bud/Adapted attachment art.
+ */
+export type TraitRank = 1 | 2 | 3 | 4 | 5;
 
-/** Only these two stages are storable on an owned independent trait. */
+export const TRAIT_RANKS: readonly TraitRank[] = [1, 2, 3, 4, 5] as const;
+export const MASTER_RANK: TraitRank = 5;
+
+export function isTraitRank(value: unknown): value is TraitRank {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= MASTER_RANK;
+}
+
+/**
+ * Legacy attachment-art buckets retained while the renderer assets are still
+ * keyed as Bud/Adapted. They are presentation compatibility only; gameplay
+ * progression is carried by TraitRank.
+ */
 export type OwnedStage = 'bud' | 'adapted';
+
+/** Public compatibility status used by older callers that do not yet consume rank. */
+export type TraitStage = 'locked' | OwnedStage | 'mythic';
 
 /** Six stable body socket families. Renderer maps these to character bones. */
 export type SocketId =

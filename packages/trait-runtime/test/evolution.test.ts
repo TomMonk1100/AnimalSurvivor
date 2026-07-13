@@ -1,54 +1,74 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getCatalog } from '../src/definitions.js';
-import { applyUpgrade, createInitialState, stageOf } from '../src/build-state.js';
+import {
+  activeAttackSlots,
+  applyUpgrade,
+  createInitialState,
+  fuseEvolution,
+  stageOf,
+} from '../src/build-state.js';
+import { availableFusions } from '../src/evolution-resolver.js';
 
 const catalog = getCatalog();
 
-function toAdapted(s: ReturnType<typeof createInitialState>, id: string): void {
-  applyUpgrade(catalog, s, id);
-  applyUpgrade(catalog, s, id);
+function toMaster(state: ReturnType<typeof createInitialState>, id: string): void {
+  for (let rank = 1; rank <= 5; rank++) applyUpgrade(catalog, state, id);
 }
 
-test('Thornstorm resolves exactly once when both ingredients become Adapted', () => {
-  const s = createInitialState(0);
-  toAdapted(s, 'porcupine-quills');
+test('two Masters create an explicit Thornstorm fusion choice without auto-resolving', () => {
+  const state = createInitialState(0);
+  toMaster(state, 'porcupine-quills');
+  toMaster(state, 'puffer-pouch');
 
-  // Only one ingredient adapted -> no resolution yet.
-  applyUpgrade(catalog, s, 'puffer-pouch'); // pouch bud
-  assert.equal(s.evolutions.length, 0);
+  assert.equal(state.evolutions.length, 0);
+  assert.deepEqual(availableFusions(catalog, state), [{
+    evolutionId: 'thornstorm-mantle',
+    ingredients: ['porcupine-quills', 'puffer-pouch'],
+    freesLogicalSlot: true,
+  }]);
 
-  const r = applyUpgrade(catalog, s, 'puffer-pouch'); // pouch adapted -> resolves
-  assert.equal(r.evolved, 'thornstorm-mantle');
-  assert.equal(s.evolutions.length, 1);
+  const result = fuseEvolution(catalog, state, 'thornstorm-mantle');
+  assert.deepEqual(result.outcome, {
+    ok: true,
+    kind: 'fused',
+    evolutionId: 'thornstorm-mantle',
+    ingredients: ['porcupine-quills', 'puffer-pouch'],
+    logicalSlotCost: 1,
+  });
+  assert.equal(state.evolutions.length, 1);
 });
 
-test('both ingredient traits are disabled and reported as mythic after resolution', () => {
-  const s = createInitialState(0);
-  toAdapted(s, 'porcupine-quills');
-  toAdapted(s, 'puffer-pouch');
-  assert.equal(stageOf(s, 'porcupine-quills'), 'mythic');
-  assert.equal(stageOf(s, 'puffer-pouch'), 'mythic');
-  // Ingredient state remains inspectable.
-  assert.equal(s.owned.filter((o) => o.disabled).length, 2);
+test('fusion consumes two Masters into one logical attack while retaining inspectable ingredients', () => {
+  const state = createInitialState(0);
+  toMaster(state, 'porcupine-quills');
+  toMaster(state, 'puffer-pouch');
+  assert.equal(activeAttackSlots(state), 2);
+  fuseEvolution(catalog, state, 'thornstorm-mantle');
+
+  assert.equal(activeAttackSlots(state), 1);
+  assert.equal(stageOf(state, 'porcupine-quills'), 'mythic');
+  assert.equal(stageOf(state, 'puffer-pouch'), 'mythic');
+  assert.equal(state.owned.filter((owned) => owned.disabled).length, 2);
 });
 
-test('applying duplicates after Mythic does not retrigger the evolution', () => {
-  const s = createInitialState(0);
-  toAdapted(s, 'porcupine-quills');
-  toAdapted(s, 'puffer-pouch');
-  assert.equal(s.evolutions.length, 1);
+test('a fused recipe cannot retrigger and requires Master rank', () => {
+  const state = createInitialState(0);
+  applyUpgrade(catalog, state, 'porcupine-quills');
+  applyUpgrade(catalog, state, 'puffer-pouch');
+  assert.equal(fuseEvolution(catalog, state, 'thornstorm-mantle').outcome.kind, 'notMastered');
 
-  const r = applyUpgrade(catalog, s, 'porcupine-quills');
-  assert.equal(r.outcome.kind, 'alreadyMythic');
-  assert.equal(r.evolved, null);
-  assert.equal(s.evolutions.length, 1);
+  toMaster(state, 'porcupine-quills');
+  toMaster(state, 'puffer-pouch');
+  assert.equal(fuseEvolution(catalog, state, 'thornstorm-mantle').outcome.ok, true);
+  assert.equal(fuseEvolution(catalog, state, 'thornstorm-mantle').outcome.kind, 'alreadyFused');
 });
 
-test('mythic keeps both recipe sockets occupied by the evolution', () => {
-  const s = createInitialState(0);
-  toAdapted(s, 'porcupine-quills');
-  toAdapted(s, 'puffer-pouch');
-  assert.equal(s.sockets['head'], 'thornstorm-mantle');
-  assert.equal(s.sockets['back'], 'thornstorm-mantle');
+test('fused form retains both recipe sockets for its visual footprint', () => {
+  const state = createInitialState(0);
+  toMaster(state, 'porcupine-quills');
+  toMaster(state, 'puffer-pouch');
+  fuseEvolution(catalog, state, 'thornstorm-mantle');
+  assert.equal(state.sockets.head, 'thornstorm-mantle');
+  assert.equal(state.sockets.back, 'thornstorm-mantle');
 });

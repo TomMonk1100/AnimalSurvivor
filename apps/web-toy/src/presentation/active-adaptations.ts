@@ -216,6 +216,125 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationPresentationDefin
   'royal-stinkcloud:mythic': definition('royal-stinkcloud:mythic', 'royal-stinkcloud', 'mythic', 'Royal Stinkcloud', 'Mythic', 'A monarch-crowned cloud turns the space around you into a hazard.', 'Every 2.3 seconds'),
 });
 
+type AttackSourceId =
+  | 'porcupine-quills'
+  | 'puffer-pouch'
+  | 'electric-eel-coil'
+  | 'firefly-colony'
+  | 'mantis-scythes'
+  | 'gecko-pads'
+  | 'owl-pinions'
+  | 'bat-ears'
+  | 'crab-pincers'
+  | 'armadillo-greaves'
+  | 'skunk-brush'
+  | 'monarch-brood';
+
+interface RankPresentation {
+  readonly effect: string;
+  readonly cadence: string;
+}
+
+type FiveRankPresentation = readonly [
+  RankPresentation,
+  RankPresentation,
+  RankPresentation,
+  RankPresentation,
+  RankPresentation,
+];
+
+/**
+ * Rank 1 and 2 preserve the authored Bud/Adapted copy. Ranks 3–5 describe
+ * the deterministic behavior progression supplied by trait-runtime while the
+ * renderer continues to reuse the established Adapted visual key.
+ */
+const RANK_PRESENTATIONS: Readonly<Record<AttackSourceId, FiveRankPresentation>> = Object.freeze({
+  'porcupine-quills': [
+    { effect: 'Fires three forward quills that pierce through one extra enemy each.', cadence: 'Every 1.5 seconds' },
+    { effect: 'Fires five wider quills that pierce through two extra enemies each.', cadence: 'Every second' },
+    { effect: 'Fires six harder quills across a wider lane with deeper pierce.', cadence: 'Every 0.9 seconds' },
+    { effect: 'Fires seven heavy quills that cut through a broad crowd lane.', cadence: 'Every 0.8 seconds' },
+    { effect: 'Unleashes eight Master quills with the widest lane and deepest pierce.', cadence: 'Every 0.6 seconds' },
+  ],
+  'puffer-pouch': [
+    { effect: 'Pulls nearby enemies toward you with an inhale pulse.', cadence: 'Every 1.7 seconds' },
+    { effect: 'Pushes nearby enemies away with a wider pulse.', cadence: 'Every 1.3 seconds' },
+    { effect: 'Sends a farther pulse that shoves enemies away more forcefully.', cadence: 'Every 1.2 seconds' },
+    { effect: 'Controls a wide ring with a heavy defensive shock pulse.', cadence: 'Every second' },
+    { effect: 'Releases a Master shock pulse that clears the broadest close-range space.', cadence: 'Every 0.9 seconds' },
+  ],
+  'electric-eel-coil': [
+    { effect: 'Instantly strikes the nearest enemy, then chains to 1 nearby unhit foe.', cadence: 'Every 1.3 seconds' },
+    { effect: 'Instantly strikes the nearest enemy, then chains through a larger nearby cluster.', cadence: 'Every 0.9 seconds' },
+    { effect: 'Chains harder lightning through more nearby enemies at longer reach.', cadence: 'Every 0.8 seconds' },
+    { effect: 'Surges through a broad cluster with faster, stronger lightning hops.', cadence: 'Every 0.7 seconds' },
+    { effect: 'Discharges a Master chain that tears through the largest nearby cluster.', cadence: 'Every 0.6 seconds' },
+  ],
+  'firefly-colony': [
+    { effect: 'Two fireflies orbit you and zap the nearest enemy they touch.', cadence: 'Every 0.5 seconds' },
+    { effect: 'Four fireflies orbit wider and zap nearby enemies on contact.', cadence: 'Every 0.4 seconds' },
+    { effect: 'Five fireflies orbit faster and reach farther on contact.', cadence: 'Every 0.35 seconds' },
+    { effect: 'Six bright fireflies form a wider, faster contact ring.', cadence: 'Every 0.3 seconds' },
+    { effect: 'Seven Master fireflies create the largest, fastest contact swarm.', cadence: 'Every 0.25 seconds' },
+  ],
+  'mantis-scythes': [
+    { effect: 'Auto-aims a narrow scythe sweep through nearby enemies.', cadence: 'Every 0.75 seconds' },
+    { effect: 'Auto-aims a wider, stronger scythe sweep through nearby enemies.', cadence: 'Every 0.5 seconds' },
+    { effect: 'Cuts a broader scythe arc with heavier close-range damage.', cadence: 'Every 0.43 seconds' },
+    { effect: 'Rapidly cleaves a wide crescent through the nearest crowd.', cadence: 'Every 0.38 seconds' },
+    { effect: 'Carves a Master scythe crescent with the widest, fastest cleave.', cadence: 'Every 0.32 seconds' },
+  ],
+  'gecko-pads': [
+    { effect: 'After moving, leaves a damaging pad at your feet.', cadence: 'Placement: after travelling 150 units' },
+    { effect: 'After moving, leaves larger, stronger damaging pads at your feet.', cadence: 'Placement: after travelling 110 units' },
+    { effect: 'Leaves stronger pads more often as you move.', cadence: 'Placement: after travelling 97 units' },
+    { effect: 'Lays broad, punishing pads on a shorter movement rhythm.', cadence: 'Placement: after travelling 84 units' },
+    { effect: 'Leaves Master scythe pads almost continuously while moving.', cadence: 'Placement: after travelling 70 units' },
+  ],
+  'owl-pinions': [
+    { effect: 'Fires a four-feather spread at the nearest threat.', cadence: 'Every 1.6 seconds' },
+    { effect: 'Fires a wider seven-feather spread.', cadence: 'Every 1.2 seconds' },
+    { effect: 'Fires an eight-feather volley with more punch and reach.', cadence: 'Every second' },
+    { effect: 'Launches a dense nine-feather storm through the target lane.', cadence: 'Every 0.9 seconds' },
+    { effect: 'Unleashes a Master ten-feather barrage at maximum spread.', cadence: 'Every 0.75 seconds' },
+  ],
+  'bat-ears': [
+    { effect: 'Echo-marks a nearby cluster; every automatic attack prioritizes the marked prey.', cadence: 'Every 2 seconds' },
+    { effect: 'Echo-marks a larger cluster so every automatic attack hunts marked prey first.', cadence: 'Every 1.5 seconds' },
+    { effect: 'Tags a wider hunt cluster more often for stronger focus fire.', cadence: 'Every 1.3 seconds' },
+    { effect: 'Spreads rapid echo marks across a broad threat pack.', cadence: 'Every 1.1 seconds' },
+    { effect: 'Master radar locks the widest cluster for relentless priority fire.', cadence: 'Every second' },
+  ],
+  'crab-pincers': [
+    { effect: 'Crushes nearby enemies with a compact area strike.', cadence: 'Every 1.7 seconds' },
+    { effect: 'Crushes a wider area for heavier damage.', cadence: 'Every 1.25 seconds' },
+    { effect: 'Smashes a broader ring with a stronger crowd-crushing blow.', cadence: 'Every 1.1 seconds' },
+    { effect: 'Delivers rapid heavy pincers across a wide close-range area.', cadence: 'Every second' },
+    { effect: 'Drops a Master crush that devastates the widest nearby crowd.', cadence: 'Every 0.8 seconds' },
+  ],
+  'armadillo-greaves': [
+    { effect: 'Shoves nearby threats away from your body.', cadence: 'Every 2.3 seconds' },
+    { effect: 'Creates a stronger defensive shove around you.', cadence: 'Every 1.7 seconds' },
+    { effect: 'Blasts a farther ring of threats away with heavier force.', cadence: 'Every 1.5 seconds' },
+    { effect: 'Creates a broad defensive shock that throws enemies back.', cadence: 'Every 1.3 seconds' },
+    { effect: 'Unleashes a Master repel wave that clears the largest safety ring.', cadence: 'Every 1.1 seconds' },
+  ],
+  'skunk-brush': [
+    { effect: 'Leaves a damaging stink cloud that punishes pursuit.', cadence: 'Every 2.7 seconds' },
+    { effect: 'Leaves a larger, stronger stink cloud.', cadence: 'Every 2 seconds' },
+    { effect: 'Spreads a wider toxic cloud that bites more often.', cadence: 'Every 1.8 seconds' },
+    { effect: 'Blankets pursuit paths with a dense, damaging stink zone.', cadence: 'Every 1.5 seconds' },
+    { effect: 'Creates a Master stink cloud that dominates the widest pursuit lane.', cadence: 'Every 1.3 seconds' },
+  ],
+  'monarch-brood': [
+    { effect: 'Two monarchs orbit you and sting nearby enemies on contact.', cadence: 'Every second' },
+    { effect: 'Three monarchs orbit wider and sting nearby enemies more often.', cadence: 'Every 0.75 seconds' },
+    { effect: 'Four monarchs form a faster, wider contact ring.', cadence: 'Every 0.67 seconds' },
+    { effect: 'Five monarchs swarm a broad orbit with rapid stings.', cadence: 'Every 0.57 seconds' },
+    { effect: 'Six Master monarchs create the largest, fastest sting swarm.', cadence: 'Every 0.48 seconds' },
+  ],
+});
+
 const INGREDIENTS: readonly (readonly [GregAdaptationId, GregAdaptationId])[] = Object.freeze([
   ['porcupine-quills:adapted', 'porcupine-quills:bud'],
   ['puffer-pouch:adapted', 'puffer-pouch:bud'],
@@ -258,14 +377,56 @@ const MYTHICS = Object.freeze([
   }),
 ]);
 
-function hasActiveVisual(
+function visualRank(visual: TraitVisualAttachmentView): number {
+  if (visual.isMaster === true) return 5;
+  return typeof visual.rank === 'number' && visual.rank >= 1 && visual.rank <= 5
+    ? visual.rank
+    : 0;
+}
+
+function activeVisual(
   visuals: readonly TraitVisualAttachmentView[],
   definition: AdaptationPresentationDefinition,
-): boolean {
-  return visuals.some((visual) => visual.enabled
-    && visual.sourceId === definition.sourceId
-    && visual.stage === definition.stage
-    && visual.visualKey === definition.card.id);
+): TraitVisualAttachmentView | undefined {
+  let selected: TraitVisualAttachmentView | undefined;
+  for (const visual of visuals) {
+    if (
+      !visual.enabled
+      || visual.sourceId !== definition.sourceId
+      || visual.stage !== definition.stage
+      || visual.visualKey !== definition.card.id
+    ) {
+      continue;
+    }
+    if (selected === undefined || visualRank(visual) > visualRank(selected)) selected = visual;
+  }
+  return selected;
+}
+
+function presentCard(
+  definition: AdaptationPresentationDefinition,
+  visual: TraitVisualAttachmentView,
+): ActiveAdaptationCard {
+  const base = definition.card;
+  if (definition.stage === 'mythic') {
+    return Object.freeze({
+      ...base,
+      stageLabel: 'Fused · 1 slot',
+      effect: `${base.effect} Fused form; occupies one slot.`,
+      cadence: `${base.cadence} · One slot`,
+    });
+  }
+
+  const rank = visualRank(visual);
+  if (rank === 0) return base;
+  const rankCopy = RANK_PRESENTATIONS[definition.sourceId as AttackSourceId]?.[rank - 1];
+  if (rankCopy === undefined) return base;
+  return Object.freeze({
+    ...base,
+    stageLabel: rank === 5 ? 'MASTER · Rank 5' : `Rank ${rank}`,
+    effect: rankCopy.effect,
+    cadence: rankCopy.cadence,
+  });
 }
 
 /** Complete pause/HUD manifest used by the release content validator. */
@@ -285,17 +446,21 @@ export function presentActiveAdaptations(
   const consumedSources = new Set<string>();
   for (const entry of MYTHICS) {
     const mythic = DEFINITIONS[entry.id];
-    if (hasActiveVisual(visuals, mythic)) {
-      cards.push(mythic.card);
+    const visual = activeVisual(visuals, mythic);
+    if (visual !== undefined) {
+      cards.push(presentCard(mythic, visual));
       for (const ingredient of entry.ingredients) consumedSources.add(ingredient);
     }
   }
   for (const [preferred, fallback] of INGREDIENTS) {
     if (consumedSources.has(DEFINITIONS[preferred].sourceId)) continue;
-    const definition = hasActiveVisual(visuals, DEFINITIONS[preferred])
+    const preferredVisual = activeVisual(visuals, DEFINITIONS[preferred]);
+    const fallbackVisual = activeVisual(visuals, DEFINITIONS[fallback]);
+    const definition = preferredVisual !== undefined
       ? DEFINITIONS[preferred]
-      : hasActiveVisual(visuals, DEFINITIONS[fallback]) ? DEFINITIONS[fallback] : null;
-    if (definition !== null) cards.push(definition.card);
+      : fallbackVisual !== undefined ? DEFINITIONS[fallback] : null;
+    const visual = preferredVisual ?? fallbackVisual;
+    if (definition !== null && visual !== undefined) cards.push(presentCard(definition, visual));
   }
   return Object.freeze(cards);
 }

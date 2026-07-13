@@ -16,6 +16,11 @@ import type {
 import { MAX_PROJECTILE_HIT_HISTORY } from './types.js';
 import type { EnemyBehaviorConfig, WeaponConfig } from './config.js';
 import { ENEMY_BEHAVIOR_KIND, type EnemyBehaviorState } from './enemy-behavior.js';
+import {
+  COMBAT_DAMAGE_SOURCE,
+  combatDamageSourceIdFromCode,
+  type CombatDamageResolver,
+} from './combat-resolution.js';
 
 // Module-level scratch array reused across calls (allocation-light hot path).
 const hitScratch: EntityId[] = [];
@@ -83,6 +88,7 @@ export function stepEnemies(
   contactCooldownTicks: number,
   invulnTicksOnHit: number,
   behavior?: EnemyBehaviorStepOptions,
+  damageResolver?: CombatDamageResolver,
 ): void {
   const data = enemies.data;
   for (let slot = 0; slot < data.capacity; slot++) {
@@ -327,12 +333,16 @@ export function stepEnemies(
       data.contactCooldown[slot] === 0 &&
       player.invulnTicks === 0
     ) {
-      player.hp = Math.max(0, player.hp - data.touchDamage[slot]!);
-      data.contactCooldown[slot] = contactCooldownTicks;
-      player.invulnTicks = invulnTicksOnHit;
-      if (player.hp === 0) {
-        player.alive = false;
+      if (damageResolver === undefined) {
+        player.hp = Math.max(0, player.hp - data.touchDamage[slot]!);
+        player.invulnTicks = invulnTicksOnHit;
+        if (player.hp === 0) {
+          player.alive = false;
+        }
+      } else {
+        damageResolver.damagePlayer(data.touchDamage[slot]!, 'enemy-contact', invulnTicksOnHit);
       }
+      data.contactCooldown[slot] = contactCooldownTicks;
     }
   }
 }
@@ -353,6 +363,7 @@ export function stepProjectiles(
   killEnemy: (enemySlot: number) => void,
   player?: PlayerState,
   invulnTicksOnHit = 0,
+  damageResolver?: CombatDamageResolver,
 ): void {
   const pdata = projectiles.data;
   const edata = enemies.data;
@@ -377,7 +388,13 @@ export function stepProjectiles(
       if (player === undefined) continue;
       const rSum = pdata.hitRadius[slot]! + player.radius;
       if (player.alive && distSq(x, y, player.x, player.y) <= rSum * rSum) {
-        if (player.invulnTicks === 0) {
+        if (damageResolver !== undefined) {
+          damageResolver.damagePlayer(
+            pdata.damage[slot]!,
+            combatDamageSourceIdFromCode(pdata.source[slot]!),
+            invulnTicksOnHit,
+          );
+        } else if (player.invulnTicks === 0) {
           player.hp = Math.max(0, player.hp - pdata.damage[slot]!);
           player.invulnTicks = invulnTicksOnHit;
           if (player.hp === 0) player.alive = false;
@@ -403,8 +420,19 @@ export function stepProjectiles(
       if (distSq(x, y, edata.posX[eSlot]!, edata.posY[eSlot]!) > rSum * rSum) continue;
 
       recordProjectileHit(pdata, slot, id);
-      edata.hp[eSlot] = edata.hp[eSlot]! - pdata.damage[slot]!;
-      if (edata.hp[eSlot]! <= 0) {
+      let killed: boolean;
+      if (damageResolver === undefined) {
+        edata.hp[eSlot] = edata.hp[eSlot]! - pdata.damage[slot]!;
+        killed = edata.hp[eSlot]! <= 0;
+      } else {
+        killed = damageResolver.damageEnemy(
+          enemies,
+          eSlot,
+          { amount: pdata.damage[slot]!, critical: pdata.critical[slot] === 1 },
+          combatDamageSourceIdFromCode(pdata.source[slot]!),
+        );
+      }
+      if (killed) {
         killEnemy(eSlot);
       }
 
@@ -532,6 +560,9 @@ export function spawnProjectile(
   dirY: number,
   weapon: WeaponConfig,
   faction: number,
+  critical = false,
+  source: number = faction === 1 ? COMBAT_DAMAGE_SOURCE.enemyProjectile : COMBAT_DAMAGE_SOURCE.playerProjectile,
+  damage = weapon.damage,
 ): boolean {
   return spawnProjectileWithStats(
     projectiles,
@@ -540,11 +571,13 @@ export function spawnProjectile(
     dirX,
     dirY,
     weapon.projectileSpeed,
-    weapon.damage,
+    damage,
     weapon.lifetimeTicks,
     weapon.hitRadius,
     weapon.pierce,
     faction,
+    critical,
+    source,
   );
 }
 
@@ -561,6 +594,8 @@ export function spawnProjectileWithStats(
   hitRadius: number,
   pierce: number,
   faction: number,
+  critical = false,
+  source: number = faction === 1 ? COMBAT_DAMAGE_SOURCE.enemyProjectile : COMBAT_DAMAGE_SOURCE.playerProjectile,
 ): boolean {
   const len = Math.sqrt(dirX * dirX + dirY * dirY);
   if (len < 1e-6) return false;
@@ -581,5 +616,7 @@ export function spawnProjectileWithStats(
   data.hitRadius[slot] = hitRadius;
   data.pierce[slot] = pierce;
   data.faction[slot] = faction;
+  data.critical[slot] = critical ? 1 : 0;
+  data.source[slot] = source;
   return true;
 }

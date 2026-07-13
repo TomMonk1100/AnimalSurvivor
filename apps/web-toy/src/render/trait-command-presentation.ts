@@ -73,6 +73,13 @@ export type TraitCommandEffectKind =
 type EffectMotion = 'expand' | 'contract' | 'pulse';
 type EffectMaterial = Exclude<TraitCommandEffectKind, 'zone-spawn'>
   | 'rush-rake'
+  | 'greg-fox-swipe'
+  | 'greg-rush-rake'
+  | 'benny-trample-wave'
+  | 'gracie-spit'
+  | 'fluffy-shield'
+  | 'armor-block'
+  | 'fox-dodge'
   | 'quill-volley'
   | 'owl-volley'
   | 'puffer-blast'
@@ -168,6 +175,17 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
     kind: 'directed-burst', material: 'rush-rake', motion: 'expand', lifetimeTicks: 12,
     fallbackRadius: 78, minimumRadius: 24, maximumRadius: 220, directed: true,
   },
+  // V1.1 keeps the original Rush Rake source id but turns it into a close
+  // three-cut combo. Its arc profile deliberately differs from the old
+  // projectile-burst compatibility treatment above.
+  'greg-rush-rake': {
+    kind: 'melee-arc', material: 'greg-rush-rake', motion: 'expand', lifetimeTicks: 10,
+    fallbackRadius: 76, minimumRadius: 22, maximumRadius: 220, directed: true,
+  },
+  'gracie-spit': {
+    kind: 'directed-burst', material: 'gracie-spit', motion: 'expand', lifetimeTicks: 12,
+    fallbackRadius: 66, minimumRadius: 16, maximumRadius: 190, directed: true,
+  },
   'quill-volley': {
     kind: 'directed-burst', material: 'quill-volley', motion: 'expand', lifetimeTicks: 13,
     fallbackRadius: 58, minimumRadius: 14, maximumRadius: 170, directed: true,
@@ -221,6 +239,13 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
     kind: 'knockback', material: 'benny-brace', motion: 'expand', lifetimeTicks: 16,
     fallbackRadius: 92, minimumRadius: 20, maximumRadius: 180, directed: false,
   },
+  // Each Trample impact owns a real forward origin in the simulation. Keep
+  // the command's telegraph lifetime so sequential earth waves remain visible
+  // as a line instead of collapsing into one generic area pulse.
+  'benny-trample-wave': {
+    kind: 'telegraph', material: 'benny-trample-wave', motion: 'expand', lifetimeTicks: 20,
+    fallbackRadius: 48, minimumRadius: 18, maximumRadius: 190, directed: true,
+  },
   'area-damage': {
     kind: 'area-damage', material: 'area-damage', motion: 'expand', lifetimeTicks: 10,
     fallbackRadius: 52, minimumRadius: 14, maximumRadius: 220, directed: false,
@@ -236,6 +261,10 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
   'melee-arc': {
     kind: 'melee-arc', material: 'melee-arc', motion: 'expand', lifetimeTicks: 8,
     fallbackRadius: 68, minimumRadius: 20, maximumRadius: 150, directed: true,
+  },
+  'greg-fox-swipe': {
+    kind: 'melee-arc', material: 'greg-fox-swipe', motion: 'expand', lifetimeTicks: 10,
+    fallbackRadius: 90, minimumRadius: 26, maximumRadius: 210, directed: true,
   },
   'gecko-zone-spawn': {
     kind: 'zone-spawn', material: 'gecko-zone-spawn', motion: 'pulse', lifetimeTicks: 18,
@@ -256,6 +285,18 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
   'trait-cue': {
     kind: 'trait-cue', material: 'trait-cue', motion: 'pulse', lifetimeTicks: 12,
     fallbackRadius: 28, minimumRadius: 10, maximumRadius: 90, directed: false,
+  },
+  'fluffy-shield': {
+    kind: 'trait-cue', material: 'fluffy-shield', motion: 'pulse', lifetimeTicks: 22,
+    fallbackRadius: 46, minimumRadius: 18, maximumRadius: 120, directed: false,
+  },
+  'armor-block': {
+    kind: 'trait-cue', material: 'armor-block', motion: 'pulse', lifetimeTicks: 14,
+    fallbackRadius: 38, minimumRadius: 14, maximumRadius: 100, directed: false,
+  },
+  'fox-dodge': {
+    kind: 'trait-cue', material: 'fox-dodge', motion: 'expand', lifetimeTicks: 10,
+    fallbackRadius: 42, minimumRadius: 14, maximumRadius: 110, directed: true,
   },
   'chain-lightning': {
     kind: 'chain-lightning', material: 'chain-lightning', motion: 'pulse', lifetimeTicks: 8,
@@ -292,6 +333,13 @@ const COLORS: Readonly<Record<EffectMaterial, pc.Color>> = Object.freeze({
   'support-pulse': new pc.Color(0.3, 1, 0.42),
   'directed-burst': new pc.Color(1, 0.8, 0.16),
   'rush-rake': new pc.Color(0.35, 0.92, 1),
+  'greg-fox-swipe': new pc.Color(1, 0.58, 0.2),
+  'greg-rush-rake': new pc.Color(0.42, 0.96, 1),
+  'benny-trample-wave': new pc.Color(1, 0.54, 0.16),
+  'gracie-spit': new pc.Color(0.52, 1, 0.38),
+  'fluffy-shield': new pc.Color(0.46, 0.9, 1),
+  'armor-block': new pc.Color(1, 0.8, 0.38),
+  'fox-dodge': new pc.Color(0.7, 0.98, 1),
   'quill-volley': new pc.Color(1, 0.7, 0.22),
   'owl-volley': new pc.Color(0.42, 0.74, 1),
   'radial-burst': new pc.Color(0.92, 0.48, 1),
@@ -337,6 +385,13 @@ const OPACITY: Readonly<Record<EffectMaterial, number>> = Object.freeze({
   'support-pulse': 0.48,
   'directed-burst': 0.72,
   'rush-rake': 0.82,
+  'greg-fox-swipe': 0.96,
+  'greg-rush-rake': 0.9,
+  'benny-trample-wave': 0.9,
+  'gracie-spit': 0.9,
+  'fluffy-shield': 0.82,
+  'armor-block': 0.9,
+  'fox-dodge': 0.84,
   'quill-volley': 0.92,
   'owl-volley': 0.86,
   'radial-burst': 0.62,
@@ -458,11 +513,46 @@ export function hasResolvedMeleeArc(event: TraitCommandPresentationEvent): boole
   return event.kind === 'meleeArc' && event.meleeArcResolved === true;
 }
 
+function hasSourceOrTag(event: Pick<TraitCommandPresentationEvent, 'sourceId' | 'tag'>, identity: string): boolean {
+  return event.sourceId === identity || event.tag === identity;
+}
+
+/**
+ * Maps V1.1 combat feedback independently of command kind. The renderer
+ * bridge can reuse this for resolved shield, armor, or dodge outcomes without
+ * importing simulation implementation details or inventing a gameplay write.
+ */
+export function projectHeroCombatFeedbackEffect(
+  sourceId: string,
+  tag?: string,
+): TraitCommandEffectProfile | null {
+  if (sourceId === 'fluffy-shield' || tag === 'fluffy-shield') return PROFILES['fluffy-shield'];
+  if (sourceId === 'armor-block' || tag === 'armor-block') return PROFILES['armor-block'];
+  if (sourceId === 'fox-dodge' || tag === 'fox-dodge') return PROFILES['fox-dodge'];
+  return null;
+}
+
+/** A compact bridge alias for shield, armor, and the fox's resolved dodge. */
+export function projectHeroDefenseEffect(sourceId: string, tag?: string): TraitCommandEffectProfile | null {
+  const profile = projectHeroCombatFeedbackEffect(sourceId, tag);
+  return profile?.material === 'fluffy-shield'
+    || profile?.material === 'armor-block'
+    || profile?.material === 'fox-dodge'
+    ? profile
+    : null;
+}
+
 /** Returns a stable visual profile for the supported simulation command kinds. */
 export function projectTraitCommandEffect(event: TraitCommandPresentationEvent): TraitCommandEffectProfile | null {
+  const combatFeedbackProfile = projectHeroCombatFeedbackEffect(event.sourceId, event.tag);
+  if (combatFeedbackProfile !== null) return combatFeedbackProfile;
   switch (event.kind) {
     case 'telegraph':
-      return event.tag === 'gracie-scout'
+      return (hasSourceOrTag(event, 'benny-trample-wave') || event.sourceId === 'benny-trample')
+        ? PROFILES['benny-trample-wave']
+        : hasSourceOrTag(event, 'gracie-spit')
+          ? PROFILES['gracie-spit']
+        : event.tag === 'gracie-scout'
         ? PROFILES['gracie-scout']
         : event.tag === 'thornstorm-inhale'
       ? PROFILES['thornstorm-telegraph']
@@ -480,6 +570,7 @@ export function projectTraitCommandEffect(event: TraitCommandPresentationEvent):
               ? PROFILES['support-pulse']
           : PROFILES.telegraph;
     case 'spawnProjectileBurst':
+      if (hasSourceOrTag(event, 'gracie-spit')) return PROFILES['gracie-spit'];
       if (event.tag === 'greg-rush-rake') return PROFILES['rush-rake'];
       if (event.sourceId === 'porcupine-quills') return PROFILES['quill-volley'];
       if (event.sourceId === 'owl-pinions') return PROFILES['owl-volley'];
@@ -500,7 +591,13 @@ export function projectTraitCommandEffect(event: TraitCommandPresentationEvent):
       if (event.sourceId === 'meteor-mauler') return PROFILES['meteor-impact'];
       if (event.sourceId === 'crab-pincers') return PROFILES['crab-crush'];
       return PROFILES['area-damage'];
-    case 'meleeArc': return hasResolvedMeleeArc(event) ? PROFILES['melee-arc'] : null;
+    case 'meleeArc':
+      if (!hasResolvedMeleeArc(event)) return null;
+      return hasSourceOrTag(event, 'greg-fox-swipe')
+        ? PROFILES['greg-fox-swipe']
+        : hasSourceOrTag(event, 'greg-rush-rake')
+          ? PROFILES['greg-rush-rake']
+          : PROFILES['melee-arc'];
     case 'spawnZone':
       if (event.tag === 'razorstep-scythe-pad') return PROFILES['razorstep-zone-spawn'];
       if (event.tag === 'royal-stink' || event.sourceId === 'royal-stinkcloud') {
@@ -508,6 +605,7 @@ export function projectTraitCommandEffect(event: TraitCommandPresentationEvent):
       }
       if (event.tag === 'stink-cloud' || event.sourceId === 'skunk-brush') return PROFILES['skunk-cloud'];
       return PROFILES['gecko-zone-spawn'];
+    case 'grantShield': return PROFILES['trait-cue'];
     case 'playTraitCue': return PROFILES['trait-cue'];
     case 'chainDamage':
       return resolvedChainHitCount(event) > 0 ? PROFILES['chain-lightning'] : null;
@@ -596,6 +694,9 @@ function resolveMeleeArcYawDegrees(event: TraitCommandPresentationEvent): number
 }
 
 function resolveAspect(event: TraitCommandPresentationEvent, profile: TraitCommandEffectProfile): number {
+  // Trample is deliberately wider than it is long: it reads as an advancing
+  // earth front, not a narrow projectile or a circular explosion.
+  if (profile.material === 'benny-trample-wave') return 1.48;
   if (!profile.directed) return 1;
   const spread = Math.abs(finiteOr(event.spread, 0));
   return clamp(0.42 + spread / Math.PI, 0.42, 1);
@@ -774,6 +875,86 @@ function createRakeMesh(device: pc.GraphicsDevice): pc.Mesh {
   return createGroundMesh(device, (builder) => {
     for (const offset of [-0.34, 0, 0.34]) appendGroundRay(builder, offset, 0.08, 1, 0.075);
     appendGroundRay(builder, Math.PI, 0.04, 0.24, 0.06);
+  });
+}
+
+/** A broad, layered fox claw sweep for Greg's non-projectile starter attack. */
+function createFoxSwipeMesh(device: pc.GraphicsDevice): pc.Mesh {
+  return createGroundMesh(device, (builder) => {
+    appendArcBand(builder, -0.98, 0.98, 0.32, 0.44, 9);
+    appendArcBand(builder, -0.9, 0.9, 0.58, 0.7, 10);
+    appendArcBand(builder, -0.82, 0.82, 0.84, 1, 9);
+    for (const angle of [-0.48, 0, 0.48]) appendGroundRay(builder, angle, 0.58, 1.04, 0.052);
+  });
+}
+
+/** Three curved rakes stay distinct from one large fox starter swipe. */
+function createRushRakeSweepMesh(device: pc.GraphicsDevice): pc.Mesh {
+  return createGroundMesh(device, (builder) => {
+    for (const offset of [-0.34, 0, 0.34]) {
+      appendRibbon(builder, [
+        [offset * 0.18, 0.05],
+        [offset * 0.62, 0.34],
+        [offset, 0.72],
+        [offset * 1.18, 1.04],
+      ], 0.05);
+    }
+    appendArcBand(builder, -0.46, 0.46, 0.1, 0.17, 5);
+  });
+}
+
+/** A central glob plus escaping droplets makes Gracie's projectile unmistakable. */
+function createSpitVolleyMesh(device: pc.GraphicsDevice): pc.Mesh {
+  return createGroundMesh(device, (builder) => {
+    appendArcBand(builder, 0, Math.PI * 2, 0.06, 0.24, 7);
+    appendGroundRay(builder, 0, 0.16, 1, 0.14);
+    appendGroundRay(builder, -0.22, 0.3, 0.84, 0.075);
+    appendGroundRay(builder, 0.22, 0.3, 0.84, 0.075);
+    appendGroundRay(builder, -0.48, 0.46, 0.7, 0.052);
+    appendGroundRay(builder, 0.48, 0.46, 0.7, 0.052);
+  });
+}
+
+/** Wide fractured ridges communicate an advancing Trample earth wave. */
+function createTrampleWaveMesh(device: pc.GraphicsDevice): pc.Mesh {
+  return createGroundMesh(device, (builder) => {
+    appendArcBand(builder, -1.08, 1.08, 0.28, 0.42, 10);
+    appendArcBand(builder, -0.96, 0.96, 0.56, 0.7, 10);
+    appendArcBand(builder, -0.82, 0.82, 0.82, 1, 9);
+    for (const offset of [-0.68, -0.34, 0, 0.34, 0.68]) {
+      appendGroundRay(builder, offset * 0.48, 0.5, 0.96, 0.042);
+    }
+  });
+}
+
+/** Layered soft arcs keep Fluffy Shield visibly different from metal armor. */
+function createFluffyShieldMesh(device: pc.GraphicsDevice): pc.Mesh {
+  return createGroundMesh(device, (builder) => {
+    for (let index = 0; index < 6; index++) {
+      const center = Math.PI * 2 * index / 6;
+      appendArcBand(builder, center - 0.28, center + 0.28, 0.52, 0.88, 4);
+    }
+    appendArcBand(builder, 0, Math.PI * 2, 0.18, 0.31, 8);
+  });
+}
+
+/** Hard plates and a forward chevron give Thick Skin a physical block read. */
+function createArmorBlockMesh(device: pc.GraphicsDevice): pc.Mesh {
+  return createGroundMesh(device, (builder) => {
+    appendArcBand(builder, -1.08, 1.08, 0.34, 0.82, 8);
+    appendGroundRay(builder, 0, 0.08, 0.98, 0.09);
+    appendGroundRay(builder, -0.74, 0.28, 0.82, 0.07);
+    appendGroundRay(builder, 0.74, 0.28, 0.82, 0.07);
+    appendArcBand(builder, Math.PI - 0.46, Math.PI + 0.46, 0.48, 0.64, 4);
+  });
+}
+
+/** Two offset afterimages give a successful fox dodge a direction-free read. */
+function createFoxDodgeMesh(device: pc.GraphicsDevice): pc.Mesh {
+  return createGroundMesh(device, (builder) => {
+    appendGroundQuad(builder, [-0.72, -0.46], [-0.4, -0.58], [0.28, 0.38], [-0.08, 0.5]);
+    appendGroundQuad(builder, [-0.18, -0.5], [0.14, -0.58], [0.78, 0.34], [0.42, 0.48]);
+    appendGroundRay(builder, Math.PI, 0.16, 0.72, 0.07);
   });
 }
 
@@ -1000,6 +1181,13 @@ function createEffectMeshes(device: pc.GraphicsDevice): Readonly<Record<EffectMa
     'support-pulse': createBloomMesh(device, 5, Math.PI / 10),
     'directed-burst': createArrowFanMesh(device),
     'rush-rake': createRakeMesh(device),
+    'greg-fox-swipe': createFoxSwipeMesh(device),
+    'greg-rush-rake': createRushRakeSweepMesh(device),
+    'benny-trample-wave': createTrampleWaveMesh(device),
+    'gracie-spit': createSpitVolleyMesh(device),
+    'fluffy-shield': createFluffyShieldMesh(device),
+    'armor-block': createArmorBlockMesh(device),
+    'fox-dodge': createFoxDodgeMesh(device),
     'quill-volley': createQuillVolleyMesh(device),
     'owl-volley': createOwlVolleyMesh(device),
     'radial-burst': createShardBurstMesh(device, 7, 0.1, 1, 0.1, 0.05),
@@ -1102,6 +1290,8 @@ interface GenericMeleeSlashSlot {
   readonly entity: pc.Entity;
   readonly meshInstance: pc.MeshInstance;
   active: boolean;
+  mesh: pc.Mesh;
+  material: EffectMaterial;
   tick: number;
   expiresAtTick: number;
   x: number;
@@ -1200,15 +1390,6 @@ export function createTraitCommandPresentation(
   const effectMeshes = createEffectMeshes(device);
   const orbitingMeshes = createOrbitingMeshes(device);
   const fireflyContactLinkMesh = createBoltRibbonMesh(device);
-  // Slots swap authored silhouettes as new commands arrive. Detached mesh
-  // references keep those bounded GPU meshes alive while no visible slot uses
-  // a particular trait shape, then release them cleanly on presentation
-  // disposal.
-  const dynamicMeshKeepers = [
-    ...Object.values(effectMeshes),
-    ...Object.values(orbitingMeshes),
-    fireflyContactLinkMesh,
-  ].map((mesh) => new pc.MeshInstance(mesh, materials.get('telegraph')!));
   // Mantis uses separate, prebuilt crescent meshes. They retain the exact
   // authored angular widths without falling back to a circular torus.
   const meleeArcMeshes: pc.Mesh[] = MELEE_ARC_VARIANTS.map((variant) => createScytheArcMesh(
@@ -1218,9 +1399,25 @@ export function createTraitCommandPresentation(
   // Arbitrary valid melee widths still need an honest directional read, not a
   // fake sector. This tapered blade is shared by the fallback pool.
   const genericMeleeSlashMesh = createSlashBladeMesh(device);
+  // Reuse the regular effect meshes for hero sweeps so their source-specific
+  // silhouettes remain a single bounded GPU allocation.
+  const foxSwipeMesh = effectMeshes['greg-fox-swipe'];
+  const rushRakeSweepMesh = effectMeshes['greg-rush-rake'];
   // A single jagged ribbon is enough for every resolved chain segment and
   // communicates electricity much more cleanly than a stretched cube.
   const chainLightningMesh = createBoltRibbonMesh(device);
+  // Slots swap authored silhouettes as new commands arrive. Detached mesh
+  // references keep those bounded GPU meshes alive while no visible slot uses
+  // a particular trait shape, then release them cleanly on presentation
+  // disposal.
+  const dynamicMeshKeepers = [
+    ...Object.values(effectMeshes),
+    ...Object.values(orbitingMeshes),
+    fireflyContactLinkMesh,
+    ...meleeArcMeshes,
+    genericMeleeSlashMesh,
+    chainLightningMesh,
+  ].map((mesh) => new pc.MeshInstance(mesh, materials.get('telegraph')!));
 
   const slots: EffectSlot[] = [];
   for (let index = 0; index < capacity; index++) {
@@ -1265,7 +1462,7 @@ export function createTraitCommandPresentation(
     entity.enabled = false;
     parent.addChild(entity);
     genericMeleeSlashSlots.push({
-      entity, meshInstance, active: false, tick: 0, expiresAtTick: 0,
+      entity, meshInstance, active: false, mesh: genericMeleeSlashMesh, material: 'melee-arc', tick: 0, expiresAtTick: 0,
       x: 0, y: 0, dirX: 1, dirY: 0, radius: 0, yawDegrees: 0,
     });
   }
@@ -1426,6 +1623,26 @@ export function createTraitCommandPresentation(
       return;
     }
     const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    const opacity = OPACITY[slot.material] * (1 - progress * 0.72);
+    slot.meshInstance.mesh = slot.mesh;
+    slot.meshInstance.material = materials.get(slot.material)!;
+    slot.meshInstance.setParameter('material_opacity', opacity);
+    const isHeroSweep = slot.material === 'greg-fox-swipe' || slot.material === 'greg-rush-rake';
+    if (isHeroSweep) {
+      const radialScale = Math.max(1, slot.radius * (0.28 + progress * 0.72)) / MELEE_ARC_UNIT_RADIUS;
+      // These authored hero shapes are directional attack cues, not literal
+      // hit-sector overlays. They originate at the attacker and expand across
+      // the same resolved heading that the simulation used for damage.
+      slot.entity.setLocalPosition(
+        slot.x - worldHalfWidth,
+        GENERIC_MELEE_SLASH_HEIGHT,
+        worldHalfHeight - slot.y,
+      );
+      slot.entity.setLocalEulerAngles(0, slot.yawDegrees, 0);
+      slot.entity.setLocalScale(radialScale, 1, radialScale);
+      slot.entity.enabled = true;
+      return;
+    }
     const length = Math.max(2, slot.radius * (0.26 + progress * 0.62));
     const width = Math.max(1.1, slot.radius * 0.03 * (1 - progress * 0.25));
     // Position the streak forward from Greg. Unlike a sector mesh it claims
@@ -1433,8 +1650,6 @@ export function createTraitCommandPresentation(
     // visually honest while preserving a readable directional attack cue.
     const centerX = slot.x + slot.dirX * length * 0.42;
     const centerY = slot.y + slot.dirY * length * 0.42;
-    slot.meshInstance.material = materials.get('melee-arc')!;
-    slot.meshInstance.setParameter('material_opacity', OPACITY['melee-arc'] * (1 - progress * 0.72));
     slot.entity.setLocalPosition(
       centerX - worldHalfWidth,
       GENERIC_MELEE_SLASH_HEIGHT,
@@ -1627,6 +1842,12 @@ export function createTraitCommandPresentation(
     slot.dirY = length > 1e-8 ? rawDirY / length : 0;
     slot.radius = resolveTraitCommandEffectRadius(event, profile);
     slot.yawDegrees = resolveYawDegrees(event);
+    slot.material = profile.material;
+    slot.mesh = profile.material === 'greg-fox-swipe'
+      ? foxSwipeMesh
+      : profile.material === 'greg-rush-rake'
+        ? rushRakeSweepMesh
+        : genericMeleeSlashMesh;
   }
 
   function startOrbitingDamage(

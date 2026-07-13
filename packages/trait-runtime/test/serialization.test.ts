@@ -11,10 +11,9 @@ function ctx(tick: number): RuntimeContext {
 
 function midGameRuntime(): TraitRuntime {
   const rt = new TraitRuntime({ seed: 314 });
-  rt.applyUpgrade('porcupine-quills');
-  rt.applyUpgrade('porcupine-quills');
-  rt.applyUpgrade('puffer-pouch');
-  rt.applyUpgrade('puffer-pouch'); // Thornstorm
+  for (let rank = 1; rank <= 5; rank++) rt.applyUpgrade('porcupine-quills');
+  for (let rank = 1; rank <= 5; rank++) rt.applyUpgrade('puffer-pouch');
+  assert.equal(rt.fuseEvolution('thornstorm-mantle').outcome.ok, true);
   rt.applyUpgrade('electric-eel-coil');
   rt.offers(3);
   for (let t = 0; t < 137; t++) rt.update(ctx(t));

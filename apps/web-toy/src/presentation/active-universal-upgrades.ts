@@ -45,6 +45,18 @@ export function presentActiveUniversalUpgrades(
       case 'xpMultiplier':
         effect = `+${percent(definition.effect.bonusPerRank * rank)}% XP gained.`;
         break;
+      case 'critChance':
+        effect = `+${percent(definition.effect.bonusPerRank * rank)}% critical-hit chance.`;
+        break;
+      case 'heroDodge':
+        effect = `+${percent(definition.effect.bonusPerRank * rank)}% dodge chance for ${definition.effect.heroId} (capped in combat).`;
+        break;
+      case 'heroArmor':
+        effect = `+${definition.effect.bonusPerRank * rank} armor for ${definition.effect.heroId}; armor reduces incoming damage.`;
+        break;
+      case 'heroShield':
+        effect = `+${definition.effect.shieldBonusPerRank * rank} Fluffy Shield and +${definition.effect.rechargeBonusPerRank * rank}/tick recharge for ${definition.effect.heroId}.`;
+        break;
       case 'basicAttack':
         effect = `+${percent(definition.effect.damageBonusPerRank * rank)}% ${definition.effect.heroId} starter damage; -${percent(definition.effect.cooldownReductionPerRank * rank)}% starter cooldown.`;
         if (definition.effect.projectileCountAtRank !== undefined && rank >= definition.effect.projectileCountAtRank) {
@@ -53,6 +65,10 @@ export function presentActiveUniversalUpgrades(
         if (definition.effect.pierceAtRank !== undefined && rank >= definition.effect.pierceAtRank) {
           effect += ' Starter shot pierces once.';
         }
+        if (definition.effect.rangeBonusPerRank !== undefined) {
+          effect += ` +${definition.effect.rangeBonusPerRank * rank} starter reach.`;
+        }
+        if (rank === definition.maxRank) effect += ' MASTER.';
         break;
     }
     cards.push(Object.freeze({

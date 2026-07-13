@@ -4,6 +4,7 @@ import { getCatalog } from '../src/definitions.js';
 import {
   applyUpgrade,
   createInitialState,
+  rankOf,
   socketOwner,
   stageOf,
 } from '../src/build-state.js';
@@ -11,9 +12,10 @@ import { hashState } from '../src/state-hash.js';
 
 const catalog = getCatalog();
 
-test('locked -> bud -> adapted progression', () => {
+test('locked -> rank 1 through Master progression', () => {
   const s = createInitialState(0);
   assert.equal(stageOf(s, 'porcupine-quills'), 'locked');
+  assert.equal(rankOf(s, 'porcupine-quills'), null);
 
   const r1 = applyUpgrade(catalog, s, 'porcupine-quills');
   assert.deepEqual(r1.outcome, {
@@ -21,19 +23,24 @@ test('locked -> bud -> adapted progression', () => {
     kind: 'created',
     traitId: 'porcupine-quills',
     stage: 'bud',
+    rank: 1,
   });
   assert.equal(stageOf(s, 'porcupine-quills'), 'bud');
+  assert.equal(rankOf(s, 'porcupine-quills'), 1);
   assert.equal(socketOwner(s, 'back'), 'porcupine-quills');
 
-  const r2 = applyUpgrade(catalog, s, 'porcupine-quills');
-  assert.equal(r2.outcome.kind, 'advanced');
-  assert.equal(stageOf(s, 'porcupine-quills'), 'adapted');
+  for (const rank of [2, 3, 4, 5] as const) {
+    const result = applyUpgrade(catalog, s, 'porcupine-quills');
+    assert.equal(result.outcome.kind, 'advanced');
+    if (result.outcome.ok) assert.equal(result.outcome.rank, rank);
+    assert.equal(rankOf(s, 'porcupine-quills'), rank);
+    assert.equal(stageOf(s, 'porcupine-quills'), 'adapted');
+  }
 });
 
-test('advancing beyond adapted without a recipe is maxed', () => {
+test('advancing beyond Master is maxed', () => {
   const s = createInitialState(0);
-  applyUpgrade(catalog, s, 'porcupine-quills');
-  applyUpgrade(catalog, s, 'porcupine-quills');
+  for (let rank = 1; rank <= 5; rank++) applyUpgrade(catalog, s, 'porcupine-quills');
   const r = applyUpgrade(catalog, s, 'porcupine-quills');
   assert.equal(r.outcome.ok, false);
   assert.equal(r.outcome.kind, 'maxed');

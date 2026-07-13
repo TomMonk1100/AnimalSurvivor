@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createSimulation,
   DEFAULT_CONFIG,
+  POWER_PICKUP_KIND,
   RUN_ENEMY_ROLE,
   ZONE_TAG,
   type RunDirectorEventView,
@@ -106,7 +107,7 @@ describe('snapshot producer enemy presentation roles', () => {
     expect(snapshot.enemies.hp[bossIndex]).toBe(bruteHp * 18);
   });
 
-  it('keeps health fields zero for non-enemy categories and copies projectile, pickup, and zone roles for rendering', () => {
+  it('keeps health fields zero for non-enemy categories and copies projectile, XP, power-pickup, and zone roles for rendering', () => {
     const sim = createSimulation(QUIET_CONFIG, 12);
     const projectileSlot = sim.projectiles.spawn();
     const pickupSlot = sim.pickups.spawn();
@@ -124,24 +125,39 @@ describe('snapshot producer enemy presentation roles', () => {
     sim.zones.data.posY[zoneSlot] = 60;
     sim.zones.data.radius[zoneSlot] = 24;
     sim.zones.data.tag[zoneSlot] = ZONE_TAG.geckoPad;
+    expect(sim.spawnPowerPickup('bomb', 70, 80)).toBe(true);
+    expect(sim.spawnPowerPickup('magnet', 90, 100)).toBe(true);
+    expect(sim.spawnPowerPickup('food', 110, 120)).toBe(true);
 
     const snapshot = createSnapshot(QUIET_CONFIG);
+    const hashBeforeCapture = sim.hash();
     captureSnapshot(snapshot, sim);
 
     expect(snapshot.projectiles.count).toBe(1);
     expect(snapshot.pickups.count).toBe(1);
+    expect(snapshot.powerPickups.count).toBe(3);
     expect(snapshot.zones.count).toBe(1);
     expect(snapshot.projectiles.hp[0]).toBe(0);
     expect(snapshot.projectiles.maxHp[0]).toBe(0);
     expect(snapshot.projectiles.role[0]).toBe(1);
     expect(snapshot.pickups.hp[0]).toBe(0);
     expect(snapshot.pickups.maxHp[0]).toBe(0);
+    expect(snapshot.powerPickups.hp[0]).toBe(0);
+    expect(snapshot.powerPickups.maxHp[0]).toBe(0);
+    expect(Array.from(snapshot.powerPickups.role.slice(0, snapshot.powerPickups.count))).toEqual([
+      POWER_PICKUP_KIND.bomb,
+      POWER_PICKUP_KIND.magnet,
+      POWER_PICKUP_KIND.food,
+    ]);
+    expect(Array.from(snapshot.powerPickups.x.slice(0, snapshot.powerPickups.count))).toEqual([70, 90, 110]);
+    expect(Array.from(snapshot.powerPickups.y.slice(0, snapshot.powerPickups.count))).toEqual([80, 100, 120]);
     expect(snapshot.zones.x[0]).toBe(50);
     expect(snapshot.zones.y[0]).toBe(60);
     expect(snapshot.zones.radius[0]).toBe(24);
     expect(snapshot.zones.hp[0]).toBe(0);
     expect(snapshot.zones.maxHp[0]).toBe(0);
     expect(snapshot.zones.role[0]).toBe(ZONE_TAG.geckoPad);
+    expect(sim.hash()).toBe(hashBeforeCapture);
   });
 });
 

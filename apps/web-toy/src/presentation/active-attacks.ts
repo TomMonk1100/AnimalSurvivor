@@ -10,7 +10,7 @@ import {
 export const ACTIVE_ATTACK_SLOT_CAPACITY = 4;
 
 export interface ActiveAttackCard extends ActiveAdaptationCard {
-  /** Mythics retain both ingredient footprints; ordinary attacks use one. */
+  /** Renderer-independent executable attack footprint, never visual sockets. */
   readonly slotCost: number;
 }
 
@@ -20,10 +20,19 @@ export interface ActiveAttackLoadout {
   readonly slotsUsed: number;
 }
 
-function slotCost(card: ActiveAdaptationCard): number {
-  // Each current Mythic replaces two owned ingredients. Keeping that cost
-  // visible prevents an evolution from looking like it created a free weapon.
-  return card.stageLabel === 'Mythic' ? 2 : 1;
+function sourceIdFor(card: ActiveAdaptationCard): string {
+  return card.id.split(':', 1)[0] ?? card.id;
+}
+
+function slotCost(
+  visuals: readonly TraitVisualAttachmentView[],
+  card: ActiveAdaptationCard,
+): number {
+  const visual = visuals.find((candidate) => candidate.enabled && candidate.sourceId === sourceIdFor(card));
+  // V1.1 fusions retain their multiple body sockets but cost exactly one
+  // logical attack slot. Old compact visual streams lacked this field and
+  // safely read as one attack rather than inventing an extra slot from art.
+  return visual?.logicalSlotCost ?? 1;
 }
 
 function instinctCopy(basicAttackId: string): string {
@@ -49,12 +58,16 @@ export function presentActiveAttackLoadout(
     title: basicAttack.title,
     stageLabel: 'Starter',
     effect: `${basicAttack.description} ${instinctCopy(basicAttack.id)}`.trim(),
-    cadence: basicAttack.pattern === 'spread' ? 'Guard burst' : 'Base weapon',
+    cadence: basicAttack.pattern === 'meleeArc'
+      ? 'Close-range swipe'
+      : basicAttack.pattern === 'groundWave'
+        ? 'Forward ground wave'
+        : 'Base projectile',
     slotCost: 1,
   });
   const cards: ActiveAttackCard[] = [starterAttack];
   for (const card of presentActiveAdaptations(visuals)) {
-    cards.push(Object.freeze({ ...card, slotCost: slotCost(card) }));
+    cards.push(Object.freeze({ ...card, slotCost: slotCost(visuals, card) }));
   }
   const slotsUsed = cards.reduce((used, card) => used + card.slotCost, 0);
   return Object.freeze({

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_CONFIG,
+  RUN_START_LOADOUT_VERSION,
   getUniversalUpgradeCatalogForHero,
   UNIVERSAL_UPGRADE_CATALOG,
   createSimulation,
@@ -21,14 +22,14 @@ const CORPUS_SEED = 0x51_aa_2026;
 const PROPOSE_GOLDENS = process.env.ANIMAL_SURVIVOR_GOLDEN_MODE === 'propose';
 
 const GOLDEN_HASHES: Readonly<Record<string, string>> = Object.freeze({
-  // Rebaselined after the opening-arrival, XP pacing, and adaptation-density
-  // adjustments were observed identically across three deterministic runs.
-  'greg/forest': '006b135f8b7efd20',
-  'benny/forest': '96579e9d86408b1b',
-  'gracie/forest': 'a7754245f851014b',
-  'greg/saltwind': 'e916f07c553487d9',
-  'benny/saltwind': 'cc8975c1ec88800f',
-  'gracie/saltwind': 'bb3d901bb2d89168',
+  // Rebaselined after deterministic V1.1 hero kits, five-rank Mastery,
+  // explicit free fusions, combat defenses, and world-pickup state landed.
+  'greg/forest': 'ce9a4a5d7e67028c',
+  'benny/forest': 'a49368988e1788ae',
+  'gracie/forest': '11b4365401145417',
+  'greg/saltwind': 'da0c0c04e8aed24e',
+  'benny/saltwind': '74693bc52ba77d37',
+  'gracie/saltwind': 'd895ad90fb112e22',
 });
 
 const traitRuntimeFactory: TraitRuntimeFactory = ({ seed, initialTick }) =>
@@ -50,18 +51,28 @@ function optionsFor(heroId: HeroId, biomeId: 'forest' | 'saltwind'): SimulationO
     traitRuntimeFactory,
     universalUpgradeCatalog: getUniversalUpgradeCatalogForHero(heroId, UNIVERSAL_UPGRADE_CATALOG),
     runDirectorFactory,
-    runStartLoadout: { version: 3, heroId, biomeId, maxHpBonus: 0 },
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId, biomeId, maxHpBonus: 0 },
   };
+}
+
+/** Keep the golden player policy explicit, deterministic, and replay-bound. */
+function resolveQueuedRunActions(sim: Simulation): void {
+  while (sim.upgradeSelectionPending) {
+    const fusion = sim.availableFusions[0];
+    if (fusion !== undefined) sim.fuseEvolution(fusion.evolutionId);
+    const offer = sim.pendingUpgradeOffers[0];
+    if (offer === undefined) throw new Error('queued upgrade has no selectable offer');
+    sim.selectUpgrade(offer.id);
+  }
+  const fusion = sim.availableFusions[0];
+  if (fusion !== undefined) sim.fuseEvolution(fusion.evolutionId);
 }
 
 function finishCorpusRun(config: SimConfig, seed: number, options: SimulationOptions): Simulation {
   const sim = createSimulation(config, seed, options);
   const autopilot = createAutopilot();
   while (sim.tick < RUN_TICKS && sim.runOutcome === 'running') {
-    if (sim.upgradeSelectionPending) {
-      const offer = sim.pendingUpgradeOffers[0];
-      if (offer !== undefined) sim.selectUpgrade(offer.id);
-    }
+    resolveQueuedRunActions(sim);
     sim.step(autopilot.sample(sim.tick, false));
   }
   autopilot.dispose();

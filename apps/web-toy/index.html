@@ -1858,6 +1858,25 @@
       #upgrade-choices .upgrade-shortcuts {
         grid-column: 1 / -1;
       }
+      #upgrade-choices .upgrade-fusion-actions {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 2px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(232, 190, 98, 0.48);
+      }
+      #upgrade-choices .upgrade-fusion-actions h3,
+      #upgrade-choices .upgrade-fusion-actions .upgrade-shortcuts {
+        grid-column: 1 / -1;
+      }
+      #upgrade-choices .upgrade-fusion-actions h3 {
+        margin: 0;
+        color: #f5d684;
+        font: 700 18px/1 Georgia, "Iowan Old Style", serif;
+      }
+      #upgrade-choices .upgrade-fusion-actions button { min-height: 132px; }
       #upgrade-choices h2 {
         margin: 0;
         color: #fff1c1;
@@ -2230,6 +2249,7 @@
         }
         #upgrade-choices button { min-height: 0; }
         #upgrade-choices button span { font-size: 11px; }
+        #upgrade-choices .upgrade-fusion-actions { grid-template-columns: 1fr; }
         #hud[data-hud-mode="player"] { width: min(294px, calc(100vw - 24px)); }
       }
       @media (max-width: 440px) {

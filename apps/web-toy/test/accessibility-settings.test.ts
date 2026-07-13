@@ -21,7 +21,13 @@ class MemoryStorage implements AccessibilitySettingsStorage {
 describe('accessibility settings store', () => {
   it('starts with immutable presentation defaults', () => {
     const store = createAccessibilitySettingsStore(new MemoryStorage());
-    expect(store.settings()).toEqual({ reducedMotion: false, reducedFlashes: false, highContrast: false, qualityTier: 'standard' });
+    expect(store.settings()).toEqual({
+      reducedMotion: false,
+      reducedFlashes: false,
+      highContrast: false,
+      showDamageNumbers: true,
+      qualityTier: 'standard',
+    });
     expect(Object.isFrozen(store.settings())).toBe(true);
   });
 
@@ -32,6 +38,7 @@ describe('accessibility settings store', () => {
       reducedMotion: true,
       reducedFlashes: false,
       highContrast: true,
+      showDamageNumbers: true,
       qualityTier: 'reduced',
     });
     expect(createAccessibilitySettingsStore(storage).settings()).toEqual(store.settings());
@@ -40,6 +47,7 @@ describe('accessibility settings store', () => {
       reducedMotion: true,
       reducedFlashes: false,
       highContrast: true,
+      showDamageNumbers: true,
       qualityTier: 'reduced',
     }));
   });
@@ -54,8 +62,36 @@ describe('accessibility settings store', () => {
     const storage = new MemoryStorage();
     storage.setItem(ACCESSIBILITY_SETTINGS_STORAGE_KEY, JSON.stringify({ version: 99, reducedMotion: true }));
     const store = createAccessibilitySettingsStore(storage);
-    expect(store.settings()).toEqual({ reducedMotion: false, reducedFlashes: false, highContrast: false, qualityTier: 'standard' });
+    expect(store.settings()).toEqual({
+      reducedMotion: false,
+      reducedFlashes: false,
+      highContrast: false,
+      showDamageNumbers: true,
+      qualityTier: 'standard',
+    });
     store.update({ reducedFlashes: true });
-    expect(store.reset()).toEqual({ reducedMotion: false, reducedFlashes: false, highContrast: false, qualityTier: 'standard' });
+    expect(store.reset()).toEqual({
+      reducedMotion: false,
+      reducedFlashes: false,
+      highContrast: false,
+      showDamageNumbers: true,
+      qualityTier: 'standard',
+    });
+  });
+
+  it('migrates version 1 settings and persists the new damage-number preference', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(ACCESSIBILITY_SETTINGS_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      reducedMotion: true,
+      reducedFlashes: false,
+      highContrast: false,
+      qualityTier: 'standard',
+    }));
+
+    const store = createAccessibilitySettingsStore(storage);
+    expect(store.settings().showDamageNumbers).toBe(true);
+    expect(store.update({ showDamageNumbers: false }).showDamageNumbers).toBe(false);
+    expect(storage.getItem(ACCESSIBILITY_SETTINGS_STORAGE_KEY)).toContain('"showDamageNumbers":false');
   });
 });

@@ -18,6 +18,7 @@ import type {
   OwnedStage,
   SocketId,
   TraitId,
+  TraitRank,
 } from './ids.js';
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -266,14 +267,24 @@ export interface TraitDefinition {
   id: TraitId;
   sockets: readonly SocketId[];
   tags: readonly string[];
+  /**
+   * Legacy Bud/Adapted attachment definitions. Rank 1 maps to Bud and the
+   * shipped renderer currently reuses Adapted art for ranks 2–5.
+   */
   stages: Readonly<Record<OwnedStage, StageDefinition>>;
+  /**
+   * Optional authored overrides for the five-rank ladder. Missing entries are
+   * deterministically derived from `stages` by rank-progression.ts, so old
+   * content remains playable while every attack still has real rank 3–5 gains.
+   */
+  rankStages?: Readonly<Partial<Record<TraitRank, StageDefinition>>>;
 }
 
 export interface EvolutionDefinition {
   id: EvolutionId;
-  /** Ordered pair of ingredient trait ids (must both reach Adapted). */
+  /** Ordered pair of ingredient trait ids (must both reach Master rank 5). */
   ingredients: readonly [TraitId, TraitId];
-  /** All sockets the Mythic keeps occupied (union of ingredient sockets). */
+  /** All visual sockets the fused form keeps occupied (ingredient union). */
   occupiedSockets: readonly SocketId[];
   behavior: BehaviorDefinition;
   /** e.g. "thornstorm-mantle:mythic". */
@@ -284,9 +295,9 @@ export interface Catalog {
   traits: readonly TraitDefinition[];
   evolutions: readonly EvolutionDefinition[];
   /**
-   * Optional cap on independently acquired traits. Disabled Mythic
-   * ingredients remain in state and continue counting, so an evolution never
-   * creates a free active-attack slot.
+   * Optional cap on active logical attacks. A fused evolution costs one
+   * logical slot even though both disabled ingredient records remain in state
+   * for replay/debug and preserve their visual attachment footprint.
    */
   maxActiveTraits?: number;
 }
@@ -310,17 +321,28 @@ export interface ValidationResult {
  * Runtime state (mutable, serializable)
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** An owned independent trait. `disabled` once consumed by a Mythic. */
+/** An owned independent attack. `disabled` once consumed by a fused evolution. */
 export interface OwnedTrait {
   id: TraitId;
+  /** Legacy renderer compatibility bucket derived from rank. */
   stage: OwnedStage;
-  /** True when a resolved evolution has replaced this trait's behavior loop. */
+  /** Authoritative upgrade rank; rank 5 is Master. */
+  rank: TraitRank;
+  /** True when a resolved fusion has replaced this trait's behavior loop. */
   disabled: boolean;
 }
 
 export interface ResolvedEvolution {
   id: EvolutionId;
   ingredients: readonly [TraitId, TraitId];
+}
+
+/** A deterministic, player-selectable Master-pair fusion opportunity. */
+export interface FusionOffer {
+  evolutionId: EvolutionId;
+  ingredients: readonly [TraitId, TraitId];
+  /** Fusing two attacks replaces their two logical slots with one. */
+  freesLogicalSlot: true;
 }
 
 /**
@@ -381,8 +403,8 @@ export interface RuntimeContext {
  * ──────────────────────────────────────────────────────────────────────── */
 
 export type ApplyOutcome =
-  | { ok: true; kind: 'created'; traitId: TraitId; stage: 'bud' }
-  | { ok: true; kind: 'advanced'; traitId: TraitId; stage: 'adapted' }
+  | { ok: true; kind: 'created'; traitId: TraitId; stage: 'bud'; rank: 1 }
+  | { ok: true; kind: 'advanced'; traitId: TraitId; stage: 'adapted'; rank: TraitRank }
   | { ok: false; kind: 'unknownTrait'; traitId: TraitId }
   | { ok: false; kind: 'maxed'; traitId: TraitId }
   | { ok: false; kind: 'alreadyMythic'; traitId: TraitId }
@@ -397,8 +419,29 @@ export type ApplyOutcome =
 
 export interface ApplyResult {
   outcome: ApplyOutcome;
-  /** Set to the evolution id if this apply triggered exactly one resolution. */
+  /**
+   * Retained for source compatibility. Fusions are now explicit and this is
+   * always null; use fusionReady / fuseEvolution instead.
+   */
   evolved: EvolutionId | null;
+  /** Compatible Master pairs available immediately after this upgrade. */
+  fusionReady: readonly FusionOffer[];
+}
+
+export type FuseOutcome =
+  | {
+      ok: true;
+      kind: 'fused';
+      evolutionId: EvolutionId;
+      ingredients: readonly [TraitId, TraitId];
+      logicalSlotCost: 1;
+    }
+  | { ok: false; kind: 'unknownEvolution'; evolutionId: EvolutionId }
+  | { ok: false; kind: 'alreadyFused'; evolutionId: EvolutionId }
+  | { ok: false; kind: 'notMastered'; evolutionId: EvolutionId };
+
+export interface FuseResult {
+  outcome: FuseOutcome;
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -407,8 +450,12 @@ export interface ApplyResult {
 
 export interface UpgradeOffer {
   traitId: TraitId;
-  /** Stage that applying this offer would produce. */
+  /** Legacy visual bucket that applying this offer would produce. */
   resultStage: OwnedStage;
+  /** Exact gameplay rank applying this offer would produce. */
+  resultRank: TraitRank;
+  /** True exactly when this offer produces Master rank 5. */
+  isMaster: boolean;
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -418,6 +465,12 @@ export interface UpgradeOffer {
 export interface VisualAttachmentState {
   sourceId: TraitId | EvolutionId;
   stage: 'bud' | 'adapted' | 'mythic';
+  /** Exact independent-attack rank; null for a fused evolution. */
+  rank: TraitRank | null;
+  /** True for rank-5 Master attacks. Always false for fused evolutions. */
+  isMaster: boolean;
+  /** Every independent or fused attack occupies exactly one logical slot. */
+  logicalSlotCost: 1;
   sockets: readonly SocketId[];
   visualKey: string;
   enabled: boolean;

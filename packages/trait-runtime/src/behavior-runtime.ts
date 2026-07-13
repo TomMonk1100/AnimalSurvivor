@@ -59,6 +59,7 @@ import type {
   RuntimeContext,
   RuntimeState,
 } from './contracts.js';
+import { rankStageFor } from './rank-progression.js';
 
 const MILLIUNITS_PER_WORLD_UNIT = 1_000;
 
@@ -342,7 +343,9 @@ export function stepBehaviors(
     const timer = findTimer(state, trait.id);
     if (timer === undefined || !timer.active) continue;
     const traitDefinition = _catalog.traits.find((candidate) => candidate.id === trait.id);
-    const behavior = traitDefinition?.stages[trait.stage].behavior;
+    const behavior = traitDefinition === undefined
+      ? undefined
+      : rankStageFor(traitDefinition, trait.rank).behavior;
     if (behavior === undefined) continue;
     advanceTimer(behavior, timer, trait.id, ctx, out);
   }

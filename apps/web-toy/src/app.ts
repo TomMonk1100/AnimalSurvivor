@@ -27,7 +27,7 @@ import { GREG_FOREST_ARSENAL_CATALOG, TraitRuntime } from '@traits';
 import { GREG_FIRST_RUN, RunDirector, SALTWIND_RUINS_RUN } from '@director';
 import type { HudStats, InputMode, InputSource } from './contracts';
 import { createSimDriver, MAX_CATCHUP_TICKS, type SimDriver } from './sim/simulation-driver';
-import { createRenderer } from './render/playcanvas-scene';
+import { createRenderer, type DamageNumberRendererControls } from './render/playcanvas-scene';
 import { createUnavailableRenderer } from './render/unavailable-renderer';
 import { HERO_VISUAL_PROFILES, getHeroVisualProfile } from './hero/hero-roster';
 import { createInputController } from './input/input-controller';
@@ -51,6 +51,7 @@ import { WILDGUARD_KEYART_URL } from './presentation/wildguard-keyart';
 import { presentRunProgress } from './presentation/run-progress';
 import { presentPauseNotice } from './presentation/pause-notice';
 import { presentActiveUniversalUpgrades } from './presentation/active-universal-upgrades';
+import { presentFusion, type FusionOfferView } from './presentation/mastery-fusions';
 import { presentEnemyGlossary } from './presentation/enemy-glossary';
 import { calculateTerminalEssenceReward } from './presentation/terminal-essence';
 import { focusModalStart, trapModalFocus } from './presentation/modal-focus';
@@ -255,7 +256,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   }
   const driver: SimDriver = createSimDriver(config, initialSeed, simulationOptions());
   const renderStress = renderStressMode ? createRenderStressHarness(config) : null;
-  let renderer: RendererAdapter;
+  let renderer: RendererAdapter & Partial<DamageNumberRendererControls>;
   try {
     renderer = createRenderer(
       canvas,
@@ -323,6 +324,10 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   let upgradePromptSerial = 0;
   let syntheticDriverNow = performance.now();
   let renderedOfferKey = '';
+  // "Later" dismisses the interrupting prompt only. A ready fusion remains
+  // visible in the pause build panel until the player takes its free action.
+  const deferredFusionIds = new Set<string>();
+  let fusionMessage: string | null = null;
   let activeDirectorNotice: DirectorNotice | null = null;
   let renderedDirectorKey = '';
   let renderedBossHealthKey = '';
@@ -330,6 +335,19 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   let renderedInputMode = '';
   let visibilityPauseState: VisibilityPauseState = Object.freeze({ pausedByVisibility: false });
   let soundPreferenceSet = false;
+
+  function availableFusionOffers(): readonly FusionOfferView[] {
+    const offers = driver.availableFusions ?? [];
+    const availableIds = new Set(offers.map((offer) => offer.evolutionId));
+    for (const deferredId of deferredFusionIds) {
+      if (!availableIds.has(deferredId)) deferredFusionIds.delete(deferredId);
+    }
+    return offers;
+  }
+
+  function pendingFusionPromptOffers(): readonly FusionOfferView[] {
+    return availableFusionOffers().filter((offer) => !deferredFusionIds.has(offer.evolutionId));
+  }
 
   function renderInputModeStatus(): void {
     if (controls.autopilotOn) {
@@ -472,7 +490,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
         const card = document.createElement('section');
         card.className = 'pause-upgrade-card';
         const cardTitle = document.createElement('strong');
-        cardTitle.textContent = `${upgrade.title} — ${upgrade.stageLabel}${upgrade.slotCost > 1 ? ` · ${upgrade.slotCost} slots` : ''}`;
+        cardTitle.textContent = `${upgrade.title} — ${upgrade.stageLabel} · ${upgrade.slotCost} logical slot${upgrade.slotCost === 1 ? '' : 's'}`;
         const effect = document.createElement('span');
         effect.textContent = upgrade.effect;
         const cadence = document.createElement('small');
@@ -521,6 +539,35 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
           card.append(cardTitle, effect);
           pauseNoticeRoot.appendChild(card);
         }
+      }
+    }
+    const readyFusions = availableFusionOffers();
+    if (readyFusions.length > 0) {
+      const fusionTitle = document.createElement('strong');
+      fusionTitle.className = 'pause-upgrades-title';
+      fusionTitle.textContent = 'Master fusions · free';
+      pauseNoticeRoot.appendChild(fusionTitle);
+      for (const fusion of readyFusions) {
+        const presentation = presentFusion(fusion);
+        const card = document.createElement('section');
+        card.className = 'pause-upgrade-card';
+        card.dataset.kind = 'fusion';
+        const cardTitle = document.createElement('strong');
+        cardTitle.textContent = `${presentation.title} — Free fusion · 1 logical slot`;
+        const ingredients = document.createElement('span');
+        ingredients.textContent = presentation.ingredients;
+        const detail = document.createElement('small');
+        detail.textContent = presentation.detail;
+        const actions = document.createElement('div');
+        actions.className = 'pause-actions';
+        const fuse = document.createElement('button');
+        fuse.type = 'button';
+        fuse.dataset.pauseAction = 'fusion';
+        fuse.textContent = 'Fuse now — free';
+        fuse.addEventListener('click', () => resolveFusion(fusion.evolutionId));
+        actions.appendChild(fuse);
+        card.append(cardTitle, ingredients, detail, actions);
+        pauseNoticeRoot.appendChild(card);
       }
     }
     const actions = document.createElement('div');
@@ -587,20 +634,108 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     renderUpgradeChoices();
   }
 
+  function resolveFusion(evolutionId: string): void {
+    const fuseEvolution = driver.fuseEvolution;
+    if (fuseEvolution === undefined) return;
+    try {
+      fuseEvolution(evolutionId);
+      deferredFusionIds.delete(evolutionId);
+      fusionMessage = availableFusionOffers().some((offer) => offer.evolutionId === evolutionId)
+        ? 'That Master pair is not available to fuse yet.'
+        : null;
+    } catch {
+      // A stale browser prompt must never turn an optional V1.1 action into a
+      // broken run. The simulation remains authoritative and the player can
+      // choose Later or retry after the next state refresh.
+      fusionMessage = 'Fusion could not resolve from the current run state.';
+    }
+    activeInput().clear();
+    driver.noteVisible(syntheticDriverNow);
+    renderedOfferKey = '';
+    renderUpgradeChoices();
+    renderPauseNotice();
+  }
+
+  function deferFusionPrompt(offers: readonly FusionOfferView[]): void {
+    for (const offer of offers) deferredFusionIds.add(offer.evolutionId);
+    fusionMessage = null;
+    activeInput().clear();
+    driver.noteVisible(syntheticDriverNow);
+    renderedOfferKey = '';
+    renderUpgradeChoices();
+  }
+
+  function appendFusionActions(offers: readonly FusionOfferView[], inline: boolean): void {
+    const root = inline ? document.createElement('section') : upgradeRoot;
+    if (inline) root.className = 'upgrade-fusion-actions';
+    const heading = document.createElement(inline ? 'h3' : 'h2');
+    if (!inline) heading.id = 'upgrade-choices-heading';
+    heading.textContent = 'Master fusion ready';
+    root.appendChild(heading);
+    const hint = document.createElement('p');
+    if (!inline) hint.id = 'upgrade-choices-shortcuts';
+    hint.className = 'upgrade-shortcuts';
+    hint.textContent = 'Fuse two Masters for free. The fused attack uses one logical slot.';
+    root.appendChild(hint);
+    if (fusionMessage !== null) {
+      const message = document.createElement('p');
+      message.className = 'upgrade-shortcuts';
+      message.textContent = fusionMessage;
+      root.appendChild(message);
+    }
+    for (const offer of offers) {
+      const presentation = presentFusion(offer);
+      const fuse = document.createElement('button');
+      fuse.type = 'button';
+      const title = document.createElement('strong');
+      title.textContent = `Fuse now — FREE · ${presentation.title}`;
+      const ingredients = document.createElement('small');
+      ingredients.textContent = presentation.ingredients;
+      const detail = document.createElement('span');
+      detail.textContent = presentation.detail;
+      fuse.append(title, ingredients, detail);
+      fuse.addEventListener('click', () => resolveFusion(offer.evolutionId));
+      root.appendChild(fuse);
+    }
+    const later = document.createElement('button');
+    later.type = 'button';
+    later.textContent = 'Later — keep both Master attacks for now';
+    later.addEventListener('click', () => deferFusionPrompt(offers));
+    root.appendChild(later);
+    if (inline) upgradeRoot.appendChild(root);
+  }
+
+  function renderFusionPrompt(offers: readonly FusionOfferView[]): void {
+    appendFusionActions(offers, false);
+    upgradeRoot.querySelector<HTMLButtonElement>('button')?.focus();
+  }
+
   function renderUpgradeChoices(): void {
     const offers = driver.pendingUpgradeOffers;
-    const key = offers.map((offer) => {
+    // A Master fusion is free and simulation-safe while another level choice
+    // is waiting. Keep it visible here so its logical slot is freed before
+    // the player commits the next card, rather than forcing them to drain the
+    // queue before they can act on it.
+    const fusionOffers = pendingFusionPromptOffers();
+    const offerKey = offers.map((offer) => {
       switch (offer.kind) {
-        case 'trait': return `${offer.kind}:${offer.id}:${offer.resultStage}`;
+        case 'trait': return `${offer.kind}:${offer.id}:${offer.resultStage}:${offer.resultRank ?? 'legacy'}:${offer.isMaster === true ? 'master' : ''}`;
         case 'universal': return `${offer.kind}:${offer.id}:${offer.nextRank}/${offer.maxRank}`;
         case 'essence': return `${offer.kind}:${offer.id}:${offer.amount}`;
       }
     }).join('|');
-    if (key === renderedOfferKey && upgradeRoot.hidden === !driver.upgradeSelectionPending) return;
+    const fusionKey = fusionOffers.map((offer) => `${offer.evolutionId}:${offer.ingredients.join('+')}`).join('|');
+    const key = `${driver.upgradeSelectionPending ? 'upgrade' : 'fusion'}:${offerKey}:${fusionKey}:${fusionMessage ?? ''}`;
+    const promptVisible = driver.upgradeSelectionPending || fusionOffers.length > 0;
+    if (key === renderedOfferKey && upgradeRoot.hidden === !promptVisible) return;
     renderedOfferKey = key;
     upgradeRoot.replaceChildren();
-    upgradeRoot.hidden = !driver.upgradeSelectionPending;
-    if (!driver.upgradeSelectionPending) return;
+    upgradeRoot.hidden = !promptVisible;
+    if (!promptVisible) return;
+    if (!driver.upgradeSelectionPending) {
+      renderFusionPrompt(fusionOffers);
+      return;
+    }
 
     const heading = document.createElement('h2');
     heading.id = 'upgrade-choices-heading';
@@ -640,6 +775,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       });
       upgradeRoot.appendChild(choice);
     }
+    if (fusionOffers.length > 0) appendFusionActions(fusionOffers, true);
     upgradeRoot.querySelector<HTMLButtonElement>('button')?.focus();
     upgradePromptSerial++;
     audioCueRouter.upgradeOpened(upgradePromptSerial);
@@ -657,7 +793,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
 
   function onKeyboardShortcut(event: KeyboardEvent): void {
     const runEnded = driver.runOutcome === 'victory' || driver.runOutcome === 'defeat';
-    if (isPauseShortcut(event) && runStarted && !driver.upgradeSelectionPending && !runEnded) {
+    if (isPauseShortcut(event) && runStarted && !driver.upgradeSelectionPending && pendingFusionPromptOffers().length === 0 && !runEnded) {
       event.preventDefault();
       setPaused(!controls.paused);
       return;
@@ -799,7 +935,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const pauseBtn = button('Pause', () => {
     // Upgrade selection already freezes the simulation and owns keyboard focus.
     // Do not layer an actionable pause card beneath that modal.
-    if (driver.upgradeSelectionPending) return;
+    if (driver.upgradeSelectionPending || pendingFusionPromptOffers().length > 0) return;
     setPaused(!controls.paused);
   });
   const seedInput = document.createElement('input');
@@ -814,6 +950,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     runSequence++;
     currentRunId = createRunId(currentSeed, runSequence);
     terminalRewardDetail = null;
+    deferredFusionIds.clear();
+    fusionMessage = null;
     driver.restart(currentSeed, simulationOptions());
     activeDirectorNotice = null;
     renderedDirectorKey = '';
@@ -929,8 +1067,10 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     document.documentElement.dataset.reducedMotion = String(settings.reducedMotion);
     document.documentElement.dataset.reducedFlashes = String(settings.reducedFlashes);
     document.documentElement.dataset.highContrast = String(settings.highContrast);
+    document.documentElement.dataset.showDamageNumbers = String(settings.showDamageNumbers);
     document.documentElement.dataset.qualityTier = settings.qualityTier;
     renderer.setQualityTier?.(settings.qualityTier);
+    renderer.setDamageNumbersEnabled?.(settings.showDamageNumbers);
   }
 
   function applyPalette(): void {
@@ -993,6 +1133,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       ['reducedMotion', 'Reduce motion', 'Shorten interface transitions and nonessential movement.'],
       ['reducedFlashes', 'Reduce flashes', 'Tone down interface danger pulses and combat feedback flashes.'],
       ['highContrast', 'High contrast', 'Increase prep-screen contrast for text, borders, and danger notices.'],
+      ['showDamageNumbers', 'Damage numbers', 'Show white hit numbers and yellow critical-hit numbers above enemies.'],
     ] as const;
     for (const [key, labelText, description] of options) {
       const label = document.createElement('label');
@@ -1553,6 +1694,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     // default, while preserving an explicit pre-run opt-out.
     if (!soundPreferenceSet && proceduralAudio.supported) setSoundEnabled(true, false);
     driver.restart(currentSeed, simulationOptions());
+    deferredFusionIds.clear();
+    fusionMessage = null;
     audioCueRouter.resetForRestart();
     activeDirectorNotice = null;
     renderedDirectorKey = '';
@@ -1664,7 +1807,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     // While the GPU context is lost we visibly halt gameplay so the loss can
     // never silently desync or corrupt sim state; sim resumes on restore.
     const runEnded = driver.runOutcome !== null && driver.runOutcome !== 'running';
-    const effectivePaused = !runStarted || controls.paused || rendererLost || rendererUnavailable || driver.upgradeSelectionPending || runEnded;
+    const fusionPromptPending = pendingFusionPromptOffers().length > 0;
+    const effectivePaused = !runStarted || controls.paused || rendererLost || rendererUnavailable || driver.upgradeSelectionPending || fusionPromptPending || runEnded;
 
     // Stress mode deliberately advances five fixed ticks per rendered frame so
     // high-load browser evidence can be gathered in roughly one fifth of real
@@ -1680,6 +1824,13 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     if (stressMode && driver.upgradeSelectionPending) {
       const firstOffer = driver.pendingUpgradeOffers[0];
       if (firstOffer !== undefined) driver.selectUpgrade(firstOffer.id);
+    }
+    // Diagnostic autoplay has no human to answer a free-fusion prompt. It
+    // deliberately takes the first deterministic offer so stress runs cannot
+    // stall after validating the same explicit simulation API as the UI.
+    if (stressMode) {
+      const firstFusion = pendingFusionPromptOffers()[0];
+      if (firstFusion !== undefined) driver.fuseEvolution?.(firstFusion.evolutionId);
     }
     const musicState: MusicState = !runStarted
       ? 'idle'
@@ -1715,6 +1866,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
 
     if (controls.renderEnabled && renderer.ready && !rendererLost) {
       if (renderStress !== null) renderStress.update(driver.tick);
+      renderer.setDamageNumberEvents?.(driver.combatPresentationEvents);
+      renderer.setCombatPresentationEvents?.(driver.combatPresentationEvents);
       renderer.render(
         renderStress?.prev ?? driver.prev,
         renderStress?.curr ?? driver.curr,

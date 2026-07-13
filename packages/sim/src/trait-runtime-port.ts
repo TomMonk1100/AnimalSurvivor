@@ -58,15 +58,27 @@ export interface TraitRuntimeCommandSource {
 }
 
 export type TraitUpgradeStage = 'bud' | 'adapted';
+export type TraitUpgradeRank = 1 | 2 | 3 | 4 | 5;
 
 export interface TraitUpgradeOfferView {
   readonly traitId: string;
   readonly resultStage: TraitUpgradeStage;
+  /** Exact V1.1 rank after selecting this offer. Optional for legacy fixtures. */
+  readonly resultRank?: TraitUpgradeRank;
+  /** True exactly when the offer reaches rank five (Master). */
+  readonly isMaster?: boolean;
+}
+
+/** A free player-selectable fusion unlocked by two compatible Masters. */
+export interface TraitFusionOfferView {
+  readonly evolutionId: string;
+  readonly ingredients: readonly [string, string];
+  readonly freesLogicalSlot: true;
 }
 
 export type TraitUpgradeOutcomeView =
-  | { readonly ok: true; readonly kind: 'created'; readonly traitId: string; readonly stage: 'bud' }
-  | { readonly ok: true; readonly kind: 'advanced'; readonly traitId: string; readonly stage: 'adapted' }
+  | { readonly ok: true; readonly kind: 'created'; readonly traitId: string; readonly stage: 'bud'; readonly rank?: 1 }
+  | { readonly ok: true; readonly kind: 'advanced'; readonly traitId: string; readonly stage: 'adapted'; readonly rank?: TraitUpgradeRank }
   | { readonly ok: false; readonly kind: 'unknownTrait'; readonly traitId: string }
   | { readonly ok: false; readonly kind: 'maxed'; readonly traitId: string }
   | { readonly ok: false; readonly kind: 'alreadyMythic'; readonly traitId: string }
@@ -81,12 +93,34 @@ export type TraitUpgradeOutcomeView =
 
 export interface TraitUpgradeApplyResultView {
   readonly outcome: TraitUpgradeOutcomeView;
+  /** Compatibility field: V1.1 never fuses as a side effect of an upgrade. */
   readonly evolved: string | null;
+  /** Master pairs ready to fuse after this selection, when supported. */
+  readonly fusionReady?: readonly TraitFusionOfferView[];
+}
+
+export type TraitFuseOutcomeView =
+  | {
+      readonly ok: true;
+      readonly kind: 'fused';
+      readonly evolutionId: string;
+      readonly ingredients: readonly [string, string];
+      readonly logicalSlotCost: 1;
+    }
+  | { readonly ok: false; readonly kind: 'unknownEvolution' | 'alreadyFused' | 'notMastered'; readonly evolutionId: string };
+
+export interface TraitFuseResultView {
+  readonly outcome: TraitFuseOutcomeView;
 }
 
 export interface TraitVisualAttachmentView {
   readonly sourceId: string;
   readonly stage: 'bud' | 'adapted' | 'mythic';
+  /** Exact independent attack rank; omitted by compact legacy runtimes. */
+  readonly rank?: TraitUpgradeRank | null;
+  readonly isMaster?: boolean;
+  /** A fused evolution costs one logical attack slot, never two. */
+  readonly logicalSlotCost?: 1;
   readonly sockets: readonly string[];
   readonly visualKey: string;
   readonly enabled: boolean;
@@ -96,6 +130,12 @@ export interface TraitRuntimePort {
   update(context: TraitRuntimeUpdateContext): TraitRuntimeCommandSource;
   offers(count: number): TraitUpgradeOfferView[];
   applyUpgrade(traitId: string): TraitUpgradeApplyResultView;
+  /** Optional while older deterministic fixture runtimes remain supported. */
+  availableFusions?(): readonly TraitFusionOfferView[];
+  /** Explicit free V1.1 Master fusion. */
+  fuseEvolution?(evolutionId: string): TraitFuseResultView;
+  /** Logical attack slots used; a fused result counts as one. */
+  activeAttackSlots?(): number;
   visualState(): TraitVisualAttachmentView[];
   hash(): string;
   fingerprint(): string;

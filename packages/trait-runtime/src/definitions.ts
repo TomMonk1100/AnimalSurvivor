@@ -11,7 +11,8 @@ import type {
   EvolutionDefinition,
   TraitDefinition,
 } from './contracts.js';
-import type { EvolutionId, OwnedStage, TraitId } from './ids.js';
+import type { EvolutionId, OwnedStage, TraitId, TraitRank } from './ids.js';
+import { rankStageFor } from './rank-progression.js';
 import { CATALOG } from './content/catalog.js';
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -68,6 +69,15 @@ export function getStageBehavior(
     return undefined;
   }
   return trait.stages[_stage]?.behavior;
+}
+
+/** Behavior for an exact gameplay rank (rank 5 = Master). */
+export function getRankBehavior(
+  _traitId: TraitId,
+  _rank: TraitRank,
+): BehaviorDefinition | undefined {
+  const trait = TRAIT_INDEX.get(_traitId);
+  return trait === undefined ? undefined : rankStageFor(trait, _rank).behavior;
 }
 
 /** Behavior for a resolved evolution, or undefined if unknown. */

@@ -123,6 +123,44 @@ function aggregateMissing(
   return count === 0 ? null : { count, x: sumX / count, y: sumY / count };
 }
 
+/**
+ * Treat dense XP motes and rare Bomb/Magnet/Food tokens as one collection
+ * family for the existing bounded pickup bloom. The separate snapshot pools
+ * remain visible independently in the renderer; this only coalesces their
+ * already-authoritative disappearance into one readable feedback cue.
+ */
+function aggregateCollectedPickups(
+  previous: RenderSnapshot,
+  current: RenderSnapshot,
+  pickupCollectionRadius: number,
+): PositionAggregate | null {
+  const collectedNearPlayer = (snapshot: CategorySnapshot, index: number): boolean => {
+    const dx = snapshot.x[index]! - current.playerX;
+    const dy = snapshot.y[index]! - current.playerY;
+    const pickupRadius = Math.max(0, snapshot.radius[index]!);
+    const maxDistance = pickupCollectionRadius + pickupRadius;
+    return dx * dx + dy * dy <= maxDistance * maxDistance;
+  };
+  const xp = aggregateMissing(
+    previous.pickups,
+    current.pickups,
+    (index) => collectedNearPlayer(previous.pickups, index),
+  );
+  const power = aggregateMissing(
+    previous.powerPickups,
+    current.powerPickups,
+    (index) => collectedNearPlayer(previous.powerPickups, index),
+  );
+  if (xp === null) return power;
+  if (power === null) return xp;
+  const count = xp.count + power.count;
+  return {
+    count,
+    x: (xp.x * xp.count + power.x * power.count) / count,
+    y: (xp.y * xp.count + power.y * power.count) / count,
+  };
+}
+
 function coalescedIntensity(count: number): number {
   // Square-root growth lets a large burst read stronger without making it
   // visually noisier than a player hit or terminal death.
@@ -206,17 +244,7 @@ export function projectCombatFeedback(
     ));
   }
 
-  const collectedPickups = aggregateMissing(
-    previous.pickups,
-    current.pickups,
-    (index) => {
-      const dx = previous.pickups.x[index]! - current.playerX;
-      const dy = previous.pickups.y[index]! - current.playerY;
-      const pickupRadius = Math.max(0, previous.pickups.radius[index]!);
-      const maxDistance = pickupCollectionRadius + pickupRadius;
-      return dx * dx + dy * dy <= maxDistance * maxDistance;
-    },
-  );
+  const collectedPickups = aggregateCollectedPickups(previous, current, pickupCollectionRadius);
   if (collectedPickups !== null) {
     add(createCue(
       tick,

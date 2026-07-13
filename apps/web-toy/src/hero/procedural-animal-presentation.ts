@@ -87,6 +87,16 @@ function clampedAlpha(alpha: number): number {
   return Math.min(1, Math.max(0, finite(alpha)));
 }
 
+function locomotionPhase(
+  tick: number,
+  alpha: number,
+  moving: boolean,
+  movementMagnitude: number,
+): number {
+  const cadence = moving ? 0.58 + Math.min(0.52, movementMagnitude * 0.18) : 0.16;
+  return (finite(tick) + clampedAlpha(alpha)) * cadence * Math.PI * 2;
+}
+
 export function projectProceduralAnimalLocomotion(
   previous: Pick<RenderSnapshot, 'playerX' | 'playerY'>,
   current: Pick<RenderSnapshot, 'tick' | 'playerX' | 'playerY' | 'playerAlive'>,
@@ -96,9 +106,7 @@ export function projectProceduralAnimalLocomotion(
   const dy = finite(current.playerY) - finite(previous.playerY);
   const movementMagnitude = Math.hypot(dx, dy);
   const moving = current.playerAlive && movementMagnitude > 0.1;
-  const phaseTick = finite(current.tick) + clampedAlpha(alpha);
-  const cadence = moving ? 0.58 + Math.min(0.52, movementMagnitude * 0.18) : 0.16;
-  const phase = phaseTick * cadence * Math.PI * 2;
+  const phase = locomotionPhase(current.tick, alpha, moving, movementMagnitude);
   const stride = Math.sin(phase);
   const footfall = stride * stride;
   if (!moving) {
@@ -124,6 +132,156 @@ export function projectProceduralAnimalLocomotion(
     lengthScale: 1 + Math.cos(phase) * 0.075,
     leanDegrees: stride * 3.6,
   };
+}
+
+/**
+ * Four deterministic contact phases for flat cutout art. The cutouts do not
+ * pretend to contain hidden skeletal legs; instead, grounded hoof/paw marks
+ * alternate in diagonal pairs so movement reads as a real gait at play scale.
+ */
+export interface ProceduralAnimalGaitPose {
+  readonly moving: boolean;
+  readonly stridePhase: number;
+  readonly frontLeftLift: number;
+  readonly frontRightLift: number;
+  readonly rearLeftLift: number;
+  readonly rearRightLift: number;
+}
+
+export function projectProceduralAnimalGait(
+  previous: Pick<RenderSnapshot, 'playerX' | 'playerY'>,
+  current: Pick<RenderSnapshot, 'tick' | 'playerX' | 'playerY' | 'playerAlive'>,
+  alpha: number,
+): ProceduralAnimalGaitPose {
+  const dx = finite(current.playerX) - finite(previous.playerX);
+  const dy = finite(current.playerY) - finite(previous.playerY);
+  const movementMagnitude = Math.hypot(dx, dy);
+  const moving = current.playerAlive && movementMagnitude > 0.1;
+  const phase = locomotionPhase(current.tick, alpha, moving, movementMagnitude);
+  if (!moving) {
+    return {
+      moving: false,
+      stridePhase: phase,
+      frontLeftLift: 0,
+      frontRightLift: 0,
+      rearLeftLift: 0,
+      rearRightLift: 0,
+    };
+  }
+  const liftStrength = 0.18 + Math.min(0.26, movementMagnitude * 0.07);
+  const diagonalA = Math.max(0, Math.sin(phase)) * liftStrength;
+  const diagonalB = Math.max(0, -Math.sin(phase)) * liftStrength;
+  return {
+    moving: true,
+    stridePhase: phase,
+    frontLeftLift: diagonalA,
+    frontRightLift: diagonalB,
+    rearLeftLift: diagonalB,
+    rearRightLift: diagonalA,
+  };
+}
+
+export type ProceduralAnimalActionKind =
+  | 'none'
+  | 'trample'
+  | 'brace'
+  | 'spit'
+  | 'scout'
+  | 'fluffy-shield'
+  | 'armor-block';
+
+export interface ProceduralAnimalActionReaction {
+  readonly kind: ProceduralAnimalActionKind;
+  readonly strength: number;
+  readonly bodyLift: number;
+  readonly forwardKick: number;
+  readonly pitchDegrees: number;
+  readonly rollDegrees: number;
+  readonly widthScale: number;
+  readonly heightScale: number;
+  readonly lengthScale: number;
+  readonly footfallKick: number;
+}
+
+/** Classifies only the active companion's signature events, never every trait cue. */
+export function classifyProceduralAnimalAction(
+  heroId: Exclude<HeroId, 'greg'>,
+  event: Pick<TraitPresentationEventView, 'sourceId' | 'tag'>,
+): ProceduralAnimalActionKind {
+  const tag = event.tag ?? '';
+  const matches = (identity: string): boolean => event.sourceId === identity || tag === identity;
+  if (heroId === 'benny') {
+    if (matches('benny-trample-wave') || event.sourceId === 'benny-trample') return 'trample';
+    if (matches('benny-brace')) return 'brace';
+    if (matches('armor-block')) return 'armor-block';
+    return 'none';
+  }
+  if (matches('gracie-spit')) return 'spit';
+  if (matches('gracie-scout')) return 'scout';
+  if (matches('fluffy-shield')) return 'fluffy-shield';
+  return 'none';
+}
+
+/**
+ * A compact reaction layer for illustrated cutouts. It is tick/alpha based
+ * and only offsets renderer-owned art; player position, heading, and hit
+ * resolution remain exclusively simulation owned.
+ */
+export function projectProceduralAnimalActionReaction(
+  kind: ProceduralAnimalActionKind,
+  actionTick: number,
+  currentTick: number,
+  alpha: number,
+): ProceduralAnimalActionReaction {
+  const zero: ProceduralAnimalActionReaction = {
+    kind: 'none', strength: 0, bodyLift: 0, forwardKick: 0, pitchDegrees: 0,
+    rollDegrees: 0, widthScale: 0, heightScale: 0, lengthScale: 0, footfallKick: 0,
+  };
+  if (kind === 'none' || !Number.isFinite(actionTick)) return zero;
+  const lifetime = kind === 'trample' ? 12 : kind === 'fluffy-shield' ? 18 : 10;
+  const age = Math.max(0, finite(currentTick) + clampedAlpha(alpha) - actionTick);
+  if (age >= lifetime) return zero;
+  const envelope = 1 - age / lifetime;
+  const strength = envelope * (0.68 + Math.sin(Math.min(1, age * 0.62) * Math.PI) * 0.32);
+  switch (kind) {
+    case 'trample': return {
+      kind, strength, bodyLift: 0.18 * strength, forwardKick: 0.42 * strength,
+      pitchDegrees: -10 * strength, rollDegrees: Math.sin(age * 1.5) * 1.8 * strength,
+      widthScale: 0.11 * strength, heightScale: -0.07 * strength,
+      lengthScale: 0.16 * strength, footfallKick: strength,
+    };
+    case 'brace': return {
+      kind, strength, bodyLift: 0.07 * strength, forwardKick: -0.1 * strength,
+      pitchDegrees: 3.8 * strength, rollDegrees: 0,
+      widthScale: 0.12 * strength, heightScale: -0.05 * strength,
+      lengthScale: -0.06 * strength, footfallKick: 0.62 * strength,
+    };
+    case 'spit': return {
+      kind, strength, bodyLift: 0.11 * strength, forwardKick: 0.3 * strength,
+      pitchDegrees: -7 * strength, rollDegrees: Math.sin(age * 2.1) * 1.2 * strength,
+      widthScale: 0.025 * strength, heightScale: 0.04 * strength,
+      lengthScale: 0.12 * strength, footfallKick: 0.18 * strength,
+    };
+    case 'scout': return {
+      kind, strength, bodyLift: 0.06 * strength, forwardKick: 0.09 * strength,
+      pitchDegrees: -2.2 * strength, rollDegrees: 1.8 * strength,
+      widthScale: 0.015 * strength, heightScale: 0.025 * strength,
+      lengthScale: 0.04 * strength, footfallKick: 0,
+    };
+    case 'fluffy-shield': return {
+      kind, strength, bodyLift: 0.09 * strength, forwardKick: 0,
+      pitchDegrees: 0, rollDegrees: Math.sin(age * 1.4) * 1.6 * strength,
+      widthScale: 0.08 * strength, heightScale: 0.08 * strength,
+      lengthScale: 0.08 * strength, footfallKick: 0,
+    };
+    case 'armor-block': return {
+      kind, strength, bodyLift: 0.045 * strength, forwardKick: -0.04 * strength,
+      pitchDegrees: 2 * strength, rollDegrees: 0,
+      widthScale: 0.1 * strength, heightScale: -0.035 * strength,
+      lengthScale: -0.04 * strength, footfallKick: 0.48 * strength,
+    };
+  }
+  return zero;
 }
 
 function material(color: pc.Color): pc.StandardMaterial {
@@ -257,6 +415,7 @@ function createMaterials(): {
 interface ProceduralParts {
   readonly body: pc.Entity;
   readonly movingParts: readonly pc.Entity[];
+  readonly footfalls: readonly FootfallMarker[];
   dispose(): void;
 }
 
@@ -282,6 +441,95 @@ function createHeroCutoutMaterial(): pc.StandardMaterial {
 interface HeroCutout {
   readonly body: pc.Entity;
   dispose(): void;
+}
+
+interface FootfallMarker {
+  readonly entity: pc.Entity;
+  readonly baseX: number;
+  readonly baseZ: number;
+  readonly baseWidth: number;
+  readonly baseLength: number;
+  readonly gaitIndex: 0 | 1 | 2 | 3;
+}
+
+interface FootfallRig {
+  readonly markers: readonly FootfallMarker[];
+  dispose(): void;
+}
+
+function createFootfallMaterial(): pc.StandardMaterial {
+  const value = new pc.StandardMaterial();
+  value.useLighting = false;
+  value.diffuse.set(0, 0, 0);
+  value.emissive.set(0, 0, 0);
+  value.opacity = 0.34;
+  value.blendType = pc.BLEND_NORMAL;
+  value.depthWrite = false;
+  value.cull = pc.CULLFACE_NONE;
+  value.update();
+  return value;
+}
+
+/**
+ * Four small contact marks give the authored flat cutouts a readable gait
+ * without falsifying their art as a hidden skeletal model. They are built once
+ * and only receive deterministic renderer-local transforms during a run.
+ */
+function createFootfallRig(root: pc.Entity, heroId: Exclude<HeroId, 'greg'>): FootfallRig {
+  const value = createFootfallMaterial();
+  const spread = heroId === 'benny' ? 2.92 : 2.48;
+  const front = heroId === 'benny' ? 2.5 : 2.34;
+  const rear = heroId === 'benny' ? -2.56 : -2.38;
+  const markers: FootfallMarker[] = [];
+  const entries: readonly [string, number, number, 0 | 1 | 2 | 3][] = [
+    ['front-left', -spread, front, 0],
+    ['front-right', spread, front, 1],
+    ['rear-left', -spread, rear, 2],
+    ['rear-right', spread, rear, 3],
+  ];
+  for (const [name, x, z, gaitIndex] of entries) {
+    const entity = new pc.Entity(`${heroId}-footfall-${name}`);
+    entity.addComponent('render', {
+      type: 'sphere', material: value, castShadows: false, receiveShadows: false,
+    });
+    root.addChild(entity);
+    entity.setLocalPosition(x, 0.025, z);
+    entity.setLocalScale(1.12, 0.035, 0.82);
+    entity.enabled = false;
+    markers.push({
+      entity, baseX: x, baseZ: z, baseWidth: 1.12, baseLength: 0.82, gaitIndex,
+    });
+  }
+  return {
+    markers: Object.freeze(markers),
+    dispose(): void {
+      value.destroy();
+    },
+  };
+}
+
+function updateFootfalls(
+  markers: readonly FootfallMarker[],
+  gait: ProceduralAnimalGaitPose,
+  reaction: ProceduralAnimalActionReaction,
+): void {
+  const lifts = [gait.frontLeftLift, gait.frontRightLift, gait.rearLeftLift, gait.rearRightLift] as const;
+  for (const marker of markers) {
+    const lift = lifts[marker.gaitIndex];
+    const contact = 1 - Math.min(0.72, lift * 1.8);
+    const stamp = reaction.footfallKick * (marker.gaitIndex < 2 ? 1 : 0.72);
+    marker.entity.setLocalPosition(
+      marker.baseX,
+      0.025 + lift * 0.14,
+      marker.baseZ - reaction.forwardKick * (marker.gaitIndex < 2 ? 0.2 : -0.08),
+    );
+    marker.entity.setLocalScale(
+      marker.baseWidth * (0.58 + contact * 0.38 + stamp * 0.22),
+      0.035,
+      marker.baseLength * (0.62 + contact * 0.42 + stamp * 0.34),
+    );
+    marker.entity.enabled = gait.moving || reaction.footfallKick > 0.02;
+  }
 }
 
 /**
@@ -374,10 +622,15 @@ function createBenny(root: pc.Entity, device: pc.GraphicsDevice | undefined): Pr
   bone(artRig, 'FrontShoulder.R', [3.55, 0.22, 1.9]);
   bone(artRig, 'Tail4', [0, 0.18, -5.85]);
   const cutout = createHeroCutout(device, bodyBone, 'benny-bastion-cutout', BENNY_BASTION_ART_URL, 7.1);
+  const footfalls = createFootfallRig(root, 'benny');
   return {
     body: cutout.body,
     movingParts: Object.freeze([]),
-    dispose: cutout.dispose,
+    footfalls: footfalls.markers,
+    dispose(): void {
+      cutout.dispose();
+      footfalls.dispose();
+    },
   };
 }
 
@@ -391,10 +644,15 @@ function createGracie(root: pc.Entity, device: pc.GraphicsDevice | undefined): P
   bone(artRig, 'FrontShoulder.R', [3.15, 0.2, 1.95]);
   bone(artRig, 'Tail4', [0, 0.2, -5.45]);
   const cutout = createHeroCutout(device, bodyBone, 'gracie-surveyor-cutout', GRACIE_SURVEYOR_ART_URL, 7.05);
+  const footfalls = createFootfallRig(root, 'gracie');
   return {
     body: cutout.body,
     movingParts: Object.freeze([]),
-    dispose: cutout.dispose,
+    footfalls: footfalls.markers,
+    dispose(): void {
+      cutout.dispose();
+      footfalls.dispose();
+    },
   };
 }
 
@@ -432,6 +690,7 @@ export function createProceduralAnimalPresentation(
   let visible = false;
   let disposed = false;
   let lastActionTick = Number.NEGATIVE_INFINITY;
+  let lastActionKind: ProceduralAnimalActionKind = 'none';
   let lastImpactTick = Number.NEGATIVE_INFINITY;
 
   return {
@@ -447,10 +706,19 @@ export function createProceduralAnimalPresentation(
       projector.sync(traitVisualState);
       monarchBroodMotion.update(current.tick + alpha);
       if (!visible) return;
-      if (traitPresentationEvents.length > 0) lastActionTick = current.tick;
+      for (const event of traitPresentationEvents) {
+        const action = classifyProceduralAnimalAction(heroId, event);
+        if (action === 'none') continue;
+        const eventTick = Math.min(current.tick, Math.max(0, Math.floor(finite(event.tick, current.tick))));
+        if (eventTick >= lastActionTick) {
+          lastActionTick = eventTick;
+          lastActionKind = action;
+        }
+      }
       if (current.playerHp < previous.playerHp) lastImpactTick = current.tick;
       if (current.tick < Math.max(lastActionTick, lastImpactTick)) {
         lastActionTick = Number.NEGATIVE_INFINITY;
+        lastActionKind = 'none';
         lastImpactTick = Number.NEGATIVE_INFINITY;
       }
       const x = previous.playerX + (current.playerX - previous.playerX) * alpha;
@@ -460,26 +728,39 @@ export function createProceduralAnimalPresentation(
       const heading = deriveProceduralAnimalHeadingDegrees(previous, current);
       if (heading !== null) root.setLocalEulerAngles(0, heading, 0);
       const locomotion = projectProceduralAnimalLocomotion(previous, current, alpha);
-      const actionKick = Math.max(0, 1 - (current.tick - lastActionTick) / 9);
-      const impactKick = Math.max(0, 1 - (current.tick - lastImpactTick) / 7);
-      const reactionScale = 1 + actionKick * 0.08 + impactKick * 0.05;
+      const gait = projectProceduralAnimalGait(previous, current, alpha);
+      const actionReaction = projectProceduralAnimalActionReaction(
+        lastActionKind,
+        lastActionTick,
+        current.tick,
+        alpha,
+      );
+      const impactKick = Math.max(0, 1 - (current.tick + clampedAlpha(alpha) - lastImpactTick) / 7);
+      const impactScale = 1 + impactKick * 0.05;
       visual.body.setLocalPosition(
         baseBodyPosition.x + locomotion.sideSway,
-        baseBodyPosition.y + locomotion.bodyLift + actionKick * 0.08,
-        baseBodyPosition.z + locomotion.forwardSway + actionKick * 0.18,
+        baseBodyPosition.y + locomotion.bodyLift + actionReaction.bodyLift + impactKick * 0.05,
+        baseBodyPosition.z + locomotion.forwardSway + actionReaction.forwardKick,
       );
       visual.body.setLocalScale(
-        baseBodyScale.x * locomotion.widthScale * reactionScale,
-        baseBodyScale.y * (1 + actionKick * 0.04),
-        baseBodyScale.z * locomotion.lengthScale * reactionScale,
+        baseBodyScale.x * locomotion.widthScale * (1 + actionReaction.widthScale) * impactScale,
+        baseBodyScale.y * (1 + actionReaction.heightScale + impactKick * 0.025),
+        baseBodyScale.z * locomotion.lengthScale * (1 + actionReaction.lengthScale) * impactScale,
       );
-      visual.body.setLocalEulerAngles(actionKick * -3.5, 0, locomotion.leanDegrees);
+      visual.body.setLocalEulerAngles(
+        actionReaction.pitchDegrees - impactKick * 2.5,
+        0,
+        locomotion.leanDegrees + actionReaction.rollDegrees,
+      );
+      updateFootfalls(visual.footfalls, gait, actionReaction);
       for (let index = 0; index < visual.movingParts.length; index++) {
         const part = visual.movingParts[index]!;
         part.setLocalEulerAngles(
           0,
           0,
-          locomotion.moving ? locomotion.leanDegrees + Math.sin(current.tick * 0.42 + index) * 4 : 0,
+          locomotion.moving
+            ? locomotion.leanDegrees + Math.sin(current.tick * 0.42 + index) * 4 + actionReaction.rollDegrees
+            : actionReaction.rollDegrees,
         );
       }
     },

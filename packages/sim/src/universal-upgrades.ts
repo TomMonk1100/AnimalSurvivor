@@ -13,7 +13,7 @@ import { createHashWriter } from './state-hash.js';
 import type { HeroId } from './run-start-loadout.js';
 
 /** Bump when the canonical catalog/state fingerprint layout changes. */
-export const UNIVERSAL_UPGRADE_CATALOG_VERSION = 1;
+export const UNIVERSAL_UPGRADE_CATALOG_VERSION = 2;
 
 export const UNIVERSAL_UPGRADE_IDS = Object.freeze([
   'swift-paws',
@@ -22,6 +22,7 @@ export const UNIVERSAL_UPGRADE_IDS = Object.freeze([
   'sharpened-instinct',
   'rapid-instinct',
   'growth',
+  'keen-eye',
 ] as const);
 
 /**
@@ -64,6 +65,30 @@ export type UniversalUpgradeEffect =
       readonly kind: 'xpMultiplier';
       /** Added to the base 1x XP gain multiplier once per rank. */
       readonly bonusPerRank: number;
+    }
+  | {
+      /** Raises the shared base critical-hit chance. */
+      readonly kind: 'critChance';
+      readonly bonusPerRank: number;
+    }
+  | {
+      /** Fox-only avoidance path. */
+      readonly kind: 'heroDodge';
+      readonly heroId: HeroId;
+      readonly bonusPerRank: number;
+    }
+  | {
+      /** Bull-only armor path. */
+      readonly kind: 'heroArmor';
+      readonly heroId: HeroId;
+      readonly bonusPerRank: number;
+    }
+  | {
+      /** Alpaca-only shield size and recharge path. */
+      readonly kind: 'heroShield';
+      readonly heroId: HeroId;
+      readonly shieldBonusPerRank: number;
+      readonly rechargeBonusPerRank: number;
     }
   | {
       readonly kind: 'basicAttack';
@@ -141,11 +166,18 @@ export interface UniversalUpgradeStats {
   readonly weaponDamageMultiplier: number;
   readonly weaponCooldownMultiplier: number;
   readonly xpMultiplier: number;
+  readonly critChanceBonus: number;
+  readonly dodgeChanceBonus: number;
+  readonly armorBonus: number;
+  readonly shieldMaxBonus: number;
+  readonly shieldRechargePerTickBonus: number;
   readonly basicAttackDamageMultiplier: number;
   readonly basicAttackCooldownMultiplier: number;
   readonly basicAttackProjectileCountBonus: number;
   readonly basicAttackPierceBonus: number;
   readonly basicAttackRangeBonus: number;
+  /** Exact selected-starter rank, allowing hero casts to change shape at Master. */
+  readonly basicAttackMasteryRank: number;
 }
 
 function frozenDefinition(definition: UniversalUpgradeDefinition): UniversalUpgradeDefinition {
@@ -163,7 +195,7 @@ export const SWIFT_PAWS: UniversalUpgradeDefinition = frozenDefinition({
 
 export const XP_MAGNET: UniversalUpgradeDefinition = frozenDefinition({
   id: 'xp-magnet',
-  title: 'XP Magnet',
+  title: 'Mote Draw',
   description: '+10 collection radius, then pull XP motes from +80 range at +120 speed per rank.',
   repeatable: true,
   maxRank: 5,
@@ -211,49 +243,86 @@ export const GROWTH: UniversalUpgradeDefinition = frozenDefinition({
   effect: { kind: 'xpMultiplier', bonusPerRank: 0.12 },
 });
 
+export const KEEN_EYE: UniversalUpgradeDefinition = frozenDefinition({
+  id: 'keen-eye',
+  title: 'Keen Eye',
+  description: '+3% critical-hit chance per rank.',
+  repeatable: true,
+  maxRank: 5,
+  effect: { kind: 'critChance', bonusPerRank: 0.03 },
+});
+
 export const HERO_BASIC_ATTACK_UPGRADES: readonly UniversalUpgradeDefinition[] = Object.freeze([
   frozenDefinition({
     id: 'basic-attack:greg-precision',
     title: "Pouncer's Precision",
-    description: 'Greg’s starter shot gains damage and cadence; rank 3 unlocks one pierce.',
+    description: 'Fox Swipe gains reach, a wider rake, and a Master double-swipe.',
     repeatable: true,
-    maxRank: 3,
+    maxRank: 5,
     effect: {
       kind: 'basicAttack',
       heroId: 'greg',
-      damageBonusPerRank: 0.1,
+      damageBonusPerRank: 0.11,
       cooldownReductionPerRank: 0.04,
-      pierceAtRank: 3,
+      rangeBonusPerRank: 5,
     },
   }),
   frozenDefinition({
     id: 'basic-attack:benny-brace-burst',
-    title: 'Brace Bloom',
-    description: 'Benny’s starter burst gains weight and cadence; rank 2 adds a third bolt.',
+    title: 'Trample Mastery',
+    description: 'Trample gains heavier, wider earth waves and a Master aftershock.',
     repeatable: true,
-    maxRank: 3,
+    maxRank: 5,
     effect: {
       kind: 'basicAttack',
       heroId: 'benny',
-      damageBonusPerRank: 0.12,
-      cooldownReductionPerRank: 0.03,
-      projectileCountAtRank: 2,
+      damageBonusPerRank: 0.1,
+      cooldownReductionPerRank: 0.035,
+      rangeBonusPerRank: 7,
     },
   }),
   frozenDefinition({
     id: 'basic-attack:gracie-keen-dart',
-    title: 'Keen Dart',
-    description: 'Gracie’s starter dart gains damage, cadence, and range; rank 3 adds a second dart.',
+    title: 'Spit Spiral',
+    description: 'Spit Volley gains speed, extra globs, pierce, and a Master fan.',
     repeatable: true,
-    maxRank: 3,
+    maxRank: 5,
     effect: {
       kind: 'basicAttack',
       heroId: 'gracie',
-      damageBonusPerRank: 0.06,
-      cooldownReductionPerRank: 0.06,
+      damageBonusPerRank: 0.08,
+      cooldownReductionPerRank: 0.045,
       projectileCountAtRank: 3,
-      rangeBonusPerRank: 12,
+      pierceAtRank: 4,
+      rangeBonusPerRank: 8,
     },
+  }),
+]);
+
+export const HERO_DEFENSIVE_UPGRADES: readonly UniversalUpgradeDefinition[] = Object.freeze([
+  frozenDefinition({
+    id: 'hero-trait:greg-clever-footwork',
+    title: 'Clever Footwork',
+    description: '+5% dodge chance per rank (capped at 35%).',
+    repeatable: true,
+    maxRank: 5,
+    effect: { kind: 'heroDodge', heroId: 'greg', bonusPerRank: 0.05 },
+  }),
+  frozenDefinition({
+    id: 'hero-trait:benny-thick-skin',
+    title: 'Thick Skin',
+    description: '+15 armor per rank; armor reduces incoming damage.',
+    repeatable: true,
+    maxRank: 5,
+    effect: { kind: 'heroArmor', heroId: 'benny', bonusPerRank: 15 },
+  }),
+  frozenDefinition({
+    id: 'hero-trait:gracie-fluffy-shield',
+    title: 'Fluffier Shield',
+    description: '+10 Fluffy Shield and faster recharge per rank.',
+    repeatable: true,
+    maxRank: 5,
+    effect: { kind: 'heroShield', heroId: 'gracie', shieldBonusPerRank: 10, rechargeBonusPerRank: 0.04 },
   }),
 ]);
 
@@ -264,17 +333,24 @@ export const UNIVERSAL_UPGRADE_CATALOG: UniversalUpgradeCatalog = Object.freeze(
   SHARPENED_INSTINCT,
   RAPID_INSTINCT,
   GROWTH,
+  KEEN_EYE,
 ]);
 
-/** App-facing catalog: shared neutral choices plus the selected hero's mastery. */
+/** App-facing catalog: shared neutral choices plus the hero's mastery and defense. */
 export function getUniversalUpgradeCatalogForHero(
   heroId: HeroId,
   baseCatalog: UniversalUpgradeCatalog = UNIVERSAL_UPGRADE_CATALOG,
 ): UniversalUpgradeCatalog {
   const upgrade = HERO_BASIC_ATTACK_UPGRADES.find((candidate) => candidate.effect.kind === 'basicAttack' && candidate.effect.heroId === heroId);
-  if (upgrade === undefined) throw new Error(`No basic attack upgrade authored for hero ${heroId}`);
+  const defense = HERO_DEFENSIVE_UPGRADES.find((candidate) => (
+    (candidate.effect.kind === 'heroDodge'
+      || candidate.effect.kind === 'heroArmor'
+      || candidate.effect.kind === 'heroShield')
+    && candidate.effect.heroId === heroId
+ ));
+  if (upgrade === undefined || defense === undefined) throw new Error(`No V1.1 hero upgrade authored for hero ${heroId}`);
   const sharedCatalog = baseCatalog.filter((candidate) => candidate.effect.kind !== 'basicAttack');
-  return Object.freeze([...sharedCatalog, upgrade]);
+  return Object.freeze([...sharedCatalog, upgrade, defense]);
 }
 
 function requireFinitePositive(name: string, value: number): void {
@@ -298,7 +374,18 @@ function validateEffect(effect: UniversalUpgradeEffect, label: string): void {
     case 'weaponDamageMultiplier':
     case 'maxHp':
     case 'xpMultiplier':
+    case 'critChance':
       requireFinitePositive(`${label}.effect.bonusPerRank`, effect.bonusPerRank);
+      return;
+    case 'heroDodge':
+    case 'heroArmor':
+      requireNonEmptyString(`${label}.effect.heroId`, effect.heroId);
+      requireFinitePositive(`${label}.effect.bonusPerRank`, effect.bonusPerRank);
+      return;
+    case 'heroShield':
+      requireNonEmptyString(`${label}.effect.heroId`, effect.heroId);
+      requireFinitePositive(`${label}.effect.shieldBonusPerRank`, effect.shieldBonusPerRank);
+      requireFinitePositive(`${label}.effect.rechargeBonusPerRank`, effect.rechargeBonusPerRank);
       return;
     case 'weaponCooldownMultiplier':
       requireFinitePositive(`${label}.effect.reductionPerRank`, effect.reductionPerRank);
@@ -389,7 +476,18 @@ export function fingerprintUniversalUpgradeCatalog(catalog: UniversalUpgradeCata
       case 'weaponDamageMultiplier':
       case 'maxHp':
       case 'xpMultiplier':
+      case 'critChance':
         writer.f64(definition.effect.bonusPerRank);
+        break;
+      case 'heroDodge':
+      case 'heroArmor':
+        writer.str(definition.effect.heroId);
+        writer.f64(definition.effect.bonusPerRank);
+        break;
+      case 'heroShield':
+        writer.str(definition.effect.heroId);
+        writer.f64(definition.effect.shieldBonusPerRank);
+        writer.f64(definition.effect.rechargeBonusPerRank);
         break;
       case 'weaponCooldownMultiplier':
         writer.f64(definition.effect.reductionPerRank);
@@ -551,11 +649,17 @@ export function resolveUniversalUpgradeStats(
   let weaponDamageMultiplier = 1;
   let weaponCooldownMultiplier = 1;
   let xpMultiplier = 1;
+  let critChanceBonus = 0;
+  let dodgeChanceBonus = 0;
+  let armorBonus = 0;
+  let shieldMaxBonus = 0;
+  let shieldRechargePerTickBonus = 0;
   let basicAttackDamageMultiplier = 1;
   let basicAttackCooldownMultiplier = 1;
   let basicAttackProjectileCountBonus = 0;
   let basicAttackPierceBonus = 0;
   let basicAttackRangeBonus = 0;
+  let basicAttackMasteryRank = 0;
 
   for (let index = 0; index < catalog.length; index++) {
     const rank = state.ranks[index]!;
@@ -582,6 +686,19 @@ export function resolveUniversalUpgradeStats(
       case 'xpMultiplier':
         xpMultiplier += effect.bonusPerRank * rank;
         break;
+      case 'critChance':
+        critChanceBonus += effect.bonusPerRank * rank;
+        break;
+      case 'heroDodge':
+        dodgeChanceBonus += effect.bonusPerRank * rank;
+        break;
+      case 'heroArmor':
+        armorBonus += effect.bonusPerRank * rank;
+        break;
+      case 'heroShield':
+        shieldMaxBonus += effect.shieldBonusPerRank * rank;
+        shieldRechargePerTickBonus += effect.rechargeBonusPerRank * rank;
+        break;
       case 'basicAttack':
         basicAttackDamageMultiplier += effect.damageBonusPerRank * rank;
         basicAttackCooldownMultiplier -= effect.cooldownReductionPerRank * rank;
@@ -592,6 +709,7 @@ export function resolveUniversalUpgradeStats(
           basicAttackPierceBonus += 1;
         }
         basicAttackRangeBonus += (effect.rangeBonusPerRank ?? 0) * rank;
+        basicAttackMasteryRank = Math.max(basicAttackMasteryRank, rank);
         break;
     }
   }
@@ -605,10 +723,16 @@ export function resolveUniversalUpgradeStats(
     weaponDamageMultiplier,
     weaponCooldownMultiplier,
     xpMultiplier,
+    critChanceBonus,
+    dodgeChanceBonus,
+    armorBonus,
+    shieldMaxBonus,
+    shieldRechargePerTickBonus,
     basicAttackDamageMultiplier,
     basicAttackCooldownMultiplier,
     basicAttackProjectileCountBonus,
     basicAttackPierceBonus,
     basicAttackRangeBonus,
+    basicAttackMasteryRank,
   });
 }

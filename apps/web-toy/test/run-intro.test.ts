@@ -7,8 +7,8 @@ describe('run intro presentation', () => {
       holdAtStart: true,
       eyebrow: 'Animal Survivor',
       title: 'Greg is ready.',
-      objective: 'Stay moving, collect green XP motes, and choose animal adaptations.',
-      controls: 'Move with WASD, Arrow Keys, a gamepad left stick/D-pad, or hold-drag on the arena with a mouse. On touch, drag the lower-left circle. Greg auto-fires and charges a three-wave Rush Rake while moving near threats. Press Esc to pause.',
+      objective: 'Stay light on your paws, collect green XP motes, and build a close-range adaptation kit. Attacks rank from 1 to 5; at MASTER, fuse two compatible attacks into one slot to free space for another.',
+      controls: 'Move with WASD, Arrow Keys, a gamepad left stick/D-pad, or hold-drag on the arena with a mouse. On touch, drag the lower-left circle. Greg’s Fox Swipe cleaves nearby threats. His baseline dodge and Melee Affinity reward bold close-range builds. Press Esc to pause.',
       cta: 'Start run',
     });
   });
@@ -25,7 +25,15 @@ describe('run intro presentation', () => {
 
     expect(presentation.title).toBe('Benny is ready.');
     expect(presentation.objective).toMatch(/sturdy body/i);
-    expect(presentation.controls).toMatch(/Benny auto-fires/i);
+    expect(presentation.objective).toMatch(/MASTER/i);
+    expect(presentation.controls).toMatch(/Trample/i);
+    expect(presentation.controls).toMatch(/Thick Skin armor/i);
+  });
+
+  it('introduces each hero’s V1.1 signature and defense clearly', () => {
+    expect(presentRunIntro({ autoStart: false, heroId: 'greg' }).controls).toMatch(/Fox Swipe.*dodge.*Melee Affinity/i);
+    expect(presentRunIntro({ autoStart: false, heroId: 'benny' }).controls).toMatch(/Trample.*earth waves.*Thick Skin/i);
+    expect(presentRunIntro({ autoStart: false, heroId: 'gracie' }).controls).toMatch(/Spit.*Fluffy Shield.*recharges/i);
   });
 
   it('keeps every controls prompt complete instead of relying on visual clipping', () => {

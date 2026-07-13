@@ -6,13 +6,15 @@
  * seed, loadout, timing, RNG, rewards, or canonical hash.
  */
 
-export const ACCESSIBILITY_SETTINGS_VERSION = 1 as const;
+export const ACCESSIBILITY_SETTINGS_VERSION = 2 as const;
 export const ACCESSIBILITY_SETTINGS_STORAGE_KEY = 'animal-survivor.accessibility.v1';
 
 export interface AccessibilitySettings {
   readonly reducedMotion: boolean;
   readonly reducedFlashes: boolean;
   readonly highContrast: boolean;
+  /** Presentation-only preference. Gameplay events and damage stay canonical. */
+  readonly showDamageNumbers: boolean;
   readonly qualityTier: 'standard' | 'reduced';
 }
 
@@ -31,6 +33,7 @@ export const DEFAULT_ACCESSIBILITY_SETTINGS: AccessibilitySettings = Object.free
   reducedMotion: false,
   reducedFlashes: false,
   highContrast: false,
+  showDamageNumbers: true,
   qualityTier: 'standard',
 });
 
@@ -39,11 +42,17 @@ function freezeSettings(settings: AccessibilitySettings): AccessibilitySettings 
     reducedMotion: settings.reducedMotion,
     reducedFlashes: settings.reducedFlashes,
     highContrast: settings.highContrast,
+    showDamageNumbers: settings.showDamageNumbers,
     qualityTier: settings.qualityTier,
   });
 }
 
-function parseSettings(raw: string): AccessibilitySettings | null {
+interface ParsedSettings {
+  readonly settings: AccessibilitySettings;
+  readonly needsMigration: boolean;
+}
+
+function parseSettings(raw: string): ParsedSettings | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw) as unknown;
@@ -52,19 +61,28 @@ function parseSettings(raw: string): AccessibilitySettings | null {
   }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null;
   const value = parsed as Record<string, unknown>;
-  if (value.version !== ACCESSIBILITY_SETTINGS_VERSION
+  if ((value.version !== 1 && value.version !== ACCESSIBILITY_SETTINGS_VERSION)
     || typeof value.reducedMotion !== 'boolean'
     || typeof value.reducedFlashes !== 'boolean'
     || typeof value.highContrast !== 'boolean'
     || (value.qualityTier !== 'standard' && value.qualityTier !== 'reduced')) {
     return null;
   }
-  return freezeSettings({
-    reducedMotion: value.reducedMotion,
-    reducedFlashes: value.reducedFlashes,
-    highContrast: value.highContrast,
-    qualityTier: value.qualityTier,
-  });
+  const showDamageNumbers = value.version === 1 ? true : value.showDamageNumbers;
+  if (typeof showDamageNumbers !== 'boolean') return null;
+
+  return {
+    settings: freezeSettings({
+      reducedMotion: value.reducedMotion,
+      reducedFlashes: value.reducedFlashes,
+      highContrast: value.highContrast,
+      // Existing players should retain the traditional readable feedback unless
+      // they explicitly opt out in the new presentation setting.
+      showDamageNumbers,
+      qualityTier: value.qualityTier,
+    }),
+    needsMigration: value.version !== ACCESSIBILITY_SETTINGS_VERSION,
+  };
 }
 
 function serializeSettings(settings: AccessibilitySettings): string {
@@ -89,7 +107,10 @@ export function createAccessibilitySettingsStore(
     const raw = storage.getItem(storageKey);
     if (raw !== null) {
       const parsed = parseSettings(raw);
-      if (parsed !== null) state = parsed;
+      if (parsed !== null) {
+        state = parsed.settings;
+        if (parsed.needsMigration) storage.setItem(storageKey, serializeSettings(state));
+      }
       else storage.setItem(storageKey, serializeSettings(state));
     }
   } catch {
@@ -104,7 +125,7 @@ export function createAccessibilitySettingsStore(
     update(patch) {
       if (typeof patch !== 'object' || patch === null) throw new TypeError('accessibility settings patch must be an object');
       const next = { ...state };
-      for (const key of ['reducedMotion', 'reducedFlashes', 'highContrast'] as const) {
+      for (const key of ['reducedMotion', 'reducedFlashes', 'highContrast', 'showDamageNumbers'] as const) {
         const value = patch[key];
         if (value !== undefined) {
           if (typeof value !== 'boolean') throw new TypeError(`accessibility setting ${key} must be boolean`);

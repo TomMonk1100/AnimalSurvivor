@@ -12,6 +12,7 @@
  */
 import { DEFAULT_CONFIG, type SimConfig } from './config.js';
 import { createSimulation, type Simulation } from './simulation.js';
+import { RUN_START_LOADOUT_VERSION } from './run-start-loadout.js';
 import type { EntityId, TickInput } from './types.js';
 import type {
   TraitRuntimeCommandView,
@@ -669,7 +670,7 @@ function runCase(attackCase: AttackDamageLabCase): AttackDamageLabResult {
     createLabConfig(attackCase.category === 'starter', attackCase.suppressBaseAttack),
     ATTACK_DAMAGE_LAB_SEED,
     {
-    runStartLoadout: { version: 3, heroId: attackCase.heroId, maxHpBonus: 0 },
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: attackCase.heroId, maxHpBonus: 0 },
     ...(attackCase.behavior === null ? {} : { traitRuntimeFactory: createTraitFactory(attackCase, probe) }),
     },
   );

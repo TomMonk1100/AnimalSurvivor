@@ -21,21 +21,24 @@ export interface RunIntroPresentation {
   readonly cta: string;
 }
 
+const MOVEMENT_CONTROLS = 'Move with WASD, Arrow Keys, a gamepad left stick/D-pad, or hold-drag on the arena with a mouse. On touch, drag the lower-left circle.';
+const MASTERY_OBJECTIVE = 'Attacks rank from 1 to 5; at MASTER, fuse two compatible attacks into one slot to free space for another.';
+
 const PLAYER_COPY = {
   greg: {
     title: 'Greg is ready.',
-    objective: 'Stay moving, collect green XP motes, and choose animal adaptations.',
-    controls: 'Move with WASD, Arrow Keys, a gamepad left stick/D-pad, or hold-drag on the arena with a mouse. On touch, drag the lower-left circle. Greg auto-fires and charges a three-wave Rush Rake while moving near threats. Press Esc to pause.',
+    objective: `Stay light on your paws, collect green XP motes, and build a close-range adaptation kit. ${MASTERY_OBJECTIVE}`,
+    controls: `${MOVEMENT_CONTROLS} Greg’s Fox Swipe cleaves nearby threats. His baseline dodge and Melee Affinity reward bold close-range builds. Press Esc to pause.`,
   },
   benny: {
     title: 'Benny is ready.',
-    objective: 'Use Benny’s sturdy body to hold space, collect XP, and build visible adaptations.',
-    controls: 'Move with WASD, Arrow Keys, a gamepad left stick/D-pad, or hold-drag on the arena with a mouse. On touch, drag the lower-left circle. Benny auto-fires; two contact hits charge his Brace Bloom shockwave. Press Esc to pause.',
+    objective: `Use Benny’s sturdy body to hold space, collect XP, and build visible adaptations. ${MASTERY_OBJECTIVE}`,
+    controls: `${MOVEMENT_CONTROLS} Benny’s Trample sends hard earth waves forward. Thick Skin armor reduces incoming damage so he can stand his ground. Press Esc to pause.`,
   },
   gracie: {
     title: 'Gracie is ready.',
-    objective: 'Sweep up XP from a wider field, stay mobile, and grow a strange visible build.',
-    controls: 'Move with WASD, Arrow Keys, a gamepad left stick/D-pad, or hold-drag on the arena with a mouse. On touch, drag the lower-left circle. Gracie auto-fires and periodically Scouts forward threats. Press Esc to pause.',
+    objective: `Sweep up XP from a wider field, stay mobile, and grow a strange visible build. ${MASTERY_OBJECTIVE}`,
+    controls: `${MOVEMENT_CONTROLS} Gracie’s Spit attack grows wilder with ranks. Her Fluffy Shield absorbs damage first, then recharges between hits. Press Esc to pause.`,
   },
 } as const;
 

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DEFAULT_CONFIG, type SimConfig } from '../src/config.js';
 import { createSimulation, runReplay } from '../src/simulation.js';
+import { RUN_START_LOADOUT_VERSION } from '../src/run-start-loadout.js';
 import type {
   TraitRuntimeCommandView,
   TraitRuntimeFactory,
@@ -367,7 +368,13 @@ test('publishes detached presentation copies for executed trait commands and cle
 });
 
 test('captures actual chain endpoints before lethal cleanup for a renderer-facing event', () => {
-  const sim = createSimulation(quietConfig(), 73, { traitRuntimeFactory: () => new ChainTraitRuntime() });
+  const options = {
+    traitRuntimeFactory: () => new ChainTraitRuntime(),
+    // A projectile starter leaves this direct-trait fixture intact on tick one;
+    // Greg's real Fox Swipe correctly resolves before trait commands now.
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'gracie' as const, maxHpBonus: 0 },
+  };
+  const sim = createSimulation(quietConfig(), 73, options);
   const first = sim.enemies.spawn();
   const second = sim.enemies.spawn();
   assert.notEqual(first, -1);
@@ -396,7 +403,8 @@ test('captures actual chain endpoints before lethal cleanup for a renderer-facin
 
   sim.step({ moveX: 0, moveY: 0, paused: false });
 
-  const event = sim.traitPresentationEvents[0]!;
+  const event = sim.traitPresentationEvents.find((candidate) => candidate.kind === 'chainDamage');
+  assert.ok(event !== undefined);
   assert.equal(event.kind, 'chainDamage');
   assert.equal(event.jumps, 1);
   assert.equal(event.resolvedHitCount, 2);
@@ -412,20 +420,25 @@ test('captures actual chain endpoints before lethal cleanup for a renderer-facin
   assert.equal(sim.grid.nearest(sim.player.x + 10, sim.player.y, 0.1), -1);
   assert.equal(sim.enemies.data.hp[second], 7);
 
-  // The simulation reuses this presentation record on the next command at
-  // the same source index. Once the remaining target disappears, its stale
-  // endpoints must be ignored rather than replayed as a ghost lightning bolt.
-  const reusedEvent = event;
+  // Once the remaining target disappears, a later command must clear its
+  // endpoints rather than replaying a ghost lightning bolt. A starter cue may
+  // occupy an earlier renderer slot on one tick, so event object identity is
+  // intentionally not part of this public presentation contract.
   const secondId = sim.enemies.idOf(second);
   sim.grid.remove(secondId);
   sim.enemies.despawn(second);
   sim.step({ moveX: 0, moveY: 0, paused: false });
-  assert.strictEqual(sim.traitPresentationEvents[0], reusedEvent);
-  assert.equal(sim.traitPresentationEvents[0]!.resolvedHitCount, 0);
+  const nextChainEvent = sim.traitPresentationEvents.find((candidate) => candidate.kind === 'chainDamage');
+  assert.ok(nextChainEvent !== undefined);
+  assert.equal(nextChainEvent!.resolvedHitCount, 0);
 });
 
 test('captures a resolved melee direction on the detached presentation command without affecting hash state', () => {
-  const sim = createSimulation(quietConfig(), 73, { traitRuntimeFactory: () => new MeleeArcTraitRuntime() });
+  const options = {
+    traitRuntimeFactory: () => new MeleeArcTraitRuntime(),
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'gracie' as const, maxHpBonus: 0 },
+  };
+  const sim = createSimulation(quietConfig(), 73, options);
   const slot = sim.enemies.spawn();
   assert.notEqual(slot, -1);
   const enemy = sim.enemies.data;
@@ -440,7 +453,7 @@ test('captures a resolved melee direction on the detached presentation command w
   enemy.xpDrop[slot] = 1;
   sim.grid.insert(sim.enemies.idOf(slot), enemy.posX[slot]!, enemy.posY[slot]!);
 
-  const peer = createSimulation(quietConfig(), 73, { traitRuntimeFactory: () => new MeleeArcTraitRuntime() });
+  const peer = createSimulation(quietConfig(), 73, options);
   const peerSlot = peer.enemies.spawn();
   assert.notEqual(peerSlot, -1);
   const peerEnemy = peer.enemies.data;
@@ -457,7 +470,8 @@ test('captures a resolved melee direction on the detached presentation command w
 
   sim.step({ moveX: 0, moveY: 0, paused: false });
   peer.step({ moveX: 0, moveY: 0, paused: false });
-  const event = sim.traitPresentationEvents[0]!;
+  const event = sim.traitPresentationEvents.find((candidate) => candidate.kind === 'meleeArc');
+  assert.ok(event !== undefined);
   assert.equal(event.kind, 'meleeArc');
   assert.equal(event.arc, 1.2);
   assert.equal(event.meleeArcResolved, true);

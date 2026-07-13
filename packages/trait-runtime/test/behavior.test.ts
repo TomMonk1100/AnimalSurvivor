@@ -9,10 +9,10 @@ function ctx(tick: number): RuntimeContext {
 
 function toThornstorm(): TraitRuntime {
   const rt = new TraitRuntime({ seed: 7 });
-  rt.applyUpgrade('porcupine-quills');
-  rt.applyUpgrade('porcupine-quills');
-  rt.applyUpgrade('puffer-pouch');
-  rt.applyUpgrade('puffer-pouch');
+  for (let rank = 1; rank <= 5; rank++) rt.applyUpgrade('porcupine-quills');
+  for (let rank = 1; rank <= 5; rank++) rt.applyUpgrade('puffer-pouch');
+  assert.equal(rt.availableFusions()[0]?.evolutionId, 'thornstorm-mantle');
+  assert.equal(rt.fuseEvolution('thornstorm-mantle').outcome.ok, true);
   return rt;
 }
 

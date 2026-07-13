@@ -7,6 +7,10 @@
  * damage footprint until a separate status/debuff system is designed.
  */
 import type { EnemyPool, EntityId, Pool, SpatialGrid, ZonePool } from './types.js';
+import {
+  combatDamageSourceIdFromCode,
+  type CombatDamageResolver,
+} from './combat-resolution.js';
 
 /** Compact stable role values exposed to app-side snapshot/render integration. */
 export const ZONE_TAG = Object.freeze({
@@ -46,6 +50,8 @@ export interface ZoneStepContext {
   readonly enemyGrid: SpatialGrid;
   /** Simulation-owned cleanup preserves XP drops, elite/boss state, and events. */
   readonly killEnemy: (slot: number) => void;
+  /** Optional only for isolated legacy tests; production passes the resolver. */
+  readonly combat?: CombatDamageResolver;
 }
 
 export interface ZoneStepStats {
@@ -124,10 +130,21 @@ export function createZoneStepper(): ZoneStepper {
             // overlapping zone pulses until the winning pad's next authored
             // cadence interval. Slot order still makes the winner deterministic.
             if (enemyData.zoneDamageCooldown[enemySlot]! > 0) continue;
-            enemyData.hp[enemySlot] = enemyData.hp[enemySlot]! - data.damage[slot]!;
+            let killed: boolean;
+            if (context.combat === undefined) {
+              enemyData.hp[enemySlot] = enemyData.hp[enemySlot]! - data.damage[slot]!;
+              killed = enemyData.hp[enemySlot]! <= 0;
+            } else {
+              killed = context.combat.damageEnemy(
+                context.enemies,
+                enemySlot,
+                { amount: data.damage[slot]!, critical: data.critical[slot] === 1 },
+                combatDamageSourceIdFromCode(data.source[slot]!),
+              );
+            }
             enemyData.zoneDamageCooldown[enemySlot] = data.intervalTicks[slot]!;
             stats.areaDamageHits++;
-            if (enemyData.hp[enemySlot]! <= 0) {
+            if (killed) {
               context.killEnemy(enemySlot);
               stats.enemiesKilled++;
             }

@@ -8,8 +8,8 @@ describe('player content release validator', () => {
   });
 
   it('accepts a real deterministic offer and rejects an offer for unknown content', () => {
-    expect(validatePlayerContentOffer({ traitId: 'porcupine-quills', resultStage: 'bud' })).toEqual({ ok: true, issues: [] });
-    expect(validatePlayerContentOffer({ traitId: 'missing-trait' as never, resultStage: 'bud' })).toMatchObject({ ok: false });
+    expect(validatePlayerContentOffer({ traitId: 'porcupine-quills', resultStage: 'bud', resultRank: 1, isMaster: false })).toEqual({ ok: true, issues: [] });
+    expect(validatePlayerContentOffer({ traitId: 'missing-trait' as never, resultStage: 'bud', resultRank: 1, isMaster: false })).toMatchObject({ ok: false });
   });
 
   it('reports missing presentation and orphan content in a fixture catalog', () => {

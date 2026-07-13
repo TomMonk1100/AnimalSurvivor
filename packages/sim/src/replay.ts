@@ -191,7 +191,7 @@ export function deserializeReplay(s: string): ReplayRecord {
     if (typeof tick !== 'number' || !Number.isSafeInteger(tick) || tick < 0) {
       throw new Error(`deserializeReplay: upgradeSelections[${index}].tick is invalid`);
     }
-    if (kind !== 'trait' && kind !== 'universal' && kind !== 'essence') {
+    if (kind !== 'trait' && kind !== 'universal' && kind !== 'essence' && kind !== 'fusion') {
       throw new Error(`deserializeReplay: upgradeSelections[${index}].kind is invalid`);
     }
     if (typeof id !== 'string' || id.length === 0) {

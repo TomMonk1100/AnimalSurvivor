@@ -17,6 +17,11 @@ import {
 } from './types.js';
 import { selectPriorityTarget, selectTarget } from './targeting.js';
 import { zoneTagFromCommandTag } from './zones.js';
+import {
+  COMBAT_DAMAGE_SOURCE,
+  type CombatDamageResolver,
+  type ResolvedOutgoingDamage,
+} from './combat-resolution.js';
 
 export interface TraitCombatCommand {
   readonly kind: string;
@@ -69,6 +74,14 @@ export interface TraitCommandExecutionContext {
   readonly enemyGrid: SpatialGrid;
   /** Simulation-owned cleanup so direct trait damage preserves drops/boss state. */
   readonly killEnemy: (slot: number) => void;
+  /**
+   * Shared V1.1 damage authority. Omitted only for legacy isolated executor
+   * tests; production simulation always supplies it so all trait attacks can
+   * crit and emit truthful resolved-hit events.
+   */
+  readonly combat?: CombatDamageResolver;
+  /** Greg's V1.1 Melee Affinity; only tagged close-range attack sources use it. */
+  readonly meleeDamageMultiplier?: number;
   /**
    * Presentation-only observer for actual chain victims. Coordinates are sent
    * before damage cleanup so a fatal strike still has a renderable endpoint.
@@ -145,6 +158,7 @@ export interface TraitCommandExecutionStats {
   enemiesKilled: number;
   telegraphs: number;
   traitCues: number;
+  shieldGrants: number;
   unsupportedCommands: number;
 }
 
@@ -185,13 +199,12 @@ const SUPPORTED_KINDS = new Set([
   'markTargets',
   'chainDamage',
   'meleeArc',
+  'grantShield',
   'telegraph',
   'playTraitCue',
 ]);
-/** These need state/pools not yet owned by the accepted simulation. */
-export const REJECTED_TRAIT_COMMAND_KINDS = Object.freeze([
-  'grantShield',
-] as const);
+/** Kept for contract compatibility; all known command kinds now have a path. */
+export const REJECTED_TRAIT_COMMAND_KINDS = Object.freeze([] as const);
 const REJECTED_KINDS = new Set<string>(REJECTED_TRAIT_COMMAND_KINDS);
 const MAX_FLOAT32 = 3.4028234663852886e38;
 
@@ -375,6 +388,13 @@ function validateCommand(
         throw new RangeError('markTargets command.tag must be a non-empty string');
       }
       break;
+    case 'grantShield':
+      if (command.amount === undefined) {
+        throw new TypeError('grantShield command.amount is required');
+      }
+      nonNegative('command.amount', command.amount);
+      float32('command.amount', command.amount);
+      break;
   }
 }
 
@@ -405,6 +425,7 @@ function resetStats(stats: TraitCommandExecutionStats): void {
   stats.enemiesKilled = 0;
   stats.telegraphs = 0;
   stats.traitCues = 0;
+  stats.shieldGrants = 0;
   stats.unsupportedCommands = 0;
 }
 
@@ -414,6 +435,7 @@ function spawnProjectile(
   options: TraitCommandExecutorOptions,
   dirX: number,
   dirY: number,
+  damage: ResolvedOutgoingDamage,
 ): boolean {
   const length = Math.sqrt(dirX * dirX + dirY * dirY);
   if (length <= 1e-9) return false;
@@ -427,12 +449,44 @@ function spawnProjectile(
   data.posY[slot] = command.originY;
   data.velX[slot] = dirX * inverseLength * velocity;
   data.velY[slot] = dirY * inverseLength * velocity;
-  data.damage[slot] = command.damage;
+  data.damage[slot] = damage.amount;
   data.lifetime[slot] = options.projectileLifetimeTicks;
   data.hitRadius[slot] = options.projectileHitRadius;
   data.pierce[slot] = command.pierce ?? options.projectilePierce;
   data.faction[slot] = 0;
+  data.critical[slot] = damage.critical ? 1 : 0;
+  data.source[slot] = COMBAT_DAMAGE_SOURCE.traitProjectile;
   return true;
+}
+
+function resolveOutgoingDamage(
+  context: TraitCommandExecutionContext,
+  damage: number,
+  sourceId: string,
+): ResolvedOutgoingDamage {
+  const meleeSources = sourceId === 'mantis-scythes'
+    || sourceId === 'crab-pincers'
+    || sourceId === 'razorstep-chimera'
+    || sourceId === 'meteor-mauler';
+  const affinity = meleeSources
+    ? Math.max(0, context.meleeDamageMultiplier ?? 1)
+    : 1;
+  const adjustedDamage = damage * affinity;
+  return context.combat?.resolveOutgoingDamage(adjustedDamage, sourceId)
+    ?? { amount: adjustedDamage, critical: false };
+}
+
+function applyEnemyDamage(
+  context: TraitCommandExecutionContext,
+  slot: number,
+  damage: ResolvedOutgoingDamage,
+  sourceId: string,
+): boolean {
+  if (context.combat !== undefined) {
+    return context.combat.damageEnemy(context.enemies, slot, damage, sourceId);
+  }
+  context.enemies.data.hp[slot] = context.enemies.data.hp[slot]! - damage.amount;
+  return context.enemies.data.hp[slot]! <= 0;
 }
 
 function targetingPolicy(value: string): 'nearest' | 'highestHealth' | 'densestCluster' | 'markedThenNearest' | 'rearThreat' {
@@ -481,13 +535,14 @@ function executeDirectedBurst(
   }
 
   const baseAngle = Math.atan2(baseY, baseX);
+  const resolvedDamage = resolveOutgoingDamage(context, command.damage, command.sourceId);
   stats.projectilesRequested += command.count;
   for (let index = 0; index < command.count; index++) {
     const offset = command.count === 1
       ? 0
       : -command.spread / 2 + command.spread * index / (command.count - 1);
     const angle = baseAngle + offset;
-    if (spawnProjectile(context.projectiles, command, options, Math.cos(angle), Math.sin(angle))) {
+    if (spawnProjectile(context.projectiles, command, options, Math.cos(angle), Math.sin(angle), resolvedDamage)) {
       stats.projectilesSpawned++;
     } else {
       stats.projectilesRejected++;
@@ -501,10 +556,11 @@ function executeRadialBurst(
   options: TraitCommandExecutorOptions,
   stats: TraitCommandExecutionStats,
 ): void {
+  const resolvedDamage = resolveOutgoingDamage(context, command.damage, command.sourceId);
   stats.projectilesRequested += command.count;
   for (let index = 0; index < command.count; index++) {
     const angle = command.facing + Math.PI * 2 * index / command.count;
-    if (spawnProjectile(context.projectiles, command, options, Math.cos(angle), Math.sin(angle))) {
+    if (spawnProjectile(context.projectiles, command, options, Math.cos(angle), Math.sin(angle), resolvedDamage)) {
       stats.projectilesSpawned++;
     } else {
       stats.projectilesRejected++;
@@ -555,6 +611,7 @@ function executeOrbitingDamage(
   stats: TraitCommandExecutionStats,
 ): void {
   visited.length = 0;
+  const resolvedDamage = resolveOutgoingDamage(context, command.damage, command.sourceId);
   const angularStep = Math.PI * 2 / command.count;
   const angularTick = (command.speed % (Math.PI * 2)) * (command.tick % 1_000_000);
   const baseAngle = command.facing + angularTick;
@@ -575,9 +632,9 @@ function executeOrbitingDamage(
       context.enemies.data.posX[slot]!,
       context.enemies.data.posY[slot]!,
     );
-    context.enemies.data.hp[slot] = context.enemies.data.hp[slot]! - command.damage;
+    const killed = applyEnemyDamage(context, slot, resolvedDamage, command.sourceId);
     stats.orbitingDamageHits++;
-    if (context.enemies.data.hp[slot]! <= 0) {
+    if (killed) {
       context.killEnemy(slot);
       stats.enemiesKilled++;
     }
@@ -624,13 +681,14 @@ function executeAreaDamage(
   scratch: EntityId[],
   stats: TraitCommandExecutionStats,
 ): void {
+  const resolvedDamage = resolveOutgoingDamage(context, command.damage, command.sourceId);
   const count = context.enemyGrid.queryRadius(command.originX, command.originY, command.radius, scratch);
   for (let index = 0; index < count; index++) {
     const slot = context.enemies.slotOf(scratch[index]!);
     if (slot < 0) continue;
-    context.enemies.data.hp[slot] = context.enemies.data.hp[slot]! - command.damage;
+    const killed = applyEnemyDamage(context, slot, resolvedDamage, command.sourceId);
     stats.areaDamageHits++;
-    if (context.enemies.data.hp[slot]! <= 0) {
+    if (killed) {
       context.killEnemy(slot);
       stats.enemiesKilled++;
     }
@@ -710,6 +768,7 @@ function executeMeleeArc(
     dirY = 0;
   }
   context.onMeleeArcResolved?.(commandIndex, dirX, dirY);
+  const resolvedDamage = resolveOutgoingDamage(context, command.damage, command.sourceId);
   const cosHalfArc = Math.cos(command.arc! / 2);
   const count = context.enemyGrid.queryRadius(command.originX, command.originY, command.range, scratch);
   for (let index = 0; index < count; index++) {
@@ -719,9 +778,9 @@ function executeMeleeArc(
     const dy = context.enemies.data.posY[slot]! - command.originY;
     const distance = Math.sqrt(dx * dx + dy * dy);
     if (distance > 1e-9 && (dx * dirX + dy * dirY) / distance < cosHalfArc) continue;
-    context.enemies.data.hp[slot] = context.enemies.data.hp[slot]! - command.damage;
+    const killed = applyEnemyDamage(context, slot, resolvedDamage, command.sourceId);
     stats.meleeArcHits++;
-    if (context.enemies.data.hp[slot]! <= 0) {
+    if (killed) {
       context.killEnemy(slot);
       stats.enemiesKilled++;
     }
@@ -800,6 +859,7 @@ function executeChainDamage(
   }
 
   visited.length = 0;
+  const resolvedDamage = resolveOutgoingDamage(context, command.damage, command.sourceId);
   let target = initial;
   const maximumHits = (command.jumps ?? 0) + 1;
   for (let hitIndex = 0; hitIndex < maximumHits; hitIndex++) {
@@ -811,9 +871,9 @@ function executeChainDamage(
     const y = context.enemies.data.posY[slot]!;
     visited.push(target);
     context.onChainDamageHit?.(commandIndex, hitIndex, x, y);
-    context.enemies.data.hp[slot] = context.enemies.data.hp[slot]! - command.damage;
+    const killed = applyEnemyDamage(context, slot, resolvedDamage, command.sourceId);
     stats.chainDamageHits++;
-    if (context.enemies.data.hp[slot]! <= 0) {
+    if (killed) {
       context.killEnemy(slot);
       stats.enemiesKilled++;
     }
@@ -849,13 +909,28 @@ function executeSpawnZone(
   data.posX[slot] = command.originX;
   data.posY[slot] = command.originY;
   data.radius[slot] = command.radius;
-  data.damage[slot] = command.amount;
+  const resolvedDamage = resolveOutgoingDamage(context, command.amount, command.sourceId);
+  data.damage[slot] = resolvedDamage.amount;
   data.lifetime[slot] = command.durationTicks;
   data.intervalTicks[slot] = command.intervalTicks ?? options.defaultZoneIntervalTicks;
   // Zero means pulse on the immediate following zone step.
   data.pulseCooldown[slot] = 0;
   data.tag[slot] = tag;
+  data.critical[slot] = resolvedDamage.critical ? 1 : 0;
+  data.source[slot] = COMBAT_DAMAGE_SOURCE.traitZone;
   stats.zonesSpawned++;
+}
+
+function executeGrantShield(
+  command: TraitCombatCommand,
+  context: TraitCommandExecutionContext,
+  stats: TraitCommandExecutionStats,
+): void {
+  if (context.combat === undefined || command.amount === undefined) {
+    throw new Error('grantShield requires the simulation combat resolver');
+  }
+  context.combat.grantShield(command.amount, command.sourceId);
+  stats.shieldGrants++;
 }
 
 /**
@@ -938,6 +1013,7 @@ export function createTraitCommandExecutor(
     enemiesKilled: 0,
     telegraphs: 0,
     traitCues: 0,
+    shieldGrants: 0,
     unsupportedCommands: 0,
   };
 
@@ -992,6 +1068,9 @@ export function createTraitCommandExecutor(
           case 'markTargets':
             stats.markTargetsCommands++;
             executeMarkTargets(command, context, scratch, stats);
+            break;
+          case 'grantShield':
+            executeGrantShield(command, context, stats);
             break;
           case 'chainDamage':
             stats.chainDamageCommands++;

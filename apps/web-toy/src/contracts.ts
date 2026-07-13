@@ -65,7 +65,7 @@ export interface InputSource {
 // ---------------------------------------------------------------------------
 
 /** Category of a pooled primitive view. One shared flat material per category. */
-export type ViewCategory = 'enemy' | 'projectile' | 'pickup' | 'zone';
+export type ViewCategory = 'enemy' | 'projectile' | 'pickup' | 'powerPickup' | 'zone';
 
 /** Renderer-only performance profile; never enters a simulation loadout/hash. */
 export type RenderQualityTier = 'standard' | 'reduced';
@@ -76,8 +76,9 @@ export type RenderQualityTier = 'standard' | 'reduced';
  * guarded EntityId. `archetype`, `role`, `hp`, and `maxHp` are only meaningful
  * for enemies (all are 0 otherwise). `role` mirrors simulation-owned visual
  * classification: enemy regular/elite/boss/ranged values, projectile faction,
- * or the compact tag for a persistent player zone. Buffers are preallocated
- * to capacity and reused every tick — never resized in the steady-state loop.
+ * or the compact tag for a persistent player zone / compact kind for a
+ * non-XP world token. Buffers are preallocated to capacity and reused every
+ * tick — never resized in the steady-state loop.
  */
 export interface CategorySnapshot {
   readonly category: ViewCategory;
@@ -115,6 +116,8 @@ export interface RenderSnapshot {
   readonly enemies: CategorySnapshot;
   readonly projectiles: CategorySnapshot;
   readonly pickups: CategorySnapshot;
+  /** Rare Bomb, Magnet, and Food tokens copied from the separate sim pool. */
+  readonly powerPickups: CategorySnapshot;
   /** Authoritative persistent player pads, copied from the bounded zone pool. */
   readonly zones: CategorySnapshot;
 }

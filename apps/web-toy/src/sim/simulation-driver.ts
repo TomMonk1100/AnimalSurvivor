@@ -35,6 +35,11 @@ import type {
 import { captureSnapshot, createSnapshot } from './snapshot-producer';
 import { createCombatFeedbackPool } from '../presentation/combat-feedback-pool';
 import type { CombatFeedbackSnapshot } from '../presentation/combat-feedback';
+import {
+  isCombatPresentationEventView,
+  type CombatPresentationEventView,
+} from '../presentation/combat-presentation-events';
+import { readFusionOffers, type FusionOfferView } from '../presentation/mastery-fusions';
 
 /** Max simulation ticks stepped within a single frame() call. */
 export const MAX_CATCHUP_TICKS = 5;
@@ -99,6 +104,18 @@ export interface SimDriver {
    * consume it synchronously rather than retaining a reference.
    */
   readonly traitPresentationEvents: readonly TraitPresentationEventView[];
+  /**
+   * Read-only combat outcomes accumulated during the most recent rendered
+   * frame. Empty when the active simulation does not expose V1.1 events.
+   */
+  readonly combatPresentationEvents: readonly CombatPresentationEventView[];
+  /**
+   * V1.1 free Master fusions, present only when the active simulation exports
+   * the optional fusion API. Older simulations simply omit this property.
+   */
+  readonly availableFusions?: readonly FusionOfferView[];
+  /** Explicit, free fusion action paired with `availableFusions`. */
+  fuseEvolution?(evolutionId: string): void;
   /** Detached deterministic input/upgrade history for optional issue export. */
   replay(): ReplayRecord;
   hash(): string;
@@ -129,6 +146,47 @@ type MutableTraitPresentationEvent = {
   -readonly [Key in keyof TraitPresentationEventView]: TraitPresentationEventView[Key];
 };
 
+type MutableCombatPresentationEvent = {
+  -readonly [Key in keyof CombatPresentationEventView]: CombatPresentationEventView[Key];
+};
+
+interface CombatPresentationEventSource {
+  readonly combatPresentationEvents?: unknown;
+}
+
+interface FusionSimulationSource {
+  readonly availableFusions?: unknown;
+  readonly fuseEvolution?: unknown;
+}
+
+function readCombatPresentationEvents(simulation: Simulation): unknown {
+  return (simulation as unknown as CombatPresentationEventSource).combatPresentationEvents;
+}
+
+function fusionSource(simulation: Simulation): FusionSimulationSource {
+  return simulation as unknown as FusionSimulationSource;
+}
+
+function supportsFusionControls(simulation: Simulation): boolean {
+  const source = fusionSource(simulation);
+  return typeof source.fuseEvolution === 'function'
+    && (typeof source.availableFusions === 'function' || Array.isArray(source.availableFusions));
+}
+
+function readAvailableFusions(simulation: Simulation): readonly FusionOfferView[] {
+  const source = fusionSource(simulation);
+  const value = typeof source.availableFusions === 'function'
+    ? source.availableFusions.call(simulation)
+    : source.availableFusions;
+  return readFusionOffers(value);
+}
+
+function fuseSimulationEvolution(simulation: Simulation, evolutionId: string): void {
+  const action = fusionSource(simulation).fuseEvolution;
+  if (typeof action !== 'function') return;
+  action.call(simulation, evolutionId);
+}
+
 export function createSimDriver(
   config: SimConfig,
   seed: number,
@@ -138,6 +196,7 @@ export function createSimDriver(
 
   let activeOptions = options;
   let sim: Simulation = createSimulation(config, seed, activeOptions);
+  const hasFusionControls = supportsFusionControls(sim);
 
   // Double-buffered interpolation snapshots. We never reassign the buffers'
   // internal typed arrays — only which buffer plays the "prev" vs "curr"
@@ -162,6 +221,10 @@ export function createSimDriver(
   // command rather than five aliases of the final tick's mutable records.
   const traitPresentationEventStorage: MutableTraitPresentationEvent[] = [];
   const frameTraitPresentationEvents: TraitPresentationEventView[] = [];
+  // V1.1 combat events use the same reused-array contract as trait events.
+  // Preserve all events from a catch-up burst in app-owned records.
+  const combatPresentationEventStorage: MutableCombatPresentationEvent[] = [];
+  const frameCombatPresentationEvents: CombatPresentationEventView[] = [];
   const combatFeedbackPool = createCombatFeedbackPool();
   let combatFeedback: CombatFeedbackSnapshot = Object.freeze({ tick: sim.tick, cues: Object.freeze([]) });
   let inFrame = false;
@@ -263,6 +326,40 @@ export function createSimDriver(
     }
   }
 
+  function captureCombatPresentationEvents(events: unknown): void {
+    if (!Array.isArray(events)) return;
+    for (const event of events) {
+      if (!isCombatPresentationEventView(event)) continue;
+      const index = frameCombatPresentationEvents.length;
+      let copy = combatPresentationEventStorage[index];
+      if (copy === undefined) {
+        copy = {
+          kind: event.kind,
+          tick: event.tick,
+          x: event.x,
+          y: event.y,
+          amount: event.amount,
+          critical: event.critical,
+          sourceId: event.sourceId,
+          targetId: event.targetId,
+          pickupKind: event.pickupKind,
+        };
+        combatPresentationEventStorage[index] = copy;
+      } else {
+        copy.kind = event.kind;
+        copy.tick = event.tick;
+        copy.x = event.x;
+        copy.y = event.y;
+        copy.amount = event.amount;
+        copy.critical = event.critical;
+        copy.sourceId = event.sourceId;
+        copy.targetId = event.targetId;
+        copy.pickupKind = event.pickupKind;
+      }
+      frameCombatPresentationEvents.push(copy);
+    }
+  }
+
   function frame(nowMs: number, input: InputSource, paused: boolean): void {
     if (inFrame) {
       throw new Error('SimDriver.frame() called reentrantly');
@@ -276,6 +373,7 @@ export function createSimDriver(
       droppedAccumSec = 0;
       frameDirectorEvents.length = 0;
       frameTraitPresentationEvents.length = 0;
+      frameCombatPresentationEvents.length = 0;
       flushConstructionDirectorEvents();
 
       const terminalBeforeFrame = sim.runOutcome !== null && sim.runOutcome !== 'running';
@@ -313,6 +411,7 @@ export function createSimDriver(
         sim.step(tickInput);
         for (const event of sim.directorEvents) frameDirectorEvents.push(event);
         captureTraitPresentationEvents(sim.traitPresentationEvents);
+        captureCombatPresentationEvents(readCombatPresentationEvents(sim));
         captureSnapshot(currBuf, sim);
         combatFeedback = combatFeedbackPool.advance(prevBuf, currBuf);
         accumulator -= dt;
@@ -367,12 +466,13 @@ export function createSimDriver(
     frameDirectorEvents.length = 0;
     queueConstructionDirectorEvents();
     frameTraitPresentationEvents.length = 0;
+    frameCombatPresentationEvents.length = 0;
     combatFeedbackPool.reset();
     primeSnapshots();
     combatFeedback = Object.freeze({ tick: sim.tick, cues: Object.freeze([]) });
   }
 
-  return {
+  const driver: SimDriver = {
     get prev() {
       return prevBuf;
     },
@@ -448,6 +548,9 @@ export function createSimDriver(
     get traitPresentationEvents() {
       return frameTraitPresentationEvents;
     },
+    get combatPresentationEvents() {
+      return frameCombatPresentationEvents;
+    },
     hash() {
       return sim.hash();
     },
@@ -471,4 +574,19 @@ export function createSimDriver(
     noteVisible,
     restart,
   };
+  if (hasFusionControls) {
+    Object.defineProperty(driver, 'availableFusions', {
+      enumerable: true,
+      get(): readonly FusionOfferView[] {
+        return readAvailableFusions(sim);
+      },
+    });
+    driver.fuseEvolution = (evolutionId: string): void => {
+      if (typeof evolutionId !== 'string' || evolutionId.trim().length === 0) {
+        throw new TypeError('fusion evolutionId must be a non-blank string');
+      }
+      fuseSimulationEvolution(sim, evolutionId);
+    };
+  }
+  return driver;
 }

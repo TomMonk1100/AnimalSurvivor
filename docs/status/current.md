@@ -1,8 +1,8 @@
 # Current Project Status
 
-**Updated:** 2026-07-12
-**Active milestone:** Gate 1 — Forest Arsenal playable alpha
-**Project state:** Playtestable V1 cleanup candidate, with combat proof, motion, audio, and local save slices validated; fresh human retest remains open
+**Updated:** 2026-07-12 — V1.1 implementation handoff added
+**Active milestone:** V1.1 feature-complete candidate; owner playtest and balance evidence next
+**Project state:** Playtestable V1.1 candidate with deterministic implementation coverage; fresh human retest remains open
 **Budget model:** AI subscription usage; no additional cash
 
 The external blind Claude swarm package has been reconciled in
@@ -12,6 +12,120 @@ merged from them.
 
 The deterministic simulation is the production package `packages/sim`. Release
 verification and the web toy resolve the simulation through that package path.
+
+## V1.1 implementation handoff
+
+This section is the authoritative V1.1 handoff. It supersedes older references
+below to three-rank starter mastery, six neutral cards, or placeholder starter
+projectiles. It records implemented behavior, not a claim that balance, final
+art, device QA, or human playtesting is complete.
+
+### Six delivered pillars
+
+1. **Distinct hero combat identities.** Greg opens with a forward **Fox Swipe**
+   melee arc; Benny sends a sequenced line of **Trample** earth waves; Gracie
+   fires a **Spit Volley** that grows into a fan. Each resolves authoritatively,
+   has a dedicated visible effect, and is replay/hash-bound through run-loadout
+   version 4.
+2. **Five-rank attacks and free Master fusions.** Attack traits and starter
+   mastery cards rank from 1 to 5. Rank 5 is **MASTER**. When two compatible
+   Master attack traits match an authored recipe, the player takes an explicit,
+   free fusion that consumes one logical attack slot while retaining the fused
+   visual attachment footprint.
+3. **Crit and hero defenses.** All heroes start at 5% crit chance; **Keen Eye**
+   adds 3% per rank. Greg has dodge and **Clever Footwork**, Benny has baseline
+   armor and **Thick Skin**, and Gracie's **Fluffy Shield** absorbs damage before
+   health and recharges after its delay. Dodge, armor, shield, healing, and crit
+   are authoritative combat rules, not UI-only labels. **Mote Draw** is the
+   rankable passive that expands XP collection and attraction; it is distinct
+   from the map-wide Magnet world pickup.
+4. **Readable combat feedback.** Authoritative combat events drive hit markers,
+   shield/dodge/heal feedback, and white normal versus yellow critical damage
+   numbers. **Accessibility → Damage numbers** is on by default and only changes
+   presentation; it never changes a run hash, rewards, or outcomes.
+5. **World power pickups.** Sparse, bounded **Bomb**, **Magnet**, and **Food**
+   drops are independent of the XP-mote pool. Bomb clears normal enemies,
+   Magnet collects all live XP motes, and Food restores health without overheal.
+6. **Movement that reads as locomotion.** Greg keeps authored locomotion/action
+   clips with bounded visual turns. Benny and Gracie use snapshot-driven
+   procedural stride, lift, sway, squash/stretch, and lean rather than a fake
+   rigged slide. All movement presentation remains read-only relative to fixed
+   simulation movement and replay.
+
+### Owner playtest checklist
+
+Run `apps/web-toy` locally, start a manual run, and compare the three founders
+with a fixed seed such as `?hero=greg&seed=1234` (then `benny` and `gracie`).
+
+- **Starter read:** Greg should damage close threats with a wide swipe and no
+  starter projectile; Benny should create successive forward earth fronts, not
+  bolts; Gracie should begin with one visible spit glob.
+- **Mastery read:** rank a starter Mastery to 5 and confirm its Master payoff:
+  Greg double-swipes, Benny gains a wilder Trample/aftershock, and Gracie gains
+  the final spit fan. Rank two compatible attack traits to Master and confirm
+  the free fusion prompt replaces two logical attack slots with one.
+- **Survival/crit read:** check that normal hit numbers are white and crits are
+  yellow. Take hits with each hero: Greg can dodge, Benny's armor reduces the
+  health loss, and Gracie's shield is spent before health then recovers. Choose
+  **Keen Eye**, **Clever Footwork**, **Thick Skin**, and **Fluffier Shield** to
+  confirm their cards visibly change the expected stat path.
+- **Pickup read:** collect each world token. Magnet should immediately consume
+  every live XP mote on the map; Food restores 25% of maximum health (capped at
+  max); Bomb clears every live non-boss enemy. Choose **Mote Draw** separately:
+  nearby motes should travel in rather than instantly collecting the whole map.
+- **Motion/readability:** move, stop, circle, and reverse. The animal should
+  visibly stride and turn rather than slide, while attacks and hit feedback
+  remain readable without altering movement or aiming rules.
+
+### Intentional Bomb boss rule
+
+A Bomb is deliberately **not** a boss delete. It kills live normal enemies but
+deals up to 20% of a boss's maximum HP as one non-critical hit and always leaves
+the boss at least 1 HP. Boss deaths produce a Magnet rather than a random
+special token. This protects the boss encounter from a trivial one-pickup skip
+while preserving Bomb as a meaningful late-fight tool.
+
+### Verification and local play path
+
+Use the root release gate before declaring a build ready:
+
+```bash
+cd /Users/adammuncie/GameDev/AnimalSurvivor
+npm run verify:release
+```
+
+For an implementation pass, run the package gates most likely to catch V1.1
+regressions:
+
+```bash
+cd packages/trait-runtime && npm run typecheck && npm test && npm run lint
+cd ../sim && npm run typecheck && npm test && npm run lint
+cd ../../apps/web-toy && npm run typecheck && npm test && npm run lint && npm run build
+```
+
+For human playtesting:
+
+```bash
+cd /Users/adammuncie/GameDev/AnimalSurvivor/apps/web-toy
+npm run dev
+```
+
+Open `http://localhost:5173/?hero=greg&seed=1234`; replace `greg` with `benny`
+or `gracie` for a controlled comparison. `?autopilot=1&stress=1&fullrun=1` is
+an engineering flow check, not a substitute for a human playtest.
+
+### Known scope limits
+
+- Balance values, power-pickup cadence, boss tuning, and player-facing clarity
+  still need owner evidence; automated tests do not establish fun or fairness.
+- Fusions exist only for compatible authored recipes and require an explicit
+  player choice; there is no arbitrary two-card combination or automatic fuse.
+- Damage numbers and locomotion are intentionally presentation-only. They must
+  never become a second source of combat truth or modify deterministic state.
+- Benny and Gracie's movement is purposeful procedural presentation over
+  authored cutout art, not a final skeletal-animation production pass.
+- This does not close broader final-art, audio, touch-device, low-end-WebGL,
+  accessibility, hosted-artifact, or external-playtest work.
 
 ## Release Gate 0 implementation
 
@@ -57,10 +171,11 @@ The founding roster has a deterministic browser survival loop with:
   arrival events distinct rate-safe cues;
 - four active-attack slots: the selected animal's distinct starter attack plus up to three acquired
   choices from a 12-family launch pool;
-- three authored starter masteries: Greg's Pouncer's Precision, Benny's Brace Bloom,
-  and Gracie's Keen Dart; base starter fire is single-target and does not inherit Quills pierce;
+- three authored five-rank starter masteries: Greg's Pouncer's Precision,
+  Benny's Trample Mastery, and Gracie's Spit Spiral; each reaches MASTER at
+  rank five while keeping its distinct melee, ground-wave, or projectile identity;
 - Greg's movement-charged **Rush Rake** instinct: an earned 150-unit movement
-  charge feeds a spaced deterministic three-wave projectile burst with
+  charge feeds a spaced deterministic three-wave melee rake with
   replay/hash coverage, rather than firing continuously while walking;
 - Benny's contact-charged **Brace Bloom** shockwave and Gracie's periodic **Scout**
   marks are authoritative, replay-safe, and rendered with dedicated cues;

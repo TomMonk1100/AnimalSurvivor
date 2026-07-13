@@ -21,7 +21,15 @@
  * plausible, harmless occurrence — throwing would force every call site to
  * pre-check aliveness for no real benefit.
  */
-import type { EnemyPool, PickupPool, Pool, PoolBase, ProjectilePool, ZonePool } from './types.js';
+import type {
+  EnemyPool,
+  PickupPool,
+  Pool,
+  PoolBase,
+  PowerPickupPool,
+  ProjectilePool,
+  ZonePool,
+} from './types.js';
 import { makeId, idSlot, idGeneration, MAX_PROJECTILE_HIT_HISTORY } from './types.js';
 
 type TypedNumArray =
@@ -175,6 +183,8 @@ export function createProjectilePool(capacity: number): Pool<ProjectilePool> {
     hitCount: new Uint16Array(capacity),
     hitHistory: new Int32Array(capacity * MAX_PROJECTILE_HIT_HISTORY),
     faction: new Uint8Array(capacity),
+    critical: new Uint8Array(capacity),
+    source: new Uint8Array(capacity),
   };
   return createPool(capacity, data);
 }
@@ -189,7 +199,25 @@ export function createPickupPool(capacity: number): Pool<PickupPool> {
     generation: new Uint16Array(capacity),
     posX: new Float32Array(capacity),
     posY: new Float32Array(capacity),
+    kind: new Uint8Array(capacity),
     xp: new Float32Array(capacity),
+    radius: new Float32Array(capacity),
+  };
+  return createPool(capacity, data);
+}
+
+export function createPowerPickupPool(capacity: number): Pool<PowerPickupPool> {
+  assertPoolCapacity(capacity);
+  const data: PowerPickupPool = {
+    capacity,
+    count: 0,
+    highWater: 0,
+    alive: new Uint8Array(capacity),
+    generation: new Uint16Array(capacity),
+    posX: new Float32Array(capacity),
+    posY: new Float32Array(capacity),
+    kind: new Uint8Array(capacity),
+    amount: new Float32Array(capacity),
     radius: new Float32Array(capacity),
   };
   return createPool(capacity, data);
@@ -216,6 +244,8 @@ export function createZonePool(capacity: number): Pool<ZonePool> {
     intervalTicks: new Uint16Array(capacity),
     pulseCooldown: new Uint16Array(capacity),
     tag: new Uint8Array(capacity),
+    critical: new Uint8Array(capacity),
+    source: new Uint8Array(capacity),
   };
   return createPool(capacity, data);
 }

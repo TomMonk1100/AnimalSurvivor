@@ -4,7 +4,16 @@
  * copies: nothing here ever writes to the simulation's live typed arrays.
  */
 import type { CategorySnapshot, RenderSnapshot, ViewCategory } from '../contracts';
-import type { PickupPool, Pool, ProjectilePool, SimConfig, Simulation, ZonePool } from '@sim';
+import { powerPickupCapacityForXpCap } from '@sim';
+import type {
+  PickupPool,
+  Pool,
+  PowerPickupPool,
+  ProjectilePool,
+  SimConfig,
+  Simulation,
+  ZonePool,
+} from '@sim';
 
 /** Projectiles have no radius field in the sim pool; used only for the view. */
 const PROJECTILE_VIEW_RADIUS = 3;
@@ -45,6 +54,7 @@ export function createSnapshot(config: SimConfig): RenderSnapshot {
     enemies: createCategorySnapshot('enemy', config.enemyCap),
     projectiles: createCategorySnapshot('projectile', config.projectileCap),
     pickups: createCategorySnapshot('pickup', config.pickupCap),
+    powerPickups: createCategorySnapshot('powerPickup', powerPickupCapacityForXpCap(config.pickupCap)),
     zones: createCategorySnapshot('zone', config.zoneCap),
   };
 }
@@ -107,6 +117,30 @@ function capturePickups(out: CategorySnapshot, pool: Pool<PickupPool>): void {
   out.count = n;
 }
 
+/**
+ * Copies rare in-world token positions and their compact authoritative kind.
+ * This is a one-way presentation copy: the renderer never sees a writable
+ * pool or a callback that could change token collection, drops, or RNG.
+ */
+function capturePowerPickups(out: CategorySnapshot, pool: Pool<PowerPickupPool>): void {
+  const data = pool.data;
+  let n = 0;
+  for (let slot = 0; slot < data.capacity; slot++) {
+    if (data.alive[slot] !== 1) continue;
+    out.id[n] = pool.idOf(slot);
+    out.x[n] = data.posX[slot]!;
+    out.y[n] = data.posY[slot]!;
+    out.radius[n] = data.radius[slot]!;
+    out.hp[n] = 0;
+    out.maxHp[n] = 0;
+    out.archetype[n] = 0;
+    out.role[n] = data.kind[slot]!;
+    out.marked[n] = 0;
+    n++;
+  }
+  out.count = n;
+}
+
 /** Copies only authoritative live pads, including their compact renderer role. */
 function captureZones(out: CategorySnapshot, pool: Pool<ZonePool>): void {
   const data = pool.data;
@@ -147,5 +181,6 @@ export function captureSnapshot(out: RenderSnapshot, sim: Simulation): void {
   captureEnemies(out.enemies, sim);
   captureProjectiles(out.projectiles, sim.projectiles);
   capturePickups(out.pickups, sim.pickups);
+  capturePowerPickups(out.powerPickups, sim.powerPickups);
   captureZones(out.zones, sim.zones);
 }

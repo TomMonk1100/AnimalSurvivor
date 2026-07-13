@@ -36,6 +36,7 @@ function makeEvents(): SimEvents {
   return {
     levelUps: [], kills: 0, pickupsCollected: 0, enemiesSpawned: 0,
     enemyProjectilesFired: 0, projectilesFired: 0,
+    powerPickupsCollected: 0, bombsTriggered: 0, magnetsTriggered: 0, foodCollected: 0,
   };
 }
 
