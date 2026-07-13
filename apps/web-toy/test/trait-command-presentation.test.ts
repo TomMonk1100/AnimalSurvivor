@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  hasResolvedOrbitContact,
   hasResolvedMeleeArc,
   projectTraitCommandEffect,
   resolveMeleeArcVariantIndex,
@@ -20,6 +21,8 @@ describe('trait command presentation profiles', () => {
   it('maps each supported command to a distinct readable effect', () => {
     expect(projectTraitCommandEffect(command({ kind: 'telegraph' }))?.kind).toBe('telegraph');
     expect(projectTraitCommandEffect(command({ kind: 'spawnProjectileBurst' }))?.kind).toBe('directed-burst');
+    expect(projectTraitCommandEffect(command({ kind: 'spawnProjectileBurst', tag: 'greg-rush-rake' }))?.material)
+      .toBe('rush-rake');
     expect(projectTraitCommandEffect(command({ kind: 'radialProjectileBurst' }))?.kind).toBe('radial-burst');
     expect(projectTraitCommandEffect(command({
       kind: 'orbitingDamage', count: 2, radius: 50, range: 18, speed: 0.05,
@@ -32,6 +35,7 @@ describe('trait command presentation profiles', () => {
     }))?.kind).toBe('melee-arc');
     expect(projectTraitCommandEffect(command({ kind: 'spawnZone' }))?.kind).toBe('zone-spawn');
     expect(projectTraitCommandEffect(command({ kind: 'playTraitCue' }))?.kind).toBe('trait-cue');
+    expect(projectTraitCommandEffect(command({ kind: 'markTargets' }))?.kind).toBe('mark-pulse');
     expect(projectTraitCommandEffect(command({
       kind: 'chainDamage',
       resolvedHitCount: 2,
@@ -84,10 +88,110 @@ describe('trait command presentation profiles', () => {
     expect(profile?.lifetimeTicks).toBeGreaterThan(20);
   });
 
+  it('gives the hero instincts dedicated readable treatments', () => {
+    expect(projectTraitCommandEffect(command({ tag: 'benny-brace', kind: 'areaKnockback' }))?.material)
+      .toBe('benny-brace');
+    expect(projectTraitCommandEffect(command({ tag: 'gracie-scout' }))?.material)
+      .toBe('gracie-scout');
+  });
+
+  it('projects Bat Ears echo marks as a violet sonar pulse and Midnight Radar as cyan', () => {
+    const batEarsMark = command({
+      kind: 'markTargets', sourceId: 'bat-ears', tag: 'echo-mark', count: 5, radius: 260,
+    });
+    const batEarsProfile = projectTraitCommandEffect(batEarsMark);
+    expect(batEarsProfile).toMatchObject({
+      kind: 'mark-pulse', material: 'bat-ears-sonar', motion: 'pulse', directed: false,
+    });
+    expect(resolveTraitCommandEffectRadius(batEarsMark, batEarsProfile!)).toBe(260);
+
+    expect(projectTraitCommandEffect(command({
+      kind: 'markTargets', sourceId: 'midnight-radar', tag: 'night-vision', radius: 320,
+    }))?.material).toBe('midnight-radar-sonar');
+  });
+
+  it('renders Monarch Brood as a gold orbit while preserving generic Firefly visuals', () => {
+    const monarchBrood = command({
+      kind: 'orbitingDamage', sourceId: 'monarch-brood', count: 4, radius: 72, speed: 0.04,
+    });
+    const monarchProfile = projectTraitCommandEffect(monarchBrood);
+    expect(monarchProfile).toMatchObject({
+      kind: 'orbiting-damage', material: 'monarch-brood-orbit', motion: 'pulse', directed: false,
+    });
+    expect(resolveTraitCommandEffectRadius(monarchBrood, monarchProfile!)).toBe(72);
+
+    expect(projectTraitCommandEffect(command({
+      kind: 'orbitingDamage', sourceId: 'firefly-colony', count: 4, radius: 72, speed: 0.04,
+    }))?.material).toBe('orbiting-damage');
+  });
+
+  it('only treats Firefly contact as damage feedback after the executor exposes exact endpoints', () => {
+    const genericOrbit = command({
+      kind: 'orbitingDamage', sourceId: 'firefly-colony', count: 2, radius: 50, speed: 0.05,
+    });
+    expect(hasResolvedOrbitContact(genericOrbit)).toBe(false);
+
+    expect(hasResolvedOrbitContact(command({
+      kind: 'orbitingDamage',
+      resolvedOrbitHitCount: 1,
+      resolvedOrbitSourceX: new Float32Array([42]),
+      resolvedOrbitSourceY: new Float32Array([55]),
+      resolvedOrbitHitX: new Float32Array([47]),
+      resolvedOrbitHitY: new Float32Array([58]),
+    }))).toBe(true);
+
+    // A count without all endpoint buffers must never invent a contact flash.
+    expect(hasResolvedOrbitContact(command({
+      kind: 'orbitingDamage', resolvedOrbitHitCount: 1,
+      resolvedOrbitHitX: new Float32Array([47]), resolvedOrbitHitY: new Float32Array([58]),
+    }))).toBe(false);
+  });
+
+  it('gives each current weapon family a distinct source-aware command treatment', () => {
+    expect(projectTraitCommandEffect(command({
+      kind: 'spawnProjectileBurst', sourceId: 'porcupine-quills', count: 3,
+    }))?.material).toBe('quill-volley');
+    expect(projectTraitCommandEffect(command({
+      kind: 'spawnProjectileBurst', sourceId: 'owl-pinions', count: 4,
+    }))?.material).toBe('owl-volley');
+    expect(projectTraitCommandEffect(command({
+      kind: 'areaKnockback', sourceId: 'puffer-pouch', radius: 140,
+    }))?.material).toBe('puffer-blast');
+    expect(projectTraitCommandEffect(command({
+      kind: 'areaKnockback', sourceId: 'armadillo-greaves', radius: 90,
+    }))?.material).toBe('armadillo-roll');
+    expect(projectTraitCommandEffect(command({
+      kind: 'applyAreaDamage', sourceId: 'crab-pincers', radius: 62,
+    }))?.material).toBe('crab-crush');
+    expect(projectTraitCommandEffect(command({
+      kind: 'applyAreaDamage', sourceId: 'meteor-mauler', radius: 100,
+    }))?.material).toBe('meteor-impact');
+    expect(projectTraitCommandEffect(command({
+      kind: 'spawnZone', sourceId: 'skunk-brush', tag: 'stink-cloud', radius: 72,
+    }))?.material).toBe('skunk-cloud');
+    expect(projectTraitCommandEffect(command({
+      kind: 'spawnZone', sourceId: 'royal-stinkcloud', tag: 'royal-stink', radius: 110,
+    }))?.material).toBe('royal-stink-cloud');
+    expect(projectTraitCommandEffect(command({
+      kind: 'radialProjectileBurst', sourceId: 'thornstorm-mantle', count: 16,
+    }))?.material).toBe('thornstorm-volley');
+  });
+
   it('uses the authored Thunderbug charge treatment when its tag is available', () => {
     const profile = projectTraitCommandEffect(command({ tag: 'thunderbug-charge' }));
     expect(profile?.material).toBe('thunderbug-telegraph');
     expect(profile?.lifetimeTicks).toBe(18);
+  });
+
+  it('uses distinct apex-boss telegraph treatments for charge and volley beats', () => {
+    expect(projectTraitCommandEffect(command({ tag: 'boss-charge', dirX: 1, dirY: 0 }))?.material)
+      .toBe('boss-charge');
+    expect(projectTraitCommandEffect(command({ tag: 'boss-volley', radius: 240 }))?.material)
+      .toBe('boss-volley');
+    expect(projectTraitCommandEffect(command({ tag: 'saltwind-charge', dirX: 1, dirY: 0 }))?.material)
+      .toBe('saltwind-charge');
+    expect(projectTraitCommandEffect(command({ tag: 'saltwind-sandstorm', radius: 240 }))?.material)
+      .toBe('saltwind-sandstorm');
   });
 
   it('distinguishes Gecko and Razorstep pad spawn pulses by their authored tags', () => {

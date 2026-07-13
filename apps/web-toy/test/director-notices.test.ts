@@ -21,4 +21,15 @@ describe('director notice projection', () => {
     expect(projectDirectorEvent(event('spawnRequested'))).toBeNull();
     expect(projectDirectorEvent(event('bossWarning'))?.key).toBe('4:bossWarning');
   });
+
+  it('gives Saltwind its own apex warning and arrival copy', () => {
+    expect(projectDirectorEvent(event('bossWarning'), 'saltwind')).toMatchObject({
+      title: 'The ruins begin to sing',
+      detail: 'The Sandglass Sovereign is approaching.',
+    });
+    expect(projectDirectorEvent(event('bossRequested'), 'saltwind')).toMatchObject({
+      title: 'The Sandglass Sovereign has awakened',
+      detail: 'Outlast the sandstorm and break the sovereign.',
+    });
+  });
 });

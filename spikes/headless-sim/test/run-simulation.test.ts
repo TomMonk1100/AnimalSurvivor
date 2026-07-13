@@ -212,6 +212,30 @@ test('tracks boss identity and reports a same-tick boss kill to the director', (
   assert.equal(sim.directorEvents[0]!.kind, 'victory');
 });
 
+test('bespoke boss emits deterministic charge and volley presentation cues through simulation state', () => {
+  const sim = createSimulation(quietConfig(), 45, { runDirectorFactory: factory() });
+
+  sim.step({ moveX: 0, moveY: 0, paused: false }); // tick 1: directed boss spawn
+  const firstBossStep = sim.step({ moveX: 0, moveY: 0, paused: false });
+  assert.equal(firstBossStep.enemyProjectilesFired, 0);
+  assert.equal(sim.traitPresentationEvents[0]?.sourceId, 'forest-final-threat');
+  assert.equal(sim.traitPresentationEvents[0]?.tag, 'boss-charge');
+  assert.equal(sim.traitPresentationEvents[0]?.durationTicks, DEFAULT_CONFIG.enemyBehavior.bossChargeWindupTicks);
+
+  let volleyEvents = 0;
+  for (let tick = 0; tick < DEFAULT_CONFIG.enemyBehavior.bossVolleyTick + 2; tick++) {
+    const events = sim.step({ moveX: 0, moveY: 0, paused: false });
+    volleyEvents += events.enemyProjectilesFired;
+    if (sim.traitPresentationEvents.some((event) => event.tag === 'boss-volley')) break;
+  }
+  assert.equal(volleyEvents, DEFAULT_CONFIG.enemyBehavior.bossVolleyCount);
+  assert.ok(sim.projectiles.data.count >= DEFAULT_CONFIG.enemyBehavior.bossVolleyCount);
+  assert.equal(
+    runReplay(quietConfig(), sim.getReplay(), { runDirectorFactory: factory() }).finalHash,
+    sim.hash(),
+  );
+});
+
 test('a terminal tick cannot leave an upgrade pending or mutate on a later input', () => {
   const config: SimConfig = { ...quietConfig(), xpThresholds: [0] };
   const sim = createSimulation(config, 45, {

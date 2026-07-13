@@ -3,10 +3,104 @@
  * cues for several rendered frames and can advance multiple ticks at once, so
  * this router deduplicates and rate-limits before any browser audio API runs.
  */
-import type { RunOutcomeView } from '@sim';
+import type { RunDirectorEventView, RunOutcomeView } from '@sim';
 import type { CombatFeedbackSnapshot } from '../presentation/combat-feedback';
 
-export type AudioCue = 'start' | 'pickup' | 'upgrade' | 'damage' | 'lightning' | 'melee' | 'orbit' | 'attack' | 'victory' | 'defeat';
+/**
+ * A cue is deliberately a presentation vocabulary rather than a simulation
+ * event. Individual trait voices make the player's loadout legible by ear,
+ * while the three generic resolved-hit voices remain useful fallbacks for
+ * older/replay fixtures that do not carry a source id.
+ */
+export type AudioCue =
+  | 'start'
+  | 'pickup'
+  | 'upgrade'
+  | 'damage'
+  | 'attack'
+  | 'lightning'
+  | 'melee'
+  | 'orbit'
+  | 'quills'
+  | 'puffer'
+  | 'eel'
+  | 'firefly'
+  | 'mantis'
+  | 'gecko'
+  | 'owl'
+  | 'bat'
+  | 'crab'
+  | 'armadillo'
+  | 'skunk'
+  | 'monarch'
+  | 'thornstorm'
+  | 'thunderbug'
+  | 'razorstep'
+  | 'midnight'
+  | 'meteor'
+  | 'royal-stinkcloud'
+  | 'greg'
+  | 'benny'
+  | 'gracie'
+  | 'enemy-warning'
+  | 'boss-telegraph'
+  | 'boss-warning'
+  | 'boss-arrive'
+  | 'victory'
+  | 'defeat';
+
+type SourceAudioCue = Exclude<
+  AudioCue,
+  | 'start'
+  | 'pickup'
+  | 'upgrade'
+  | 'damage'
+  | 'attack'
+  | 'lightning'
+  | 'melee'
+  | 'orbit'
+  | 'boss-warning'
+  | 'boss-arrive'
+  | 'victory'
+  | 'defeat'
+>;
+
+/**
+ * Stable presentation mapping for every current launch trait, hero instinct,
+ * and in-run enemy telegraph source. This is intentionally outside simulation
+ * state: changing a voice never changes a run hash or replay.
+ */
+export const AUDIO_SOURCE_CUE_MAP: Readonly<Record<string, SourceAudioCue>> = Object.freeze({
+  'porcupine-quills': 'quills',
+  'puffer-pouch': 'puffer',
+  'electric-eel-coil': 'eel',
+  'firefly-colony': 'firefly',
+  'mantis-scythes': 'mantis',
+  'gecko-pads': 'gecko',
+  'owl-pinions': 'owl',
+  'bat-ears': 'bat',
+  'crab-pincers': 'crab',
+  'armadillo-greaves': 'armadillo',
+  'skunk-brush': 'skunk',
+  'monarch-brood': 'monarch',
+  'thornstorm-mantle': 'thornstorm',
+  'thunderbug-dynamo': 'thunderbug',
+  'razorstep-chimera': 'razorstep',
+  'midnight-radar': 'midnight',
+  'meteor-mauler': 'meteor',
+  'royal-stinkcloud': 'royal-stinkcloud',
+  'greg-rush-rake': 'greg',
+  'benny-brace': 'benny',
+  'gracie-scout': 'gracie',
+  'forest-final-threat': 'boss-telegraph',
+  'forest-support': 'enemy-warning',
+});
+
+export const AUDIO_SOURCE_IDS = Object.freeze(Object.keys(AUDIO_SOURCE_CUE_MAP));
+
+export function audioCueForSourceId(sourceId: string): SourceAudioCue | null {
+  return AUDIO_SOURCE_CUE_MAP[sourceId] ?? null;
+}
 
 /**
  * The audio layer only needs enough of a trait presentation event to identify
@@ -15,6 +109,8 @@ export type AudioCue = 'start' | 'pickup' | 'upgrade' | 'damage' | 'lightning' |
  */
 export interface TraitCommandAudioEvent {
   readonly kind: string;
+  /** Present on real simulation events; optional keeps lightweight test fixtures compatible. */
+  readonly sourceId?: string;
   readonly tick: number;
   readonly resolvedHitCount?: number;
   /** Set only when the authoritative executor actually resolved a melee target. */
@@ -34,6 +130,7 @@ export interface AudioCueFrame {
   readonly combatFeedback: CombatFeedbackSnapshot;
   /** Actual trait commands emitted during this rendered frame, if any. */
   readonly traitPresentationEvents?: readonly TraitCommandAudioEvent[];
+  readonly directorEvents?: readonly RunDirectorEventView[];
   readonly runOutcome: RunOutcomeView | null;
 }
 
@@ -73,6 +170,9 @@ export const MELEE_AUDIO_MIN_INTERVAL_TICKS = 24;
 /** Orbit contact is a persistent defensive identity, but remains sparse enough to avoid a hum. */
 export const ORBIT_AUDIO_MIN_INTERVAL_TICKS = 30;
 
+/** Source identity cues are intentionally sparser than the event stream. */
+export const TRAIT_AUDIO_MIN_INTERVAL_TICKS = 30;
+
 type TerminalCue = 'victory' | 'defeat' | null;
 
 function terminalCue(outcome: RunOutcomeView | null): TerminalCue {
@@ -94,52 +194,79 @@ function freshFeedbackTicks(
     .sort((left, right) => left - right);
 }
 
-function freshLightningTicks(
+interface FreshAudioEvent {
+  readonly tick: number;
+  readonly cue: AudioCue;
+}
+
+function resolvedCueForEvent(event: TraitCommandAudioEvent, fallback: 'lightning' | 'melee' | 'orbit'): AudioCue {
+  if (event.sourceId === undefined) return fallback;
+  return audioCueForSourceId(event.sourceId) ?? fallback;
+}
+
+function freshResolvedAudioEvents(
   events: readonly TraitCommandAudioEvent[] | undefined,
   lastObservedTick: number,
-): number[] {
+  kind: 'chainDamage' | 'meleeArc' | 'orbitingDamage',
+  fallback: 'lightning' | 'melee' | 'orbit',
+  hasResolvedHit: (event: TraitCommandAudioEvent) => boolean,
+): FreshAudioEvent[] {
   if (events === undefined) return [];
   return events
     .filter((event) => (
-      event.kind === 'chainDamage'
+      event.kind === kind
       && Number.isFinite(event.tick)
       && event.tick > lastObservedTick
-      && Number.isFinite(event.resolvedHitCount)
-      && event.resolvedHitCount! > 0
+      && hasResolvedHit(event)
     ))
-    .map((event) => Math.trunc(event.tick))
-    .sort((left, right) => left - right);
+    .map((event) => ({ tick: Math.trunc(event.tick), cue: resolvedCueForEvent(event, fallback) }))
+    .sort((left, right) => left.tick - right.tick);
 }
 
-function freshMeleeTicks(
+function sourceCueForEvent(event: TraitCommandAudioEvent): SourceAudioCue | null {
+  // These three identities already have authoritative, hit-aware routing
+  // below. Do not let a generic source fallback turn a miss into a success cue
+  // or play two voices for the same resolved command.
+  if (event.kind === 'chainDamage' || event.kind === 'meleeArc' || event.kind === 'orbitingDamage') return null;
+  if (event.sourceId === undefined) return null;
+  return audioCueForSourceId(event.sourceId);
+}
+
+function freshSourceAudioEvents(
   events: readonly TraitCommandAudioEvent[] | undefined,
   lastObservedTick: number,
-): number[] {
+): FreshAudioEvent[] {
   if (events === undefined) return [];
   return events
-    .filter((event) => {
-      if (event.kind !== 'meleeArc' || !Number.isFinite(event.tick) || event.tick <= lastObservedTick) {
-        return false;
-      }
-      return event.meleeArcResolved === true;
+    .filter((event) => Number.isFinite(event.tick) && event.tick > lastObservedTick)
+    .map((event): FreshAudioEvent | null => {
+      const cue = sourceCueForEvent(event);
+      return cue === null ? null : { tick: Math.trunc(event.tick), cue };
     })
-    .map((event) => Math.trunc(event.tick))
-    .sort((left, right) => left - right);
+    .filter((event): event is FreshAudioEvent => event !== null)
+    .sort((left, right) => left.tick - right.tick);
 }
 
-function freshOrbitTicks(
-  events: readonly TraitCommandAudioEvent[] | undefined,
-  lastObservedTick: number,
-): number[] {
-  if (events === undefined) return [];
-  return events
-    .filter((event) => (
-      event.kind === 'orbitingDamage'
-      && Number.isFinite(event.tick)
-      && event.tick > lastObservedTick
-    ))
-    .map((event) => Math.trunc(event.tick))
-    .sort((left, right) => left - right);
+function firstRateLimitedSourceEvent(
+  events: readonly FreshAudioEvent[],
+  lastPlayedTick: number,
+  intervalTicks: number,
+): FreshAudioEvent | null {
+  for (const event of events) {
+    if (event.tick - lastPlayedTick >= intervalTicks) return event;
+  }
+  return null;
+}
+
+function firstRateLimitedAudioEvent(
+  events: readonly FreshAudioEvent[],
+  lastPlayedTick: number,
+  intervalTicks: number,
+): FreshAudioEvent | null {
+  for (const event of events) {
+    if (event.tick - lastPlayedTick >= intervalTicks) return event;
+  }
+  return null;
 }
 
 function firstRateLimitedTick(
@@ -172,7 +299,10 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
   let lastPlayedMeleeTick = Number.NEGATIVE_INFINITY;
   let lastObservedOrbitTick = Number.NEGATIVE_INFINITY;
   let lastPlayedOrbitTick = Number.NEGATIVE_INFINITY;
+  let lastObservedTraitSourceTick = Number.NEGATIVE_INFINITY;
+  let lastPlayedTraitSourceTick = Number.NEGATIVE_INFINITY;
   let lastUpgradeSerial = 0;
+  let lastObservedDirectorSeq = Number.NEGATIVE_INFINITY;
   let terminal: TerminalCue = null;
 
   function resetForRestart(): void {
@@ -190,7 +320,10 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
     lastPlayedMeleeTick = Number.NEGATIVE_INFINITY;
     lastObservedOrbitTick = Number.NEGATIVE_INFINITY;
     lastPlayedOrbitTick = Number.NEGATIVE_INFINITY;
+    lastObservedTraitSourceTick = Number.NEGATIVE_INFINITY;
+    lastPlayedTraitSourceTick = Number.NEGATIVE_INFINITY;
     lastUpgradeSerial = 0;
+    lastObservedDirectorSeq = Number.NEGATIVE_INFINITY;
     terminal = null;
   }
 
@@ -221,6 +354,17 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
     }
     terminal = null;
 
+    const freshDirectorEvents = (frame.directorEvents ?? [])
+      .filter((event) => Number.isSafeInteger(event.seq) && event.seq > lastObservedDirectorSeq)
+      .sort((left, right) => left.seq - right.seq);
+    for (const event of freshDirectorEvents) {
+      if (event.kind === 'bossWarning') sink.play('boss-warning');
+      if (event.kind === 'bossRequested') sink.play('boss-arrive');
+    }
+    if (freshDirectorEvents.length > 0) {
+      lastObservedDirectorSeq = freshDirectorEvents[freshDirectorEvents.length - 1]!.seq;
+    }
+
     const freshDamageTicks = freshFeedbackTicks(
       frame.combatFeedback,
       'player-hit',
@@ -239,11 +383,14 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
       lastObservedDamageTick = freshDamageTicks[freshDamageTicks.length - 1]!;
     }
 
-    const freshLightning = freshLightningTicks(
+    const freshLightning = freshResolvedAudioEvents(
       frame.traitPresentationEvents,
       lastObservedLightningTick,
+      'chainDamage',
+      'lightning',
+      (event) => Number.isFinite(event.resolvedHitCount) && event.resolvedHitCount! > 0,
     );
-    const lightningTick = firstRateLimitedTick(
+    const lightningEvent = firstRateLimitedAudioEvent(
       freshLightning,
       lastPlayedLightningTick,
       LIGHTNING_AUDIO_MIN_INTERVAL_TICKS,
@@ -251,50 +398,82 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
     // Danger must always cut through. A successful chain then reads ahead of
     // ordinary auto-fire, so the new attack identity is never mistaken for
     // another projectile punctuation.
-    if (lightningTick !== null && damageTick === null) {
-      sink.play('lightning');
-      lastPlayedLightningTick = lightningTick;
+    if (lightningEvent !== null && damageTick === null) {
+      sink.play(lightningEvent.cue);
+      lastPlayedLightningTick = lightningEvent.tick;
     }
     if (freshLightning.length > 0) {
-      lastObservedLightningTick = freshLightning[freshLightning.length - 1]!;
+      lastObservedLightningTick = freshLightning[freshLightning.length - 1]!.tick;
     }
 
-    const freshMelee = freshMeleeTicks(
+    const freshMelee = freshResolvedAudioEvents(
       frame.traitPresentationEvents,
       lastObservedMeleeTick,
+      'meleeArc',
+      'melee',
+      (event) => event.meleeArcResolved === true,
     );
-    const meleeTick = firstRateLimitedTick(
+    const meleeEvent = firstRateLimitedAudioEvent(
       freshMelee,
       lastPlayedMeleeTick,
       MELEE_AUDIO_MIN_INTERVAL_TICKS,
     );
     // A clean scythe swish is a meaningful attack identity, but it never
     // obscures danger or the more urgent guaranteed lightning discharge.
-    if (meleeTick !== null && damageTick === null && lightningTick === null) {
-      sink.play('melee');
-      lastPlayedMeleeTick = meleeTick;
+    if (meleeEvent !== null && damageTick === null && lightningEvent === null) {
+      sink.play(meleeEvent.cue);
+      lastPlayedMeleeTick = meleeEvent.tick;
     }
     if (freshMelee.length > 0) {
-      lastObservedMeleeTick = freshMelee[freshMelee.length - 1]!;
+      lastObservedMeleeTick = freshMelee[freshMelee.length - 1]!.tick;
     }
 
-    const freshOrbit = freshOrbitTicks(
+    const freshOrbit = freshResolvedAudioEvents(
       frame.traitPresentationEvents,
       lastObservedOrbitTick,
+      'orbitingDamage',
+      'orbit',
+      () => true,
     );
-    const orbitTick = firstRateLimitedTick(
+    const orbitEvent = firstRateLimitedAudioEvent(
       freshOrbit,
       lastPlayedOrbitTick,
       ORBIT_AUDIO_MIN_INTERVAL_TICKS,
     );
     // Orbit contact is less urgent than a confirmed strike or melee hit, but
     // it still deserves its own identity before ordinary auto-fire texture.
-    if (orbitTick !== null && damageTick === null && lightningTick === null && meleeTick === null) {
-      sink.play('orbit');
-      lastPlayedOrbitTick = orbitTick;
+    if (orbitEvent !== null && damageTick === null && lightningEvent === null && meleeEvent === null) {
+      sink.play(orbitEvent.cue);
+      lastPlayedOrbitTick = orbitEvent.tick;
     }
     if (freshOrbit.length > 0) {
-      lastObservedOrbitTick = freshOrbit[freshOrbit.length - 1]!;
+      lastObservedOrbitTick = freshOrbit[freshOrbit.length - 1]!.tick;
+    }
+
+    const traitEvents = frame.traitPresentationEvents ?? [];
+    const freshTraitSource = firstRateLimitedSourceEvent(
+      freshSourceAudioEvents(traitEvents, lastObservedTraitSourceTick),
+      lastPlayedTraitSourceTick,
+      TRAIT_AUDIO_MIN_INTERVAL_TICKS,
+    );
+    // Source identity is useful texture, but never outranks a confirmed hit,
+    // danger, or the already-specialized chain/melee/orbit voices above.
+    if (
+      freshTraitSource !== null
+      && damageTick === null
+      && lightningEvent === null
+      && meleeEvent === null
+      && orbitEvent === null
+    ) {
+      sink.play(freshTraitSource.cue);
+      lastPlayedTraitSourceTick = freshTraitSource.tick;
+    }
+    const freshTraitTicks = traitEvents
+      .filter((event) => Number.isFinite(event.tick) && Math.trunc(event.tick) > lastObservedTraitSourceTick)
+      .map((event) => Math.trunc(event.tick))
+      .sort((left, right) => left - right);
+    if (freshTraitTicks.length > 0) {
+      lastObservedTraitSourceTick = freshTraitTicks[freshTraitTicks.length - 1]!;
     }
 
     const freshAttackTicks = freshFeedbackTicks(
@@ -311,7 +490,7 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
     // lightning strike. Otherwise an eligible attack punctuates pickup-heavy
     // play: the former pickup-first ordering could suppress auto-fire forever
     // once XP began arriving steadily.
-    if (attackTick !== null && damageTick === null && lightningTick === null && meleeTick === null && orbitTick === null) {
+    if (attackTick !== null && damageTick === null && lightningEvent === null && meleeEvent === null && orbitEvent === null) {
       sink.play('attack');
       lastPlayedAttackTick = attackTick;
     }
@@ -334,7 +513,7 @@ export function createAudioCueRouter(sink: AudioCueSink): AudioCueRouter {
     // Never stack an XP ping over a just-routed danger warning, lightning, melee, or attack
     // punctuation. Its observation latch still advances, so this is a
     // deliberate omission rather than a stale chime later in the run.
-    if (pickupTick !== null && damageTick === null && lightningTick === null && meleeTick === null && orbitTick === null && attackTick === null) {
+    if (pickupTick !== null && damageTick === null && lightningEvent === null && meleeEvent === null && orbitEvent === null && attackTick === null) {
       sink.play('pickup');
       lastPlayedPickupTick = pickupTick;
     }

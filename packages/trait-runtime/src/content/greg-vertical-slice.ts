@@ -32,6 +32,7 @@
 
 import type { Catalog, TraitDefinition, EvolutionDefinition } from '../contracts.js';
 import { TRAIT_IDS, EVOLUTION_IDS } from '../ids.js';
+import { CATALOG as COMPLETE_CATALOG } from './catalog.js';
 
 export const PORCUPINE_QUILLS: TraitDefinition = {
   id: TRAIT_IDS.porcupineQuills,
@@ -389,12 +390,15 @@ export const RAZORSTEP_CHIMERA: EvolutionDefinition = {
 };
 
 /**
- * Exact content boundary for Greg's first five-attack loadout: starter fire
- * plus any four selected candidates from Quills, Puffer control, Coil, Colony,
- * Mantis Scythes, and Gecko Pads. The Mythics each retain both ingredient
- * attack slots rather than creating a free slot.
+ * Exact content boundary for the current four-attack loadout: the selected
+ * animal's starter fire plus any three acquired candidates from the twelve
+ * Forest Arsenal launch families. The Mythics each
+ * retain both ingredient attack slots rather than creating a free slot.
  */
 export const GREG_FOREST_ARSENAL_CATALOG: Catalog = Object.freeze({
+  // The full authored launch pool already lives in the data catalog. Keep the
+  // playable catalog as a named Forest boundary with the active-attack cap,
+  // rather than maintaining a second list that can silently drift.
   traits: Object.freeze([
     PORCUPINE_QUILLS,
     PUFFER_POUCH,
@@ -402,10 +406,16 @@ export const GREG_FOREST_ARSENAL_CATALOG: Catalog = Object.freeze({
     FIREFLY_COLONY,
     MANTIS_SCYTHES,
     GECKO_PADS,
+    ...COMPLETE_CATALOG.traits.slice(6),
   ]),
-  evolutions: Object.freeze([THORNSTORM_MANTLE, THUNDERBUG_DYNAMO, RAZORSTEP_CHIMERA]),
-  maxActiveTraits: 4,
+  evolutions: Object.freeze([
+    THORNSTORM_MANTLE,
+    THUNDERBUG_DYNAMO,
+    RAZORSTEP_CHIMERA,
+    ...COMPLETE_CATALOG.evolutions.slice(3),
+  ]),
+  maxActiveTraits: 3,
 });
 
-/** @deprecated Use GREG_FOREST_ARSENAL_CATALOG for the playable five-slot build. */
+/** @deprecated Use GREG_FOREST_ARSENAL_CATALOG for the playable four-slot build. */
 export const GREG_VERTICAL_SLICE_CATALOG = GREG_FOREST_ARSENAL_CATALOG;

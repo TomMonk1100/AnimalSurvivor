@@ -1,5 +1,15 @@
 # AnimalSurvivor Project Handoff
 
+> **Current-state note — 2026-07-12:** The latest authoritative status is
+> [docs/status/current.md](docs/status/current.md). The project now has a
+> selectable founding roster of Greg, Benny, and Gracie, with hero selection
+> persisted locally and included in the version-three run-start fingerprint.
+> Benny and Gracie use procedural low-poly prototype presentation with distinct
+> authored starter attacks and mastery paths. Older sections in this document retain
+> historical 12-minute / 10:00-boss wording from earlier milestones; do not use
+> that wording for current Forest Arsenal work. The current normal contract is
+> 8:00 with the boss at 6:30.
+
 ## Authoritative workspace
 
 Use only:
@@ -44,7 +54,10 @@ Founding heroes:
 - Benny the bull: nervous about seeming large, clumsy, or intimidating.
 - Gracie the alpaca: twee trend-aware matcha-loving hipster.
 
-Current playable focus: Greg's first vertical slice.
+Current playable focus: three founding heroes, distinct starter attacks, starter
+mastery paths, a twelve-family/six-Mythic Forest Arsenal build, and a local
+Field Guide/save-management loop. Greg's Rush Rake, Benny's Brace Bloom, and
+Gracie's Scout mark instincts are integrated with authoritative state and cues.
 
 ## Current architecture
 
@@ -65,7 +78,7 @@ Path: `spikes/headless-sim/`
   without letting browser storage enter deterministic gameplay.
 - Structural injection ports keep the package free of runtime dependencies on
   the trait and run-director packages.
-- Config/replay compatibility is version 6. Typed upgrade selections, the
+- Config/replay compatibility is version 10. Typed upgrade selections, the
   universal catalog fingerprint, run-start-loadout fingerprint, and deterministic
   runner/ranged behavior parameters are recorded so old content cannot silently
   replay against this alpha state.
@@ -91,25 +104,23 @@ Path: `packages/trait-runtime/`
   Mythic resolution.
 - Bud -> Adapted -> paired Mythic progression.
 - Canonical serialization, content fingerprint, and state hash.
-- Greg first-slice content includes Porcupine Quills, Puffer Pouch, and
-  Thornstorm Mantle.
+- The current trait catalog includes twelve shared attack families and six
+  slot-consuming Mythics; the founding roster also owns distinct starter
+  attacks and three-rank starter mastery cards.
 - `initialTick` supports clean injection into simulation tick ownership.
 
 ### Run director
 
 Path: `packages/run-director/`
 
-- Deterministic finite 12-minute Greg normal run; the boss enters at 10:00.
-  The boss must fall by 12:00 or normal mode ends in defeat, with no hidden
-  overtime.
+- Historical (superseded) deterministic finite 12-minute Greg normal run; the
+  boss entered at 10:00. Current normal mode is eight minutes with a 6:30 boss
+  and no hidden overtime. Current timing is authoritative in `docs/status/current.md`.
 - Opening, pressure, adaptation, mutation, and boss phases. Overtime belongs
   only to a future explicit endless definition.
-- Six authored elite beats: one in pressure at 3:20, two in adaptation at 5:40
-  and 7:00, and three in mutation at 8:10, 9:00, and 9:30. Base phase cadence
-  is 75/60/45/30/36 ticks and base soft/hard caps are 10/18, 18/30, 30/48,
-  46/72, and 36/56 (opening through boss). Bounded level pressure at 4, 6, and
-  8 adds +1/+2 capacity and removes 4 cadence ticks per step; it never creates
-  a same-tick spawn burst.
+- Historical elite/cap values from the superseded 12-minute snapshot remain
+  below for archaeology; do not use them for tuning. Current elite timing and
+  phase caps are defined by the live run-director package and current status.
 - Emits pure intents; never owns simulation pools or renderer state.
 - Imported swarm work was hardened so `RunDirector` saves include and verify
   the exact authored content fingerprint.
@@ -120,13 +131,16 @@ Temporary simulation mappings:
 - runner -> runner prototype;
 - brute -> brute prototype;
 - spitter -> cobalt ranged prototype (36 HP, 2 XP, slow hostile shots);
+- charger -> deterministic wind-up/lunge prototype (46 HP, 3 XP);
+- denial -> slow spacing ranged prototype (58 HP, 3 XP, hostile shots);
 - elite -> brute prototype with 5x HP and 6x XP (24 XP from its base 4);
 - boss -> brute prototype with 18x HP (1,440 HP in the current temporary tune).
 
 Formation placement is deterministic arithmetic derived from director event
 tick and sequence and consumes no simulation RNG. Ordinary fodder/runner waves
 are authored at 760–920 world units (brutes/elites 800–960); the boss is
-deliberately nearer at 400–480 so its 10:00 entrance reaches combat promptly.
+deliberately nearer at 400–480 so its historical 10:00 entrance reached combat
+promptly; current director timing is documented in `docs/status/current.md`.
 At an edge, the adapter finds a complete in-bounds formation at its authored
 radius or deterministically rejects it rather than clamping it beside Greg.
 
@@ -145,15 +159,18 @@ Path: `apps/web-toy/`
   XP tail has no player-visible level cap; after all finite cards are ranked,
   **Essence Cache** remains a legal fallback.
 - Stress mode deterministically selects the first offer.
-- Greg uses an audited low-poly fox glTF with deterministic animation and stable
-  attachment sockets.
+- The selected founding hero uses a stable presentation surface: Greg uses the
+  audited low-poly fox glTF, while Benny and Gracie use procedural low-poly
+  silhouettes with the same attachment socket contract. A renderer-only hero
+  identity ring keeps the selected animal readable during play.
 - GPU-instanced enemy/projectile/pickup rendering is already demonstrated.
 - Authoritative trait visual state is projected onto those sockets: Quills and
   Pouch Bud/Adapted forms replace cleanly, and Thornstorm consumes both into one
   Mythic silhouette.
-- The limited Greg catalog keeps unsupported future commands out of offers.
-  `applyAreaDamage` and `playTraitCue` are supported; zone, mark, chain, melee,
-  and shield commands explicitly reject until they have persistent state.
+- The Forest Arsenal catalog exposes twelve launch families and six Mythics.
+  `applyAreaDamage`, `markTargets`, authored damage zones, and `playTraitCue`
+  are supported; chain, melee, and shield commands remain rejected until their
+  persistent state is designed and implemented.
 - Executed trait commands cross a read-only presentation stream through the
   fixed-tick driver, so Puffer Pouch and Thornstorm retain ordered telegraph,
   gather, knockback, and burst effects across catch-up frames.
@@ -162,8 +179,9 @@ Path: `apps/web-toy/`
   both owned animal adaptations and neutral run-upgrade ranks/effects without
   cycling per-action text over active combat.
 - The player-facing HUD persistently projects authoritative elapsed time,
-  phase, and the current objective. It names survival until **The Final
-  Threat** before the boss and defeating that threat during the boss phase.
+  phase, and the current objective. Forest names **The Final Threat**; Saltwind
+  names **The Sandglass Sovereign** consistently in the HUD, boss bar, and
+  director notices.
 - Greg has renderer-only locomotion with a 45-degree-per-tick visual turn cap
   and hysteresis. Sharp reversals resolve across four bounded visual turns while
   position, input, simulation, and replay remain unchanged; repeat auto-attacks
@@ -215,10 +233,14 @@ Path: `apps/web-toy/`
   44px touch targets.
 - Sparse procedural sound feedback is opt-in and **Off** by default. Players
   can enable it on the Start run card or with the in-run **Sound: Off/On**
-  control; its stronger start/restart and upgrade confirmations remain sparse,
-  alongside rate-limited pickup, a quiet auto-attack texture, player-hit
-  warnings, and victory/defeat. It never changes gameplay or replay, and
-  unavailable browser audio is a nonfatal silent fallback.
+  control; the prep card also exposes master, music-bed, and SFX mix sliders.
+  Its stronger start/restart and upgrade confirmations remain sparse, alongside
+  rate-limited pickup, a quiet auto-attack texture, player-hit warnings, and
+  victory/defeat. It never changes gameplay or replay, and unavailable browser
+  audio is a nonfatal silent fallback. Source-aware launch trait, instinct,
+  boss-telegraph, and support-warning identities are now covered by the same
+  rate-safe router. The voices remain procedural scaffolding; final authored
+  audio is still open.
 - `?autopilot=1&stress=1&fullrun=1` extends the deterministic first-offer stress
   harness from 18,000 to a terminal outcome no later than the 43,200-tick
   normal boundary for boss/run-flow UI checks; it is not normal-balance evidence.
@@ -231,26 +253,77 @@ Path: `apps/web-toy/`
 
 ## Current verification snapshot
 
-All package gates below completed successfully on 2026-07-11 from
+All package gates below completed successfully on 2026-07-12 from
 `/Users/adammuncie/GameDev/AnimalSurvivor`:
 
-- Headless simulation: **197/197** tests, typecheck, lint, and build passed.
-- Trait runtime: **58/58** tests, typecheck, and lint passed.
-- Run director: **71/71** tests, typecheck, lint, and build passed.
-- Web toy: **195/195** tests, typecheck, lint, and production build passed.
-- Total: **521** automated tests passed.
-- The integrated real-trait/real-director replay reaches a terminal outcome no
-  later than the 12:00 normal cap and reproduces its exact final hash.
-- A local browser smoke verified the mixed chooser (two animal cards plus a
-  reserved neutral Swift Paws card), selected that card, and showed its exact
-  rank/effect in the pause panel. It was not a human balance playtest or a
-  terminal-profile-flow test.
+- Headless simulation: **249/249** tests, typecheck, lint, and build passed.
+- Trait runtime: **73/73** tests, typecheck, and lint passed.
+- Run director: **73/73** tests, typecheck, lint, and build passed.
+- Web toy: **323/323** tests, typecheck, lint, production build, and artifact
+  identity check passed.
+- Total: **718** automated tests passed.
+- Cross-hero replay tests cover Greg, Benny, and Gracie; integrated runs
+  reproduce their exact final hashes.
+- Local browser boot verified the exact production artifact's title, build meta
+  tag, prep-screen build label, public `build-info.json`, app boot, clean error
+  console, hero portraits, prep controls, responsive modal focus at portrait
+  and landscape sizes, and a successful Start-run transition. Build ID was
+  `0.1.0+c2c56a14f039.2b20bd83.5e81a607`; the local artifact correctly reports
+  dirty source because this worktree is not committed. This was not a human
+  balance playtest or a hosted deployment check.
 - Dedicated tests cover phase cadence, off-screen placement and edge rejection,
-  24-XP elite drops, runner weave, Spitter/elite shots, pause/hash parity, and
-  hostile snapshot presentation.
-- The current production build transformed 1,243 modules; Vite reports its
-  expected chunk-size warning for the roughly 2.06 MB minified main bundle
-  (about 530 kB gzip).
+  elite drops, runner weave, Spitter/elite shots, Charger/Denial/Flanker/Support
+  behaviors, bespoke boss charge/volley cues including the Saltwind variant,
+  pause/hash parity, and hostile snapshot presentation.
+- The run spawn boundary is now data-defined and validated for all ten authored
+  archetypes, and the prep Field Guide exposes their tells, counters, and spawn
+  profiles. The reusable content-production template records the required
+  behavior, presentation, replay, performance, and provenance gates.
+- Interactive input now supports keyboard, touch joystick, mouse click-drag,
+  and standard gamepad left-stick/D-pad movement with tested precedence;
+  sampled input remains part of the deterministic replay contract.
+- The browser stack also completes and replays a full Saltwind 8-minute run,
+  including the biome-specific apex request, without a hash mismatch.
+- The checked-in golden corpus pins exact terminal hashes for Greg, Benny, and
+  Gracie in both Forest and Saltwind.
+- The prep screen exposes the audited credits/notices summary, including the
+  three authored Field Guide portraits and two boss-health portraits; the current third-party notice and
+  local-storage disclosure are checked in, while the repository license and
+  final legal review remain open.
+- Procedural audio now routes boss warning and arrival events as distinct,
+  sequence-deduplicated cues, plus source-aware launch trait, instinct,
+  boss-telegraph, and support-warning identities; final authored audio remains
+  open.
+- The current production build transformed 1,274 modules; Vite reports its
+  expected chunk-size warning for the roughly 2.20 MB minified main bundle
+  (about 572.89 kB gzip).
+- Saltwind Ruins is selectable with `?biome=saltwind` after a Forest victory;
+  its profile unlock, director definition, run-start fingerprint, and renderer
+  palette and ruin-landmark layout are covered by automated gates. The
+  Sandglass Sovereign name is carried through the HUD, boss bar, and notices.
+- The Field Guide persists discovered Mythic recipe ids from terminal silhouettes
+  and renders them as a bounded local recipe archive without adding a currency.
+  A Forest victory also persists the first horizontal unlock: Saltwind Ruins;
+  archived builds receive an authored final-form portrait tile with a
+  deterministic glyph fallback and evolution tree. The prep layer also persists reduced-motion, reduced-flash, and
+  high-contrast presentation settings plus a reduced render-quality tier that
+  caps device pixel ratio without touching simulation fairness.
+- Archived Field Guide entries can copy a stable issue report with build ID,
+  run ID, hero, biome, seed, outcome, duration, kills, build name, browser/
+  device, viewport, quality tier, and accessibility flags without persisting
+  those environment fields.
+- Mythic discoveries unlock persistent presentation palettes in profile schema
+  v5; palette selection tints prep and arena presentation but never enters the
+  deterministic run-start payload.
+- The Field Guide now presents the complete six-recipe Mythic catalog with
+  ingredient pairs and deterministic locked/discovered states; this is a
+  profile presentation surface and does not change the simulation contract.
+- The Field Guide now also presents a six-card Habitat Atlas. Forest is the
+  known starting habitat; Saltwind and each hero habitat unlock from authored
+  victories, while Mythic Canopy unlocks from an archived Mythic form.
+- The browser viewport keeps zoom enabled and applies safe-area insets to the
+  arena, HUD, touch joystick, and prep dialog; short/zoomed prep content scrolls
+  inside its modal card.
 
 Useful gate commands:
 
@@ -265,8 +338,11 @@ cd /Users/adammuncie/GameDev/AnimalSurvivor/packages/run-director
 npm test && npm run typecheck && npm run lint
 
 cd /Users/adammuncie/GameDev/AnimalSurvivor/apps/web-toy
-npm test && npm run typecheck && npm run lint && npm run build
+npm test && npm run typecheck && npm run lint && npm run build && npm run verify:artifact && npm run verify:served
 ```
+
+The Gate 0 artifact procedure and hosted-browser evidence checklist are in
+[`docs/release/gate0-evidence.md`](docs/release/gate0-evidence.md).
 
 ## Accepted decisions and documentation
 
@@ -288,12 +364,15 @@ human playtesting.
 ## Known limitations
 
 - Gate 0 still lacks its ten external human concept interviews.
-- No human has played a complete normal-balance 12-minute browser run with the
-  10:00 boss, mixed upgrades, or Starting Vitality. Automated replay and short
-  smoke coverage do not validate pacing, clarity, or balance.
-- Only two animal paths and six neutral run upgrades are implemented. **Luck**,
-  more animal traits, player-selectable difficulties, and Hardcore Endless are
-  explicitly deferred, not hidden or partially shipped.
+- No human has played a complete normal-balance eight-minute browser run with
+  the 6:30 boss, mixed upgrades, or Starting Vitality. Automated replay and
+  short smoke coverage do not validate pacing, clarity, or balance.
+- Three founding hero paths, six neutral run upgrades, twelve launch attack
+  families, six Mythics, and the local Field Guide/save-management slice are
+  implemented. Greg's Rush Rake, Benny's Brace Bloom, and Gracie's Scout marks
+  are authoritative; **Luck**, more animal
+  traits, player-selectable difficulties, and Hardcore Endless are explicitly
+  deferred, not hidden or partially shipped.
 - Essence and Starting Vitality are a local-browser first pass, not cloud saves,
   cross-device progression, a full menu, or a finished meta economy.
 - An independently supplied Opus swarm packet was audited and all four of its
@@ -303,13 +382,16 @@ human playtesting.
   human normal-mode playtest.
 - Trait-command timing, lifetimes, sizes, and colours need hands-on feedback;
   the current effects are deliberately bounded primitive cues, not final art.
-- Zone, mark, chain, melee, and shield command kinds remain explicitly rejected
-  until their persistent gameplay state is designed and implemented. Keep them
-  out of player-facing catalogs in the meantime.
+- Chain, melee, and shield command kinds remain explicitly rejected until their
+  persistent gameplay state is designed and implemented. Mark targeting and
+  damage zones are now supported and player-facing.
 - Elite and boss roles are visually distinct primitives, but still need final
   authored meshes, animation, and richer entrance behavior.
-- The normal-plus Spitter is implemented, but additional player attack families
-  and broader enemy behavior families remain future content.
+- The normal-plus Spitter, Charger, Denial, Flanker, and Support roles are
+  implemented. The Final Threat's first bespoke phase cycle and the Saltwind
+  variant are active, with biome-specific apex copy now player-facing; final
+  authored meshes, audio, and second-biome environment dressing remain future
+  work.
 - The full-run browser stress option is an engineering UI check, not a
   normal-balance browser run or human-playtest result.
 - The optional sound layer now includes stronger start/upgrade confirmations,
@@ -325,8 +407,8 @@ human playtesting.
 
 ## Recommended next task
 
-Run a focused human pressure playtest of the revised Greg loop before expanding
-the enemy or player-attack catalog.
+Continue the final authored presentation pass for the Forest boss and Saltwind
+Ruins while keeping human playtests deferred.
 
 1. Confirm ordinary waves approach from outside the screen and that phase/level
    pressure is no longer safely ignorable around six to seven minutes. Record
@@ -341,16 +423,12 @@ the enemy or player-attack catalog.
    placement, phase cadence/caps, bounded level-pressure steps, elite timing,
    and temporary boss health. Preserve deterministic placement and no same-tick
    wave burst.
-4. If that loop is readable, design the next player attack family and a second
-   enemy behavior with explicit simulation, replay, snapshot,
-   visual, and playtest contracts.
-5. Only after the compact loop is enjoyable should the owner enable GitHub Pages
-   for a hosted test link and broaden external playtesting.
+4. When human evidence becomes available, use the Gate 1 pressure sheet to tune
+   only authored, replay-safe values and then broaden external testing.
 
 Do not add Luck, player-selectable difficulty, Hardcore Endless, broader enemy
 families, or more animal traits opportunistically. Each needs a separate
-truthful gameplay contract and should follow—not preempt—evidence that this
-compact loop works.
+truthful gameplay contract.
 
 ## Non-negotiable technical rules
 
@@ -370,7 +448,8 @@ compact loop works.
 Read this handoff and `docs/status/current.md`, confirm the workspace is
 `/Users/adammuncie/GameDev/AnimalSurvivor`, and run a quick `git status --short`.
 Do not recreate the old Documents workspace or reimplement completed trait
-socket, trait-command-presentation, or director-notice work. Start from the
-most recent hands-on feedback; if no human tester is available, run the listed
-gates and prepare the focused playtest/tuning work without claiming balance is
-validated.
+socket, trait-command-presentation, launch-pool, Field Guide, biome-unlock, or
+director-notice work. Start with the next bounded V1 slice: final authored
+presentation and accessibility. If no human tester is available, keep running
+the listed gates and implement deterministic release slices without claiming
+balance is validated.

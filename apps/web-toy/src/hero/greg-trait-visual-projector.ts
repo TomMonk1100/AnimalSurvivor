@@ -31,6 +31,21 @@ const ANCHOR_BY_VISUAL_KEY: Readonly<Record<string, GregSocketName>> = Object.fr
   // The combined form owns both shoulders but has one stable root: the left
   // shoulder, which avoids mount churn while still reserving the right one.
   'razorstep-chimera:mythic': 'leftShoulder',
+  'owl-pinions:bud': 'leftShoulder',
+  'owl-pinions:adapted': 'leftShoulder',
+  'bat-ears:bud': 'head',
+  'bat-ears:adapted': 'head',
+  'midnight-radar:mythic': 'leftShoulder',
+  'crab-pincers:bud': 'leftShoulder',
+  'crab-pincers:adapted': 'leftShoulder',
+  'armadillo-greaves:bud': 'back',
+  'armadillo-greaves:adapted': 'back',
+  'meteor-mauler:mythic': 'leftShoulder',
+  'skunk-brush:bud': 'tail',
+  'skunk-brush:adapted': 'tail',
+  'monarch-brood:bud': 'bodyOrbit',
+  'monarch-brood:adapted': 'bodyOrbit',
+  'royal-stinkcloud:mythic': 'tail',
 });
 
 interface MountedVisual {

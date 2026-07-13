@@ -4,11 +4,11 @@ import { presentActiveUniversalUpgrades } from '../src/presentation/active-unive
 describe('active universal upgrade copy', () => {
   it('lists only chosen ranks with their concrete run effects', () => {
     expect(presentActiveUniversalUpgrades([2, 1, 0, 3, 2, 1])).toEqual([
-      { id: 'swift-paws', title: 'Swift Paws', rank: 2, maxRank: 5, effect: '+16% movement speed.' },
-      { id: 'xp-magnet', title: 'XP Magnet', rank: 1, maxRank: 5, effect: '+10 pickup radius; XP motes pull from 80 range at 120/sec.' },
-      { id: 'sharpened-instinct', title: 'Sharpened Instinct', rank: 3, maxRank: 5, effect: '+36% damage for every attack.' },
-      { id: 'rapid-instinct', title: 'Rapid Instinct', rank: 2, maxRank: 5, effect: '-16% cooldown for every attack (rounded to fixed ticks).' },
-      { id: 'growth', title: 'Growth', rank: 1, maxRank: 5, effect: '+12% XP gained.' },
+      { id: 'swift-paws', title: 'Swift Paws', kind: 'neutral', rank: 2, maxRank: 5, effect: '+16% movement speed.' },
+      { id: 'xp-magnet', title: 'XP Magnet', kind: 'neutral', rank: 1, maxRank: 5, effect: '+10 pickup radius; XP motes pull from 80 range at 120/sec.' },
+      { id: 'sharpened-instinct', title: 'Sharpened Instinct', kind: 'neutral', rank: 3, maxRank: 5, effect: '+36% damage for every attack.' },
+      { id: 'rapid-instinct', title: 'Rapid Instinct', kind: 'neutral', rank: 2, maxRank: 5, effect: '-16% cooldown for every attack (rounded to fixed ticks).' },
+      { id: 'growth', title: 'Growth', kind: 'neutral', rank: 1, maxRank: 5, effect: '+12% XP gained.' },
     ]);
   });
 });

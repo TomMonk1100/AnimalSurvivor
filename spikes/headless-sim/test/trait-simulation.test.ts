@@ -349,6 +349,11 @@ test('publishes detached presentation copies for executed trait commands and cle
     resolvedHitCount: 0,
     resolvedHitX: new Float32Array(8),
     resolvedHitY: new Float32Array(8),
+    resolvedOrbitHitCount: 0,
+    resolvedOrbitHitX: new Float32Array(16),
+    resolvedOrbitHitY: new Float32Array(16),
+    resolvedOrbitSourceX: new Float32Array(16),
+    resolvedOrbitSourceY: new Float32Array(16),
   });
 
   log.runtime!.overwriteLatestCommandOriginX(-999);

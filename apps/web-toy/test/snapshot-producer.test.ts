@@ -82,6 +82,7 @@ describe('snapshot producer enemy presentation roles', () => {
       RUN_ENEMY_ROLE.elite,
       RUN_ENEMY_ROLE.boss,
     ]);
+    expect(Array.from(snapshot.enemies.marked.slice(0, snapshot.enemies.count))).toEqual([0, 0, 0, 0]);
     const bruteHp = DEFAULT_CONFIG.archetypes[2]!.hp;
     const spitterHp = DEFAULT_CONFIG.archetypes[3]!.hp;
     expect(Array.from(snapshot.enemies.hp.slice(0, snapshot.enemies.count))).toEqual([

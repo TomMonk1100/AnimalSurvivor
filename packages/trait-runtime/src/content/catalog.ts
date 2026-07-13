@@ -14,7 +14,7 @@
  *   mantis-scythes       : [leftShoulder]   gecko-pads : [rightShoulder]
  *     -> razorstep-chimera   : [leftShoulder, rightShoulder]
  *     (single-shoulder each so thornstorm + thunderbug + razorstep are fully
- *      socket-disjoint and three Mythics can coexist on one hero)
+ *      socket-disjoint and six Mythics can coexist on one hero)
  *   owl-pinions          : [leftShoulder,rightShoulder]  bat-ears   : [head]
  *     -> midnight-radar      : [head, leftShoulder, rightShoulder]
  *   crab-pincers         : [leftShoulder,rightShoulder]  armadillo-greaves : [back]
@@ -27,7 +27,7 @@
 
 import type { Catalog, TraitDefinition, EvolutionDefinition } from '../contracts.js';
 import { TRAIT_IDS, EVOLUTION_IDS } from '../ids.js';
-import { PORCUPINE_QUILLS, PUFFER_POUCH, THORNSTORM_MANTLE } from './greg-vertical-slice.js';
+import { PORCUPINE_QUILLS, PUFFER_POUCH, THORNSTORM_MANTLE } from './forest-core.js';
 
 /* ────────────────────────────────────────────────────────────────────────
  * Thunderbug pair: electric-eel-coil + firefly-colony
@@ -72,29 +72,43 @@ const ELECTRIC_EEL_COIL: TraitDefinition = {
 const FIREFLY_COLONY: TraitDefinition = {
   id: TRAIT_IDS.fireflyColony,
   sockets: ['bodyOrbit'],
-  tags: ['light', 'support'],
+  // Keep the default/full catalog aligned with the playable Forest Arsenal
+  // definition. A visual firefly companion that emits an unsupported shield
+  // command is worse than no fallback: it looks like an attack while doing
+  // nothing in the accepted simulation.
+  tags: ['light', 'orbit', 'defensive'],
   stages: {
     bud: {
       visualKey: 'firefly-colony:bud',
       behavior: {
-        kind: 'generic',
-        periodTicks: 150,
+        kind: 'periodicBurst',
+        periodTicks: 30,
         emit: {
-          kind: 'grantShield',
+          kind: 'orbitingDamage',
           targeting: 'none',
-          amount: 8,
+          count: 2,
+          damage: 3,
+          speed: (Math.PI * 2) / 120,
+          radius: 50,
+          range: 18,
+          facing: 0,
         },
       },
     },
     adapted: {
       visualKey: 'firefly-colony:adapted',
       behavior: {
-        kind: 'generic',
-        periodTicks: 110,
+        kind: 'periodicBurst',
+        periodTicks: 24,
         emit: {
-          kind: 'grantShield',
+          kind: 'orbitingDamage',
           targeting: 'none',
-          amount: 14,
+          count: 4,
+          damage: 4,
+          speed: (Math.PI * 2) / 96,
+          radius: 64,
+          range: 20,
+          facing: 0,
         },
       },
     },
@@ -420,6 +434,7 @@ const SKUNK_BRUSH: TraitDefinition = {
           radius: 70,
           amount: 2,
           durationTicks: 120,
+          intervalTicks: 30,
           tag: 'stink-cloud',
         },
       },
@@ -435,6 +450,7 @@ const SKUNK_BRUSH: TraitDefinition = {
           radius: 95,
           amount: 4,
           durationTicks: 140,
+          intervalTicks: 24,
           tag: 'stink-cloud',
         },
       },
@@ -445,29 +461,41 @@ const SKUNK_BRUSH: TraitDefinition = {
 const MONARCH_BROOD: TraitDefinition = {
   id: TRAIT_IDS.monarchBrood,
   sockets: ['bodyOrbit'],
-  tags: ['support', 'cosmetic'],
+  tags: ['companion', 'orbit', 'contact'],
   stages: {
     bud: {
       visualKey: 'monarch-brood:bud',
       behavior: {
-        kind: 'generic',
-        periodTicks: 200,
+        // A slower, wider outer ring than Firefly Colony: Monarch is a light
+        // companion attack, not a second high-DPS orbit swarm.
+        kind: 'periodicBurst',
+        periodTicks: 60,
         emit: {
-          kind: 'playTraitCue',
+          kind: 'orbitingDamage',
           targeting: 'none',
-          tag: 'monarch-flutter',
+          count: 2,
+          damage: 2,
+          speed: (Math.PI * 2) / 180,
+          radius: 72,
+          range: 14,
+          facing: Math.PI / 4,
         },
       },
     },
     adapted: {
       visualKey: 'monarch-brood:adapted',
       behavior: {
-        kind: 'generic',
-        periodTicks: 150,
+        kind: 'periodicBurst',
+        periodTicks: 45,
         emit: {
-          kind: 'playTraitCue',
+          kind: 'orbitingDamage',
           targeting: 'none',
-          tag: 'monarch-flutter-strong',
+          count: 3,
+          damage: 3,
+          speed: (Math.PI * 2) / 150,
+          radius: 84,
+          range: 16,
+          facing: Math.PI / 4,
         },
       },
     },
@@ -488,6 +516,7 @@ const ROYAL_STINKCLOUD: EvolutionDefinition = {
       radius: 110,
       amount: 6,
       durationTicks: 160,
+      intervalTicks: 18,
       tag: 'royal-stink',
     },
   },

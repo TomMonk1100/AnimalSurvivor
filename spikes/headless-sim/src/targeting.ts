@@ -10,6 +10,7 @@ import {
   type SelectTarget,
   type SpatialGrid,
   type TargetContext,
+  type TargetingPolicy,
 } from './types.js';
 
 // Module-level scratch array reused across calls (allocation-light hot path).
@@ -100,19 +101,21 @@ function selectDensestCluster(
   return bestId;
 }
 
-function selectMarkedThenNearest(ctx: TargetContext, enemies: Pool<EnemyPool>, candidates: EntityId[]): EntityId {
-  let bestMarkedId: EntityId = NO_ENTITY;
+function selectMarked(enemies: Pool<EnemyPool>, candidates: EntityId[]): EntityId {
   for (const id of candidates) {
     const slot = enemies.slotOf(id);
     if (slot < 0) continue;
     if (enemies.data.marked[slot] === 1) {
       // candidates are ascending by id already (grid guarantees, gather preserves order)
-      bestMarkedId = id;
-      break;
+      return id;
     }
   }
-  if (bestMarkedId !== NO_ENTITY) return bestMarkedId;
-  return selectNearest(ctx, enemies, candidates);
+  return NO_ENTITY;
+}
+
+function selectMarkedThenNearest(ctx: TargetContext, enemies: Pool<EnemyPool>, candidates: EntityId[]): EntityId {
+  const marked = selectMarked(enemies, candidates);
+  return marked !== NO_ENTITY ? marked : selectNearest(ctx, enemies, candidates);
 }
 
 function selectRearThreat(ctx: TargetContext, enemies: Pool<EnemyPool>, candidates: EntityId[]): EntityId {
@@ -137,8 +140,13 @@ function selectRearThreat(ctx: TargetContext, enemies: Pool<EnemyPool>, candidat
   return bestId;
 }
 
-export const selectTarget: SelectTarget = (policy, ctx, enemies, grid, clusterRadius) => {
-  const candidates = gatherLiveCandidates(ctx, enemies, grid, scratch);
+function selectByPolicy(
+  policy: TargetingPolicy,
+  ctx: TargetContext,
+  enemies: Pool<EnemyPool>,
+  candidates: EntityId[],
+  clusterRadius: number,
+): EntityId {
   switch (policy) {
     case 'nearest':
       return selectNearest(ctx, enemies, candidates);
@@ -155,4 +163,29 @@ export const selectTarget: SelectTarget = (policy, ctx, enemies, grid, clusterRa
       return _exhaustive;
     }
   }
+}
+
+export const selectTarget: SelectTarget = (policy, ctx, enemies, grid, clusterRadius) => {
+  const candidates = gatherLiveCandidates(ctx, enemies, grid, scratch);
+  return selectByPolicy(policy, ctx, enemies, candidates, clusterRadius);
 };
+
+/**
+ * Shared auto-attack policy: marked prey takes priority over the caller's
+ * normal preference, while the original targeting policy remains the fallback.
+ * Bat Ears and Gracie Scout therefore improve every hero's automatic attacks
+ * without introducing a renderer-owned or hero-specific combat exception.
+ */
+export function selectPriorityTarget(
+  policy: TargetingPolicy,
+  ctx: TargetContext,
+  enemies: Pool<EnemyPool>,
+  grid: SpatialGrid,
+  clusterRadius: number,
+): EntityId {
+  const candidates = gatherLiveCandidates(ctx, enemies, grid, scratch);
+  const marked = selectMarked(enemies, candidates);
+  return marked !== NO_ENTITY
+    ? marked
+    : selectByPolicy(policy, ctx, enemies, candidates, clusterRadius);
+}

@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { CombatFeedbackCue, CombatFeedbackSnapshot } from '../src/presentation/combat-feedback';
 import {
+  AUDIO_SOURCE_IDS,
   ATTACK_AUDIO_MIN_INTERVAL_TICKS,
+  TRAIT_AUDIO_MIN_INTERVAL_TICKS,
   LIGHTNING_AUDIO_MIN_INTERVAL_TICKS,
   MELEE_AUDIO_MIN_INTERVAL_TICKS,
   ORBIT_AUDIO_MIN_INTERVAL_TICKS,
   PLAYER_DAMAGE_AUDIO_MIN_INTERVAL_TICKS,
   PICKUP_AUDIO_MIN_INTERVAL_TICKS,
+  audioCueForSourceId,
   createAudioCueRouter,
   type AudioCue,
 } from '../src/audio/audio-cue-router';
@@ -64,6 +67,118 @@ function orbit(tick: number) {
 }
 
 describe('audio cue router', () => {
+  it('covers every current launch trait, instinct, and telegraph source', () => {
+    expect(AUDIO_SOURCE_IDS).toEqual([
+      'porcupine-quills', 'puffer-pouch', 'electric-eel-coil', 'firefly-colony',
+      'mantis-scythes', 'gecko-pads', 'owl-pinions', 'bat-ears', 'crab-pincers',
+      'armadillo-greaves', 'skunk-brush', 'monarch-brood', 'thornstorm-mantle',
+      'thunderbug-dynamo', 'razorstep-chimera', 'midnight-radar', 'meteor-mauler',
+      'royal-stinkcloud', 'greg-rush-rake', 'benny-brace', 'gracie-scout',
+      'forest-final-threat', 'forest-support',
+    ]);
+    expect(audioCueForSourceId('porcupine-quills')).toBe('quills');
+    expect(audioCueForSourceId('monarch-brood')).toBe('monarch');
+    expect(audioCueForSourceId('royal-stinkcloud')).toBe('royal-stinkcloud');
+    expect(audioCueForSourceId('greg-rush-rake')).toBe('greg');
+    expect(audioCueForSourceId('forest-final-threat')).toBe('boss-telegraph');
+    expect(audioCueForSourceId('unknown-source')).toBeNull();
+  });
+
+  it('routes source identity cues once with a fixed-tick rate limit', () => {
+    const played: AudioCue[] = [];
+    const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
+
+    router.observe({
+      tick: 10,
+      combatFeedback: feedback(10),
+      traitPresentationEvents: [{ kind: 'spawnProjectileBurst', sourceId: 'porcupine-quills', tick: 10 }],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: 10 + TRAIT_AUDIO_MIN_INTERVAL_TICKS - 1,
+      combatFeedback: feedback(10 + TRAIT_AUDIO_MIN_INTERVAL_TICKS - 1),
+      traitPresentationEvents: [{ kind: 'spawnZone', sourceId: 'gecko-pads', tick: 10 + TRAIT_AUDIO_MIN_INTERVAL_TICKS - 1 }],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: 10 + TRAIT_AUDIO_MIN_INTERVAL_TICKS,
+      combatFeedback: feedback(10 + TRAIT_AUDIO_MIN_INTERVAL_TICKS),
+      traitPresentationEvents: [{ kind: 'spawnZone', sourceId: 'gecko-pads', tick: 10 + TRAIT_AUDIO_MIN_INTERVAL_TICKS }],
+      runOutcome: 'running',
+    });
+
+    expect(played).toEqual(['quills', 'gecko']);
+  });
+
+  it('uses hit-aware source voices for Eel, Mantis, Firefly, and Monarch contacts', () => {
+    const played: AudioCue[] = [];
+    const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
+
+    router.observe({
+      tick: 10,
+      combatFeedback: feedback(10),
+      traitPresentationEvents: [{ kind: 'chainDamage', sourceId: 'electric-eel-coil', tick: 10, resolvedHitCount: 1 }],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: 10 + LIGHTNING_AUDIO_MIN_INTERVAL_TICKS,
+      combatFeedback: feedback(10 + LIGHTNING_AUDIO_MIN_INTERVAL_TICKS),
+      traitPresentationEvents: [{ kind: 'meleeArc', sourceId: 'mantis-scythes', tick: 10 + LIGHTNING_AUDIO_MIN_INTERVAL_TICKS, meleeArcResolved: true }],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: 10 + LIGHTNING_AUDIO_MIN_INTERVAL_TICKS + MELEE_AUDIO_MIN_INTERVAL_TICKS,
+      combatFeedback: feedback(10 + LIGHTNING_AUDIO_MIN_INTERVAL_TICKS + MELEE_AUDIO_MIN_INTERVAL_TICKS),
+      traitPresentationEvents: [{ kind: 'orbitingDamage', sourceId: 'firefly-colony', tick: 10 + LIGHTNING_AUDIO_MIN_INTERVAL_TICKS + MELEE_AUDIO_MIN_INTERVAL_TICKS }],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: 10 + LIGHTNING_AUDIO_MIN_INTERVAL_TICKS + MELEE_AUDIO_MIN_INTERVAL_TICKS + ORBIT_AUDIO_MIN_INTERVAL_TICKS,
+      combatFeedback: feedback(10 + LIGHTNING_AUDIO_MIN_INTERVAL_TICKS + MELEE_AUDIO_MIN_INTERVAL_TICKS + ORBIT_AUDIO_MIN_INTERVAL_TICKS),
+      traitPresentationEvents: [{ kind: 'orbitingDamage', sourceId: 'monarch-brood', tick: 10 + LIGHTNING_AUDIO_MIN_INTERVAL_TICKS + MELEE_AUDIO_MIN_INTERVAL_TICKS + ORBIT_AUDIO_MIN_INTERVAL_TICKS }],
+      runOutcome: 'running',
+    });
+
+    expect(played).toEqual(['eel', 'mantis', 'firefly', 'monarch']);
+  });
+
+  it('keeps source identity below damage and does not turn a chain miss into a cue', () => {
+    const played: AudioCue[] = [];
+    const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
+
+    router.observe({
+      tick: 10,
+      combatFeedback: feedback(10, [playerHit(10)]),
+      traitPresentationEvents: [
+        { kind: 'spawnProjectileBurst', sourceId: 'greg-rush-rake', tick: 10 },
+        { kind: 'chainDamage', sourceId: 'electric-eel-coil', tick: 10, resolvedHitCount: 0 },
+      ],
+      runOutcome: 'running',
+    });
+
+    expect(played).toEqual(['damage']);
+  });
+
+  it('gives boss and support telegraphs their own lower-priority identities', () => {
+    const played: AudioCue[] = [];
+    const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
+
+    router.observe({
+      tick: 10,
+      combatFeedback: feedback(10),
+      traitPresentationEvents: [{ kind: 'telegraph', sourceId: 'forest-final-threat', tick: 10 }],
+      runOutcome: 'running',
+    });
+    router.observe({
+      tick: 10 + TRAIT_AUDIO_MIN_INTERVAL_TICKS,
+      combatFeedback: feedback(10 + TRAIT_AUDIO_MIN_INTERVAL_TICKS),
+      traitPresentationEvents: [{ kind: 'telegraph', sourceId: 'forest-support', tick: 10 + TRAIT_AUDIO_MIN_INTERVAL_TICKS }],
+      runOutcome: 'running',
+    });
+
+    expect(played).toEqual(['boss-telegraph', 'enemy-warning']);
+  });
+
   it('makes start and upgrade prompts idempotent within one run', () => {
     const played: AudioCue[] = [];
     const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
@@ -75,6 +190,20 @@ describe('audio cue router', () => {
     router.upgradeOpened(2);
 
     expect(played).toEqual(['start', 'upgrade', 'upgrade']);
+  });
+
+  it('routes boss warning and arrival events once by director sequence', () => {
+    const played: AudioCue[] = [];
+    const router = createAudioCueRouter({ play: (cue) => played.push(cue) });
+    const events = [
+      { kind: 'bossWarning', tick: 100, seq: 4, phase: 'boss' as const },
+      { kind: 'bossRequested', tick: 200, seq: 5, phase: 'boss' as const },
+    ];
+
+    router.observe({ tick: 100, combatFeedback: feedback(100), directorEvents: events, runOutcome: 'running' });
+    router.observe({ tick: 201, combatFeedback: feedback(201), directorEvents: events, runOutcome: 'running' });
+
+    expect(played).toEqual(['boss-warning', 'boss-arrive']);
   });
 
   it('plays at most one fresh pickup from retained or catch-up feedback', () => {

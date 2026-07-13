@@ -40,6 +40,7 @@ function fillCategory(
     out.maxHp[i] = out.category === 'enemy' ? 100 : 0;
     out.archetype[i] = out.category === 'enemy' ? i % 3 : 0;
     out.role[i] = 0;
+    out.marked[i] = 0;
   }
 }
 

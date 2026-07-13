@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   GREG_FOREST_ARSENAL_CATALOG,
   TraitRuntime,
+  getCatalog,
   type RuntimeContext,
 } from '../src/index.js';
 
@@ -23,8 +24,8 @@ function upgrade(runtime: TraitRuntime, id: string): void {
   assert.equal(result.outcome.ok, true, `${id} should be a legal upgrade`);
 }
 
-test('Forest Arsenal exposes six real non-starter attack candidates and three supported Mythics', () => {
-  assert.equal(GREG_FOREST_ARSENAL_CATALOG.maxActiveTraits, 4);
+test('Forest Arsenal exposes twelve launch attack families and six supported Mythics', () => {
+  assert.equal(GREG_FOREST_ARSENAL_CATALOG.maxActiveTraits, 3);
   assert.deepEqual(
     GREG_FOREST_ARSENAL_CATALOG.traits.map((trait) => trait.id),
     [
@@ -34,11 +35,17 @@ test('Forest Arsenal exposes six real non-starter attack candidates and three su
       'firefly-colony',
       'mantis-scythes',
       'gecko-pads',
+      'owl-pinions',
+      'bat-ears',
+      'crab-pincers',
+      'armadillo-greaves',
+      'skunk-brush',
+      'monarch-brood',
     ],
   );
   assert.deepEqual(
     GREG_FOREST_ARSENAL_CATALOG.evolutions.map((evolution) => evolution.id),
-    ['thornstorm-mantle', 'thunderbug-dynamo', 'razorstep-chimera'],
+    ['thornstorm-mantle', 'thunderbug-dynamo', 'razorstep-chimera', 'midnight-radar', 'meteor-mauler', 'royal-stinkcloud'],
   );
 
   const quills = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
@@ -135,9 +142,83 @@ test('Forest Arsenal exposes six real non-starter attack candidates and three su
     },
     { kind: 'chainDamage', damage: 9, jumps: 7, range: 185 },
   );
+
+  const owl = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
+  upgrade(owl, 'owl-pinions');
+  assert.equal(owl.update(context(1)).at(0).kind, 'spawnProjectileBurst');
+  const bat = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
+  upgrade(bat, 'bat-ears');
+  assert.equal(bat.update(context(1)).at(0).kind, 'markTargets');
+  const crab = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
+  upgrade(crab, 'crab-pincers');
+  assert.equal(crab.update(context(1)).at(0).kind, 'applyAreaDamage');
+  const skunk = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
+  upgrade(skunk, 'skunk-brush');
+  assert.equal(skunk.update(context(1)).at(0).tag, 'stink-cloud');
+
+  const monarch = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
+  upgrade(monarch, 'monarch-brood');
+  const monarchCommand = monarch.update(context(1)).at(0);
+  assert.deepEqual(
+    {
+      kind: monarchCommand.kind,
+      count: monarchCommand.count,
+      damage: monarchCommand.damage,
+      speed: monarchCommand.speed,
+      radius: monarchCommand.radius,
+      range: monarchCommand.range,
+    },
+    {
+      kind: 'orbitingDamage',
+      count: 2,
+      damage: 2,
+      speed: (Math.PI * 2) / 180,
+      radius: 72,
+      range: 14,
+    },
+  );
+
+  const adaptedMonarch = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
+  upgrade(adaptedMonarch, 'monarch-brood');
+  upgrade(adaptedMonarch, 'monarch-brood');
+  const adaptedMonarchCommand = adaptedMonarch.update(context(1)).at(0);
+  assert.deepEqual(
+    {
+      kind: adaptedMonarchCommand.kind,
+      count: adaptedMonarchCommand.count,
+      damage: adaptedMonarchCommand.damage,
+      speed: adaptedMonarchCommand.speed,
+      radius: adaptedMonarchCommand.radius,
+      range: adaptedMonarchCommand.range,
+    },
+    {
+      kind: 'orbitingDamage',
+      count: 3,
+      damage: 3,
+      speed: (Math.PI * 2) / 150,
+      radius: 84,
+      range: 16,
+    },
+  );
+
+  assert.deepEqual(
+    GREG_FOREST_ARSENAL_CATALOG.traits.find((trait) => trait.id === 'monarch-brood')?.tags,
+    ['companion', 'orbit', 'contact'],
+  );
 });
 
-test('six candidates make the four-attack cap a real choice while existing upgrades stay legal', () => {
+test('the default catalog keeps Firefly Colony on its real orbit/contact attack', () => {
+  const firefly = getCatalog().traits.find((trait) => trait.id === 'firefly-colony');
+  assert.ok(firefly);
+  const bud = firefly.stages.bud.behavior;
+  const adapted = firefly.stages.adapted.behavior;
+  assert.equal(bud.kind, 'periodicBurst');
+  assert.equal(bud.emit?.kind, 'orbitingDamage');
+  assert.equal(adapted.kind, 'periodicBurst');
+  assert.equal(adapted.emit?.kind, 'orbitingDamage');
+});
+
+test('twelve candidates make the three-acquired-attack cap a real choice while upgrades stay legal', () => {
   const runtime = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG });
   assert.deepEqual(
     runtime.offers(99).map((offer) => offer.traitId),
@@ -148,9 +229,15 @@ test('six candidates make the four-attack cap a real choice while existing upgra
       'firefly-colony',
       'mantis-scythes',
       'gecko-pads',
+      'owl-pinions',
+      'bat-ears',
+      'crab-pincers',
+      'armadillo-greaves',
+      'skunk-brush',
+      'monarch-brood',
     ],
   );
-  for (const traitId of ['porcupine-quills', 'puffer-pouch', 'electric-eel-coil', 'firefly-colony']) {
+  for (const traitId of ['porcupine-quills', 'puffer-pouch', 'electric-eel-coil']) {
     upgrade(runtime, traitId);
   }
 
@@ -160,7 +247,7 @@ test('six candidates make the four-attack cap a real choice while existing upgra
       ok: false,
       kind: 'loadoutFull',
       traitId,
-      capacity: 4,
+      capacity: 3,
     });
   }
   assert.equal(runtime.applyUpgrade('electric-eel-coil').outcome.ok, true, 'an owned Bud can still adapt');

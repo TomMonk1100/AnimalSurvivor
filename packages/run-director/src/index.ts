@@ -506,6 +506,7 @@ function insertSorted(arr: string[], value: string): void {
 export * from './contracts.js';
 export * from './ids.js';
 export { getDefaultDefinition, phaseDefFor, archetypeDef } from './definitions.js';
+export { SALTWIND_RUINS_RUN } from './content/saltwind-ruins.js';
 export { validateDefinition } from './validation.js';
 export {
   resolveDiscretionaryWaveInterval,

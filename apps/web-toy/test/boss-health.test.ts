@@ -13,13 +13,14 @@ function enemies(entries: Array<{ id: number; role: number; hp: number; maxHp: n
   const role = new Uint8Array(capacity);
   const hp = new Float32Array(capacity);
   const maxHp = new Float32Array(capacity);
+  const marked = new Uint8Array(capacity);
   entries.forEach((entry, index) => {
     id[index] = entry.id;
     role[index] = entry.role;
     hp[index] = entry.hp;
     maxHp[index] = entry.maxHp;
   });
-  return { category: 'enemy', count: capacity, id, x, y, radius, archetype, role, hp, maxHp };
+  return { category: 'enemy', count: capacity, id, x, y, radius, archetype, role, hp, maxHp, marked };
 }
 
 describe('boss health presentation', () => {
@@ -38,6 +39,11 @@ describe('boss health presentation', () => {
   it('hides when no valid live boss snapshot is present', () => {
     expect(presentBossHealth(enemies([{ id: 1, role: RUN_ENEMY_ROLE.regular, hp: 1, maxHp: 1 }]))).toBeNull();
     expect(presentBossHealth(enemies([{ id: 2, role: RUN_ENEMY_ROLE.boss, hp: 1, maxHp: 0 }]))).toBeNull();
+  });
+
+  it('uses the named Saltwind apex identity without changing copied health', () => {
+    expect(presentBossHealth(enemies([{ id: 4, role: RUN_ENEMY_ROLE.boss, hp: 40, maxHp: 80 }]), 'saltwind'))
+      .toMatchObject({ label: 'The Sandglass Sovereign', current: 40, max: 80, percent: 50 });
   });
 
   it('clamps malformed copied health to a safe progress fraction', () => {

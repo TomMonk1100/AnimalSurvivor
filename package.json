@@ -1,0 +1,11 @@
+{
+  "name": "animal-survivor-release-tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local release verification commands for AnimalSurvivor.",
+  "scripts": {
+    "verify:supply-chain": "node scripts/verify-supply-chain.mjs",
+    "verify:release": "node scripts/verify-release.mjs"
+  }
+}

@@ -8,7 +8,7 @@ describe('run intro presentation', () => {
       eyebrow: 'Animal Survivor',
       title: 'Greg is ready.',
       objective: 'Stay moving, collect green XP motes, and choose animal adaptations.',
-      controls: 'Move with WASD or Arrow Keys — or drag the lower-left circle on touch. Greg auto-fires at nearby threats. Press Esc to pause.',
+      controls: 'Move with WASD, Arrow Keys, a gamepad left stick/D-pad, or hold-drag on the arena with a mouse. On touch, drag the lower-left circle. Greg auto-fires and charges a three-wave Rush Rake while moving near threats. Press Esc to pause.',
       cta: 'Start run',
     });
   });
@@ -18,5 +18,13 @@ describe('run intro presentation', () => {
 
     expect(presentation.holdAtStart).toBe(false);
     expect(presentation.cta).toBe('Start run');
+  });
+
+  it('changes onboarding copy when Benny is selected', () => {
+    const presentation = presentRunIntro({ autoStart: false, heroId: 'benny' });
+
+    expect(presentation.title).toBe('Benny is ready.');
+    expect(presentation.objective).toMatch(/sturdy body/i);
+    expect(presentation.controls).toMatch(/Benny auto-fires/i);
   });
 });

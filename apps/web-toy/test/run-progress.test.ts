@@ -29,6 +29,13 @@ describe('run progress presentation', () => {
     });
   });
 
+  it('names the Saltwind apex in the persistent HUD objective', () => {
+    expect(presentRunProgress({ tick: 660 * 60, hz: 60, phase: 'boss', biomeId: 'saltwind' })).toEqual({
+      status: 'RUN 11:00 · THE SANDGLASS SOVEREIGN',
+      objective: 'Objective: defeat the Sandglass Sovereign.',
+    });
+  });
+
   it('has a truthful preparation fallback and never produces a malformed clock', () => {
     expect(presentRunProgress({ tick: -5, hz: 0, phase: null })).toEqual({
       status: 'RUN 0:00 · PREPARE',

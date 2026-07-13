@@ -1,6 +1,6 @@
 import type { TraitVisualAttachmentView } from '@sim';
 
-/** Plain-language HUD content for the adaptations available in Greg's slice. */
+/** Plain-language HUD content for the Forest Arsenal launch pool. */
 export interface ActiveAdaptationCard {
   readonly id: string;
   readonly title: string;
@@ -24,9 +24,24 @@ type GregAdaptationId =
   | 'gecko-pads:bud'
   | 'gecko-pads:adapted'
   | 'thunderbug-dynamo:mythic'
-  | 'razorstep-chimera:mythic';
+  | 'razorstep-chimera:mythic'
+  | 'owl-pinions:bud'
+  | 'owl-pinions:adapted'
+  | 'bat-ears:bud'
+  | 'bat-ears:adapted'
+  | 'midnight-radar:mythic'
+  | 'crab-pincers:bud'
+  | 'crab-pincers:adapted'
+  | 'armadillo-greaves:bud'
+  | 'armadillo-greaves:adapted'
+  | 'meteor-mauler:mythic'
+  | 'skunk-brush:bud'
+  | 'skunk-brush:adapted'
+  | 'monarch-brood:bud'
+  | 'monarch-brood:adapted'
+  | 'royal-stinkcloud:mythic';
 
-interface AdaptationDefinition {
+export interface AdaptationPresentationDefinition {
   readonly card: ActiveAdaptationCard;
   readonly sourceId: string;
   readonly stage: TraitVisualAttachmentView['stage'];
@@ -40,7 +55,7 @@ function definition(
   stageLabel: string,
   effect: string,
   cadence: string,
-): AdaptationDefinition {
+): AdaptationPresentationDefinition {
   return Object.freeze({
     card: Object.freeze({ id, title, stageLabel, effect, cadence }),
     sourceId,
@@ -48,7 +63,7 @@ function definition(
   });
 }
 
-const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Object.freeze({
+const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationPresentationDefinition>> = Object.freeze({
   'porcupine-quills:bud': definition(
     'porcupine-quills:bud',
     'porcupine-quills',
@@ -184,6 +199,21 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationDefinition>> = Ob
     "Movement leaves stronger scythe pads at Greg's feet.",
     'Placement: after travelling 90 units',
   ),
+  'owl-pinions:bud': definition('owl-pinions:bud', 'owl-pinions', 'bud', 'Owl Pinions', 'Bud', 'Fires a four-feather spread at the nearest threat.', 'Every 1.6 seconds'),
+  'owl-pinions:adapted': definition('owl-pinions:adapted', 'owl-pinions', 'adapted', 'Owl Pinions', 'Adapted', 'Fires a wider seven-feather spread.', 'Every 1.2 seconds'),
+  'bat-ears:bud': definition('bat-ears:bud', 'bat-ears', 'bud', 'Bat Ears', 'Bud', 'Echo-marks a nearby cluster; every automatic attack prioritizes the marked prey.', 'Every 2 seconds'),
+  'bat-ears:adapted': definition('bat-ears:adapted', 'bat-ears', 'adapted', 'Bat Ears', 'Adapted', 'Echo-marks a larger cluster so every automatic attack hunts marked prey first.', 'Every 1.5 seconds'),
+  'midnight-radar:mythic': definition('midnight-radar:mythic', 'midnight-radar', 'mythic', 'Midnight Radar', 'Mythic', 'Marks a wide threat cluster and keeps your aim on the marked hunt.', 'Every 1.7 seconds'),
+  'crab-pincers:bud': definition('crab-pincers:bud', 'crab-pincers', 'bud', 'Crab Pincers', 'Bud', 'Crushes nearby enemies with a compact area strike.', 'Every 1.7 seconds'),
+  'crab-pincers:adapted': definition('crab-pincers:adapted', 'crab-pincers', 'adapted', 'Crab Pincers', 'Adapted', 'Crushes a wider area for heavier damage.', 'Every 1.25 seconds'),
+  'armadillo-greaves:bud': definition('armadillo-greaves:bud', 'armadillo-greaves', 'bud', 'Armadillo Greaves', 'Bud', 'Shoves nearby threats away from your body.', 'Every 2.3 seconds'),
+  'armadillo-greaves:adapted': definition('armadillo-greaves:adapted', 'armadillo-greaves', 'adapted', 'Armadillo Greaves', 'Adapted', 'Creates a stronger defensive shove around you.', 'Every 1.7 seconds'),
+  'meteor-mauler:mythic': definition('meteor-mauler:mythic', 'meteor-mauler', 'mythic', 'Meteor Mauler', 'Mythic', 'A heavy close-range impact crushes the nearest crowd.', 'Every 1.5 seconds'),
+  'skunk-brush:bud': definition('skunk-brush:bud', 'skunk-brush', 'bud', 'Skunk Brush', 'Bud', 'Leaves a damaging stink cloud that punishes pursuit.', 'Every 2.7 seconds'),
+  'skunk-brush:adapted': definition('skunk-brush:adapted', 'skunk-brush', 'adapted', 'Skunk Brush', 'Adapted', 'Leaves a larger, stronger stink cloud.', 'Every 2 seconds'),
+  'monarch-brood:bud': definition('monarch-brood:bud', 'monarch-brood', 'bud', 'Monarch Brood', 'Bud', 'Two monarchs orbit Greg and sting nearby enemies on contact.', 'Every second'),
+  'monarch-brood:adapted': definition('monarch-brood:adapted', 'monarch-brood', 'adapted', 'Monarch Brood', 'Adapted', 'Three monarchs orbit wider and sting nearby enemies more often.', 'Every 0.75 seconds'),
+  'royal-stinkcloud:mythic': definition('royal-stinkcloud:mythic', 'royal-stinkcloud', 'mythic', 'Royal Stinkcloud', 'Mythic', 'A monarch-crowned cloud turns the space around you into a hazard.', 'Every 2.3 seconds'),
 });
 
 const INGREDIENTS: readonly (readonly [GregAdaptationId, GregAdaptationId])[] = Object.freeze([
@@ -193,6 +223,12 @@ const INGREDIENTS: readonly (readonly [GregAdaptationId, GregAdaptationId])[] = 
   ['firefly-colony:adapted', 'firefly-colony:bud'],
   ['mantis-scythes:adapted', 'mantis-scythes:bud'],
   ['gecko-pads:adapted', 'gecko-pads:bud'],
+  ['owl-pinions:adapted', 'owl-pinions:bud'],
+  ['bat-ears:adapted', 'bat-ears:bud'],
+  ['crab-pincers:adapted', 'crab-pincers:bud'],
+  ['armadillo-greaves:adapted', 'armadillo-greaves:bud'],
+  ['skunk-brush:adapted', 'skunk-brush:bud'],
+  ['monarch-brood:adapted', 'monarch-brood:bud'],
 ]);
 
 const MYTHICS = Object.freeze([
@@ -208,16 +244,33 @@ const MYTHICS = Object.freeze([
     id: 'razorstep-chimera:mythic' as const,
     ingredients: Object.freeze(['mantis-scythes', 'gecko-pads']),
   }),
+  Object.freeze({
+    id: 'midnight-radar:mythic' as const,
+    ingredients: Object.freeze(['owl-pinions', 'bat-ears']),
+  }),
+  Object.freeze({
+    id: 'meteor-mauler:mythic' as const,
+    ingredients: Object.freeze(['crab-pincers', 'armadillo-greaves']),
+  }),
+  Object.freeze({
+    id: 'royal-stinkcloud:mythic' as const,
+    ingredients: Object.freeze(['skunk-brush', 'monarch-brood']),
+  }),
 ]);
 
 function hasActiveVisual(
   visuals: readonly TraitVisualAttachmentView[],
-  definition: AdaptationDefinition,
+  definition: AdaptationPresentationDefinition,
 ): boolean {
   return visuals.some((visual) => visual.enabled
     && visual.sourceId === definition.sourceId
     && visual.stage === definition.stage
     && visual.visualKey === definition.card.id);
+}
+
+/** Complete pause/HUD manifest used by the release content validator. */
+export function getAdaptationPresentationDefinitions(): readonly AdaptationPresentationDefinition[] {
+  return Object.freeze(Object.values(DEFINITIONS));
 }
 
 /**

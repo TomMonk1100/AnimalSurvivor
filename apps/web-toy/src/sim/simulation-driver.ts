@@ -29,6 +29,8 @@ import type {
   RunDirectorEventView,
   RunOutcomeView,
   RunPhaseView,
+  ReplayRecord,
+  UniversalUpgradeCatalog,
 } from '@sim';
 import { captureSnapshot, createSnapshot } from './snapshot-producer';
 import { createCombatFeedbackPool } from '../presentation/combat-feedback-pool';
@@ -79,6 +81,7 @@ export interface SimDriver {
   readonly totalKills: number;
   readonly runEssenceEarned: number;
   readonly universalUpgradeRanks: readonly number[];
+  readonly universalUpgradeCatalog: UniversalUpgradeCatalog | null;
   readonly universalUpgradeSlotCapacity: number;
   readonly universalUpgradeSlotsUsed: number;
   /** Offers awaiting the player's deterministic level-up choice. */
@@ -96,6 +99,8 @@ export interface SimDriver {
    * consume it synchronously rather than retaining a reference.
    */
   readonly traitPresentationEvents: readonly TraitPresentationEventView[];
+  /** Detached deterministic input/upgrade history for optional issue export. */
+  replay(): ReplayRecord;
   hash(): string;
   selectUpgrade(id: string): UpgradeSelection;
   traitVisualState(): readonly TraitVisualAttachmentView[];
@@ -214,6 +219,11 @@ export function createSimDriver(
           resolvedHitCount: event.resolvedHitCount,
           resolvedHitX: new Float32Array(event.resolvedHitX),
           resolvedHitY: new Float32Array(event.resolvedHitY),
+          resolvedOrbitHitCount: event.resolvedOrbitHitCount,
+          resolvedOrbitHitX: new Float32Array(event.resolvedOrbitHitX),
+          resolvedOrbitHitY: new Float32Array(event.resolvedOrbitHitY),
+          resolvedOrbitSourceX: new Float32Array(event.resolvedOrbitSourceX),
+          resolvedOrbitSourceY: new Float32Array(event.resolvedOrbitSourceY),
         };
         traitPresentationEventStorage[index] = copy;
       } else {
@@ -243,6 +253,11 @@ export function createSimDriver(
         copy.resolvedHitCount = event.resolvedHitCount;
         copy.resolvedHitX.set(event.resolvedHitX);
         copy.resolvedHitY.set(event.resolvedHitY);
+        copy.resolvedOrbitHitCount = event.resolvedOrbitHitCount;
+        copy.resolvedOrbitHitX.set(event.resolvedOrbitHitX);
+        copy.resolvedOrbitHitY.set(event.resolvedOrbitHitY);
+        copy.resolvedOrbitSourceX.set(event.resolvedOrbitSourceX);
+        copy.resolvedOrbitSourceY.set(event.resolvedOrbitSourceY);
       }
       frameTraitPresentationEvents.push(copy);
     }
@@ -403,6 +418,9 @@ export function createSimDriver(
     get universalUpgradeRanks() {
       return sim.universalUpgradeRanks;
     },
+    get universalUpgradeCatalog() {
+      return sim.universalUpgradeCatalog;
+    },
     get universalUpgradeSlotCapacity() {
       return sim.universalUpgradeSlotCapacity;
     },
@@ -432,6 +450,9 @@ export function createSimDriver(
     },
     hash() {
       return sim.hash();
+    },
+    replay() {
+      return sim.getReplay();
     },
     selectUpgrade(id: string) {
       const selection = sim.selectUpgrade(id);

@@ -1,4 +1,5 @@
-import type { RunDirectorEventView, RunPhaseView } from '@sim';
+import type { BiomeId, RunDirectorEventView, RunPhaseView } from '@sim';
+import { getBiomePresentationCopy } from './biome-copy';
 
 export type DirectorNoticeTone = 'phase' | 'warning' | 'danger' | 'victory' | 'defeat';
 
@@ -37,20 +38,22 @@ function notice(
 }
 
 /** Pure projection only; it never advances or mutates director/simulation state. */
-export function projectDirectorEvent(event: RunDirectorEventView): DirectorNotice | null {
+export function projectDirectorEvent(event: RunDirectorEventView, biomeId: BiomeId = 'forest'): DirectorNotice | null {
+  const biomeCopy = getBiomePresentationCopy(biomeId);
   switch (event.kind) {
     case 'phaseStarted': {
       const phase = event.phaseId ?? event.phase;
-      return notice(event, 'phase', PHASE_NAMES[phase], 'The shape of the hunt has changed.', 180);
+      const title = phase === 'boss' ? biomeCopy.bossName : PHASE_NAMES[phase];
+      return notice(event, 'phase', title, 'The shape of the hunt has changed.', 180);
     }
     case 'eliteWarning':
       return notice(event, 'warning', 'Something formidable approaches', 'Keep moving and make space.', 180);
     case 'eliteRequested':
       return notice(event, 'danger', 'Elite threat arrived', 'Break away before it closes the gap.', 180);
     case 'bossWarning':
-      return notice(event, 'warning', 'The undergrowth has gone quiet', 'A great threat is approaching.', 300);
+      return notice(event, 'warning', biomeCopy.bossWarningTitle, biomeCopy.bossWarningDetail, 300);
     case 'bossRequested':
-      return notice(event, 'danger', 'The final threat has arrived', 'Survive, adapt, and bring it down.', 300);
+      return notice(event, 'danger', biomeCopy.bossArrivalTitle, biomeCopy.bossArrivalDetail, 300);
     case 'overtimeStarted':
       return notice(event, 'danger', 'Overtime', 'The wild will keep closing in until the boss falls.', 300);
     case 'victory':

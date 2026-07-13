@@ -19,6 +19,7 @@
  */
 import type {
   EntityId,
+  HeroId,
   PlayerState,
   SimEvents,
   TickInput,
@@ -27,11 +28,14 @@ import type {
 } from '@sim';
 import type { CombatFeedbackSnapshot } from './presentation/combat-feedback';
 
-export type { EntityId, PlayerState, SimEvents, TickInput };
+export type { EntityId, HeroId, PlayerState, SimEvents, TickInput };
 
 // ---------------------------------------------------------------------------
 // Input (Agent C) — every input source resolves to ONE TickInput per tick.
 // ---------------------------------------------------------------------------
+
+/** Presentation-only label for the last interactive movement source observed. */
+export type InputMode = 'keyboard' | 'mouse' | 'touch' | 'gamepad';
 
 /**
  * Produces the canonical movement intent for the CURRENT tick. Keyboard, touch
@@ -47,6 +51,8 @@ export interface InputSource {
    * @param paused Whether the shell is currently paused.
    */
   sample(tick: number, paused: boolean): TickInput;
+  /** Optional presentation hook; this never enters TickInput, replay, or hash state. */
+  readonly inputMode?: () => InputMode;
   /** Clear any latched/active input (called on focus loss, pause, teardown). */
   clear(): void;
   dispose(): void;
@@ -60,6 +66,9 @@ export interface InputSource {
 
 /** Category of a pooled primitive view. One shared flat material per category. */
 export type ViewCategory = 'enemy' | 'projectile' | 'pickup' | 'zone';
+
+/** Renderer-only performance profile; never enters a simulation loadout/hash. */
+export type RenderQualityTier = 'standard' | 'reduced';
 
 /**
  * A flat, allocation-stable list of live entities of one category captured at a
@@ -83,6 +92,8 @@ export interface CategorySnapshot {
   readonly maxHp: Float32Array;
   readonly archetype: Uint8Array;
   readonly role: Uint8Array;
+  /** Simulation-owned priority mark copied for renderer-only weak-point feedback. */
+  readonly marked: Uint8Array;
 }
 
 /** One full render snapshot: player transform + per-category entity snapshots. */
@@ -125,6 +136,8 @@ export interface RendererStats {
 }
 
 export interface RendererAdapter {
+  /** Select the renderer-only hero before a run starts or from the prep screen. */
+  setHero(heroId: HeroId): void;
   /**
    * Render one frame by reading interpolated transforms. `alpha` in [0,1] is the
    * fractional progress between `prev` and `curr` snapshots. Implementations MUST
@@ -141,6 +154,10 @@ export interface RendererAdapter {
   ): void;
   /** Resize backing store to CSS size * min(devicePixelRatio, cap). */
   resize(): void;
+  /** Changes presentation cost only; simulation state and replay identity are untouched. */
+  setQualityTier?(tier: RenderQualityTier): void;
+  /** Applies a profile-owned presentation palette; never affects simulation state. */
+  setPalette?(paletteId: string): void;
   stats(): RendererStats;
   /** True once WebGL2 is up and the scene is ready to render. */
   readonly ready: boolean;

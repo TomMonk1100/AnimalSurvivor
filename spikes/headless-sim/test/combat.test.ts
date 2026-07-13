@@ -182,6 +182,219 @@ test('stepEnemies: a distant runner weaves deterministically but direct-seeks wh
   assert.equal(close.pool.data.posY[close.slot], 500, 'close runner stops weaving for a readable direct seek');
 });
 
+test('stepEnemies: a Charger has a deterministic wind-up then lunge burst', () => {
+  const makeCharger = (tick: number) => {
+    const pool = createEnemyPool(2);
+    const grid = new BruteForceGrid();
+    const state = createEnemyBehaviorState(2);
+    const slot = pool.spawn();
+    pool.data.posX[slot] = 0;
+    pool.data.posY[slot] = 0;
+    pool.data.speed[slot] = 10;
+    pool.data.radius[slot] = 1;
+    pool.data.touchDamage[slot] = 0;
+    grid.insert(pool.idOf(slot), 0, 0);
+    resetEnemyBehavior(state, slot, 'charger', false, 0, 0);
+    stepEnemies(pool, grid, makePlayer({ x: 1_000, y: 0 }), 1, 2_000, 2_000, 30, 20, {
+      state, config: DEFAULT_CONFIG.enemyBehavior, tick, projectiles: createProjectilePool(2), events: makeEvents(),
+    });
+    return { pool, slot, state };
+  };
+  const windup = makeCharger(0);
+  const lunge = makeCharger(30);
+  assert.equal(windup.state.kind[windup.slot], ENEMY_BEHAVIOR_KIND.chargerBurst);
+  assert.equal(windup.pool.data.posX[windup.slot], 0, 'wind-up holds position');
+  assert.equal(lunge.pool.data.posX[lunge.slot], 22, 'lunge uses the authored burst multiplier');
+});
+
+test('stepEnemies: The Final Threat runs a hashed charge-to-volley attack cycle', () => {
+  const pool = createEnemyPool(2);
+  const grid = new BruteForceGrid();
+  const projectiles = createProjectilePool(16);
+  const events = makeEvents();
+  const state = createEnemyBehaviorState(2);
+  const cues: string[] = [];
+  const slot = pool.spawn();
+  pool.data.posX[slot] = 0;
+  pool.data.posY[slot] = 0;
+  pool.data.speed[slot] = 10;
+  pool.data.radius[slot] = 12;
+  pool.data.touchDamage[slot] = 8;
+  grid.insert(pool.idOf(slot), 0, 0);
+  resetEnemyBehavior(state, slot, 'brute', false, 0, 0, true);
+  const config = {
+    ...DEFAULT_CONFIG.enemyBehavior,
+    bossCycleTicks: 12,
+    bossChargeWindupTicks: 2,
+    bossChargeDurationTicks: 2,
+    bossVolleyTick: 6,
+    bossVolleyCount: 4,
+  };
+  const behavior = {
+    state,
+    config,
+    tick: 0,
+    projectiles,
+    events,
+    onBossCue(tag: string) { cues.push(tag); },
+  };
+  const player = makePlayer({ x: 1_000, y: 0 });
+
+  stepEnemies(pool, grid, player, 1, 2_000, 2_000, 30, 20, behavior);
+  assert.equal(state.kind[slot], ENEMY_BEHAVIOR_KIND.bossApex);
+  assert.equal(pool.data.posX[slot], 0, 'charge wind-up holds the boss in place');
+  assert.deepEqual(cues, ['boss-charge']);
+
+  while (state.bossPatternTick[slot] !== config.bossVolleyTick) {
+    behavior.tick++;
+    stepEnemies(pool, grid, player, 1, 2_000, 2_000, 30, 20, behavior);
+  }
+  const beforeVolleyX = pool.data.posX[slot]!;
+  stepEnemies(pool, grid, player, 1, 2_000, 2_000, 30, 20, behavior);
+  assert.equal(cues[1], 'boss-volley');
+  assert.equal(events.enemyProjectilesFired, config.bossVolleyCount);
+  assert.equal(projectiles.data.count, config.bossVolleyCount);
+  assert.equal(pool.data.posX[slot], beforeVolleyX, 'volley beat holds the boss silhouette');
+});
+
+test('stepEnemies: flankers orbit while support threats heal a nearby pack on cadence', () => {
+  const pool = createEnemyPool(4);
+  const grid = new BruteForceGrid();
+  const projectiles = createProjectilePool(4);
+  const events = makeEvents();
+  const state = createEnemyBehaviorState(4);
+  const config = {
+    ...DEFAULT_CONFIG.enemyBehavior,
+    supportHealIntervalTicks: 3,
+    supportHealRadius: 100,
+    supportHealAmount: 10,
+  };
+  const support = pool.spawn();
+  const ally = pool.spawn();
+  const distant = pool.spawn();
+  for (const slot of [support, ally, distant]) {
+    pool.data.speed[slot] = 0;
+    pool.data.radius[slot] = 6;
+    pool.data.touchDamage[slot] = 0;
+    pool.data.maxHp[slot] = 50;
+    grid.insert(pool.idOf(slot), 0, 0);
+  }
+  pool.data.posX[ally] = 30;
+  pool.data.posX[distant] = 500;
+  grid.update(pool.idOf(ally), 30, 0);
+  grid.update(pool.idOf(distant), 500, 0);
+  pool.data.hp[support] = 50;
+  pool.data.hp[ally] = 10;
+  pool.data.hp[distant] = 10;
+  resetEnemyBehavior(state, support, 'support', false, 0, 0);
+  resetEnemyBehavior(state, ally, 'brute', false, 0, 0);
+  resetEnemyBehavior(state, distant, 'brute', false, 0, 0);
+  const cues: number[] = [];
+  const behavior = {
+    state,
+    config,
+    tick: 0,
+    projectiles,
+    events,
+    onSupportCue(_tick: number, _x: number, _y: number, _radius: number, healedCount: number) {
+      cues.push(healedCount);
+    },
+  };
+  stepEnemies(pool, grid, makePlayer({ x: 1_000, y: 0 }), 1 / 60, 2_000, 2_000, 30, 20, behavior);
+  assert.equal(state.kind[support], ENEMY_BEHAVIOR_KIND.supportPulse);
+  assert.equal(pool.data.hp[ally], 20);
+  assert.equal(pool.data.hp[distant], 10, 'support pulse stays inside its authored radius');
+  assert.deepEqual(cues, [1]);
+
+  const flankPool = createEnemyPool(1);
+  const flankGrid = new BruteForceGrid();
+  const flankState = createEnemyBehaviorState(1);
+  const flanker = flankPool.spawn();
+  flankPool.data.posX[flanker] = 300;
+  flankPool.data.posY[flanker] = 0;
+  flankPool.data.speed[flanker] = 60;
+  flankPool.data.radius[flanker] = 6;
+  flankPool.data.touchDamage[flanker] = 0;
+  flankPool.data.maxHp[flanker] = 50;
+  flankPool.data.hp[flanker] = 50;
+  flankGrid.insert(flankPool.idOf(flanker), 300, 0);
+  resetEnemyBehavior(flankState, flanker, 'flanker', false, 0, 0);
+  behavior.tick = 1;
+  stepEnemies(flankPool, flankGrid, makePlayer({ x: 0, y: 0 }), 1 / 60, 2_000, 2_000, 30, 20, {
+    ...behavior,
+    state: flankState,
+  });
+  assert.equal(flankState.kind[flanker], ENEMY_BEHAVIOR_KIND.flankerOrbit);
+  assert.notEqual(flankPool.data.posY[flanker], 0, 'flanker takes a lateral approach');
+});
+
+test('stepEnemies: Saltwind apex uses its own sandstorm volley variant', () => {
+  const pool = createEnemyPool(1);
+  const grid = new BruteForceGrid();
+  const projectiles = createProjectilePool(16);
+  const events = makeEvents();
+  const state = createEnemyBehaviorState(1);
+  const slot = pool.spawn();
+  pool.data.posX[slot] = 0;
+  pool.data.posY[slot] = 0;
+  pool.data.speed[slot] = 10;
+  pool.data.radius[slot] = 12;
+  pool.data.touchDamage[slot] = 0;
+  pool.data.maxHp[slot] = 500;
+  pool.data.hp[slot] = 500;
+  grid.insert(pool.idOf(slot), 0, 0);
+  resetEnemyBehavior(state, slot, 'brute', false, 0, 0, true);
+  const config = {
+    ...DEFAULT_CONFIG.enemyBehavior,
+    bossCycleTicks: 12,
+    bossChargeWindupTicks: 2,
+    bossChargeDurationTicks: 2,
+    bossVolleyTick: 6,
+    bossVolleyCount: 8,
+  };
+  const cues: string[] = [];
+  const behavior = {
+    state,
+    config,
+    tick: 0,
+    projectiles,
+    events,
+    bossVariant: 'saltwind' as const,
+    onBossCue(tag: string) { cues.push(tag); },
+  };
+  const player = makePlayer({ x: 1_000, y: 0 });
+  for (let tick = 0; tick <= config.bossVolleyTick; tick++) {
+    behavior.tick = tick;
+    stepEnemies(pool, grid, player, 1, 2_000, 2_000, 30, 20, behavior);
+  }
+  assert.deepEqual(cues, ['saltwind-charge', 'saltwind-sandstorm']);
+  assert.equal(events.enemyProjectilesFired, 6);
+  assert.equal(projectiles.data.count, 6);
+});
+
+test('stepEnemies: a Denial threat keeps ranged spacing and emits hostile pressure', () => {
+  const pool = createEnemyPool(2);
+  const grid = new BruteForceGrid();
+  const projectiles = createProjectilePool(4);
+  const events = makeEvents();
+  const state = createEnemyBehaviorState(2);
+  const slot = pool.spawn();
+  pool.data.posX[slot] = 0;
+  pool.data.posY[slot] = 0;
+  pool.data.speed[slot] = 24;
+  pool.data.radius[slot] = 12;
+  pool.data.touchDamage[slot] = 8;
+  grid.insert(pool.idOf(slot), 300, 0);
+  pool.data.posX[slot] = 300;
+  resetEnemyBehavior(state, slot, 'denial', false, 0, 0);
+  stepEnemies(pool, grid, makePlayer({ x: 0, y: 0 }), 1 / 60, 2_000, 2_000, 30, 20, {
+    state, config: { ...DEFAULT_CONFIG.enemyBehavior, spitterInitialFireDelayTicks: 0 }, tick: 0, projectiles, events,
+  });
+  assert.equal(state.kind[slot], ENEMY_BEHAVIOR_KIND.spitterSkirmish);
+  assert.equal(events.enemyProjectilesFired, 1);
+  assert.ok(pool.data.posX[slot]! >= 290, 'denial threat holds its spacing');
+});
+
 test('stepEnemies: an elite skirmishes at range and fires one hostile projectile on its authored cadence', () => {
   const pool = createEnemyPool(2);
   const grid = new BruteForceGrid();

@@ -7,7 +7,7 @@ on:
     paths:
       - '.github/workflows/web-toy-preview.yml'
       - 'apps/web-toy/**'
-      - 'assets/vendor/quaternius/**'
+      - 'assets/**'
       - 'packages/run-director/**'
       - 'packages/trait-runtime/**'
       - 'spikes/headless-sim/**'
@@ -25,9 +25,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web-toy
     steps:
       - name: Check out source
         uses: actions/checkout@v6
@@ -35,23 +32,71 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          # Keep npm's lockfile resolver stable with the version that generated
-          # apps/web-toy/package-lock.json.
+          # Keep npm's lockfile resolver stable with the versions that generated
+          # the package lockfiles.
           node-version: 24.18.0
           cache: npm
-          cache-dependency-path: apps/web-toy/package-lock.json
+          cache-dependency-path: |
+            spikes/headless-sim/package-lock.json
+            packages/trait-runtime/package-lock.json
+            packages/run-director/package-lock.json
+            apps/web-toy/package-lock.json
 
-      - name: Install locked dependencies
+      - name: Install headless simulation dependencies
         run: npm ci
+        working-directory: spikes/headless-sim
 
-      - name: Test
-        run: npm test -- --run
+      - name: Install trait runtime dependencies
+        run: npm ci
+        working-directory: packages/trait-runtime
 
-      - name: Lint
-        run: npm run lint
+      - name: Install run director dependencies
+        run: npm ci
+        working-directory: packages/run-director
 
-      - name: Build preview
+      - name: Install web toy dependencies
+        run: npm ci
+        working-directory: apps/web-toy
+
+      - name: Verify headless simulation
+        run: npm run typecheck && npm run lint && npm test
+        working-directory: spikes/headless-sim
+
+      - name: Verify trait runtime
+        run: npm run typecheck && npm run lint && npm test
+        working-directory: packages/trait-runtime
+
+      - name: Verify run director
+        run: npm run typecheck && npm run lint && npm test
+        working-directory: packages/run-director
+
+      - name: Verify web toy
+        run: npm run typecheck && npm run lint && npm test -- --run
+        working-directory: apps/web-toy
+
+      - name: Verify runtime asset budgets and provenance
+        run: npm run verify:assets
+        working-directory: apps/web-toy
+
+      - name: Build one verified preview artifact
         run: npm run build
+        working-directory: apps/web-toy
+
+      - name: Hash and validate the exact artifact
+        run: npm run verify:artifact
+        working-directory: apps/web-toy
+
+      - name: Smoke-test the exact served artifact
+        run: npm run verify:served
+        working-directory: apps/web-toy
+
+      - name: Preserve immutable artifact by commit
+        uses: actions/upload-artifact@v4
+        with:
+          name: animal-survivor-web-toy-${{ github.sha }}
+          path: apps/web-toy/dist
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

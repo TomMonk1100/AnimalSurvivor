@@ -3,6 +3,7 @@
  * handle on `window.__webToy` for the browser acceptance harness / console.
  */
 import { startApp, type AppHandle } from './app';
+import { assertPlayerContent } from './release/content-validator';
 
 declare global {
   interface Window {
@@ -11,6 +12,7 @@ declare global {
 }
 
 function boot(): void {
+  assertPlayerContent();
   window.__webToy = startApp();
 }
 

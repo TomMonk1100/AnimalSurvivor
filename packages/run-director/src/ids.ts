@@ -49,6 +49,10 @@ export type ArchetypeId =
   | 'enemy:runner'
   | 'enemy:brute'
   | 'enemy:spitter'
+  | 'enemy:charger'
+  | 'enemy:denial'
+  | 'enemy:flanker'
+  | 'enemy:support'
   | 'enemy:elite'
   | 'enemy:boss';
 
@@ -57,6 +61,10 @@ export const ARCHETYPE_IDS: readonly ArchetypeId[] = [
   'enemy:runner',
   'enemy:brute',
   'enemy:spitter',
+  'enemy:charger',
+  'enemy:denial',
+  'enemy:flanker',
+  'enemy:support',
   'enemy:elite',
   'enemy:boss',
 ] as const;

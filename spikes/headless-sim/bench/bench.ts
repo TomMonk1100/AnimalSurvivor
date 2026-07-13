@@ -40,7 +40,10 @@ const BENCH_CONFIG: SimConfig = {
       startTick: 0,
       endTick: 2147483647, // 2^31 - 1
       spawnIntervalTicks: 1,
-      archetypeWeights: [5, 3, 2],
+      // Keep one weight per authored archetype; the first three retain the
+      // original swarm emphasis while the remaining roles stay represented
+      // without turning this CPU benchmark into a balance claim.
+      archetypeWeights: [5, 3, 2, 1, 1, 1, 1, 1],
       maxAlive: 1000,
     },
   ],

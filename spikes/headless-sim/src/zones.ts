@@ -3,8 +3,8 @@
  *
  * Zones are fixed-pool, fixed-slot-order pads. A zone can only pulse damage;
  * it intentionally has no slow, status, or movement side effects. This keeps
- * Gecko/Razorstep's first authoritative implementation truthful while leaving
- * room for a separately designed debuff system later.
+ * All current V1 zones are damage-only. Stinkcloud uses the same truthful
+ * damage footprint until a separate status/debuff system is designed.
  */
 import type { EnemyPool, EntityId, Pool, SpatialGrid, ZonePool } from './types.js';
 
@@ -13,6 +13,8 @@ export const ZONE_TAG = Object.freeze({
   none: 0,
   geckoPad: 1,
   razorstepScythePad: 2,
+  stinkCloud: 3,
+  royalStink: 4,
 } as const);
 
 export type ZoneTag = (typeof ZONE_TAG)[keyof typeof ZONE_TAG];
@@ -30,6 +32,10 @@ export function zoneTagFromCommandTag(tag: string): ZoneTag | null {
       return ZONE_TAG.geckoPad;
     case 'razorstep-scythe-pad':
       return ZONE_TAG.razorstepScythePad;
+    case 'stink-cloud':
+      return ZONE_TAG.stinkCloud;
+    case 'royal-stink':
+      return ZONE_TAG.royalStink;
     default:
       return null;
   }

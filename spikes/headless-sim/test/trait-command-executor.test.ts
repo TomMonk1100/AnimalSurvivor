@@ -134,6 +134,24 @@ test('directed targeting honors the command-authored range', () => {
   assert.equal(context.projectiles.data.count, 0);
 });
 
+test('targeted projectile bursts prioritize a marked enemy over a closer unmarked candidate', () => {
+  const { context, grid } = setup();
+  const closerUnmarked = spawnEnemy(context, grid, 5, 0);
+  const marked = spawnEnemy(context, grid, 30, 40);
+  context.enemies.data.marked[marked] = 1;
+
+  const stats = createTraitCommandExecutor({ projectileSpeedUnit: 10 }).execute(source(command({
+    kind: 'spawnProjectileBurst', targeting: 'nearest', count: 1, damage: 2, speed: 1, range: 100,
+  })), context);
+
+  assert.equal(stats.projectilesSpawned, 1);
+  assert.equal(context.enemies.data.marked[closerUnmarked], 0);
+  // (30,40) is the marked target's 3-4-5 direction; a nearest-only selector
+  // would have fired directly right at the unmarked candidate instead.
+  close(context.projectiles.data.velX[0]!, 6);
+  close(context.projectiles.data.velY[0]!, 8);
+});
+
 test('directed projectile bursts carry authored pierce instead of the global fallback', () => {
   const { context } = setup();
   const stats = createTraitCommandExecutor({ projectilePierce: 0 }).execute(source(command({
@@ -172,6 +190,7 @@ test('orbiting damage derives firefly positions from the command tick and never 
   const { context, grid } = setup();
   const north = spawnEnemy(context, grid, 0, 10);
   const south = spawnEnemy(context, grid, 0, -10);
+  const contactHits: Array<[number, number, number, number, number, number]> = [];
   const stats = createTraitCommandExecutor().execute(source(command({
     kind: 'orbitingDamage',
     tick: 7,
@@ -180,12 +199,26 @@ test('orbiting damage derives firefly positions from the command tick and never 
     radius: 10,
     range: 1,
     speed: Math.PI / 2,
-  })), context);
+  })), {
+    ...context,
+    onOrbitingDamageHit(commandIndex, hitIndex, flyX, flyY, targetX, targetY): void {
+      contactHits.push([commandIndex, hitIndex, flyX, flyY, targetX, targetY]);
+    },
+  });
 
   assert.equal(stats.orbitingDamageCommands, 1);
   assert.equal(stats.orbitingDamageHits, 2);
   assert.equal(context.enemies.data.hp[north], 6);
   assert.equal(context.enemies.data.hp[south], 6);
+  assert.deepEqual(
+    contactHits.map(([commandIndex, hitIndex, _flyX, _flyY, targetX, targetY]) => [commandIndex, hitIndex, targetX, targetY]),
+    [[0, 0, 0, -10], [0, 1, 0, 10]],
+    'the presentation observer receives every real victim in the same source order as damage',
+  );
+  close(contactHits[0]![2], 0);
+  close(contactHits[0]![3], -10);
+  close(contactHits[1]![2], 0);
+  close(contactHits[1]![3], 10);
 
   const repeat = setup();
   const single = spawnEnemy(repeat.context, repeat.grid, 0, 0);
@@ -462,14 +495,25 @@ test('zone requests reject the newest command deterministically when the fixed p
   assert.equal(context.zones.data.tag[0], ZONE_TAG.geckoPad);
 });
 
-test('explicitly rejects authored commands that still require unsupported persistent state', () => {
-  const { context } = setup();
-  for (const kind of ['markTargets', 'grantShield']) {
-    assert.throws(
-      () => createTraitCommandExecutor().execute(source(command({ kind })), context),
-      new RegExp(`unsupported simulation state: ${kind}`),
-    );
-  }
+test('executes authored marking and still rejects unsupported shield state', () => {
+  const { context, grid } = setup();
+  const markedA = spawnEnemy(context, grid, 10, 0);
+  const markedB = spawnEnemy(context, grid, 16, 0);
+  const stats = createTraitCommandExecutor().execute(source(command({
+    kind: 'markTargets',
+    targeting: 'densestCluster',
+    count: 2,
+    radius: 20,
+    tag: 'echo-mark',
+  })), context);
+  assert.equal(stats.markTargetsCommands, 1);
+  assert.equal(stats.markedTargets, 2);
+  assert.equal(context.enemies.data.marked[markedA], 1);
+  assert.equal(context.enemies.data.marked[markedB], 1);
+  assert.throws(
+    () => createTraitCommandExecutor().execute(source(command({ kind: 'grantShield', amount: 5 })), context),
+    /unsupported simulation state: grantShield/,
+  );
 });
 
 test('rejects malformed chain data before any command in the batch mutates combat state', () => {

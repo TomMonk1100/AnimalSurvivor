@@ -178,5 +178,7 @@ test('authored Gecko/Razorstep tags map to stable compact roles', () => {
   assert.equal(zoneTagFromCommandTag('gecko-pad'), ZONE_TAG.geckoPad);
   assert.equal(zoneTagFromCommandTag('sticky-trail'), ZONE_TAG.geckoPad);
   assert.equal(zoneTagFromCommandTag('razorstep-scythe-pad'), ZONE_TAG.razorstepScythePad);
+  assert.equal(zoneTagFromCommandTag('stink-cloud'), ZONE_TAG.stinkCloud);
+  assert.equal(zoneTagFromCommandTag('royal-stink'), ZONE_TAG.royalStink);
   assert.equal(zoneTagFromCommandTag('unknown-pad'), null);
 });

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NO_ENTITY, type EnemyPool, type EntityId, type Pool, type TargetContext } from '../src/types.js';
-import { selectTarget } from '../src/targeting.js';
+import { selectPriorityTarget, selectTarget } from '../src/targeting.js';
 import { BruteForceGrid, createEnemyPool } from './helpers-c.js';
 
 interface SpawnOpts {
@@ -134,6 +134,18 @@ test('markedThenNearest: falls back to nearest when nothing is marked', () => {
   const ctx = baseCtx();
   const result = selectTarget('markedThenNearest', ctx, pool, grid, 60);
   assert.equal(result, near);
+});
+
+test('priority targeting redirects every automatic policy to marked prey before using its normal fallback', () => {
+  const pool = createEnemyPool(8);
+  const grid = new BruteForceGrid();
+  spawnEnemy(pool, grid, 5, 0, { hp: 100 });
+  const marked = spawnEnemy(pool, grid, 50, 0, { hp: 1, marked: 1 });
+
+  const ctx = baseCtx();
+  assert.equal(selectPriorityTarget('nearest', ctx, pool, grid, 60), marked);
+  assert.equal(selectPriorityTarget('highestHealth', ctx, pool, grid, 60), marked);
+  assert.equal(selectPriorityTarget('densestCluster', ctx, pool, grid, 60), marked);
 });
 
 test('rearThreat: zero movement falls back to nearest', () => {

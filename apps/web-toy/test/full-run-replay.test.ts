@@ -9,7 +9,7 @@ import {
   type SimulationOptions,
   type TraitRuntimeFactory,
 } from '@sim';
-import { RunDirector } from '@director';
+import { RunDirector, SALTWIND_RUINS_RUN } from '@director';
 import { GREG_FOREST_ARSENAL_CATALOG, TraitRuntime } from '@traits';
 import { createAutopilot } from '../src/stress/autopilot';
 
@@ -23,6 +23,11 @@ const options: SimulationOptions = {
   traitRuntimeFactory,
   universalUpgradeCatalog: UNIVERSAL_UPGRADE_CATALOG,
   runDirectorFactory,
+};
+const saltwindOptions: SimulationOptions = {
+  ...options,
+  runDirectorFactory: ({ seed }) => new RunDirector({ seed, definition: SALTWIND_RUINS_RUN }),
+  runStartLoadout: { version: 3, heroId: 'greg', biomeId: 'saltwind', maxHpBonus: 0 },
 };
 
 function enduranceConfig(): SimConfig {
@@ -71,6 +76,32 @@ describe('full authored run replay', () => {
     expect(eventKinds).toContain('bossRequested');
     expect(sim.runOutcome === 'victory' || sim.runOutcome === 'defeat').toBe(true);
     expect(phases.has('overtime')).toBe(false);
+    expect(reproduced).toEqual({ finalHash, ticks: sim.tick });
+  }, 30_000);
+
+  it('runs the unlocked Saltwind contract through its apex variant and reproduces its exact hash', () => {
+    const config = enduranceConfig();
+    const sim = createSimulation(config, SEED, saltwindOptions);
+    const autopilot = createAutopilot();
+    let bossRequested = false;
+
+    while (sim.tick < RUN_TICKS && sim.runOutcome === 'running') {
+      if (sim.upgradeSelectionPending) {
+        const offer = sim.pendingUpgradeOffers[0];
+        if (offer !== undefined) sim.selectUpgrade(offer.id);
+      }
+      sim.step(autopilot.sample(sim.tick, false));
+      if (sim.directorEvents.some((event) => event.kind === 'bossRequested')) bossRequested = true;
+    }
+    autopilot.dispose();
+
+    const replay = sim.getReplay();
+    const finalHash = sim.hash();
+    const reproduced = runReplay(config, replay, saltwindOptions);
+
+    expect(sim.tick).toBeLessThanOrEqual(RUN_TICKS);
+    expect(bossRequested).toBe(true);
+    expect(sim.runOutcome === 'victory' || sim.runOutcome === 'defeat').toBe(true);
     expect(reproduced).toEqual({ finalHash, ticks: sim.tick });
   }, 30_000);
 });

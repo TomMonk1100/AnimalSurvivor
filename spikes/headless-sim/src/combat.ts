@@ -44,6 +44,27 @@ export interface EnemyBehaviorStepOptions {
   readonly tick: number;
   readonly projectiles: Pool<ProjectilePool>;
   readonly events: SimEvents;
+  /** Authored biome variant for the bespoke apex encounter. */
+  readonly bossVariant?: 'forest' | 'saltwind';
+  /** Presentation-only cue for a boss attack; never feeds back into combat. */
+  readonly onBossCue?: (
+    tag: string,
+    tick: number,
+    originX: number,
+    originY: number,
+    dirX: number,
+    dirY: number,
+    radius: number,
+    durationTicks: number,
+  ) => void;
+  /** Presentation-only cue for a support healing pulse. */
+  readonly onSupportCue?: (
+    tick: number,
+    originX: number,
+    originY: number,
+    radius: number,
+    healedCount: number,
+  ) => void;
 }
 
 function distSq(ax: number, ay: number, bx: number, by: number): number {
@@ -84,6 +105,7 @@ export function stepEnemies(
       const dirY = dy * invDist;
       let moveDirX = dirX;
       let moveDirY = dirY;
+      let moveSpeedMultiplier = 1;
 
       if (behavior !== undefined) {
         const kind = behavior.state.kind[slot]!;
@@ -100,6 +122,131 @@ export function stepEnemies(
           const lateral = config.runnerWeaveStrength * runnerSign;
           moveDirX = dirX - dirY * lateral;
           moveDirY = dirY + dirX * lateral;
+        } else if (kind === ENEMY_BEHAVIOR_KIND.chargerBurst) {
+          const phase = (behavior.tick + (enemies.idOf(slot) & 31)) % 180;
+          if (phase < 24) {
+            // A brief wind-up followed by a deterministic lunge makes the
+            // charger readable as a threat rather than another runner.
+            moveDirX = 0;
+            moveDirY = 0;
+          } else if (phase < 60) {
+            moveDirX = dirX * 2.2;
+            moveDirY = dirY * 2.2;
+            moveSpeedMultiplier = 2.2;
+          }
+        } else if (kind === ENEMY_BEHAVIOR_KIND.bossApex) {
+          const patternTick = behavior.state.bossPatternTick[slot]!;
+          const chargeEnd = config.bossChargeWindupTicks + config.bossChargeDurationTicks;
+          const saltwind = behavior.bossVariant === 'saltwind';
+          if (patternTick === 0) {
+            behavior.onBossCue?.(
+              saltwind ? 'saltwind-charge' : 'boss-charge',
+              behavior.tick,
+              x,
+              y,
+              dirX,
+              dirY,
+              config.bossPreferredRange,
+              config.bossChargeWindupTicks,
+            );
+          }
+          if (patternTick < config.bossChargeWindupTicks) {
+            // The stationary wind-up is the boss's readable response interval.
+            moveDirX = 0;
+            moveDirY = 0;
+          } else if (patternTick < chargeEnd) {
+            moveDirX = dirX;
+            moveDirY = dirY;
+            moveSpeedMultiplier = config.bossChargeSpeedMultiplier;
+          } else if (patternTick === config.bossVolleyTick) {
+            behavior.onBossCue?.(
+              saltwind ? 'saltwind-sandstorm' : 'boss-volley',
+              behavior.tick,
+              x,
+              y,
+              dirX,
+              dirY,
+              config.bossPreferredRange + config.bossRangeBand,
+              24,
+            );
+            const volleyCount = saltwind ? Math.max(4, config.bossVolleyCount - 2) : config.bossVolleyCount;
+            const angleOffset = saltwind ? Math.PI / volleyCount : 0;
+            for (let projectileIndex = 0; projectileIndex < volleyCount; projectileIndex++) {
+              const angle = (Math.PI * 2 * projectileIndex) / volleyCount + angleOffset;
+              if (spawnProjectileWithStats(
+                behavior.projectiles,
+                x,
+                y,
+                Math.cos(angle),
+                Math.sin(angle),
+                config.bossProjectileSpeed,
+                config.bossProjectileDamage,
+                config.bossProjectileLifetimeTicks,
+                config.bossProjectileHitRadius,
+                0,
+                1,
+              )) {
+                behavior.events.enemyProjectilesFired++;
+              }
+            }
+            // Hold position for the volley beat so the radial read has a
+            // clean silhouette before the boss returns to spacing behavior.
+            moveDirX = 0;
+            moveDirY = 0;
+          } else {
+            const innerRange = Math.max(0, config.bossPreferredRange - config.bossRangeBand);
+            const outerRange = config.bossPreferredRange + config.bossRangeBand;
+            const bossSign = (enemies.idOf(slot) & 1) === 0 ? -1 : 1;
+            if (dist < innerRange) {
+              moveDirX = -dirX;
+              moveDirY = -dirY;
+            } else if (dist <= outerRange) {
+              moveDirX = -dirY * bossSign * config.eliteOrbitStrength;
+              moveDirY = dirX * bossSign * config.eliteOrbitStrength;
+            }
+          }
+          behavior.state.bossPatternTick[slot] = (patternTick + 1) % config.bossCycleTicks;
+        } else if (kind === ENEMY_BEHAVIOR_KIND.flankerOrbit) {
+          const flankSign = (enemies.idOf(slot) & 1) === 0 ? -1 : 1;
+          if (dist > config.flankerPreferredRange) {
+            moveDirX = dirX - dirY * flankSign * config.flankerOrbitStrength;
+            moveDirY = dirY + dirX * flankSign * config.flankerOrbitStrength;
+          } else {
+            moveDirX = -dirY * flankSign;
+            moveDirY = dirX * flankSign;
+          }
+        } else if (kind === ENEMY_BEHAVIOR_KIND.supportPulse) {
+          let supportCooldown = behavior.state.hostileShotCooldown[slot]!;
+          if (supportCooldown > 0) supportCooldown--;
+          if (supportCooldown === 0) {
+            let healedCount = 0;
+            for (let allySlot = 0; allySlot < data.capacity; allySlot++) {
+              if (data.alive[allySlot] === 0) continue;
+              const allyDx = data.posX[allySlot]! - x;
+              const allyDy = data.posY[allySlot]! - y;
+              if (allyDx * allyDx + allyDy * allyDy > config.supportHealRadius * config.supportHealRadius) continue;
+              const nextHp = Math.min(data.maxHp[allySlot]!, data.hp[allySlot]! + config.supportHealAmount);
+              if (nextHp > data.hp[allySlot]!) {
+                data.hp[allySlot] = nextHp;
+                healedCount++;
+              }
+            }
+            if (healedCount > 0) {
+              behavior.onSupportCue?.(behavior.tick, x, y, config.supportHealRadius, healedCount);
+            }
+            supportCooldown = config.supportHealIntervalTicks;
+          }
+          behavior.state.hostileShotCooldown[slot] = supportCooldown;
+          const innerRange = Math.max(0, config.supportPreferredRange - config.supportRangeBand);
+          const outerRange = config.supportPreferredRange + config.supportRangeBand;
+          const supportSign = (enemies.idOf(slot) & 1) === 0 ? -1 : 1;
+          if (dist < innerRange) {
+            moveDirX = -dirX;
+            moveDirY = -dirY;
+          } else if (dist <= outerRange) {
+            moveDirX = -dirY * supportSign * config.eliteOrbitStrength;
+            moveDirY = dirX * supportSign * config.eliteOrbitStrength;
+          }
         } else if (
           kind === ENEMY_BEHAVIOR_KIND.eliteSkirmish
           || kind === ENEMY_BEHAVIOR_KIND.spitterSkirmish
@@ -156,8 +303,8 @@ export function stepEnemies(
         }
       }
 
-      velX = moveDirX * data.speed[slot]!;
-      velY = moveDirY * data.speed[slot]!;
+      velX = moveDirX * data.speed[slot]! * moveSpeedMultiplier;
+      velY = moveDirY * data.speed[slot]! * moveSpeedMultiplier;
       x += velX * dt;
       y += velY * dt;
     }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getUniversalUpgradeCatalogForHero } from '@sim';
 import { presentRunUpgrade, presentUpgrade } from '../src/presentation/upgrade-copy';
 
 describe('upgrade card copy', () => {
@@ -78,6 +79,15 @@ describe('upgrade card copy', () => {
     });
   });
 
+  it('states the real Bat priority and Monarch contact-damage behavior', () => {
+    const bat = presentUpgrade({ traitId: 'bat-ears', resultStage: 'bud' }, []);
+    const monarch = presentUpgrade({ traitId: 'monarch-brood', resultStage: 'bud' }, []);
+
+    expect(bat.description).toMatch(/every automatic attack prioritizes/i);
+    expect(monarch).toMatchObject({ title: 'Monarch Brood', badge: 'NEW' });
+    expect(monarch.description).toMatch(/orbit Greg.*contact/i);
+  });
+
   it('describes truthful neutral and Essence fallback cards without pretending they are body traits', () => {
     expect(presentRunUpgrade({
       kind: 'universal', id: 'universal:xp-magnet', upgradeId: 'xp-magnet', currentRank: 1, nextRank: 2, maxRank: 5,
@@ -87,6 +97,12 @@ describe('upgrade card copy', () => {
     });
     expect(presentRunUpgrade({ kind: 'essence', id: 'essence-cache', amount: 5 }, [])).toMatchObject({
       title: 'Essence Cache', badge: '+5 ESSENCE', socket: 'Permanent progression',
+    });
+    expect(presentRunUpgrade({
+      kind: 'universal', id: 'universal:basic-attack:benny-brace-burst',
+      upgradeId: 'basic-attack:benny-brace-burst', currentRank: 1, nextRank: 2, maxRank: 3,
+    }, [], 'Benny', getUniversalUpgradeCatalogForHero('benny'))).toMatchObject({
+      title: 'Brace Bloom', badge: 'RANK 2/3', socket: 'Starter mastery',
     });
   });
 });

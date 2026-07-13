@@ -9,6 +9,20 @@ export { createRng } from './rng.js';
 export { createClock } from './clock.js';
 export { createReplayRecorder, serializeReplay, deserializeReplay } from './replay.js';
 export { createHashWriter } from './state-hash.js';
+export {
+  ATTACK_DAMAGE_LAB_CASE_COUNT,
+  ATTACK_DAMAGE_LAB_DURATION_SECONDS,
+  ATTACK_DAMAGE_LAB_SEED,
+  ATTACK_DAMAGE_LAB_VERSION,
+  formatAttackDamageLabReport,
+  runAttackDamageLab,
+  runAttackDamageLabReport,
+  type AttackDamageLabCategory,
+  type AttackDamageLabReport,
+  type AttackDamageLabResult,
+  type AttackDamageLabStatus,
+  type AttackDamageLabSummary,
+} from './attack-damage-lab.js';
 export { createEnemyPool, createProjectilePool, createPickupPool, createZonePool } from './pools.js';
 export {
   ZONE_TAG,
@@ -78,9 +92,21 @@ export {
 } from './run-upgrade-queue.js';
 export {
   DEFAULT_RUN_START_LOADOUT,
+  BIOME_IDS,
+  HERO_CATALOG,
+  HERO_BASIC_ATTACK_CATALOG,
+  HERO_IDS,
   RUN_START_LOADOUT_VERSION,
   fingerprintRunStartLoadout,
+  getHeroBasicAttackDefinition,
+  getHeroDefinition,
   normalizeRunStartLoadout,
+  type HeroDefinition,
+  type HeroBasicAttackDefinition,
+  type HeroBasicAttackPattern,
+  type HeroBasicAttackTargeting,
+  type HeroId,
+  type BiomeId,
   type RunStartLoadout,
 } from './run-start-loadout.js';
 export {
@@ -89,6 +115,7 @@ export {
   SWIFT_PAWS,
   RAPID_INSTINCT,
   GROWTH,
+  HERO_BASIC_ATTACK_UPGRADES,
   UNIVERSAL_UPGRADE_CATALOG,
   UNIVERSAL_UPGRADE_CATALOG_VERSION,
   UNIVERSAL_UPGRADE_IDS,
@@ -98,6 +125,7 @@ export {
   createUniversalUpgradeState,
   fingerprintUniversalUpgradeCatalog,
   getUniversalUpgrade,
+  getUniversalUpgradeCatalogForHero,
   resolveUniversalUpgradeStats,
   universalUpgradeRank,
   validateUniversalUpgradeCatalog,
@@ -114,6 +142,8 @@ export {
 export * from './run-director-port.js';
 export * from './run-spawn-adapter.js';
 export * from './instincts/greg-rush-rake.js';
+export * from './instincts/benny-brace.js';
+export * from './instincts/gracie-scout.js';
 export {
   createTraitCommandExecutor,
   type TraitCombatCommand,

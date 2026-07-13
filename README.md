@@ -1,10 +1,11 @@
 # Animal Survivor
 
 Animal Survivor is a web-first, low-poly 3D animal bullet-heaven game in active
-Gate 1 development. The current playable alpha stars Greg the fox in the
-**Forest Arsenal**: a deterministic survival run with automatic attacks,
-level-up choices, evolving animal traits, enemy pressure, a boss, and
-between-run Essence progression.
+Gate 1 development. The current playable alpha offers Greg the fox, Benny the
+bull, and Gracie the alpaca in the **Forest Arsenal**: a deterministic survival
+run with automatic attacks, level-up choices, evolving animal traits, enemy
+pressure, a boss, and between-run Essence progression. Each founding animal has
+an authored starting profile and a distinct low-poly silhouette.
 
 It is an early playtest build, not a finished game. Feedback on clarity,
 movement, attacks, pacing, and pressure is especially useful.
@@ -24,9 +25,13 @@ Open the local Vite address printed in the terminal, normally
 
 - Select **Start run** to begin. Manual runs wait at tick 0 so the intro can be
   read first.
-- Move with **WASD** or the **arrow keys**. On touch devices, drag in the
-  lower-left virtual joystick.
-- Greg attacks automatically; movement and positioning are the combat input.
+- Choose Greg, Benny, or Gracie on the prep card. The selection is saved locally
+  and becomes part of the deterministic run identity.
+- Move with **WASD**, the **arrow keys**, a standard gamepad's **left stick/D-pad**, or
+  hold-drag on the arena with a mouse. On touch devices, drag in the lower-left virtual
+  joystick.
+- The selected animal attacks automatically; movement and positioning are the
+  combat input.
 - When a level-up pauses the run, choose a card with the mouse, **1**, **2**,
   or **3**, or ordinary **Tab** + **Enter** navigation.
 - Press **Esc** on desktop, or use the visible Pause control, to pause and
@@ -58,19 +63,28 @@ kills award a noticeably larger XP pickup.
 
 ## Forest Arsenal loadout
 
-Greg always begins with **Auto-Fire**, the first of five active-attack slots.
-He can choose up to four of six additional attack families, for a five-attack
-build.
+Every founding animal begins with a distinct starter attack. The selected
+animal can choose up to three of twelve additional attack families, for a compact
+four-slot active build. Greg fires a precise nearest-target shot, Benny fires
+a slower two-bolt Brace Burst, and Gracie fires a fast highest-health Keen Dart.
 
 | Attack | Role |
 | --- | --- |
-| **Greg’s Auto-Fire** | Starter fire at the nearest enemy. |
+| **Greg’s Auto-Fire** | Precise starter fire at the nearest enemy; movement charges a three-wave Rush Rake. |
+| **Benny’s Brace Burst** | Heavy two-bolt starter spread. |
+| **Gracie’s Keen Dart** | Fast starter dart aimed at the highest-health threat. |
 | **Porcupine Quills** | Automatic targeted quill bursts. |
 | **Puffer Pouch** | Pulls nearby enemies; its Adapted form pushes them back. |
 | **Electric Eel Coil** | Fires charged bolts at the nearest enemy. |
 | **Firefly Colony** | Releases sparks in every direction. |
 | **Mantis Scythes** | Sweeps nearby enemies with a short-range damaging pulse. |
 | **Gecko Pads** | After Greg travels 150 units, creates a damaging pad at his feet; Adapted pads recur after 110 units. Pads deal damage and do not slow enemies. |
+| **Owl Pinions** | Fires a feather spread at the nearest threat. |
+| **Bat Ears** | Sonar-marks a nearby enemy cluster; every automatic attack prioritizes marked prey. |
+| **Crab Pincers** | Crushes a compact area around the selected animal. |
+| **Armadillo Greaves** | Shoves nearby threats away from the selected animal. |
+| **Skunk Brush** | Leaves a damaging stink cloud that punishes pursuit. |
+| **Monarch Brood** | Summons orbiting butterflies that sting nearby enemies on contact. |
 
 Each animal attack can be improved from Bud to Adapted. Three pairs can become
 Mythics:
@@ -81,9 +95,20 @@ Mythics:
   lightning storm.
 - **Razorstep Chimera** — Adapted Mantis Scythes + Adapted Gecko Pads: movement
   leaves stronger scythe pads every 90 units.
+- **Midnight Radar** — Adapted Bat Ears + Adapted Owl Pinions: marks a wide
+  threat cluster for the marked hunt.
+- **Meteor Mauler** — Adapted Crab Pincers + Adapted Armadillo Greaves: a
+  heavy close-range impact crushes the nearest crowd.
+- **Royal Stinkcloud** — Adapted Skunk Brush + Adapted Monarch Brood: creates a
+  larger monarch-crowned hazard cloud.
 
 An evolution keeps both of its ingredient attack slots. A Mythic makes a more
 powerful combined attack; it never creates a free sixth weapon slot.
+
+Greg's movement and near-misses also charge a deterministic three-wave **Rush
+Rake** burst. Each starter has a dedicated three-rank mastery path in the run upgrade pool;
+mastery strengthens only the selected animal's starter. Base starter fire does
+not pierce; Quills and the Greg mastery own piercing explicitly.
 
 There is no player-visible level cap. Alongside attacks, level-ups offer neutral
 passives: **Swift Paws**, **XP Magnet**, **Sturdy Hide**, **Sharpened Instinct**,
@@ -97,7 +122,10 @@ upgrade remains, **Essence Cache** is the repeatable fallback.
 
 At victory or defeat, the outcome settles earned **Essence** once and returns
 to the prep screen. Spend Essence there on **Starting Vitality**; it affects the
-next fresh run only and does not clutter the active HUD.
+next fresh run only and does not clutter the active HUD. The **Field Guide**
+archives terminal builds with their seed, hero, forms, run stats, and ecology
+note, and the prep screen supports save export, import, reset, and corrupt-save
+recovery.
 
 ## Hosted playtest
 

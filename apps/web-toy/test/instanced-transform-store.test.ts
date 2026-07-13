@@ -15,6 +15,7 @@ interface Entry {
   maxHp?: number;
   archetype?: number;
   role?: number;
+  marked?: number;
 }
 
 function snapshot(entries: readonly Entry[], category: ViewCategory = 'enemy'): CategorySnapshot {
@@ -27,6 +28,7 @@ function snapshot(entries: readonly Entry[], category: ViewCategory = 'enemy'): 
   const maxHp = new Float32Array(capacity);
   const archetype = new Uint8Array(capacity);
   const role = new Uint8Array(capacity);
+  const marked = new Uint8Array(capacity);
 
   entries.forEach((entry, index) => {
     id[index] = entry.id;
@@ -37,9 +39,10 @@ function snapshot(entries: readonly Entry[], category: ViewCategory = 'enemy'): 
     maxHp[index] = entry.maxHp ?? 0;
     archetype[index] = entry.archetype ?? 0;
     role[index] = entry.role ?? RUN_ENEMY_ROLE.regular;
+    marked[index] = entry.marked ?? 0;
   });
 
-  return { category, count: capacity, id, x, y, radius, hp, maxHp, archetype, role };
+  return { category, count: capacity, id, x, y, radius, hp, maxHp, archetype, role, marked };
 }
 
 function matrix(store: InstancedTransformStore, index: number): number[] {
@@ -94,6 +97,78 @@ describe('InstancedTransformStore', () => {
 
     expect(matrix(store, 0)[12]).toBe(-40);
     expect(matrix(store, 0)[14]).toBe(20);
+  });
+
+  it('orients an opt-in sprite plane along interpolated scene-space movement', () => {
+    const id = makeId(31, 4);
+    const previous = snapshot([{ id, x: 10, y: 20, radius: 1 }]);
+    const current = snapshot([{ id, x: 20, y: 20, radius: 1 }]);
+    const store = new InstancedTransformStore(1);
+
+    store.update(
+      previous,
+      current,
+      1,
+      0,
+      0,
+      1,
+      undefined,
+      1,
+      undefined,
+      undefined,
+      {
+        timeSeconds: 0,
+        artFacingRadians: 0,
+        longAxisPulse: 0,
+        crossAxisPulse: 0,
+        liftPulse: 0,
+        facingSwayRadians: 0,
+      },
+    );
+
+    const transformed = matrix(store, 0);
+    // A +X scene-space step rotates local +Z to +X (yaw = +pi/2).
+    expect(transformed[0]).toBeCloseTo(0, 6);
+    expect(transformed[2]).toBeCloseTo(-2, 6);
+    expect(transformed[8]).toBeCloseTo(2, 6);
+    expect(transformed[10]).toBeCloseTo(0, 6);
+    expect(transformed[12]).toBe(20);
+    expect(transformed[14]).toBe(20);
+  });
+
+  it('adds stable id-phased sprite life without changing generic transform behavior', () => {
+    const id = makeId(32, 4);
+    const previous = snapshot([{ id, x: 10, y: 20, radius: 2 }]);
+    const current = snapshot([{ id, x: 10, y: 30, radius: 2 }]);
+    const motion = {
+      timeSeconds: 0.4,
+      artFacingRadians: 0,
+      longAxisPulse: 0.04,
+      crossAxisPulse: 0.03,
+      liftPulse: 0.05,
+      facingSwayRadians: 0,
+    };
+    const first = new InstancedTransformStore(1);
+    const second = new InstancedTransformStore(1);
+
+    first.update(previous, current, 1, 0, 0, 1, undefined, 1, undefined, undefined, motion);
+    second.update(previous, current, 1, 0, 0, 1, undefined, 1, undefined, undefined, motion);
+
+    const transformed = matrix(first, 0);
+    // This movement points along local +Z, so X/Z differences are the
+    // counter-pulse itself rather than a rotation artifact.
+    expect(Math.abs(transformed[0]! - transformed[10]!)).toBeGreaterThan(0.001);
+    expect(transformed[13]).toBeGreaterThan(0);
+    expect(new Uint8Array(first.matrices.buffer)).toEqual(new Uint8Array(second.matrices.buffer));
+
+    const generic = new InstancedTransformStore(1);
+    generic.update(previous, current, 1);
+    expect(matrix(generic, 0)).toEqual([
+      4, 0, 0, 0,
+      0, 4, 0, 0,
+      0, 0, 4, 0,
+      10, 0, 30, 1,
+    ]);
   });
 
   it('does not interpolate from a stale generation when a slot is reused', () => {
@@ -163,6 +238,59 @@ describe('InstancedTransformStore', () => {
     expect(matrix(store, 0)[14]).toBe(40);
   });
 
+  it('filters a separate batch to the current priority-marked enemies', () => {
+    const marked = makeId(3, 1);
+    const current = snapshot([
+      { id: makeId(2, 1), x: 10, y: 10 },
+      { id: marked, x: 20, y: 20, marked: 1 },
+    ]);
+    const store = new InstancedTransformStore(2);
+
+    store.update(snapshot([]), current, 1, 0, 0, 1, undefined, 1.4, 1);
+
+    expect(store.count).toBe(1);
+    expect(store.ids[0]).toBe(marked);
+    expect(store.marked[0]).toBe(1);
+    expect(matrix(store, 0)[0]).toBeCloseTo(2.8);
+  });
+
+  it('filters a regular swarm into authored archetype batches without stale-slot interpolation', () => {
+    const reusedSlot = 9;
+    const previous = snapshot([
+      { id: makeId(reusedSlot, 1), x: 12, y: 18, archetype: 0 },
+      { id: makeId(10, 1), x: 40, y: 60, archetype: 1 },
+      { id: makeId(11, 1), x: 72, y: 90, archetype: 2 },
+    ]);
+    const current = snapshot([
+      { id: makeId(reusedSlot, 2), x: 200, y: 220, archetype: 1 },
+      { id: makeId(10, 1), x: 80, y: 100, archetype: 1 },
+      { id: makeId(11, 1), x: 100, y: 130, archetype: 2 },
+    ]);
+    const store = new InstancedTransformStore(3);
+
+    store.update(
+      previous,
+      current,
+      0.5,
+      0,
+      0,
+      1,
+      RUN_ENEMY_ROLE.regular,
+      1,
+      undefined,
+      1,
+    );
+
+    expect(store.count).toBe(2);
+    expect(Array.from(store.ids.slice(0, 2))).toEqual([makeId(reusedSlot, 2), makeId(10, 1)]);
+    // The reused slot is new to the runner batch, so it must snap rather than
+    // interpolate from the old walker occupying the same pool slot.
+    expect(matrix(store, 0)[12]).toBe(200);
+    expect(matrix(store, 0)[14]).toBe(220);
+    expect(matrix(store, 1)[12]).toBe(60);
+    expect(matrix(store, 1)[14]).toBe(80);
+  });
+
   it('supports the full capacity and rejects overflow without changing count', () => {
     const entries = Array.from({ length: 1200 }, (_, slot) => ({
       id: makeId(slot, 1),
@@ -195,6 +323,7 @@ describe('InstancedTransformStore', () => {
       maxHp: Array.from(value.maxHp),
       archetype: Array.from(value.archetype),
       role: Array.from(value.role),
+      marked: Array.from(value.marked),
     }));
 
     new InstancedTransformStore(1).update(previous, current, 0.75, -10, -20);
@@ -209,6 +338,7 @@ describe('InstancedTransformStore', () => {
       maxHp: Array.from(value.maxHp),
       archetype: Array.from(value.archetype),
       role: Array.from(value.role),
+      marked: Array.from(value.marked),
     }))).toEqual(before);
   });
 

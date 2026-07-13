@@ -18,10 +18,21 @@ export interface RushRakeConfig {
   readonly targetRangeSquared: number;
 }
 
+/** Bump when authored Rush Rake behavior changes without changing its shape. */
+export const GREG_RUSH_RAKE_CONTENT_VERSION = 2 as const;
+
 export const DEFAULT_RUSH_RAKE_CONFIG: Readonly<RushRakeConfig> = Object.freeze({
-  chargeDistanceMilliunits: 12_000,
-  nearMissBonusMilliunits: 1_500,
-  waveSpacingTicks: 4,
+  // Greg travels 2 world units per normal simulation tick. The old 12-unit
+  // threshold recharged a complete 3×3 piercing burst about ten times per
+  // second while walking, turning basic movement into unearned screen clear.
+  // This is a deliberate 1.25-second cadence: visible, powerful, and earned.
+  chargeDistanceMilliunits: 150_000,
+  // A close dodge should still matter without allowing a single crowded frame
+  // to replace the movement requirement entirely.
+  nearMissBonusMilliunits: 10_000,
+  // Give the three rakes enough breathing room to read as a committed combo,
+  // rather than one indistinguishable projectile clump.
+  waveSpacingTicks: 12,
   targetRangeSquared: 80 * 80,
 });
 

@@ -15,10 +15,10 @@ import { createSimDriver } from '../src/sim/simulation-driver';
 const HZ = DEFAULT_CONFIG.hz;
 const DT_MS = 1000 / HZ;
 const FIVE_MIN_TICKS = HZ * 60 * 5; // 18000 ticks @ 60hz
-// Rebaselined for per-projectile unique-hit history used by the authored
-// piercing Quills volley. This captures the expanded canonical projectile
-// state while preserving browser/headless parity.
-const EXPECTED_FIVE_MINUTE_HASH = '792eb1fd8b9aee47';
+// Rebaselined for the earned Rush Rake balance pass: movement charge, the
+// readable three-wave spacing, and its lower coverage damage participate in
+// canonical state.
+const EXPECTED_FIVE_MINUTE_HASH = '618aef913da86dbb';
 
 /** Headless control: step a bare simulation with autopilot inputs keyed on pre-step tick. */
 function headlessControl(seed: number, ticks: number): string {

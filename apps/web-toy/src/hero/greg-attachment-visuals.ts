@@ -22,6 +22,21 @@ export const GREG_ATTACHMENT_VISUAL_KEYS = Object.freeze([
   'gecko-pads:adapted',
   'thunderbug-dynamo:mythic',
   'razorstep-chimera:mythic',
+  'owl-pinions:bud',
+  'owl-pinions:adapted',
+  'bat-ears:bud',
+  'bat-ears:adapted',
+  'midnight-radar:mythic',
+  'crab-pincers:bud',
+  'crab-pincers:adapted',
+  'armadillo-greaves:bud',
+  'armadillo-greaves:adapted',
+  'meteor-mauler:mythic',
+  'skunk-brush:bud',
+  'skunk-brush:adapted',
+  'monarch-brood:bud',
+  'monarch-brood:adapted',
+  'royal-stinkcloud:mythic',
 ] as const);
 
 export type GregAttachmentVisualKey = (typeof GREG_ATTACHMENT_VISUAL_KEYS)[number];
@@ -35,7 +50,16 @@ export type GregAttachmentFamily =
   | 'mantis-scythes'
   | 'gecko-pads'
   | 'thunderbug-dynamo'
-  | 'razorstep-chimera';
+  | 'razorstep-chimera'
+  | 'owl-pinions'
+  | 'bat-ears'
+  | 'midnight-radar'
+  | 'crab-pincers'
+  | 'armadillo-greaves'
+  | 'meteor-mauler'
+  | 'skunk-brush'
+  | 'monarch-brood'
+  | 'royal-stinkcloud';
 export type GregPrimitiveShape = 'sphere' | 'cone' | 'cylinder';
 export type GregMaterialRole =
   | 'quillPrimary'
@@ -54,7 +78,20 @@ export type GregMaterialRole =
   | 'geckoPrimary'
   | 'geckoAccent'
   | 'razorstepPrimary'
-  | 'razorstepAccent';
+  | 'razorstepAccent'
+  | 'owlPrimary'
+  | 'owlAccent'
+  | 'batPrimary'
+  | 'batAccent'
+  | 'crabPrimary'
+  | 'crabAccent'
+  | 'armadilloPrimary'
+  | 'armadilloAccent'
+  | 'skunkPrimary'
+  | 'skunkAccent'
+  | 'monarchPrimary'
+  | 'monarchAccent'
+  | 'launchMythicGlow';
 
 export interface GregPrimitiveTransform {
   readonly position: readonly [x: number, y: number, z: number];
@@ -82,7 +119,10 @@ const MATERIAL_ROLES: readonly GregMaterialRole[] = [
   'quillPrimary', 'quillAccent', 'pufferPrimary', 'pufferAccent', 'mythicThorn', 'mythicGlow',
   'coilPrimary', 'coilGlow', 'fireflyPrimary', 'fireflyGlow', 'thunderbugCore',
   'mantisPrimary', 'mantisAccent', 'geckoPrimary', 'geckoAccent',
-  'razorstepPrimary', 'razorstepAccent',
+  'razorstepPrimary', 'razorstepAccent', 'owlPrimary', 'owlAccent',
+  'batPrimary', 'batAccent', 'crabPrimary', 'crabAccent',
+  'armadilloPrimary', 'armadilloAccent', 'skunkPrimary', 'skunkAccent',
+  'monarchPrimary', 'monarchAccent', 'launchMythicGlow',
 ];
 
 function transform(
@@ -240,6 +280,122 @@ const RAW_RECIPES: readonly GregAttachmentVisualRecipe[] = [
       part('left-rivet', 'sphere', 'razorstepPrimary', [-0.02, 0.18, 0], [0, 0, 0], [0.14, 0.14, 0.14]),
       part('right-rivet', 'sphere', 'razorstepPrimary', [1.46, 0.18, 0], [0, 0, 0], [0.14, 0.14, 0.14]),
       part('trail-core', 'sphere', 'geckoAccent', [0.72, 0.3, 0.1], [0, 0, 0], [0.16, 0.16, 0.16]),
+    ],
+  },
+  {
+    key: 'owl-pinions:bud', family: 'owl-pinions', stage: 'bud', parts: [
+      part('owl-wing-left', 'cone', 'owlPrimary', [-0.28, 0.2, 0], [0, 0, -32], [0.18, 0.7, 0.18]),
+      part('owl-wing-right', 'cone', 'owlPrimary', [0.28, 0.2, 0], [0, 0, 32], [0.18, 0.7, 0.18]),
+      part('owl-feather', 'sphere', 'owlAccent', [0, 0.28, -0.18], [0, 0, 0], [0.2, 0.2, 0.2]),
+    ],
+  },
+  {
+    key: 'owl-pinions:adapted', family: 'owl-pinions', stage: 'adapted', parts: [
+      part('owl-wing-left', 'cone', 'owlPrimary', [-0.4, 0.24, 0], [0, 0, -38], [0.22, 0.96, 0.22]),
+      part('owl-wing-right', 'cone', 'owlPrimary', [0.4, 0.24, 0], [0, 0, 38], [0.22, 0.96, 0.22]),
+      part('owl-feather-left', 'cone', 'owlAccent', [-0.2, 0.36, -0.16], [0, 0, -18], [0.12, 0.54, 0.12]),
+      part('owl-feather-right', 'cone', 'owlAccent', [0.2, 0.36, -0.16], [0, 0, 18], [0.12, 0.54, 0.12]),
+    ],
+  },
+  {
+    key: 'bat-ears:bud', family: 'bat-ears', stage: 'bud', parts: [
+      part('bat-ear-left', 'cone', 'batPrimary', [-0.24, 0.42, 0.08], [0, 0, -18], [0.14, 0.48, 0.14]),
+      part('bat-ear-right', 'cone', 'batPrimary', [0.24, 0.42, 0.08], [0, 0, 18], [0.14, 0.48, 0.14]),
+      part('bat-radar', 'sphere', 'batAccent', [0, 0.2, 0.22], [0, 0, 0], [0.1, 0.1, 0.1]),
+    ],
+  },
+  {
+    key: 'bat-ears:adapted', family: 'bat-ears', stage: 'adapted', parts: [
+      part('bat-ear-left', 'cone', 'batPrimary', [-0.3, 0.5, 0.08], [0, 0, -22], [0.18, 0.7, 0.18]),
+      part('bat-ear-right', 'cone', 'batPrimary', [0.3, 0.5, 0.08], [0, 0, 22], [0.18, 0.7, 0.18]),
+      part('bat-radar-left', 'sphere', 'batAccent', [-0.18, 0.25, 0.28], [0, 0, 0], [0.12, 0.12, 0.12]),
+      part('bat-radar-right', 'sphere', 'batAccent', [0.18, 0.25, 0.28], [0, 0, 0], [0.12, 0.12, 0.12]),
+    ],
+  },
+  {
+    key: 'midnight-radar:mythic', family: 'midnight-radar', stage: 'mythic', parts: [
+      part('radar-crown', 'cylinder', 'launchMythicGlow', [0, 0.46, 0], [0, 0, 0], [0.34, 0.08, 0.34]),
+      part('radar-wing-left', 'cone', 'owlPrimary', [-0.36, 0.26, 0], [0, 0, -42], [0.2, 1.05, 0.2]),
+      part('radar-wing-right', 'cone', 'owlPrimary', [0.36, 0.26, 0], [0, 0, 42], [0.2, 1.05, 0.2]),
+      part('radar-ear-left', 'cone', 'batAccent', [-0.22, 0.55, 0.1], [0, 0, -24], [0.12, 0.68, 0.12]),
+      part('radar-ear-right', 'cone', 'batAccent', [0.22, 0.55, 0.1], [0, 0, 24], [0.12, 0.68, 0.12]),
+    ],
+  },
+  {
+    key: 'crab-pincers:bud', family: 'crab-pincers', stage: 'bud', parts: [
+      part('crab-claw-left', 'sphere', 'crabPrimary', [-0.38, 0.1, 0.1], [0, 0, 0], [0.3, 0.24, 0.38]),
+      part('crab-claw-right', 'sphere', 'crabPrimary', [0.38, 0.1, 0.1], [0, 0, 0], [0.3, 0.24, 0.38]),
+      part('crab-tip', 'cone', 'crabAccent', [0, 0.26, 0.28], [0, 0, 0], [0.12, 0.34, 0.12]),
+    ],
+  },
+  {
+    key: 'crab-pincers:adapted', family: 'crab-pincers', stage: 'adapted', parts: [
+      part('crab-claw-left', 'sphere', 'crabPrimary', [-0.5, 0.14, 0.1], [0, 0, 0], [0.42, 0.32, 0.52]),
+      part('crab-claw-right', 'sphere', 'crabPrimary', [0.5, 0.14, 0.1], [0, 0, 0], [0.42, 0.32, 0.52]),
+      part('crab-tip-left', 'cone', 'crabAccent', [-0.46, 0.34, 0.3], [0, 0, -12], [0.14, 0.5, 0.14]),
+      part('crab-tip-right', 'cone', 'crabAccent', [0.46, 0.34, 0.3], [0, 0, 12], [0.14, 0.5, 0.14]),
+    ],
+  },
+  {
+    key: 'armadillo-greaves:bud', family: 'armadillo-greaves', stage: 'bud', parts: [
+      part('greave-left', 'cylinder', 'armadilloPrimary', [-0.28, 0.1, -0.1], [0, 0, 0], [0.2, 0.38, 0.2]),
+      part('greave-right', 'cylinder', 'armadilloPrimary', [0.28, 0.1, -0.1], [0, 0, 0], [0.2, 0.38, 0.2]),
+      part('greave-rivet', 'sphere', 'armadilloAccent', [0, 0.3, -0.2], [0, 0, 0], [0.12, 0.12, 0.12]),
+    ],
+  },
+  {
+    key: 'armadillo-greaves:adapted', family: 'armadillo-greaves', stage: 'adapted', parts: [
+      part('greave-left', 'cylinder', 'armadilloPrimary', [-0.32, 0.12, -0.1], [0, 0, 0], [0.28, 0.52, 0.28]),
+      part('greave-right', 'cylinder', 'armadilloPrimary', [0.32, 0.12, -0.1], [0, 0, 0], [0.28, 0.52, 0.28]),
+      part('greave-rivet-left', 'sphere', 'armadilloAccent', [-0.2, 0.38, -0.2], [0, 0, 0], [0.14, 0.14, 0.14]),
+      part('greave-rivet-right', 'sphere', 'armadilloAccent', [0.2, 0.38, -0.2], [0, 0, 0], [0.14, 0.14, 0.14]),
+    ],
+  },
+  {
+    key: 'meteor-mauler:mythic', family: 'meteor-mauler', stage: 'mythic', parts: [
+      part('meteor-core', 'sphere', 'launchMythicGlow', [0, 0.42, 0], [0, 0, 0], [0.28, 0.28, 0.28]),
+      part('meteor-claw-left', 'sphere', 'crabPrimary', [-0.52, 0.16, 0.08], [0, 0, 0], [0.44, 0.34, 0.54]),
+      part('meteor-claw-right', 'sphere', 'crabPrimary', [0.52, 0.16, 0.08], [0, 0, 0], [0.44, 0.34, 0.54]),
+      part('meteor-greave-left', 'cylinder', 'armadilloAccent', [-0.28, 0.12, -0.22], [0, 0, 0], [0.26, 0.58, 0.26]),
+      part('meteor-greave-right', 'cylinder', 'armadilloAccent', [0.28, 0.12, -0.22], [0, 0, 0], [0.26, 0.58, 0.26]),
+    ],
+  },
+  {
+    key: 'skunk-brush:bud', family: 'skunk-brush', stage: 'bud', parts: [
+      part('skunk-brush', 'cone', 'skunkPrimary', [0, 0.18, -0.2], [90, 0, 0], [0.22, 0.7, 0.22]),
+      part('skunk-stripe', 'cone', 'skunkAccent', [0, 0.22, -0.42], [90, 0, 0], [0.1, 0.36, 0.1]),
+    ],
+  },
+  {
+    key: 'skunk-brush:adapted', family: 'skunk-brush', stage: 'adapted', parts: [
+      part('skunk-brush', 'cone', 'skunkPrimary', [0, 0.22, -0.28], [90, 0, 0], [0.3, 0.98, 0.3]),
+      part('skunk-stripe', 'cone', 'skunkAccent', [0, 0.3, -0.62], [90, 0, 0], [0.14, 0.52, 0.14]),
+      part('skunk-spark', 'sphere', 'launchMythicGlow', [0, 0.38, -0.86], [0, 0, 0], [0.13, 0.13, 0.13]),
+    ],
+  },
+  {
+    key: 'monarch-brood:bud', family: 'monarch-brood', stage: 'bud', parts: [
+      part('monarch-left', 'sphere', 'monarchPrimary', [-0.34, 0.32, 0], [0, 0, 0], [0.16, 0.1, 0.24]),
+      part('monarch-right', 'sphere', 'monarchPrimary', [0.34, 0.32, 0], [0, 0, 0], [0.16, 0.1, 0.24]),
+      part('monarch-glow', 'sphere', 'monarchAccent', [0, 0.36, 0], [0, 0, 0], [0.08, 0.08, 0.08]),
+    ],
+  },
+  {
+    key: 'monarch-brood:adapted', family: 'monarch-brood', stage: 'adapted', parts: [
+      part('monarch-north', 'sphere', 'monarchPrimary', [0, 0.42, -0.34], [0, 0, 0], [0.18, 0.12, 0.28]),
+      part('monarch-east', 'sphere', 'monarchPrimary', [0.42, 0.34, 0], [0, 0, 0], [0.18, 0.12, 0.28]),
+      part('monarch-south', 'sphere', 'monarchPrimary', [0, 0.42, 0.34], [0, 0, 0], [0.18, 0.12, 0.28]),
+      part('monarch-west', 'sphere', 'monarchPrimary', [-0.42, 0.34, 0], [0, 0, 0], [0.18, 0.12, 0.28]),
+      part('monarch-glow', 'sphere', 'monarchAccent', [0, 0.38, 0], [0, 0, 0], [0.1, 0.1, 0.1]),
+    ],
+  },
+  {
+    key: 'royal-stinkcloud:mythic', family: 'royal-stinkcloud', stage: 'mythic', parts: [
+      part('royal-cloud', 'sphere', 'skunkPrimary', [0, 0.28, -0.08], [0, 0, 0], [0.62, 0.3, 0.62]),
+      part('royal-stripe', 'cone', 'skunkAccent', [0, 0.58, -0.16], [0, 0, 0], [0.12, 0.42, 0.12]),
+      part('royal-wing-left', 'sphere', 'monarchPrimary', [-0.48, 0.36, 0.06], [0, 0, 0], [0.22, 0.14, 0.34]),
+      part('royal-wing-right', 'sphere', 'monarchPrimary', [0.48, 0.36, 0.06], [0, 0, 0], [0.22, 0.14, 0.34]),
+      part('royal-glow', 'sphere', 'launchMythicGlow', [0, 0.48, 0.2], [0, 0, 0], [0.15, 0.15, 0.15]),
     ],
   },
 ];

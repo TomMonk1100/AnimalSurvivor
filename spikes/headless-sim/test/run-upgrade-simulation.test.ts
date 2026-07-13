@@ -4,6 +4,7 @@ import {
   DEFAULT_CONFIG,
   UNIVERSAL_UPGRADE_CATALOG,
   createSimulation,
+  getUniversalUpgradeCatalogForHero,
   runReplay,
   type SimConfig,
   type Simulation,
@@ -117,7 +118,7 @@ test('Rapid Instinct and Growth change real attack cadence and collected XP', ()
 });
 
 test('permanent starting vitality is applied at startup and replay rejects a mismatched loadout', () => {
-  const loadout = { version: 1 as const, maxHpBonus: 20 };
+  const loadout = { version: 3 as const, heroId: 'greg' as const, maxHpBonus: 20 };
   const sim = createSimulation({ ...DEFAULT_CONFIG, waves: [] }, 55, { runStartLoadout: loadout });
   assert.equal(sim.player.maxHp, DEFAULT_CONFIG.player.maxHp + 20);
   assert.equal(sim.player.hp, DEFAULT_CONFIG.player.maxHp + 20);
@@ -127,4 +128,82 @@ test('permanent starting vitality is applied at startup and replay rejects a mis
     finalHash: sim.hash(), ticks: sim.tick,
   });
   assert.throws(() => runReplay({ ...DEFAULT_CONFIG, waves: [] }, replay), /run start loadout fingerprint mismatch/);
+});
+
+test('hero selection is deterministic and changes the authoritative starting profile', () => {
+  const benny = createSimulation({ ...DEFAULT_CONFIG, waves: [] }, 56, {
+    runStartLoadout: { version: 3, heroId: 'benny', maxHpBonus: 0 },
+  });
+  const gracie = createSimulation({ ...DEFAULT_CONFIG, waves: [] }, 56, {
+    runStartLoadout: { version: 3, heroId: 'gracie', maxHpBonus: 0 },
+  });
+
+  assert.equal(benny.player.maxHp, DEFAULT_CONFIG.player.maxHp + 28);
+  assert.equal(benny.player.speed, DEFAULT_CONFIG.player.speed * 0.88);
+  assert.equal(gracie.player.maxHp, DEFAULT_CONFIG.player.maxHp - 8);
+  assert.equal(gracie.player.pickupRadius, DEFAULT_CONFIG.player.pickupRadius + 18);
+  assert.notEqual(benny.runStartLoadoutFingerprint, gracie.runStartLoadoutFingerprint);
+  assert.notEqual(benny.hash(), gracie.hash());
+});
+
+test('hero starter attacks produce distinct projectile patterns in the simulation', () => {
+  const quietConfig = { ...DEFAULT_CONFIG, waves: [] };
+  const expectedProjectiles = { greg: 1, benny: 2, gracie: 1 } as const;
+  for (const heroId of ['greg', 'benny', 'gracie'] as const) {
+    const sim = createSimulation(quietConfig, 58, {
+      runStartLoadout: { version: 3, heroId, maxHpBonus: 0 },
+    });
+    addStationaryEnemy(sim, 100);
+    const events = sim.step({ moveX: 0, moveY: 0, paused: false });
+    assert.equal(events.projectilesFired, expectedProjectiles[heroId], `${heroId} starter count`);
+    assert.equal(sim.projectiles.data.count, expectedProjectiles[heroId], `${heroId} live projectiles`);
+    assert.equal(sim.projectiles.data.pierce[0], 0, `${heroId} starts without accidental pierce`);
+  }
+});
+
+test('selected hero mastery changes the real starter projectile at its authored rank', () => {
+  const heroId = 'benny' as const;
+  const sim = createSimulation({
+    ...DEFAULT_CONFIG,
+    waves: [],
+    xpThresholds: [0, 1, 2],
+    weapon: { ...DEFAULT_CONFIG.weapon, cooldownTicks: 1 },
+  }, 59, {
+    runStartLoadout: { version: 3, heroId, maxHpBonus: 0 },
+    universalUpgradeCatalog: getUniversalUpgradeCatalogForHero(heroId),
+    traitOfferCount: 7,
+  });
+  sim.step({ moveX: 0, moveY: 0, paused: false });
+  assert.ok(sim.pendingUpgradeOffers.some((offer) => offer.id === 'universal:basic-attack:benny-brace-burst'));
+  sim.selectUpgrade('universal:basic-attack:benny-brace-burst');
+  sim.player.xp = 1;
+  addStationaryEnemy(sim, 100);
+  sim.step({ moveX: 0, moveY: 0, paused: false });
+  assert.equal(sim.upgradeSelectionPending, true);
+  sim.selectUpgrade('universal:basic-attack:benny-brace-burst');
+  const events = sim.step({ moveX: 0, moveY: 0, paused: false });
+  assert.equal(events.projectilesFired, 3, 'rank two Brace Bloom adds its third bolt');
+  assert.equal(sim.projectiles.data.count, 5, 'the two rank-one bolts remain live beside the rank-two burst');
+  assert.ok(sim.projectiles.data.damage[0]! > DEFAULT_CONFIG.weapon.damage * 0.96 * 1.12);
+});
+
+test('every founding hero preserves exact replay parity across a moving run', () => {
+  for (const heroId of ['greg', 'benny', 'gracie'] as const) {
+    const loadout = { version: 3 as const, heroId, maxHpBonus: 0 };
+    const sim = createSimulation({ ...DEFAULT_CONFIG, waves: [] }, 57, {
+      runStartLoadout: loadout,
+    });
+    for (let tick = 0; tick < 120; tick++) {
+      sim.step({
+        moveX: tick % 3 === 0 ? 1 : -0.25,
+        moveY: tick % 5 === 0 ? 0.5 : 0,
+        paused: false,
+      });
+    }
+
+    const replay = sim.getReplay();
+    assert.deepEqual(runReplay({ ...DEFAULT_CONFIG, waves: [] }, replay, {
+      runStartLoadout: loadout,
+    }), { finalHash: sim.hash(), ticks: sim.tick }, `${heroId} replay diverged`);
+  }
 });

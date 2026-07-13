@@ -171,6 +171,32 @@ describe('active adaptation presentation', () => {
     });
   });
 
+  it('presents the newly activated V1 trait families and their Mythic fusion', () => {
+    const cards = presentActiveAdaptations([
+      visual({ sourceId: 'owl-pinions', stage: 'adapted', sockets: ['leftShoulder', 'rightShoulder'], visualKey: 'owl-pinions:adapted' }),
+      visual({ sourceId: 'bat-ears', stage: 'bud', sockets: ['head'], visualKey: 'bat-ears:bud' }),
+      visual({ sourceId: 'crab-pincers', stage: 'adapted', sockets: ['leftShoulder', 'rightShoulder'], visualKey: 'crab-pincers:adapted' }),
+      visual({ sourceId: 'armadillo-greaves', stage: 'bud', sockets: ['back'], visualKey: 'armadillo-greaves:bud' }),
+      visual({ sourceId: 'skunk-brush', stage: 'bud', sockets: ['tail'], visualKey: 'skunk-brush:bud' }),
+      visual({ sourceId: 'monarch-brood', stage: 'adapted', sockets: ['bodyOrbit'], visualKey: 'monarch-brood:adapted' }),
+    ]);
+
+    expect(cards.map((card) => card.id)).toEqual([
+      'owl-pinions:adapted', 'bat-ears:bud', 'crab-pincers:adapted',
+      'armadillo-greaves:bud', 'skunk-brush:bud', 'monarch-brood:adapted',
+    ]);
+    expect(cards.find((card) => card.id === 'bat-ears:bud')?.effect).toMatch(/mark/i);
+    expect(cards.find((card) => card.id === 'monarch-brood:adapted')?.effect).toMatch(/sting nearby enemies/i);
+
+    const royal = presentActiveAdaptations([
+      visual({ sourceId: 'royal-stinkcloud', stage: 'mythic', sockets: ['tail', 'bodyOrbit'], visualKey: 'royal-stinkcloud:mythic' }),
+      visual({ sourceId: 'skunk-brush', stage: 'adapted', sockets: ['tail'], visualKey: 'skunk-brush:adapted' }),
+      visual({ sourceId: 'monarch-brood', stage: 'adapted', sockets: ['bodyOrbit'], visualKey: 'monarch-brood:adapted' }),
+    ]);
+    expect(royal).toHaveLength(1);
+    expect(royal[0]).toMatchObject({ id: 'royal-stinkcloud:mythic', title: 'Royal Stinkcloud' });
+  });
+
   it('replaces Mantis and Gecko with their two-slot Razorstep Mythic card', () => {
     const cards = presentActiveAdaptations([
       visual({

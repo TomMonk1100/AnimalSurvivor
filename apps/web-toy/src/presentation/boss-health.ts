@@ -1,5 +1,7 @@
 import { RUN_ENEMY_ROLE } from '@sim';
+import type { BiomeId } from '@sim';
 import type { CategorySnapshot } from '../contracts';
+import { getBiomePresentationCopy } from './biome-copy';
 
 export interface BossHealthPresentation {
   readonly id: number;
@@ -10,8 +12,6 @@ export interface BossHealthPresentation {
   readonly fraction: number;
   readonly percent: number;
 }
-
-const BOSS_LABEL = 'The Final Threat';
 
 function finiteOr(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
@@ -26,7 +26,8 @@ function clamp(value: number, minimum: number, maximum: number): number {
  * its copied health values into safe UI data. Invalid max health hides the bar
  * rather than inventing a progress value for malformed presentation input.
  */
-export function presentBossHealth(enemies: CategorySnapshot): BossHealthPresentation | null {
+export function presentBossHealth(enemies: CategorySnapshot, biomeId: BiomeId = 'forest'): BossHealthPresentation | null {
+  const bossLabel = getBiomePresentationCopy(biomeId).bossName;
   for (let index = 0; index < enemies.count; index++) {
     if (enemies.role[index] !== RUN_ENEMY_ROLE.boss) continue;
     const max = finiteOr(enemies.maxHp[index]!, 0);
@@ -35,7 +36,7 @@ export function presentBossHealth(enemies: CategorySnapshot): BossHealthPresenta
     const fraction = current / max;
     return Object.freeze({
       id: enemies.id[index]!,
-      label: BOSS_LABEL,
+      label: bossLabel,
       current,
       max,
       fraction,

@@ -2,11 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <title>AnimalSurvivor — Web Toy (Gate 1)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="animal-survivor-build-id" content="dev" />
+    <title>Animal Survivor — Wildguard</title>
     <style>
       :root {
         color-scheme: dark;
+        --palette-primary: #254f3d;
+        --palette-accent: #8bd8bb;
+        --palette-glow: #c9f26b;
+        --safe-area-top: env(safe-area-inset-top, 0px);
+        --safe-area-right: env(safe-area-inset-right, 0px);
+        --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-area-left: env(safe-area-inset-left, 0px);
       }
       html,
       body {
@@ -35,8 +43,8 @@
       }
       #hud {
         position: absolute;
-        top: 8px;
-        left: 8px;
+        top: calc(8px + var(--safe-area-top));
+        left: calc(8px + var(--safe-area-left));
         padding: 8px 10px;
         background: rgba(10, 14, 20, 0.72);
         border: 1px solid #2a3442;
@@ -46,11 +54,52 @@
         user-select: none;
         max-width: 46vw;
       }
+      #player-health {
+        position: absolute;
+        z-index: 3;
+        top: calc(78px + var(--safe-area-top));
+        left: calc(8px + var(--safe-area-left));
+        width: min(240px, 46vw);
+        box-sizing: border-box;
+        padding: 6px 8px;
+        color: #f4fff0;
+        background: rgba(10, 28, 16, 0.82);
+        border: 1px solid #78c88b;
+        border-radius: 7px;
+        box-shadow: 0 5px 16px rgba(0, 0, 0, 0.24);
+        font: 12px/1.2 system-ui, sans-serif;
+        pointer-events: none;
+        user-select: none;
+      }
+      #player-health[hidden] { display: none; }
+      #player-health header {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      #player-health strong { font-size: 12px; }
+      #player-health span { color: #d8f3d9; font-variant-numeric: tabular-nums; }
+      #player-health-bar {
+        height: 8px;
+        margin-top: 5px;
+        overflow: hidden;
+        background: rgba(5, 12, 7, 0.82);
+        border: 1px solid rgba(190, 245, 190, 0.45);
+        border-radius: 999px;
+      }
+      #player-health-fill {
+        width: 100%;
+        height: 100%;
+        transform: scaleX(1);
+        transform-origin: left center;
+        background: linear-gradient(90deg, #45d477, #c9f26b);
+        transition: transform 120ms linear, background 120ms linear;
+      }
       #adaptations {
         position: absolute;
         z-index: 2;
-        right: 12px;
-        bottom: 12px;
+        right: calc(12px + var(--safe-area-right));
+        bottom: calc(12px + var(--safe-area-bottom));
         display: grid;
         gap: 6px;
         width: min(264px, calc(100vw - 32px));
@@ -89,8 +138,8 @@
       #adaptations .adaptation-card small { margin-top: 4px; color: #83b8df; font-weight: 600; }
       #controls {
         position: absolute;
-        top: 8px;
-        right: 8px;
+        top: calc(8px + var(--safe-area-top));
+        right: calc(8px + var(--safe-area-right));
         display: flex;
         gap: 6px;
         flex-wrap: wrap;
@@ -121,6 +170,12 @@
         font: 600 11px/1.3 system-ui, sans-serif;
         text-align: right;
       }
+      #controls #input-mode-status {
+        flex-basis: 100%;
+        color: #9fc5d8;
+        font: 600 10px/1.3 system-ui, sans-serif;
+        text-align: right;
+      }
       #run-intro .profile-summary {
         display: grid;
         grid-template-columns: 1fr;
@@ -130,10 +185,17 @@
         padding: 7px 8px;
         color: #dceefd;
         background: rgba(17, 35, 51, 0.88);
-        border: 1px solid #3f6786;
+        border: 1px solid var(--palette-accent);
         border-radius: 6px;
         font: 11px/1.3 system-ui, sans-serif;
         text-align: left;
+      }
+      #build-identity {
+        margin: 12px 0 0;
+        color: #9eb7c9;
+        font: 10px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        overflow-wrap: anywhere;
+        text-align: center;
       }
       #run-intro .profile-summary strong { color: #a8d9f3; }
       #run-intro .profile-summary span { color: #c8d9e7; }
@@ -148,10 +210,437 @@
         cursor: not-allowed;
         opacity: 0.56;
       }
+      #run-intro .accessibility-settings {
+        margin-top: 2px;
+      }
+      #run-intro .credits-notices {
+        margin-top: 2px;
+      }
+      #run-intro .palette-settings {
+        margin-top: 2px;
+      }
+      #run-intro .palette-settings details {
+        display: grid;
+        gap: 5px;
+      }
+      #run-intro .palette-settings summary {
+        color: #dff4ff;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      #run-intro .palette-settings-hint {
+        color: #8fb4ca;
+        font-size: 10px;
+      }
+      #run-intro .palette-settings select {
+        width: 100%;
+        min-height: 28px;
+        padding: 4px 6px;
+        color: #e9f7ff;
+        background: var(--palette-primary);
+        border: 1px solid var(--palette-accent);
+        border-radius: 4px;
+        font: 11px system-ui, sans-serif;
+      }
+      #run-intro .credits-notices details {
+        display: grid;
+        gap: 4px;
+      }
+      #run-intro .credits-notices summary {
+        color: #dff4ff;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      #run-intro .credits-notices span,
+      #run-intro .credits-notices small {
+        color: #a9c6d7;
+        font-size: 10px;
+      }
+      #run-intro .accessibility-settings details {
+        display: grid;
+        gap: 5px;
+      }
+      #run-intro .accessibility-settings summary {
+        color: #dff4ff;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      #run-intro .accessibility-settings-hint {
+        color: #8fb4ca;
+        font-size: 10px;
+      }
+      #run-intro .accessibility-setting {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        padding: 4px 5px;
+        color: #dbeef8;
+        background: rgba(14, 25, 37, 0.68);
+        border: 1px solid #304c61;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      #run-intro .accessibility-setting input {
+        margin-top: 2px;
+        accent-color: #8bd8bb;
+      }
+      #run-intro .accessibility-setting.keyboard-binding input[type="text"] {
+        width: 34px;
+        min-height: 28px;
+        margin: 0 0 0 auto;
+        box-sizing: border-box;
+        color: #e9f7ff;
+        background: #172b3c;
+        border: 1px solid #5c839c;
+        border-radius: 4px;
+        text-align: center;
+        font: 700 13px system-ui, sans-serif;
+      }
+      #run-intro .accessibility-setting span,
+      #run-intro .accessibility-setting strong,
+      #run-intro .accessibility-setting small { display: block; }
+      #run-intro .accessibility-setting small {
+        margin-top: 2px;
+        color: #9eb7c9;
+        font-size: 10px;
+      }
+      #run-intro .accessibility-setting select {
+        min-width: 86px;
+        margin-left: auto;
+        padding: 3px 4px;
+        color: #e9f7ff;
+        background: #172b3c;
+        border: 1px solid #5c839c;
+        border-radius: 4px;
+        font: 11px system-ui, sans-serif;
+      }
+      #run-intro .accessibility-settings details > button {
+        min-height: 26px;
+        margin-top: 0;
+        padding: 4px 6px;
+        color: #dff4ff;
+        background: #20384a;
+        border-color: #3b6079;
+        font-size: 10px;
+      }
+      #run-intro .field-guide {
+        display: grid;
+        gap: 5px;
+        margin-top: 3px;
+      }
+      #run-intro .field-guide > button {
+        min-height: 30px;
+        margin-top: 2px;
+        color: #dff4ff;
+        background: var(--palette-primary);
+        border-color: var(--palette-accent);
+      }
+      #run-intro .field-guide-panel {
+        display: grid;
+        gap: 5px;
+        max-height: min(38vh, 260px);
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+      #run-intro .field-guide-panel[hidden] { display: none; }
+      #run-intro .field-guide-actions {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+      #run-intro .field-guide-actions button {
+        min-height: 28px;
+        margin-top: 0;
+        padding: 4px 6px;
+        color: #dff4ff;
+        background: #20384a;
+        border-color: #3b6079;
+        font-size: 10px;
+      }
+      #run-intro .field-guide-entry {
+        display: grid;
+        gap: 2px;
+        padding: 6px;
+        border-left: 3px solid #6ba8c9;
+        background: rgba(16, 29, 41, 0.75);
+      }
+      #run-intro .field-guide-portrait {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 34px;
+        padding: 4px 7px;
+        color: #dff4ff;
+        background: linear-gradient(110deg, rgba(29, 52, 71, 0.94), rgba(20, 34, 48, 0.72));
+        border: 1px solid var(--portrait-accent);
+        border-radius: 5px;
+      }
+      #run-intro .field-guide-portrait-image {
+        width: 52px;
+        height: 52px;
+        flex: 0 0 52px;
+        object-fit: cover;
+        border: 1px solid rgba(224, 242, 255, 0.42);
+        border-radius: 4px;
+        background: #18293a;
+      }
+      #run-intro .field-guide-portrait strong {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        place-items: center;
+        color: #13202c;
+        background: var(--portrait-accent);
+        border-radius: 50%;
+        font-size: 13px;
+      }
+      #run-intro .field-guide-portrait.field-guide-portrait-fallback {
+        min-height: 34px;
+      }
+      #run-intro .field-guide-portrait span {
+        color: #c8d9e7;
+        font-size: 10px;
+      }
+      #run-intro .field-guide-entry[data-outcome="defeat"] { border-left-color: #c98370; }
+      #run-intro .field-guide-entry strong { color: #d9f1ff; }
+      #run-intro .field-guide-entry span { color: #c8d9e7; }
+      #run-intro .field-guide-entry small,
+      #run-intro .field-guide-empty { color: #8fb4ca; }
+      #run-intro .field-guide-entry > button {
+        min-height: 25px;
+        margin-top: 2px;
+        padding: 3px 6px;
+        color: #dff4ff;
+        background: #20384a;
+        border-color: #3b6079;
+        font-size: 10px;
+      }
+      #run-intro .field-guide-evolution {
+        display: grid;
+        gap: 3px;
+        margin-top: 2px;
+        padding: 4px 5px;
+        color: #a9c6d7;
+        background: rgba(14, 25, 37, 0.72);
+        border: 1px solid #304c61;
+        border-radius: 4px;
+        font-size: 10px;
+      }
+      #run-intro .field-guide-evolution summary {
+        color: #d7ecf8;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      #run-intro .field-guide-challenges {
+        display: grid;
+        gap: 4px;
+        margin-top: 2px;
+        padding: 5px 6px;
+        background: rgba(14, 25, 37, 0.72);
+        border: 1px solid rgba(107, 168, 201, 0.32);
+      }
+      #run-intro .field-guide-recipes {
+        display: grid;
+        gap: 4px;
+        padding: 5px 6px;
+        background: rgba(14, 25, 37, 0.72);
+        border: 1px solid rgba(241, 194, 125, 0.34);
+      }
+      #run-intro .field-guide-recipes summary {
+        color: #ffe2a1;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      #run-intro .field-guide-recipes > span {
+        color: #a9c6d7;
+        font-size: 10px;
+      }
+      #run-intro .field-guide-recipe-list {
+        display: grid;
+        gap: 3px;
+      }
+      #run-intro .field-guide-recipe-list article {
+        display: grid;
+        gap: 2px;
+        padding: 4px 5px;
+        border-left: 2px solid #718ca0;
+        background: rgba(24, 39, 54, 0.66);
+      }
+      #run-intro .field-guide-recipe-list article[data-discovered="true"] {
+        border-left-color: #f1c27d;
+      }
+      #run-intro .field-guide-recipe-list strong { color: #d9f1ff; }
+      #run-intro .field-guide-recipe-list article[data-discovered="true"] strong { color: #ffe2a1; }
+      #run-intro .field-guide-recipe-list span { color: #c8d9e7; font-size: 10px; }
+      #run-intro .field-guide-recipe-list small { color: #8fb4ca; font-size: 9px; }
+      #run-intro .field-guide-habitats {
+        display: grid;
+        gap: 4px;
+        margin-top: 8px;
+        padding: 5px 6px;
+        background: rgba(14, 25, 37, 0.72);
+        border: 1px solid rgba(139, 216, 187, 0.38);
+      }
+      #run-intro .field-guide-habitats summary {
+        color: #c9f26b;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      #run-intro .field-guide-habitats > span { color: #a9c6d7; font-size: 10px; }
+      #run-intro .field-guide-habitat-list { display: grid; gap: 3px; }
+      #run-intro .field-guide-habitat-list article {
+        display: grid;
+        gap: 2px;
+        padding: 4px 5px;
+        border-left: 2px solid #718ca0;
+        background: rgba(24, 39, 54, 0.66);
+      }
+      #run-intro .field-guide-habitat-list article[data-unlocked="true"] { border-left-color: #8bd8bb; }
+      #run-intro .field-guide-habitat-list strong { color: #d9f1ff; font-size: 10px; }
+      #run-intro .field-guide-habitat-list article[data-unlocked="true"] strong { color: #ffe2a1; }
+      #run-intro .field-guide-habitat-list span { color: #c8d9e7; font-size: 10px; }
+      #run-intro .field-guide-enemies {
+        display: grid;
+        gap: 4px;
+        padding: 5px 6px;
+        background: rgba(14, 25, 37, 0.72);
+        border: 1px solid rgba(201, 131, 112, 0.38);
+      }
+      #run-intro .field-guide-enemies summary {
+        color: #ffd9cb;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      #run-intro .field-guide-enemies > span {
+        color: #a9c6d7;
+        font-size: 10px;
+      }
+      #run-intro .field-guide-enemies article {
+        display: grid;
+        gap: 2px;
+        padding: 4px 5px;
+        border-left: 2px solid #c98370;
+        background: rgba(24, 39, 54, 0.66);
+      }
+      #run-intro .field-guide-enemies article strong { color: #ffe5d8; }
+      #run-intro .field-guide-enemies article span { color: #c8d9e7; font-size: 10px; }
+      #run-intro .field-guide-enemies article small { color: #8fb4ca; font-size: 9px; }
+      #run-intro .field-guide-challenge-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+      }
+      #run-intro .field-guide-challenge-list span {
+        padding: 2px 4px;
+        color: #718ca0;
+        background: rgba(24, 39, 54, 0.8);
+        border: 1px solid rgba(113, 140, 160, 0.28);
+        border-radius: 3px;
+        font-size: 9px;
+      }
+      #run-intro .field-guide-challenge-list span[data-unlocked="true"] {
+        color: #ffe2a1;
+        background: rgba(102, 75, 34, 0.68);
+        border-color: rgba(241, 194, 125, 0.66);
+      }
+      #run-intro .hero-selection {
+        width: min(410px, 100%);
+        margin: 14px auto 0;
+        text-align: left;
+        font: 11px/1.3 system-ui, sans-serif;
+      }
+      #run-intro .hero-selection > strong,
+      #run-intro .hero-selection > span { display: block; }
+      #run-intro .hero-selection > strong {
+        color: #d9f1ff;
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      #run-intro .hero-selection > span { margin-top: 2px; color: #9eb7c9; }
+      #run-intro .hero-selection-choices {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 7px;
+        margin-top: 7px;
+      }
+      #run-intro .hero-selection-choices button {
+        min-height: 118px;
+        margin-top: 0;
+        padding: 8px;
+        color: #edf7ff;
+        text-align: left;
+        background: #1a2940;
+        border: 1px solid #526b86;
+        border-radius: 8px;
+        font: 11px/1.25 system-ui, sans-serif;
+      }
+      #run-intro .hero-selection-choices button[data-selected="true"] {
+        outline: 2px solid var(--hero-accent);
+        outline-offset: 1px;
+        border-color: var(--hero-accent);
+        box-shadow: 0 0 18px rgba(130, 220, 190, 0.2);
+      }
+      #run-intro .hero-selection-choices button:disabled { cursor: default; }
+      #run-intro .hero-selection-portrait {
+        float: left;
+        width: 48px;
+        height: 48px;
+        margin: 0 6px 3px 0;
+        object-fit: cover;
+        border: 1px solid var(--hero-accent);
+        border-radius: 5px;
+        background: #162437;
+      }
+      #run-intro .hero-selection-choices button strong,
+      #run-intro .hero-selection-choices button small,
+      #run-intro .hero-selection-choices button span,
+      #run-intro .hero-selection-choices button em { display: block; }
+      #run-intro .hero-selection-choices button strong { font-size: 12px; }
+      #run-intro .hero-selection-choices button small { margin-top: 2px; color: var(--hero-accent); font-weight: 700; }
+      #run-intro .hero-selection-choices button span { margin-top: 7px; color: #c8d8e8; font-size: 10px; }
+      #run-intro .hero-selection-choices button span.hero-character-line {
+        margin-top: 5px;
+        color: #b9d9c5;
+        font-style: italic;
+      }
+      #run-intro .hero-selection-choices button em { margin-top: 6px; color: #9bb8ca; font-size: 10px; font-style: normal; }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+      html[data-reduced-motion="true"] *,
+      html[data-reduced-motion="true"] *::before,
+      html[data-reduced-motion="true"] *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+      html[data-reduced-flashes="true"] #director-notice,
+      html[data-reduced-flashes="true"] #boss-health,
+      html[data-reduced-flashes="true"] #player-health {
+        box-shadow: none !important;
+      }
+      html[data-high-contrast="true"] #run-intro .profile-summary,
+      html[data-high-contrast="true"] #run-intro .field-guide-entry,
+      html[data-high-contrast="true"] #run-intro .accessibility-setting {
+        border-color: #e8f7ff;
+      }
+      html[data-high-contrast="true"] #run-intro .profile-summary span,
+      html[data-high-contrast="true"] #run-intro .field-guide-entry span,
+      html[data-high-contrast="true"] #run-intro .accessibility-settings-hint,
+      html[data-high-contrast="true"] #run-intro .accessibility-setting small {
+        color: #f0f8ff;
+      }
       #joystick {
         position: absolute;
-        left: 16px;
-        bottom: 16px;
+        left: calc(16px + var(--safe-area-left));
+        bottom: calc(16px + var(--safe-area-bottom));
         /* Desktop primarily uses keys; keep its touch fallback discoverable
            without letting an empty control zone dominate the arena. Narrow
            touch layouts below retain their larger 42vw target. */
@@ -203,13 +692,16 @@
         display: grid;
         place-items: center;
         box-sizing: border-box;
-        padding: 16px;
+        padding: calc(16px + var(--safe-area-top)) calc(16px + var(--safe-area-right))
+          calc(16px + var(--safe-area-bottom)) calc(16px + var(--safe-area-left));
         background: rgba(5, 9, 14, 0.8);
         backdrop-filter: blur(3px);
       }
       #run-intro[hidden] { display: none; }
       #run-intro .run-intro-card {
         width: min(450px, calc(100vw - 32px));
+        max-height: calc(100dvh - var(--safe-area-top) - var(--safe-area-bottom) - 32px);
+        overflow-y: auto;
         box-sizing: border-box;
         padding: 22px;
         color: #edf7ff;
@@ -265,6 +757,35 @@
         color: #ffd3ad;
         font: 600 12px/1.3 system-ui, sans-serif;
       }
+      #run-intro .audio-mix-settings {
+        width: min(320px, 100%);
+        margin: 8px auto 0;
+        color: #d7e8f4;
+        text-align: left;
+        background: rgba(18, 32, 48, 0.68);
+        border: 1px solid #3d5b72;
+        border-radius: 7px;
+      }
+      #run-intro .audio-mix-settings summary {
+        min-height: 28px;
+        padding: 7px 10px;
+        box-sizing: border-box;
+        color: #cfe7f4;
+        cursor: pointer;
+        font: 700 11px/1.2 system-ui, sans-serif;
+      }
+      #run-intro .audio-mix-settings[hidden] { display: none; }
+      #run-intro .audio-mix-row {
+        display: grid;
+        grid-template-columns: 72px 1fr 34px;
+        gap: 7px;
+        align-items: center;
+        padding: 3px 10px;
+        color: #b6d1e5;
+        font: 11px/1.2 system-ui, sans-serif;
+      }
+      #run-intro .audio-mix-row input[type="range"] { width: 100%; accent-color: #67c99d; }
+      #run-intro .audio-mix-row output { color: #9fcce8; text-align: right; font-variant-numeric: tabular-nums; }
       #run-intro button {
         min-height: 44px;
         margin-top: 18px;
@@ -495,6 +1016,21 @@
         justify-content: space-between;
         gap: 12px;
       }
+      #boss-health-content {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      #boss-health-portrait {
+        width: 48px;
+        height: 48px;
+        flex: 0 0 48px;
+        object-fit: cover;
+        border: 1px solid rgba(239, 192, 255, 0.58);
+        border-radius: 7px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.32);
+      }
+      #boss-health-details { min-width: 0; flex: 1; }
       #boss-health strong { font-size: 14px; }
       #boss-health span { color: #ead6f8; font-variant-numeric: tabular-nums; }
       #boss-health-bar {
@@ -513,22 +1049,37 @@
         background: linear-gradient(90deg, #df6aff, #ffa4ef);
         transition: transform 120ms linear;
       }
+      #boss-health[data-biome="saltwind"] {
+        color: #fff0d1;
+        background: rgba(78, 45, 28, 0.94);
+        border-color: #ffc267;
+      }
+      #boss-health[data-biome="saltwind"] span { color: #ffe5b1; }
+      #boss-health[data-biome="saltwind"] #boss-health-fill {
+        background: linear-gradient(90deg, #e98c32, #ffe19b);
+      }
       /* Keyboard/mouse play already has a visible movement reminder. Hide the
          touch-only zone there so it does not cover useful arena space. */
       @media (min-width: 601px) and (hover: hover) and (pointer: fine) {
         #joystick { display: none; }
       }
       @media (max-width: 600px) {
+        #run-intro .hero-selection-choices { grid-template-columns: 1fr; }
+        #run-intro .hero-selection-choices button { min-height: 0; }
         #hud {
           right: 8px;
           max-width: none;
           font-size: 10px;
           white-space: pre-wrap;
         }
+        #player-health {
+          top: calc(94px + var(--safe-area-top));
+          width: min(250px, calc(100vw - 16px));
+        }
         #controls {
-          top: 118px;
-          left: 8px;
-          right: 8px;
+          top: calc(118px + var(--safe-area-top));
+          left: calc(8px + var(--safe-area-left));
+          right: calc(8px + var(--safe-area-right));
           max-width: none;
           justify-content: flex-start;
         }
@@ -536,8 +1087,8 @@
           padding: 5px 7px;
         }
         #adaptations {
-          right: 8px;
-          bottom: 8px;
+          right: calc(8px + var(--safe-area-right));
+          bottom: calc(8px + var(--safe-area-bottom));
           width: min(236px, calc(100vw - 24px));
         }
         #adaptations .adaptation-card {
@@ -559,16 +1110,1117 @@
       /* Keep the persistent build cards out of the movement thumb's path. */
       @media (max-width: 600px) and (orientation: portrait) {
         #adaptations {
-          bottom: calc(42vw + 28px);
+          bottom: calc(42vw + 28px + var(--safe-area-bottom));
         }
       }
       @media (max-width: 600px) and (orientation: landscape) {
         #adaptations {
-          right: 8px;
-          bottom: 8px;
-          left: calc(42vw + 28px);
+          right: calc(8px + var(--safe-area-right));
+          bottom: calc(8px + var(--safe-area-bottom));
+          left: calc(42vw + 28px + var(--safe-area-left));
           width: auto;
         }
+      }
+
+      /* ── Storybook Wildguard visual language ──────────────────────────
+         These late overrides deliberately preserve the existing DOM contract
+         while changing the game from a diagnostic-dark overlay into a warm,
+         readable field journal. `--wildguard-keyart` is set by app.ts only
+         after Vite has fingerprinted the project-bound source image. */
+      :root {
+        --ink: #193126;
+        --ink-soft: #365040;
+        --cream: #fff1cb;
+        --paper: #f5d99e;
+        --paper-deep: #d9a95d;
+        --leaf-deep: #173c2a;
+        --leaf: #2e6b44;
+        --leaf-bright: #79b95c;
+        --brass: #d89a39;
+        --wildguard-keyart: none;
+      }
+      html,
+      body {
+        background: #132c20;
+        color: var(--cream);
+        font-family: ui-rounded, "Avenir Next", "Trebuchet MS", system-ui, sans-serif;
+      }
+      #hud {
+        top: calc(14px + var(--safe-area-top));
+        left: calc(14px + var(--safe-area-left));
+        anchor-name: --wildguard-hud;
+        min-width: min(300px, 46vw);
+        padding: 11px 14px;
+        color: #fff8df;
+        background:
+          linear-gradient(132deg, rgba(25, 56, 39, 0.94), rgba(15, 37, 27, 0.84)),
+          repeating-linear-gradient(0deg, rgba(255, 236, 177, 0.04) 0 1px, transparent 1px 5px);
+        border: 1px solid rgba(241, 195, 104, 0.58);
+        border-left: 4px solid var(--brass);
+        border-radius: 13px 7px 13px 7px;
+        box-shadow: 0 12px 28px rgba(7, 23, 14, 0.38), inset 0 1px rgba(255, 245, 206, 0.14);
+        font: 700 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        letter-spacing: 0.01em;
+      }
+      #player-health {
+        /* Fallback leaves room for the four-line player panel in browsers
+           without CSS anchor positioning. Supported browsers attach this
+           strip to the actual panel height below. */
+        top: calc(128px + var(--safe-area-top));
+        padding: 8px 10px;
+        color: #fff8e5;
+        background: rgba(23, 58, 37, 0.88);
+        border: 1px solid rgba(228, 185, 91, 0.68);
+        border-radius: 11px;
+        box-shadow: 0 8px 22px rgba(7, 23, 14, 0.3);
+      }
+      #player-health span { color: #d8f5b9; }
+      #player-health-bar {
+        height: 9px;
+        background: rgba(8, 27, 16, 0.82);
+        border-color: rgba(255, 239, 185, 0.38);
+      }
+      #player-health-fill { background: linear-gradient(90deg, #5ebd63, #e4cb64); }
+      #controls {
+        top: calc(14px + var(--safe-area-top));
+        right: calc(14px + var(--safe-area-right));
+        gap: 8px;
+      }
+      #controls button {
+        color: #fff5d7;
+        background: linear-gradient(135deg, #315e3e, #1d4430);
+        border: 1px solid rgba(233, 188, 92, 0.64);
+        border-radius: 11px 6px 11px 6px;
+        box-shadow: 0 6px 16px rgba(6, 21, 13, 0.25);
+        font-family: ui-rounded, "Avenir Next", system-ui, sans-serif;
+        font-weight: 750;
+      }
+      #controls button:active { background: #49764a; }
+      #controls button:focus-visible { outline-color: #ffe5a3; background: #547f4c; }
+      #controls .sound-status, #controls #input-mode-status { color: #e8d68c; }
+      #joystick {
+        border: 1px solid rgba(234, 199, 111, 0.34);
+        background: radial-gradient(circle, rgba(105, 161, 91, 0.14), rgba(21, 53, 34, 0.05) 68%);
+      }
+      #joystick::before { color: rgba(255, 239, 185, 0.58); }
+      #joystick-thumb {
+        border-color: rgba(255, 238, 183, 0.95);
+        background: rgba(104, 175, 94, 0.52);
+        box-shadow: 0 0 0 7px rgba(223, 177, 72, 0.14), 0 5px 16px rgba(0, 0, 0, 0.3);
+      }
+      #run-intro {
+        isolation: isolate;
+        overflow: hidden;
+        background:
+          linear-gradient(90deg, rgba(14, 38, 24, 0.9) 0%, rgba(17, 45, 29, 0.72) 43%, rgba(12, 30, 19, 0.27) 100%),
+          var(--wildguard-keyart) center / cover no-repeat,
+          #173b29;
+        backdrop-filter: none;
+      }
+      #run-intro::before {
+        position: absolute;
+        z-index: -1;
+        inset: 0;
+        content: '';
+        pointer-events: none;
+        background: repeating-linear-gradient(100deg, rgba(255, 243, 201, 0.025) 0 1px, transparent 1px 6px);
+        mix-blend-mode: screen;
+      }
+      #run-intro .run-intro-card {
+        position: relative;
+        width: min(500px, calc(100vw - 32px));
+        padding: 26px;
+        color: var(--ink);
+        text-align: left;
+        background:
+          linear-gradient(135deg, rgba(255, 245, 208, 0.98), rgba(238, 210, 149, 0.96)),
+          repeating-linear-gradient(0deg, rgba(111, 76, 35, 0.05) 0 1px, transparent 1px 5px);
+        border: 2px solid #8a6030;
+        border-radius: 18px 7px 18px 7px;
+        box-shadow: 0 24px 70px rgba(6, 20, 12, 0.5), inset 0 0 0 4px rgba(255, 247, 214, 0.72);
+      }
+      #run-intro .run-intro-eyebrow { color: #6c4d22; }
+      #run-intro h1 {
+        color: #173b29;
+        font-family: Georgia, "Iowan Old Style", serif;
+        font-size: 33px;
+        letter-spacing: -0.04em;
+      }
+      #run-intro #run-intro-objective { color: #274a34; font-size: 15px; font-weight: 700; }
+      #run-intro #run-intro-controls { color: #506342; }
+      #run-intro .profile-summary,
+      #run-intro .run-intro-sound,
+      #run-intro .audio-mix-settings {
+        color: #274a34;
+        background: rgba(255, 248, 218, 0.76);
+        border-color: rgba(120, 85, 40, 0.42);
+        box-shadow: inset 0 1px rgba(255, 255, 255, 0.7);
+      }
+      #run-intro .profile-summary strong { color: #234b35; }
+      #run-intro .profile-summary span,
+      #run-intro .run-intro-sound small,
+      #run-intro .audio-mix-row { color: #5c6b4b; }
+      #build-identity { color: #78633f; }
+      #run-intro .hero-selection {
+        margin-top: 10px;
+        color: #36513c;
+      }
+      #run-intro .hero-selection > strong { color: #294d35; }
+      #run-intro .hero-selection > span { color: #697354; }
+      #run-intro .hero-selection-choices { gap: 6px; }
+      #run-intro .hero-selection-choices button {
+        min-height: 154px;
+        padding: 7px;
+        color: #fff8df;
+        background: linear-gradient(145deg, #315f41, #1c4430);
+        border-color: rgba(235, 195, 103, 0.72);
+        box-shadow: 0 4px 10px rgba(48, 67, 32, 0.18);
+      }
+      #run-intro .hero-selection-choices button[data-selected="true"] {
+        outline-color: #e4b657;
+        box-shadow: 0 0 0 1px #f5dc91, 0 7px 17px rgba(53, 83, 42, 0.28);
+      }
+      #run-intro .hero-selection-portrait {
+        width: 42px;
+        height: 42px;
+        margin-right: 6px;
+        border-color: rgba(255, 237, 182, 0.7);
+        background: #274634;
+      }
+      #run-intro .hero-selection-choices button strong { color: #fff1c0; font-size: 12px; }
+      #run-intro .hero-selection-choices button small { color: #d6e8a4; }
+      #run-intro .hero-selection-choices button span { margin-top: 4px; color: #e1ecd2; font-size: 10px; }
+      #run-intro .hero-selection-choices button span.hero-character-line { color: #f0d792; }
+      #run-intro .hero-selection-choices button em { margin-top: 4px; color: #bde0b2; }
+      #run-intro .audio-mix-settings summary { color: #2f543a; }
+      #run-intro .audio-mix-row output { color: #8a5d23; }
+      #run-intro .audio-mix-row input[type="range"] { accent-color: #6b9d54; }
+      #run-intro button {
+        color: #fff8de;
+        background: linear-gradient(135deg, #3b7547, #235436);
+        border-color: #eed083;
+        border-radius: 12px 5px 12px 5px;
+        box-shadow: 0 6px 0 #163c27, 0 10px 18px rgba(59, 73, 32, 0.18);
+      }
+      #run-intro button:hover { filter: brightness(1.08); }
+      #run-intro button:focus-visible { outline-color: #7c5326; background: #4d8349; }
+      #upgrade-choices,
+      #pause-notice,
+      #run-outcome,
+      #director-notice {
+        color: #fff8e1;
+        background: linear-gradient(135deg, rgba(24, 61, 40, 0.96), rgba(15, 44, 29, 0.96));
+        border: 1px solid rgba(237, 195, 101, 0.75);
+        border-radius: 16px 7px 16px 7px;
+        box-shadow: 0 18px 58px rgba(6, 24, 13, 0.52), inset 0 1px rgba(255, 244, 192, 0.13);
+      }
+      #upgrade-choices h2 { color: #fff1c0; font-family: Georgia, "Iowan Old Style", serif; font-size: 23px; }
+      #upgrade-choices .upgrade-shortcuts { color: #cbe9ad; }
+      #upgrade-choices button {
+        padding: 13px 14px;
+        color: #fff7de;
+        text-align: left;
+        background: linear-gradient(120deg, rgba(61, 113, 65, 0.97), rgba(37, 79, 47, 0.97));
+        border-color: rgba(228, 193, 112, 0.7);
+        border-left: 4px solid var(--brass);
+        border-radius: 11px 4px 11px 4px;
+        box-shadow: 0 5px 13px rgba(4, 18, 10, 0.24);
+      }
+      #upgrade-choices button:nth-of-type(3n + 2) { border-left-color: #71c7b0; }
+      #upgrade-choices button:nth-of-type(3n) { border-left-color: #c682d6; }
+      #upgrade-choices button span { color: #e0f0d0; }
+      #upgrade-choices button small { color: #f2d789; }
+      #upgrade-choices button em { color: #bfe8a1; }
+      #upgrade-choices button:focus-visible { outline-color: #fff0ad; background: #568653; }
+      #pause-notice span, #pause-notice .pause-upgrades-empty { color: #d3e9c4; }
+      #pause-notice .pause-upgrades-title { color: #f3d781; }
+      #pause-notice .pause-upgrade-card {
+        background: rgba(67, 111, 61, 0.55);
+        border-color: rgba(225, 187, 104, 0.42);
+        border-left-color: #ddad49;
+      }
+      #pause-notice .pause-upgrade-card strong { color: #fff2ca; }
+      #pause-notice .pause-upgrade-card span { color: #d9ebcf; }
+      #pause-notice .pause-upgrade-card small { color: #f0d78e; }
+      #boss-health {
+        color: #fff3d3;
+        background: linear-gradient(135deg, rgba(65, 33, 76, 0.95), rgba(38, 25, 58, 0.95));
+        border-color: #e4bd71;
+        border-radius: 13px 5px 13px 5px;
+        box-shadow: 0 10px 28px rgba(14, 9, 22, 0.4);
+      }
+      #boss-health span { color: #f0d9ef; }
+      #boss-health-bar { border-color: rgba(255, 227, 171, 0.55); }
+      #boss-health-fill { background: linear-gradient(90deg, #bc5ecf, #f1ca7d); }
+      #run-outcome[data-outcome="defeat"],
+      #director-notice[data-tone="danger"] {
+        background: linear-gradient(135deg, rgba(112, 46, 35, 0.97), rgba(78, 29, 26, 0.97));
+        border-color: #e19a64;
+      }
+      #director-notice[data-tone="warning"] {
+        background: linear-gradient(135deg, rgba(117, 79, 26, 0.97), rgba(77, 51, 20, 0.97));
+        border-color: #f2c160;
+      }
+      @media (max-width: 600px) {
+        #hud { top: calc(9px + var(--safe-area-top)); left: calc(9px + var(--safe-area-left)); min-width: 0; }
+        #player-health { top: calc(128px + var(--safe-area-top)); }
+        #controls { top: calc(156px + var(--safe-area-top)); }
+        #run-intro .run-intro-card { padding: 20px; }
+        #run-intro h1 { font-size: 28px; }
+      }
+      @supports (top: anchor(--wildguard-hud bottom)) {
+        #player-health {
+          top: anchor(--wildguard-hud bottom);
+          left: anchor(--wildguard-hud left);
+          margin-top: 9px;
+        }
+      }
+
+      /* ── Launch polish: expedition staging and in-run choice surfaces ───
+         This is intentionally an override layer: app.ts owns the semantic DOM
+         and state; CSS turns that stable contract into the player-facing frame. */
+      #run-intro {
+        --journal-edge: #68491f;
+        --journal-ink: #173725;
+        --journal-muted: #5f6f4c;
+        --journal-gold: #c89031;
+        --journal-moss: #2e6a43;
+        --journal-light: #fff4d1;
+        justify-items: start;
+        padding-left: clamp(28px, 8vw, 144px);
+        background:
+          linear-gradient(90deg, rgba(10, 31, 19, 0.94) 0%, rgba(15, 41, 25, 0.79) 36%, rgba(13, 39, 23, 0.25) 68%, rgba(9, 25, 16, 0.22) 100%),
+          var(--wildguard-keyart) 68% center / cover no-repeat,
+          #173b29;
+      }
+      #run-intro::before {
+        z-index: -1;
+        opacity: 0.8;
+        background:
+          radial-gradient(ellipse at 14% 50%, rgba(240, 198, 102, 0.14), transparent 36%),
+          repeating-linear-gradient(100deg, rgba(255, 243, 201, 0.025) 0 1px, transparent 1px 6px);
+      }
+      #run-intro::after {
+        position: absolute;
+        z-index: -1;
+        inset: 16px;
+        content: '';
+        pointer-events: none;
+        border: 1px solid rgba(255, 231, 163, 0.17);
+        clip-path: polygon(0 14px, 14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px));
+      }
+      #run-intro .run-intro-card {
+        display: flex;
+        flex-direction: column;
+        width: min(556px, calc(100vw - 40px));
+        max-height: min(820px, calc(100dvh - var(--safe-area-top) - var(--safe-area-bottom) - 40px));
+        padding: clamp(24px, 3vw, 34px);
+        overflow-x: hidden;
+        color: var(--journal-ink);
+        border: 1px solid rgba(90, 59, 22, 0.95);
+        border-radius: 2px;
+        background:
+          linear-gradient(135deg, rgba(255, 249, 222, 0.99), rgba(244, 220, 163, 0.98) 62%, rgba(218, 174, 91, 0.95)),
+          repeating-linear-gradient(0deg, rgba(89, 60, 23, 0.045) 0 1px, transparent 1px 5px);
+        box-shadow:
+          0 30px 90px rgba(4, 17, 9, 0.58),
+          0 0 0 4px rgba(255, 241, 196, 0.66) inset,
+          0 0 0 8px rgba(86, 57, 22, 0.21) inset;
+        scrollbar-color: rgba(108, 75, 30, 0.7) rgba(247, 226, 177, 0.35);
+      }
+      #run-intro .run-intro-card::before,
+      #run-intro .run-intro-card::after {
+        position: absolute;
+        z-index: 0;
+        width: 28px;
+        height: 28px;
+        content: '';
+        pointer-events: none;
+        border-color: rgba(98, 63, 23, 0.7);
+      }
+      #run-intro .run-intro-card::before {
+        top: 13px;
+        left: 13px;
+        border-top: 2px solid;
+        border-left: 2px solid;
+      }
+      #run-intro .run-intro-card::after {
+        right: 13px;
+        bottom: 13px;
+        border-right: 2px solid;
+        border-bottom: 2px solid;
+      }
+      #run-intro .run-intro-card > * {
+        position: relative;
+        z-index: 1;
+        flex-shrink: 0;
+      }
+      #run-intro .run-intro-eyebrow {
+        order: 1;
+        margin: 0;
+        color: #70501f;
+        font: 800 10px/1.2 ui-rounded, "Avenir Next", system-ui, sans-serif;
+        letter-spacing: 0.2em;
+      }
+      #run-intro h1 {
+        order: 2;
+        max-width: 13ch;
+        margin-top: 7px;
+        color: var(--journal-ink);
+        font: 700 clamp(35px, 4.2vw, 49px)/0.96 Georgia, "Iowan Old Style", serif;
+        letter-spacing: -0.055em;
+        text-wrap: balance;
+      }
+      #run-intro h1::after {
+        display: block;
+        width: 48px;
+        height: 3px;
+        margin-top: 15px;
+        content: '';
+        background: linear-gradient(90deg, #ba7c22, #e4c168 72%, transparent 72%);
+      }
+      #run-intro #run-intro-objective {
+        order: 3;
+        max-width: 43ch;
+        margin-top: 13px;
+        color: #284b32;
+        font: 700 15px/1.45 ui-rounded, "Avenir Next", system-ui, sans-serif;
+      }
+      #run-intro #run-intro-controls {
+        order: 4;
+        max-width: 55ch;
+        max-height: 3.15em;
+        margin-top: 8px;
+        overflow: hidden;
+        color: var(--journal-muted);
+        font: 600 11px/1.55 ui-rounded, "Avenir Next", system-ui, sans-serif;
+        mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
+      }
+      #run-intro-profile {
+        /* Flatten this purely presentational mount so its hero selector can
+           precede the CTA while the optional journal follows it. */
+        display: contents;
+      }
+      #run-intro #run-intro-start {
+        order: 6;
+        display: block;
+        width: 100%;
+        min-height: 58px;
+        margin: 18px 0 0;
+        padding: 13px 22px;
+        color: #fff9e2;
+        background:
+          linear-gradient(90deg, transparent 0 18px, rgba(255, 238, 172, 0.12) 18px calc(100% - 18px), transparent calc(100% - 18px)),
+          linear-gradient(135deg, #426f42, #244e30 54%, #193c27);
+        border: 1px solid #8a5e20;
+        border-radius: 2px;
+        box-shadow: 0 5px 0 #173922, 0 11px 20px rgba(42, 66, 31, 0.25), inset 0 1px rgba(255, 245, 198, 0.42);
+        font: 800 15px/1 ui-rounded, "Avenir Next", system-ui, sans-serif;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      #run-intro #run-intro-start::before,
+      #run-intro #run-intro-start::after {
+        color: #f5d77e;
+        content: '◆';
+        font-size: 9px;
+        vertical-align: 2px;
+      }
+      #run-intro #run-intro-start::before { margin-right: 11px; }
+      #run-intro #run-intro-start::after { margin-left: 11px; }
+      #run-intro #run-intro-start:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.08) saturate(1.05);
+      }
+      #run-intro #run-intro-start:active {
+        transform: translateY(3px);
+        box-shadow: 0 2px 0 #173922, 0 5px 11px rgba(42, 66, 31, 0.22), inset 0 1px rgba(255, 245, 198, 0.36);
+      }
+      #run-intro #run-intro-start:focus-visible {
+        outline: 3px solid #4d3212;
+        outline-offset: 4px;
+      }
+      #build-identity { display: none; }
+      #run-intro .run-intro-sound {
+        order: 7;
+        width: 100%;
+        min-height: 39px;
+        margin-top: 17px;
+        padding: 7px 10px;
+        color: #38533b;
+        background: rgba(255, 249, 221, 0.44);
+        border: 1px solid rgba(120, 84, 35, 0.34);
+        border-radius: 2px;
+        box-shadow: none;
+        font-size: 12px;
+      }
+      #run-intro .run-intro-sound small { color: #6c704d; }
+      #run-intro .run-intro-sound input { accent-color: #4d7d48; }
+      #run-intro .sound-status { order: 8; color: #8a5221; }
+      #run-intro .audio-mix-settings {
+        order: 9;
+        width: 100%;
+        margin-top: 7px;
+        color: #36513c;
+        background: rgba(255, 249, 221, 0.44);
+        border: 1px solid rgba(120, 84, 35, 0.34);
+        border-radius: 2px;
+        box-shadow: none;
+      }
+      #run-intro .audio-mix-settings summary { color: #38533b; }
+      #run-intro .audio-mix-row { color: #5f6f4c; }
+      #run-intro .audio-mix-row output { color: #80531f; }
+
+      #run-intro .hero-selection {
+        order: 5;
+        flex-shrink: 0;
+        width: 100%;
+        margin: 16px 0 0;
+        color: #36513c;
+        font: 12px/1.35 ui-rounded, "Avenir Next", system-ui, sans-serif;
+      }
+      #run-intro .hero-selection > strong {
+        color: #2a4c34;
+        font: 800 11px/1.2 ui-rounded, "Avenir Next", system-ui, sans-serif;
+        letter-spacing: 0.16em;
+      }
+      #run-intro .hero-selection > strong::before {
+        margin-right: 7px;
+        color: #bd7f26;
+        content: '◆';
+        font-size: 9px;
+        vertical-align: 1px;
+      }
+      #run-intro .hero-selection > span {
+        margin-top: 4px;
+        color: #6a714e;
+        font-size: 11px;
+      }
+      #run-intro .hero-selection-choices {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 9px;
+        margin-top: 10px;
+      }
+      #run-intro .hero-selection-choices button {
+        position: relative;
+        display: block;
+        min-height: 207px;
+        padding: 8px;
+        overflow: hidden;
+        color: #fff9dc;
+        text-align: left;
+        background:
+          linear-gradient(145deg, rgba(77, 122, 72, 0.98), rgba(37, 82, 49, 0.98) 61%, rgba(21, 57, 35, 0.98)),
+          #244c31;
+        border: 1px solid rgba(117, 79, 29, 0.86);
+        border-radius: 2px;
+        box-shadow: 0 5px 12px rgba(43, 58, 27, 0.18), inset 0 1px rgba(255, 241, 191, 0.13);
+        font: 11px/1.28 ui-rounded, "Avenir Next", system-ui, sans-serif;
+        transition: transform 130ms ease, box-shadow 130ms ease, filter 130ms ease;
+      }
+      #run-intro .hero-selection-choices button::before {
+        position: absolute;
+        top: -20px;
+        right: -25px;
+        width: 78px;
+        height: 78px;
+        content: '';
+        opacity: 0.22;
+        background: var(--hero-accent);
+        clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+      }
+      #run-intro .hero-selection-choices button:hover:not(:disabled) {
+        z-index: 1;
+        transform: translateY(-3px);
+        filter: brightness(1.08) saturate(1.04);
+        box-shadow: 0 10px 18px rgba(43, 58, 27, 0.25), inset 0 1px rgba(255, 241, 191, 0.16);
+      }
+      #run-intro .hero-selection-choices button[data-selected="true"] {
+        border-color: #ecc86c;
+        outline: 1px solid #fff0b1;
+        outline-offset: 2px;
+        background:
+          linear-gradient(145deg, rgba(91, 139, 74, 1), rgba(41, 91, 51, 1) 61%, rgba(23, 62, 37, 1)),
+          #244c31;
+        box-shadow: 0 0 0 4px rgba(232, 184, 77, 0.18), 0 10px 18px rgba(43, 58, 27, 0.24), inset 0 1px rgba(255, 241, 191, 0.19);
+      }
+      #run-intro .hero-selection-choices button[data-selected="true"]::after {
+        position: absolute;
+        right: 7px;
+        bottom: 7px;
+        padding: 3px 5px;
+        color: #fff2bd;
+        content: 'CHOSEN';
+        background: rgba(20, 55, 34, 0.92);
+        border: 1px solid rgba(237, 202, 113, 0.72);
+        font: 800 8px/1 ui-rounded, "Avenir Next", system-ui, sans-serif;
+        letter-spacing: 0.1em;
+      }
+      #run-intro .hero-selection-portrait {
+        display: block;
+        float: none;
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        height: 72px;
+        margin: 0 0 8px;
+        object-fit: cover;
+        border: 1px solid rgba(255, 239, 184, 0.64);
+        border-radius: 1px;
+        background: #284c34;
+        box-shadow: 0 3px 8px rgba(6, 24, 12, 0.28);
+      }
+      #run-intro .hero-selection-choices button strong {
+        position: relative;
+        color: #fff1c0;
+        font-size: 12px;
+        line-height: 1.2;
+      }
+      #run-intro .hero-selection-choices button small {
+        position: relative;
+        color: #e1d38d;
+        font-size: 10px;
+      }
+      #run-intro .hero-selection-choices button span {
+        position: relative;
+        margin-top: 5px;
+        color: #e1ecd2;
+        font-size: 10px;
+        line-height: 1.28;
+      }
+      #run-intro .hero-selection-choices button span.hero-character-line {
+        display: -webkit-box;
+        overflow: hidden;
+        color: #f0d792;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+      #run-intro .hero-selection-choices button .hero-stat-line,
+      #run-intro .hero-selection-choices button em { display: none; }
+
+      #run-intro .profile-summary {
+        order: 7;
+        flex-shrink: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        column-gap: 12px;
+        row-gap: 4px;
+        width: 100%;
+        margin: 18px 0 0;
+        padding: 10px 11px;
+        color: #35523a;
+        text-align: left;
+        background: rgba(255, 248, 215, 0.5);
+        border: 1px solid rgba(116, 79, 32, 0.36);
+        border-left: 3px solid rgba(184, 125, 35, 0.8);
+        border-radius: 1px;
+        box-shadow: none;
+        font: 11px/1.3 ui-rounded, "Avenir Next", system-ui, sans-serif;
+      }
+      #run-intro .profile-summary > strong {
+        grid-column: 1;
+        color: #244b34;
+        font-size: 11px;
+      }
+      #run-intro .profile-summary > span {
+        grid-column: 1;
+        color: #687150;
+        font-size: 10px;
+      }
+      #run-intro .profile-summary > button {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        align-self: center;
+        min-height: 32px;
+        margin: 0;
+        padding: 6px 8px;
+        color: #fff3cf;
+        background: #3a6d43;
+        border: 1px solid #846128;
+        border-radius: 1px;
+        box-shadow: 0 2px 0 #28482d;
+        font-size: 10px;
+        line-height: 1.15;
+      }
+      #run-intro .profile-summary > button:disabled {
+        color: #7a765d;
+        background: rgba(122, 113, 77, 0.25);
+        border-color: rgba(122, 95, 48, 0.3);
+        box-shadow: none;
+      }
+      #run-intro .profile-summary > .accessibility-settings,
+      #run-intro .profile-summary > .palette-settings,
+      #run-intro .profile-summary > .credits-notices,
+      #run-intro .profile-summary > .field-guide {
+        grid-column: 1 / -1;
+        margin-top: 2px;
+        padding-top: 7px;
+        border-top: 1px solid rgba(113, 78, 32, 0.2);
+      }
+      #run-intro .profile-summary details { color: #36513c; }
+      #run-intro .profile-summary summary {
+        cursor: pointer;
+        color: #3b5b3f;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.035em;
+      }
+      #run-intro .profile-summary summary::marker { color: #a66e22; }
+      #run-intro .profile-summary .field-guide > button {
+        width: 100%;
+        min-height: 31px;
+        margin: 0;
+        padding: 6px 8px;
+        color: #3b5b3f;
+        text-align: left;
+        background: rgba(255, 245, 205, 0.52);
+        border: 1px solid rgba(116, 79, 32, 0.32);
+        border-radius: 1px;
+        box-shadow: none;
+        font-size: 10px;
+      }
+      #run-intro .profile-summary .field-guide > button::before {
+        margin-right: 7px;
+        color: #af7424;
+        content: '◆';
+        font-size: 8px;
+      }
+      #run-intro .profile-summary .field-guide-panel {
+        max-height: min(38vh, 290px);
+        padding: 7px 0 0;
+      }
+      #run-intro .profile-summary .accessibility-setting,
+      #run-intro .profile-summary .field-guide-entry,
+      #run-intro .profile-summary .field-guide-evolution,
+      #run-intro .profile-summary .field-guide-challenges,
+      #run-intro .profile-summary .field-guide-recipes,
+      #run-intro .profile-summary .field-guide-habitats,
+      #run-intro .profile-summary .field-guide-enemies {
+        color: #35523a;
+        background: rgba(255, 248, 218, 0.48);
+        border-color: rgba(115, 80, 34, 0.3);
+        border-radius: 1px;
+      }
+      #run-intro .profile-summary .accessibility-setting small,
+      #run-intro .profile-summary .field-guide-entry span,
+      #run-intro .profile-summary .field-guide-entry small,
+      #run-intro .profile-summary .field-guide-empty { color: #687150; }
+      #run-intro .profile-summary select,
+      #run-intro .profile-summary .accessibility-setting input[type="text"] {
+        color: #294c35;
+        background: #fff5cf;
+        border-color: rgba(111, 75, 27, 0.48);
+        border-radius: 1px;
+      }
+
+      /* Upgrade prompts are deliberate cards, not a stack of system dialogs. */
+      #upgrade-choices {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        width: min(820px, calc(100vw - 36px));
+        padding: 24px;
+        color: #fff9df;
+        background:
+          linear-gradient(135deg, rgba(27, 68, 42, 0.98), rgba(15, 42, 27, 0.98)),
+          repeating-linear-gradient(0deg, rgba(255, 235, 166, 0.04) 0 1px, transparent 1px 5px);
+        border: 1px solid rgba(232, 190, 98, 0.86);
+        border-radius: 2px;
+        box-shadow: 0 28px 80px rgba(3, 15, 8, 0.64), inset 0 0 0 4px rgba(255, 239, 182, 0.08);
+      }
+      #upgrade-choices h2,
+      #upgrade-choices .upgrade-shortcuts {
+        grid-column: 1 / -1;
+      }
+      #upgrade-choices h2 {
+        margin: 0;
+        color: #fff1c1;
+        font: 700 30px/1 Georgia, "Iowan Old Style", serif;
+        letter-spacing: -0.035em;
+      }
+      #upgrade-choices h2::before,
+      #upgrade-choices h2::after {
+        margin: 0 10px;
+        color: #e5b757;
+        content: '✦';
+        font-size: 16px;
+        vertical-align: 3px;
+      }
+      #upgrade-choices .upgrade-shortcuts {
+        margin: -3px 0 4px;
+        color: #d9e9bb;
+        font-size: 11px;
+      }
+      #upgrade-choices button {
+        position: relative;
+        display: flex;
+        min-height: 194px;
+        margin: 0;
+        padding: 17px 15px 14px;
+        overflow: hidden;
+        flex-direction: column;
+        justify-content: flex-start;
+        color: #fff8df;
+        text-align: left;
+        background:
+          linear-gradient(153deg, rgba(77, 129, 72, 0.98), rgba(41, 88, 51, 0.98) 64%, rgba(24, 57, 36, 0.98)),
+          #254f32;
+        border: 1px solid rgba(225, 185, 100, 0.74);
+        border-left: 4px solid var(--brass);
+        border-radius: 1px;
+        box-shadow: 0 8px 16px rgba(2, 18, 9, 0.28), inset 0 1px rgba(255, 242, 190, 0.17);
+        transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+      }
+      #upgrade-choices button::after {
+        position: absolute;
+        top: -31px;
+        right: -31px;
+        width: 90px;
+        height: 90px;
+        content: '';
+        opacity: 0.12;
+        background: #ffe9a4;
+        clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+      }
+      #upgrade-choices button:hover {
+        z-index: 1;
+        transform: translateY(-4px);
+        filter: brightness(1.1) saturate(1.06);
+        box-shadow: 0 15px 24px rgba(2, 18, 9, 0.36), inset 0 1px rgba(255, 242, 190, 0.22);
+      }
+      #upgrade-choices button strong {
+        position: relative;
+        color: #fff2c1;
+        font-size: 15px;
+        line-height: 1.23;
+      }
+      #upgrade-choices button small {
+        position: relative;
+        margin-top: 9px;
+        color: #f1d482;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      #upgrade-choices button span {
+        position: relative;
+        margin-top: 8px;
+        color: #e4f0d5;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      #upgrade-choices button em {
+        position: relative;
+        margin-top: auto;
+        padding-top: 9px;
+        color: #f5d684;
+        font-size: 11px;
+        line-height: 1.35;
+      }
+      #upgrade-choices button:focus-visible {
+        z-index: 2;
+        outline: 3px solid #fff0a4;
+        outline-offset: 3px;
+        background: linear-gradient(153deg, #5d914e, #356d40 64%, #244e31);
+      }
+
+      #pause-notice,
+      #run-outcome,
+      #director-notice {
+        border-radius: 2px;
+        box-shadow: 0 25px 70px rgba(3, 15, 8, 0.55), inset 0 0 0 3px rgba(255, 238, 177, 0.07);
+      }
+      #pause-notice {
+        width: min(440px, calc(100vw - 36px));
+        padding: 23px;
+        background:
+          linear-gradient(135deg, rgba(35, 76, 47, 0.98), rgba(17, 46, 28, 0.98)),
+          #143a26;
+      }
+      #pause-notice > strong:first-child {
+        color: #fff0bd;
+        font: 700 28px/1 Georgia, "Iowan Old Style", serif;
+        letter-spacing: -0.03em;
+      }
+      #pause-notice > strong:first-child::before,
+      #pause-notice > strong:first-child::after {
+        margin: 0 9px;
+        color: #dfb353;
+        content: '✦';
+        font-size: 14px;
+        vertical-align: 3px;
+      }
+      #pause-notice > span { color: #d7e9c6; }
+      #pause-notice .pause-upgrades-title {
+        padding-top: 12px;
+        border-top: 1px solid rgba(238, 198, 109, 0.25);
+        color: #f4d781;
+      }
+      #pause-notice .pause-upgrade-card {
+        padding: 10px 11px;
+        background: rgba(83, 126, 69, 0.48);
+        border: 1px solid rgba(228, 187, 102, 0.4);
+        border-left: 3px solid #dcae4a;
+        border-radius: 1px;
+      }
+      #pause-notice .pause-upgrade-card[data-kind="universal"] {
+        background: rgba(72, 127, 91, 0.5);
+        border-left-color: #83cdaa;
+      }
+
+      #run-outcome {
+        width: min(430px, calc(100vw - 36px));
+        padding: 29px 29px 26px;
+        color: #fff8df;
+        background:
+          radial-gradient(ellipse at 50% 0%, rgba(239, 198, 101, 0.2), transparent 43%),
+          linear-gradient(135deg, rgba(37, 83, 50, 0.99), rgba(16, 47, 29, 0.99));
+        border: 1px solid rgba(235, 196, 105, 0.82);
+      }
+      #run-outcome::before {
+        display: block;
+        margin-bottom: 10px;
+        color: #f3ce71;
+        content: '✦';
+        font-size: 24px;
+      }
+      #run-outcome > strong {
+        color: #fff0be;
+        font: 700 31px/1.02 Georgia, "Iowan Old Style", serif;
+        letter-spacing: -0.04em;
+      }
+      #run-outcome > span { color: #dcebc8; }
+      #run-outcome .outcome-essence {
+        margin-top: 10px;
+        color: #f3d47c;
+        font-size: 14px;
+      }
+      #run-outcome button {
+        width: 100%;
+        min-height: 51px;
+        margin-top: 20px;
+        color: #fff6da;
+        background: linear-gradient(135deg, #4b8147, #285737);
+        border: 1px solid #e5c26e;
+        border-radius: 1px;
+        box-shadow: 0 4px 0 #183b26, inset 0 1px rgba(255, 246, 198, 0.35);
+        font: 800 13px/1 ui-rounded, "Avenir Next", system-ui, sans-serif;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+      /* Replay payloads are support tooling, not a player-facing reward. */
+      #run-outcome button + button { display: none; }
+      #run-outcome[data-outcome="defeat"] {
+        background:
+          radial-gradient(ellipse at 50% 0%, rgba(226, 152, 86, 0.16), transparent 43%),
+          linear-gradient(135deg, rgba(109, 48, 34, 0.99), rgba(69, 27, 25, 0.99));
+        border-color: #dda06c;
+      }
+      #run-outcome[data-outcome="defeat"]::before { color: #efb06d; content: '◆'; }
+      #run-outcome[data-outcome="defeat"] button {
+        background: linear-gradient(135deg, #a5523e, #71342d);
+        border-color: #e7a36f;
+        box-shadow: 0 4px 0 #4a241f, inset 0 1px rgba(255, 231, 191, 0.25);
+      }
+      #run-outcome button:focus-visible { outline: 3px solid #fff0ad; outline-offset: 4px; }
+      #director-notice {
+        border-color: rgba(236, 194, 103, 0.77);
+        background: linear-gradient(135deg, rgba(33, 73, 47, 0.96), rgba(17, 47, 29, 0.96));
+      }
+
+      /* Keep query-string diagnostics useful to engineers without letting their
+         controls read as product UI during a normal player-facing capture. */
+      #controls:has(input) > input,
+      #controls:has(input) > button:not(:first-child) { display: none; }
+      #controls #input-mode-status {
+        padding: 4px 7px;
+        color: #e7d48a;
+        background: rgba(17, 52, 33, 0.62);
+        border: 1px solid rgba(226, 186, 97, 0.28);
+        border-radius: 1px;
+        font-size: 9px;
+        letter-spacing: 0.025em;
+      }
+
+      /* A player HUD is a compact field instrument, not a preformatted debug
+         log. `createHud` builds these nodes once and only updates copy/bars. */
+      #hud[data-hud-mode="player"] {
+        width: min(318px, calc(100vw - 34px));
+        min-width: 0;
+        padding: 0;
+        overflow: hidden;
+        color: #fff5d4;
+        white-space: normal;
+        background: transparent;
+        border: 0;
+        border-left: 0;
+        border-radius: 0;
+        box-shadow: none;
+        font-family: ui-rounded, "Avenir Next", "Trebuchet MS", system-ui, sans-serif;
+        letter-spacing: normal;
+      }
+      #hud[data-hud-mode="diagnostics"] {
+        white-space: pre;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      /* Debug-only deterministic combat proof. It lives outside the normal
+         player HUD so it is available to developers without leaking prototype
+         telemetry into a player-facing run. */
+      .attack-damage-lab {
+        position: absolute;
+        z-index: 9;
+        top: calc(168px + var(--safe-area-top));
+        right: calc(10px + var(--safe-area-right));
+        width: min(650px, calc(100vw - 28px));
+        max-height: min(520px, calc(100dvh - 190px));
+        box-sizing: border-box;
+        overflow: auto;
+        padding: 9px 10px 10px;
+        color: #eaf6dd;
+        background: rgba(7, 21, 13, 0.95);
+        border: 1px solid rgba(230, 194, 104, 0.72);
+        border-radius: 8px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+        font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        pointer-events: auto;
+      }
+      .attack-damage-lab summary {
+        cursor: pointer;
+        color: #fff0b3;
+        font-weight: 800;
+      }
+      .attack-damage-lab > p { margin: 7px 0; color: #bdd8b8; }
+      .attack-damage-lab table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+      .attack-damage-lab th,
+      .attack-damage-lab td { padding: 5px 6px; border-top: 1px solid rgba(214, 239, 188, 0.14); text-align: right; white-space: nowrap; }
+      .attack-damage-lab thead th { color: #d8e7a0; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; }
+      .attack-damage-lab th[scope="row"] { min-width: 150px; text-align: left; white-space: normal; }
+      .attack-damage-lab th[scope="row"] strong,
+      .attack-damage-lab th[scope="row"] small { display: block; }
+      .attack-damage-lab th[scope="row"] strong { color: #fff8d5; }
+      .attack-damage-lab th[scope="row"] small { margin-top: 1px; color: #9bc9ac; font-weight: 500; }
+      .attack-damage-lab tbody tr[data-status="confirmed"],
+      .attack-damage-lab tbody tr[data-status="damage-confirmed"] { background: rgba(74, 159, 83, 0.12); }
+      .attack-damage-lab tbody tr[data-status="not-confirmed"] { background: rgba(185, 68, 54, 0.2); }
+      .attack-damage-lab-note { font-weight: 700; }
+      .hud-shell {
+        display: grid;
+        gap: 7px;
+        padding: 12px 13px 11px;
+        background:
+          linear-gradient(135deg, rgba(16, 54, 33, 0.95), rgba(9, 34, 23, 0.91)),
+          repeating-linear-gradient(0deg, rgba(255, 239, 183, 0.045) 0 1px, transparent 1px 5px);
+        border: 1px solid rgba(237, 196, 106, 0.7);
+        border-left: 4px solid #d9a13a;
+        border-radius: 12px 5px 12px 5px;
+        box-shadow: 0 12px 27px rgba(4, 22, 12, 0.42), inset 0 1px rgba(255, 244, 204, 0.12);
+      }
+      .hud-topline,
+      .hud-bar-label {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .hud-hero {
+        color: #fff0ba;
+        font: 800 15px/1 Georgia, "Iowan Old Style", serif;
+        letter-spacing: 0.055em;
+      }
+      .hud-level {
+        padding: 3px 6px;
+        color: #183825;
+        background: #e4c765;
+        border-radius: 2px;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.09em;
+      }
+      .hud-bar-label { margin-top: 1px; color: #bed5aa; font-size: 9px; font-weight: 800; letter-spacing: 0.11em; }
+      .hud-bar-label strong { color: #fff5d8; font-size: 11px; letter-spacing: 0; }
+      .hud-xp-label { margin-top: 2px; }
+      .hud-bar {
+        height: 8px;
+        overflow: hidden;
+        background: rgba(5, 21, 12, 0.8);
+        border: 1px solid rgba(255, 240, 190, 0.3);
+        border-radius: 999px;
+      }
+      .hud-bar-fill {
+        width: 100%;
+        height: 100%;
+        transform: scaleX(0);
+        transform-origin: left center;
+        transition: transform 160ms ease-out;
+      }
+      .hud-hp-fill { background: linear-gradient(90deg, #4ec271, #dfe273); }
+      .hud-xp-fill { background: linear-gradient(90deg, #4bb7aa, #92e8da); }
+      .hud-mission {
+        display: grid;
+        gap: 1px;
+        margin-top: 3px;
+        padding-top: 7px;
+        border-top: 1px solid rgba(242, 207, 126, 0.22);
+      }
+      .hud-phase { color: #edce78; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
+      .hud-objective { color: #e8efd8; font-size: 11px; line-height: 1.25; }
+      .hud-hint { color: rgba(209, 229, 182, 0.78); font-size: 9px; line-height: 1.3; }
+      /* Health is represented inside the semantic HUD; the legacy second card
+         would otherwise duplicate status and add prototype clutter. */
+      #player-health { display: none !important; }
+      #controls > button:not(:first-of-type),
+      #controls #input-mode-status { display: none; }
+      #controls > button:first-of-type {
+        min-width: 76px;
+        min-height: 45px;
+        font-size: 11px;
+      }
+
+      @media (max-width: 740px) {
+        #run-intro {
+          justify-items: center;
+          padding: calc(18px + var(--safe-area-top)) calc(18px + var(--safe-area-right)) calc(18px + var(--safe-area-bottom)) calc(18px + var(--safe-area-left));
+          background:
+            linear-gradient(180deg, rgba(11, 36, 21, 0.74), rgba(14, 37, 23, 0.88)),
+            var(--wildguard-keyart) 61% center / cover no-repeat,
+            #173b29;
+        }
+        #run-intro::after { inset: 10px; }
+        #run-intro .run-intro-card {
+          width: min(560px, calc(100vw - 28px));
+          max-height: calc(100dvh - var(--safe-area-top) - var(--safe-area-bottom) - 28px);
+          padding: 24px 20px;
+        }
+        #run-intro h1 { font-size: clamp(32px, 9vw, 43px); }
+        #run-intro .hero-selection-choices button { min-height: 192px; }
+        #upgrade-choices {
+          width: min(540px, calc(100vw - 28px));
+          grid-template-columns: 1fr;
+          gap: 8px;
+          max-height: calc(100dvh - 28px);
+          overflow-y: auto;
+          padding: 20px;
+        }
+        #upgrade-choices button { min-height: 0; }
+        #upgrade-choices button span { font-size: 11px; }
+        #hud[data-hud-mode="player"] { width: min(294px, calc(100vw - 24px)); }
+      }
+      @media (max-width: 440px) {
+        #run-intro .run-intro-card { padding: 22px 16px; }
+        #run-intro .hero-selection-choices { gap: 6px; }
+        #run-intro .hero-selection-choices button { min-height: 178px; padding: 6px; }
+        #run-intro .hero-selection-portrait { height: 58px; margin-bottom: 6px; }
+        #run-intro .hero-selection-choices button strong { font-size: 11px; }
+        #run-intro .hero-selection-choices button span { font-size: 9px; }
+        #run-intro .profile-summary { grid-template-columns: 1fr; }
+        #run-intro .profile-summary > button {
+          grid-column: 1;
+          grid-row: auto;
+          width: 100%;
+        }
+        #run-intro #run-intro-start { min-height: 54px; font-size: 13px; }
+        #pause-notice, #run-outcome { width: min(390px, calc(100vw - 28px)); padding: 22px 19px; }
       }
     </style>
   </head>
@@ -578,16 +2230,29 @@
         <canvas id="game-canvas"></canvas>
         <div id="joystick"><span id="joystick-thumb" aria-hidden="true"></span></div>
       </div>
-      <pre id="hud"></pre>
+      <section id="hud" aria-label="Expedition status"></section>
+      <section id="player-health" aria-label="Player health">
+        <header><strong id="player-health-title">Health</strong><span id="player-health-text"></span></header>
+        <div id="player-health-bar" role="progressbar" aria-labelledby="player-health-title" aria-valuemin="0" aria-valuemax="100">
+          <div id="player-health-fill"></div>
+        </div>
+      </section>
       <aside id="adaptations" aria-label="Active adaptations" aria-live="polite" hidden></aside>
-      <div id="controls"></div>
+      <div id="controls">
+        <span id="input-mode-status" role="status" aria-live="polite">Input: Keyboard · WASD / Arrow Keys</span>
+      </div>
       <section id="pause-notice" role="status" aria-live="polite" hidden></section>
       <section id="upgrade-choices" aria-live="polite" aria-labelledby="upgrade-choices-heading" aria-describedby="upgrade-choices-shortcuts" hidden></section>
       <div id="director-notice" class="banner" role="status" aria-live="polite" hidden></div>
       <section id="boss-health" aria-label="Boss health" hidden>
-        <header><strong id="boss-health-title">The Final Threat</strong><span id="boss-health-text"></span></header>
-        <div id="boss-health-bar" role="progressbar" aria-labelledby="boss-health-title" aria-valuemin="0" aria-valuemax="100">
-          <div id="boss-health-fill"></div>
+        <div id="boss-health-content">
+          <img id="boss-health-portrait" alt="" hidden />
+          <div id="boss-health-details">
+            <header><strong id="boss-health-title">The Final Threat</strong><span id="boss-health-text"></span></header>
+            <div id="boss-health-bar" role="progressbar" aria-labelledby="boss-health-title" aria-valuemin="0" aria-valuemax="100">
+              <div id="boss-health-fill"></div>
+            </div>
+          </div>
         </div>
       </section>
       <div id="run-outcome" class="banner" role="status" hidden></div>
@@ -599,6 +2264,8 @@
         <h1 id="run-intro-heading"></h1>
         <p id="run-intro-objective"></p>
         <p id="run-intro-controls"></p>
+        <button id="run-intro-start" type="button"></button>
+        <p id="build-identity" data-build-id="dev">Build identity loading…</p>
         <section id="run-intro-profile" aria-label="Between-run upgrades"></section>
         <label id="run-intro-sound" class="run-intro-sound">
           <input id="run-intro-sound-toggle" type="checkbox" aria-label="Sound effects" aria-describedby="run-intro-sound-help" />
@@ -606,7 +2273,12 @@
           <small id="run-intro-sound-help">Off by default. Change anytime.</small>
         </label>
         <p id="run-intro-sound-status" class="sound-status" role="status" hidden></p>
-        <button id="run-intro-start" type="button"></button>
+        <details id="run-intro-audio-mix" class="audio-mix-settings" hidden>
+          <summary>Audio mix</summary>
+          <label class="audio-mix-row"><span>Master</span><input id="audio-master-volume" type="range" min="0" max="1" step="0.05" aria-label="Master volume" /><output id="audio-master-volume-value">100%</output></label>
+          <label class="audio-mix-row"><span>Music bed</span><input id="audio-music-volume" type="range" min="0" max="1" step="0.05" aria-label="Music bed volume" /><output id="audio-music-volume-value">12%</output></label>
+          <label class="audio-mix-row"><span>Sound effects</span><input id="audio-sfx-volume" type="range" min="0" max="1" step="0.05" aria-label="Sound effects volume" /><output id="audio-sfx-volume-value">100%</output></label>
+        </details>
       </div>
     </section>
     <script type="module" src="/src/main.ts"></script>

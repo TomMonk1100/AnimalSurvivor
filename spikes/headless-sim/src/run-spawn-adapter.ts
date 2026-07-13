@@ -1,7 +1,19 @@
 import type { RunDirectorEventView, RunFormationView, RunSpawnIntentView } from './run-director-port.js';
+import {
+  runEnemyContentFor,
+  RUN_ENEMY_ROLE,
+  type RunEnemyRole,
+} from './run-enemy-content.js';
 
-export const RUN_ENEMY_ROLE = Object.freeze({ regular: 0, elite: 1, boss: 2, ranged: 3 } as const);
-export type RunEnemyRole = (typeof RUN_ENEMY_ROLE)[keyof typeof RUN_ENEMY_ROLE];
+export { RUN_ENEMY_CONTENT, validateRunEnemyContent } from './run-enemy-content.js';
+export { RUN_ENEMY_ROLE } from './run-enemy-content.js';
+export type {
+  RunEnemyBehavior,
+  RunEnemyContentDefinition,
+  RunEnemyReward,
+  RunEnemyRole,
+  RunEnemyVisual,
+} from './run-enemy-content.js';
 
 export interface DirectedEnemySpawn {
   readonly archetype: number;
@@ -82,23 +94,30 @@ function mapping(
   bossMultiplier: number,
   bossXpMultiplier: number,
 ) {
-  if (intent.boss || intent.archetypeId === 'enemy:boss') {
+  const content = runEnemyContentFor(intent.archetypeId);
+  if (content === undefined) return null;
+  if (intent.boss || content.reward === 'boss') {
     return {
-      archetype: 2, hpMultiplier: bossMultiplier, xpMultiplier: bossXpMultiplier, role: RUN_ENEMY_ROLE.boss,
+      archetype: content.simulationArchetype,
+      hpMultiplier: bossMultiplier,
+      xpMultiplier: bossXpMultiplier,
+      role: RUN_ENEMY_ROLE.boss,
     } as const;
   }
-  if (intent.elite || intent.archetypeId === 'enemy:elite') {
+  if (intent.elite || content.reward === 'elite') {
     return {
-      archetype: 2, hpMultiplier: eliteMultiplier, xpMultiplier: eliteXpMultiplier, role: RUN_ENEMY_ROLE.elite,
+      archetype: content.simulationArchetype,
+      hpMultiplier: eliteMultiplier,
+      xpMultiplier: eliteXpMultiplier,
+      role: RUN_ENEMY_ROLE.elite,
     } as const;
   }
-  switch (intent.archetypeId) {
-    case 'enemy:fodder': return { archetype: 0, hpMultiplier: 1, xpMultiplier: 1, role: RUN_ENEMY_ROLE.regular } as const;
-    case 'enemy:runner': return { archetype: 1, hpMultiplier: 1, xpMultiplier: 1, role: RUN_ENEMY_ROLE.regular } as const;
-    case 'enemy:brute': return { archetype: 2, hpMultiplier: 1, xpMultiplier: 1, role: RUN_ENEMY_ROLE.regular } as const;
-    case 'enemy:spitter': return { archetype: 3, hpMultiplier: 1, xpMultiplier: 1, role: RUN_ENEMY_ROLE.ranged } as const;
-    default: return null;
-  }
+  return {
+    archetype: content.simulationArchetype,
+    hpMultiplier: 1,
+    xpMultiplier: 1,
+    role: content.role,
+  } as const;
 }
 
 function coordinates(playerX: number, playerY: number, angle: number, distance: number): readonly [number, number] {

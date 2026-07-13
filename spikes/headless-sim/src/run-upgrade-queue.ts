@@ -79,6 +79,7 @@ export interface RunUpgradeQueue {
   readonly blocked: boolean;
   /** In-run Essence earned from fallback levels. */
   readonly essenceEarned: number;
+  readonly universalCatalog: UniversalUpgradeCatalog | null;
   readonly universalCatalogFingerprint: string | null;
   readonly universalState: UniversalUpgradeState | null;
   readonly universalStats: UniversalUpgradeStats | null;
@@ -159,6 +160,7 @@ class RuntimeRunUpgradeQueue implements RunUpgradeQueue {
   get pendingOffers(): readonly RunUpgradeOfferView[] { return this.offers; }
   get blocked(): boolean { return this.offers.length !== 0; }
   get essenceEarned(): number { return this.essence; }
+  get universalCatalog(): UniversalUpgradeCatalog | null { return this.catalog; }
   get universalCatalogFingerprint(): string | null { return this.universalFingerprint; }
   get universalState(): UniversalUpgradeState | null { return this.universal; }
   get universalOfferCursor(): number { return this.universalCursor; }

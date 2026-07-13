@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createKeyboardTracker } from '../src/input/keyboard';
+import { createGamepadTracker, type GamepadLike } from '../src/input/gamepad';
+import { createMouseSteering } from '../src/input/mouse-steering';
 import { createVirtualJoystick } from '../src/input/virtual-joystick';
 import { createInputController } from '../src/input/input-controller';
 
@@ -20,6 +22,12 @@ function pointerEvent(type: string, opts: { clientX: number; clientY: number; po
   }) as unknown as PointerEvent;
   Object.defineProperty(evt, 'pointerId', { value: opts.pointerId ?? 1, configurable: true });
   return evt;
+}
+
+function mousePointerEvent(type: string, opts: { clientX: number; clientY: number; pointerId?: number }): PointerEvent {
+  const event = pointerEvent(type, opts);
+  Object.defineProperty(event, 'pointerType', { value: 'mouse', configurable: true });
+  return event;
 }
 
 describe('keyboard tracker', () => {
@@ -100,6 +108,22 @@ describe('keyboard tracker', () => {
     kb.clear();
     expect(kb.vector()).toEqual({ x: 0, y: 0 });
     kb.dispose();
+  });
+
+  it('uses unique remapped keys while preserving Arrow Key fallback', () => {
+    const kb = createKeyboardTracker(target, { bindings: { up: 'i', down: 'k', left: 'j', right: 'l' } });
+    dispatchKey(target, 'keydown', 'i');
+    expect(kb.vector()).toEqual({ x: 0, y: 1 });
+    dispatchKey(target, 'keydown', 'w');
+    expect(kb.vector()).toEqual({ x: 0, y: 1 });
+    dispatchKey(target, 'keydown', 'ArrowLeft');
+    expect(kb.vector()).toEqual({ x: -1, y: 1 });
+    kb.dispose();
+  });
+
+  it('rejects duplicate or whitespace remapped keys', () => {
+    expect(() => createKeyboardTracker(target, { bindings: { up: 'i', down: 'i', left: 'j', right: 'l' } })).toThrow('unique');
+    expect(() => createKeyboardTracker(target, { bindings: { up: ' ', down: 'k', left: 'j', right: 'l' } })).toThrow('one non-whitespace');
   });
 });
 
@@ -212,6 +236,82 @@ describe('virtual joystick', () => {
   });
 });
 
+describe('gamepad tracker', () => {
+  it('maps a left stick with deadzone and screen Y inversion', () => {
+    const pad: GamepadLike = { axes: [0.68, -0.62], connected: true };
+    const tracker = createGamepadTracker({ provider: () => [pad], deadzone: 0.18 });
+    const vector = tracker.vector();
+    expect(vector.x).toBeCloseTo(0.609756);
+    expect(vector.y).toBeCloseTo(0.536585);
+    tracker.dispose();
+  });
+
+  it('falls back to standard D-pad buttons when the stick is neutral', () => {
+    const pad: GamepadLike = {
+      axes: [0, 0],
+      buttons: Array.from({ length: 16 }, (_, index) => ({ pressed: index === 12 || index === 15 })),
+    };
+    const tracker = createGamepadTracker({ provider: () => [pad] });
+    expect(tracker.vector()).toEqual({ x: 1, y: 1 });
+    tracker.dispose();
+  });
+
+  it('skips disconnected and empty pads, then selects the first active pad', () => {
+    const first: GamepadLike = { connected: false, axes: [1, 0] };
+    const second: GamepadLike = { connected: true, axes: [0, 0] };
+    const third: GamepadLike = { connected: true, axes: [-1, 0] };
+    const tracker = createGamepadTracker({ provider: () => [first, second, third] });
+    expect(tracker.vector()).toEqual({ x: -1, y: 0 });
+    tracker.dispose();
+  });
+
+  it('returns zero when browser polling throws or data is malformed', () => {
+    const throwing = createGamepadTracker({ provider: () => { throw new Error('unavailable'); } });
+    expect(throwing.vector()).toEqual({ x: 0, y: 0 });
+    throwing.dispose();
+    const malformed = createGamepadTracker({ provider: () => [{ axes: [Number.NaN, Number.POSITIVE_INFINITY] }] });
+    expect(malformed.vector()).toEqual({ x: 0, y: 0 });
+    malformed.dispose();
+  });
+});
+
+describe('mouse steering', () => {
+  let surface: HTMLDivElement;
+
+  beforeEach(() => {
+    surface = document.createElement('div');
+    document.body.appendChild(surface);
+  });
+
+  afterEach(() => {
+    surface.remove();
+  });
+
+  it('maps a mouse drag to a clamped world vector', () => {
+    const mouse = createMouseSteering(surface, { maxRadius: 100 });
+    surface.dispatchEvent(mousePointerEvent('pointerdown', { clientX: 100, clientY: 100 }));
+    window.dispatchEvent(mousePointerEvent('pointermove', { clientX: 180, clientY: 40 }));
+    expect(mouse.active()).toBe(true);
+    expect(mouse.vector().x).toBeCloseTo(0.8);
+    expect(mouse.vector().y).toBeCloseTo(0.6);
+    window.dispatchEvent(mousePointerEvent('pointerup', { clientX: 180, clientY: 40 }));
+    expect(mouse.vector()).toEqual({ x: 0, y: 0 });
+    mouse.dispose();
+  });
+
+  it('ignores touch pointers and clears on blur', () => {
+    const mouse = createMouseSteering(surface);
+    surface.dispatchEvent(pointerEvent('pointerdown', { clientX: 100, clientY: 100 }));
+    expect(mouse.active()).toBe(false);
+    surface.dispatchEvent(mousePointerEvent('pointerdown', { clientX: 100, clientY: 100 }));
+    window.dispatchEvent(mousePointerEvent('pointermove', { clientX: 140, clientY: 100 }));
+    expect(mouse.active()).toBe(true);
+    window.dispatchEvent(new Event('blur'));
+    expect(mouse.vector()).toEqual({ x: 0, y: 0 });
+    mouse.dispose();
+  });
+});
+
 describe('input controller', () => {
   let surface: HTMLDivElement;
   let joystickZone: HTMLDivElement;
@@ -236,6 +336,50 @@ describe('input controller', () => {
     dispatchKey(keyTarget, 'keydown', 'd');
     const result = controller.sample(0, false);
     expect(result).toEqual({ moveX: 1, moveY: 0, paused: false });
+    expect(controller.inputMode?.()).toBe('keyboard');
+    controller.dispose();
+  });
+
+  it('uses gamepad movement before keyboard input when the joystick is inactive', () => {
+    const controller = createInputController({
+      surface,
+      joystickZone,
+      keyTarget,
+      gamepadProvider: () => [{ axes: [-1, 0] }],
+    });
+    dispatchKey(keyTarget, 'keydown', 'd');
+    expect(controller.sample(0, false)).toEqual({ moveX: -1, moveY: 0, paused: false });
+    expect(controller.inputMode?.()).toBe('gamepad');
+    controller.dispose();
+  });
+
+  it('uses mouse steering before gamepad movement when the joystick is inactive', () => {
+    const controller = createInputController({
+      surface,
+      joystickZone,
+      keyTarget,
+      gamepadProvider: () => [{ axes: [-1, 0] }],
+    });
+    surface.dispatchEvent(mousePointerEvent('pointerdown', { clientX: 50, clientY: 50 }));
+    window.dispatchEvent(mousePointerEvent('pointermove', { clientX: 90, clientY: 50 }));
+    expect(controller.sample(0, false)).toEqual({ moveX: 40 / 140, moveY: 0, paused: false });
+    expect(controller.inputMode?.()).toBe('mouse');
+    controller.dispose();
+  });
+
+  it('keeps touch joystick precedence over gamepad movement', () => {
+    const controller = createInputController({
+      surface,
+      joystickZone,
+      keyTarget,
+      gamepadProvider: () => [{ axes: [-1, 0] }],
+    });
+    joystickZone.dispatchEvent(pointerEvent('pointerdown', { clientX: 50, clientY: 50 }));
+    window.dispatchEvent(pointerEvent('pointermove', { clientX: 50, clientY: 10 }));
+    const result = controller.sample(1, false);
+    expect(result.moveX).toBeCloseTo(0);
+    expect(result.moveY).toBeGreaterThan(0);
+    expect(controller.inputMode?.()).toBe('touch');
     controller.dispose();
   });
 

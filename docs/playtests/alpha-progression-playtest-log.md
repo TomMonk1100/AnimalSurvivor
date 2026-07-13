@@ -8,18 +8,20 @@ than trying to answer every question.
 - Date / tester:
 - Build or branch:
 - Seed, if visible:
+- Selected hero: Greg / Benny / Gracie
+- Hero stat tradeoff noticed before play:
 - Starting Vitality rank and starting HP:
 - Sound: off / on
 - Input: keyboard / touch / controller emulation
 - Run ended at:
-- Outcome: victory / death / 12:00 time expiry
+- Outcome: victory / death / 8:00 time expiry
 
 ## First five minutes
 
 - Was it immediately clear how to move, collect XP, and choose an upgrade?
 - Did movement feel responsive and smooth?
 - Did ordinary enemies enter from beyond the screen edge, or appear too near
-  Greg? Note the time/phase if they did.
+  the selected hero? Note the time/phase if they did.
 - Were enemies too sparse, too dense, or readable as the phase cadence changed?
 - Did the level 4 and level 6 pressure increases feel noticeable?
 - One exciting moment:
@@ -57,7 +59,7 @@ Check specifically:
   move? Were the 8-damage shots fair, too quiet, or hard to see?
 - Did an elite's larger **24-XP** pickup feel meaningful and easy to notice?
 - Did enemies feel unfair, boring, or readable?
-- Did the 10:00 boss entrance feel too early, too late, or right?
+- Did the 6:30 boss entrance feel too early, too late, or right?
 - Did the boss health bar communicate progress?
 - If time expired, did the outcome explain that the boss was still alive?
 

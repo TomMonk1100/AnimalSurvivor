@@ -24,6 +24,21 @@ describe('Greg attachment visual recipes', () => {
       'gecko-pads:adapted',
       'thunderbug-dynamo:mythic',
       'razorstep-chimera:mythic',
+      'owl-pinions:bud',
+      'owl-pinions:adapted',
+      'bat-ears:bud',
+      'bat-ears:adapted',
+      'midnight-radar:mythic',
+      'crab-pincers:bud',
+      'crab-pincers:adapted',
+      'armadillo-greaves:bud',
+      'armadillo-greaves:adapted',
+      'meteor-mauler:mythic',
+      'skunk-brush:bud',
+      'skunk-brush:adapted',
+      'monarch-brood:bud',
+      'monarch-brood:adapted',
+      'royal-stinkcloud:mythic',
     ]);
     for (const key of GREG_ATTACHMENT_VISUAL_KEYS) {
       const recipe = getGregAttachmentVisualRecipe(key);
@@ -53,6 +68,12 @@ describe('Greg attachment visual recipes', () => {
       .toBeGreaterThan(getGregAttachmentVisualRecipe('porcupine-quills:adapted').parts.length);
     expect(getGregAttachmentVisualRecipe('razorstep-chimera:mythic').parts.length)
       .toBeGreaterThan(getGregAttachmentVisualRecipe('mantis-scythes:adapted').parts.length);
+    expect(getGregAttachmentVisualRecipe('midnight-radar:mythic').parts.length)
+      .toBeGreaterThan(getGregAttachmentVisualRecipe('owl-pinions:adapted').parts.length);
+    expect(getGregAttachmentVisualRecipe('meteor-mauler:mythic').parts.length)
+      .toBeGreaterThan(getGregAttachmentVisualRecipe('crab-pincers:adapted').parts.length);
+    expect(getGregAttachmentVisualRecipe('royal-stinkcloud:mythic').parts.length)
+      .toBeGreaterThan(getGregAttachmentVisualRecipe('skunk-brush:adapted').parts.length);
   });
 
   it('uses dedicated Gecko and Razorstep material roles', () => {

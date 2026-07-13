@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createRunSpawnAdapter, RUN_ENEMY_ROLE, type DirectedEnemySpawn } from '../src/run-spawn-adapter.js';
+import {
+  createRunSpawnAdapter,
+  RUN_ENEMY_CONTENT,
+  RUN_ENEMY_ROLE,
+  validateRunEnemyContent,
+  type DirectedEnemySpawn,
+} from '../src/run-spawn-adapter.js';
 import type { RunDirectorEventView } from '../src/run-director-port.js';
 
 function spawnEvent(archetypeId: string, formation: 'ring' | 'arc' | 'lane' | 'cluster', count = 3): RunDirectorEventView {
@@ -9,6 +15,32 @@ function spawnEvent(archetypeId: string, formation: 'ring' | 'arc' | 'lane' | 'c
     intent: { archetypeId, count, formation, minDistance: 5, maxDistance: 10, elite: false, boss: false },
   };
 }
+
+test('keeps the authored archetype bridge complete and descriptive', () => {
+  validateRunEnemyContent(RUN_ENEMY_CONTENT.map((entry) => entry.archetypeId));
+  assert.equal(RUN_ENEMY_CONTENT.length, 10);
+  assert.deepEqual(
+    RUN_ENEMY_CONTENT.map((entry) => ({
+      id: entry.archetypeId,
+      archetype: entry.simulationArchetype,
+      behavior: entry.behavior,
+      reward: entry.reward,
+      visual: entry.visual,
+    })),
+    [
+      { id: 'enemy:fodder', archetype: 0, behavior: 'approach', reward: 'standard', visual: 'regular' },
+      { id: 'enemy:runner', archetype: 1, behavior: 'weave', reward: 'standard', visual: 'regular' },
+      { id: 'enemy:brute', archetype: 2, behavior: 'brute', reward: 'standard', visual: 'regular' },
+      { id: 'enemy:spitter', archetype: 3, behavior: 'ranged', reward: 'standard', visual: 'ranged' },
+      { id: 'enemy:charger', archetype: 4, behavior: 'charger', reward: 'standard', visual: 'charger' },
+      { id: 'enemy:denial', archetype: 5, behavior: 'denial', reward: 'standard', visual: 'denial' },
+      { id: 'enemy:flanker', archetype: 6, behavior: 'flanker', reward: 'standard', visual: 'flanker' },
+      { id: 'enemy:support', archetype: 7, behavior: 'support', reward: 'standard', visual: 'support' },
+      { id: 'enemy:elite', archetype: 2, behavior: 'elite', reward: 'elite', visual: 'elite' },
+      { id: 'enemy:boss', archetype: 2, behavior: 'boss', reward: 'boss', visual: 'boss' },
+    ],
+  );
+});
 
 test('maps authored archetypes and produces byte-identical deterministic placements', () => {
   const execute = () => {
@@ -52,6 +84,37 @@ test('maps the normal-plus spitter to its distinct simulation archetype and pres
 
   assert.deepEqual(out.map(({ archetype, hpMultiplier, xpMultiplier, role }) => ({ archetype, hpMultiplier, xpMultiplier, role })), [
     { archetype: 3, hpMultiplier: 1, xpMultiplier: 1, role: RUN_ENEMY_ROLE.ranged },
+  ]);
+});
+
+test('maps Charger and Denial content to their distinct simulation archetypes', () => {
+  const requests: DirectedEnemySpawn[] = [];
+  createRunSpawnAdapter().execute([
+    spawnEvent('enemy:charger', 'lane', 1),
+    spawnEvent('enemy:denial', 'cluster', 1),
+  ], {
+    playerX: 500, playerY: 500, worldWidth: 2_000, worldHeight: 2_000,
+    spawn(request) { requests.push(request); return true; },
+  });
+  assert.deepEqual(requests.map((request) => ({ archetype: request.archetype, role: request.role })), [
+    { archetype: 4, role: RUN_ENEMY_ROLE.charger },
+    { archetype: 5, role: RUN_ENEMY_ROLE.denial },
+  ]);
+});
+
+test('maps Flanker and Support content to distinct simulation roles', () => {
+  const requests: DirectedEnemySpawn[] = [];
+  createRunSpawnAdapter().execute([
+    spawnEvent('enemy:flanker', 'arc', 2),
+    spawnEvent('enemy:support', 'cluster', 1),
+  ], {
+    playerX: 500, playerY: 500, worldWidth: 2_000, worldHeight: 2_000,
+    spawn(request) { requests.push(request); return true; },
+  });
+  assert.deepEqual(requests.map((request) => ({ archetype: request.archetype, role: request.role })), [
+    { archetype: 6, role: RUN_ENEMY_ROLE.flanker },
+    { archetype: 6, role: RUN_ENEMY_ROLE.flanker },
+    { archetype: 7, role: RUN_ENEMY_ROLE.support },
   ]);
 });
 

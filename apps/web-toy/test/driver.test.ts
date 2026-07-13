@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CONFIG, UNIVERSAL_UPGRADE_CATALOG } from '@sim';
+import { DEFAULT_CONFIG, serializeReplay, UNIVERSAL_UPGRADE_CATALOG } from '@sim';
 import type {
   SimConfig,
   TraitRuntimeFactory,
@@ -109,6 +109,19 @@ function createFeedbackRuntimeFactory(): TraitRuntimeFactory {
 }
 
 describe('createSimDriver: fixed-tick accumulator', () => {
+  it('exposes a detached deterministic replay export after fixed ticks', () => {
+    const driver = createSimDriver(DEFAULT_CONFIG, SEED);
+    const input = new ConstantInput(1, -0.25);
+
+    driver.frame(0, input, false);
+    driver.frame(DT_MS * 3, input, false);
+
+    const first = serializeReplay(driver.replay());
+    const second = serializeReplay(driver.replay());
+    expect(first).toBe(second);
+    expect(first).toContain('"inputs":[{"moveX":1,"moveY":-0.25,"paused":false}');
+  });
+
   it('retains feedback from every tick in a multi-tick catch-up frame', () => {
     const driver = createSimDriver(DEFAULT_CONFIG, SEED, { traitRuntimeFactory: createFeedbackRuntimeFactory() });
     const input = new ConstantInput();

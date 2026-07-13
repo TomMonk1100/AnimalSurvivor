@@ -17,8 +17,8 @@ eight-minute pacing target, and a larger first attack set.
 
 ### Active attacks: five slots
 
-Greg begins with **Auto-Fire**, which occupies one active-attack slot. He can
-choose up to four of six available trait families:
+Each founding animal begins with a distinct starter attack and can choose up to
+three of six available trait families, for four active slots:
 
 1. **Porcupine Quills** — targeted 3/5-quill piercing volleys.
 2. **Puffer Pouch** — gather, then Adapted knockback control.
@@ -39,8 +39,8 @@ combine a pair of Adapted attacks:
   leaves stronger scythe pads every 90 units.
 
 A Mythic retains both ingredient footprints. It is stronger combined content,
-not a loophole that creates a free sixth weapon slot. This makes the current
-loadout contract: **starter + up to four acquired attacks = five active slots**.
+not a loophole that creates a free fifth weapon slot. This makes the current
+loadout contract: **starter + up to three acquired attacks = four active slots**.
 
 The long-term target is a broader candidate pool than any single run can carry.
 Forest Arsenal establishes the slot, acquisition, evolution, visual, replay,
@@ -121,6 +121,6 @@ playtest evidence, with replay-safe definitions and no same-tick wave burst.
 3. Tune only evidence-backed pressure and attack values, then repeat
    deterministic replay and browser checks.
 4. Expand the attack candidate pool beyond the current six families so future
-   runs make more meaningful five-slot choices.
+   runs make more meaningful four-slot choices.
 5. After the normal/meta loop is enjoyable, design selectable difficulties and
    Hardcore Endless from explicit authored definitions.

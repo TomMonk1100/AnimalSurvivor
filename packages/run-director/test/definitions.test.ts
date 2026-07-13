@@ -13,6 +13,7 @@ import { getDefaultDefinition } from '../src/definitions.js';
 import { validateDefinition } from '../src/validation.js';
 import { BOSS_ENTRANCE_TICK, NORMAL_RUN_PHASE_ORDER } from '../src/ids.js';
 import { OPEN_END, type RunDefinition } from '../src/contracts.js';
+import { SALTWIND_RUINS_RUN } from '../src/content/saltwind-ruins.js';
 
 test('getDefaultDefinition() passes validateDefinition', () => {
   const def = getDefaultDefinition();
@@ -83,6 +84,26 @@ test('normal-plus spitters arrive after the opening and never crowd the boss ent
   assert.equal(def.waves.phaseArchetypes.adaptation?.includes('enemy:spitter'), true);
   assert.equal(def.waves.phaseArchetypes.mutation?.includes('enemy:spitter'), true);
   assert.equal(def.waves.phaseArchetypes.boss?.includes('enemy:spitter'), false);
+});
+
+test('Forest content exposes Charger and Denial roles only after the opening', () => {
+  const def = getDefaultDefinition();
+  assert.equal(def.archetypes.some((archetype) => archetype.id === 'enemy:charger'), true);
+  assert.equal(def.archetypes.some((archetype) => archetype.id === 'enemy:denial'), true);
+  assert.equal(def.waves.phaseArchetypes.opening?.some((id) => id === 'enemy:charger' || id === 'enemy:denial'), false);
+  assert.equal(def.waves.phaseArchetypes.adaptation?.includes('enemy:charger'), true);
+  assert.equal(def.waves.phaseArchetypes.mutation?.includes('enemy:denial'), true);
+});
+
+test('Saltwind Ruins is a valid second-biome definition with distinct encounter grammar', () => {
+  assert.doesNotThrow(() => validateDefinition(SALTWIND_RUINS_RUN));
+  assert.notEqual(SALTWIND_RUINS_RUN.defaultSeed, getDefaultDefinition().defaultSeed);
+  assert.notDeepEqual(
+    SALTWIND_RUINS_RUN.waves.phaseArchetypes,
+    getDefaultDefinition().waves.phaseArchetypes,
+  );
+  assert.equal(SALTWIND_RUINS_RUN.waves.phaseArchetypes.opening?.includes('enemy:flanker'), true);
+  assert.equal(SALTWIND_RUINS_RUN.waves.phaseArchetypes.boss?.includes('enemy:support'), true);
 });
 
 test('a mutated copy with a phase gap fails validation', () => {

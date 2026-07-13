@@ -11,6 +11,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
+    "verify:content": "vitest run test/content-validator.test.ts",
+    "verify:assets": "node scripts/verify-assets.mjs",
+    "verify:artifact": "node scripts/verify-dist.mjs",
+    "verify:served": "node scripts/verify-served-artifact.mjs",
     "test:watch": "vitest",
     "serve": "vite --host",
     "stress": "vite --host --open \"/?autopilot=1&stress=1&renderstress=1\""

@@ -10,6 +10,7 @@
  * explicitly unbounded content type without changing these semantics.
  */
 import { createHashWriter } from './state-hash.js';
+import type { HeroId } from './run-start-loadout.js';
 
 /** Bump when the canonical catalog/state fingerprint layout changes. */
 export const UNIVERSAL_UPGRADE_CATALOG_VERSION = 1;
@@ -63,6 +64,20 @@ export type UniversalUpgradeEffect =
       readonly kind: 'xpMultiplier';
       /** Added to the base 1x XP gain multiplier once per rank. */
       readonly bonusPerRank: number;
+    }
+  | {
+      readonly kind: 'basicAttack';
+      readonly heroId: HeroId;
+      /** Added to the selected hero's authored starter damage per rank. */
+      readonly damageBonusPerRank: number;
+      /** Subtracted from the selected hero's authored starter cooldown per rank. */
+      readonly cooldownReductionPerRank: number;
+      /** Adds this many starter projectiles when the rank is reached. */
+      readonly projectileCountAtRank?: number;
+      /** Adds this much starter pierce when the rank is reached. */
+      readonly pierceAtRank?: number;
+      /** Adds this much starter range per rank. */
+      readonly rangeBonusPerRank?: number;
     };
 
 export interface UniversalUpgradeDefinition {
@@ -126,6 +141,11 @@ export interface UniversalUpgradeStats {
   readonly weaponDamageMultiplier: number;
   readonly weaponCooldownMultiplier: number;
   readonly xpMultiplier: number;
+  readonly basicAttackDamageMultiplier: number;
+  readonly basicAttackCooldownMultiplier: number;
+  readonly basicAttackProjectileCountBonus: number;
+  readonly basicAttackPierceBonus: number;
+  readonly basicAttackRangeBonus: number;
 }
 
 function frozenDefinition(definition: UniversalUpgradeDefinition): UniversalUpgradeDefinition {
@@ -191,6 +211,52 @@ export const GROWTH: UniversalUpgradeDefinition = frozenDefinition({
   effect: { kind: 'xpMultiplier', bonusPerRank: 0.12 },
 });
 
+export const HERO_BASIC_ATTACK_UPGRADES: readonly UniversalUpgradeDefinition[] = Object.freeze([
+  frozenDefinition({
+    id: 'basic-attack:greg-precision',
+    title: "Pouncer's Precision",
+    description: 'Greg’s starter shot gains damage and cadence; rank 3 unlocks one pierce.',
+    repeatable: true,
+    maxRank: 3,
+    effect: {
+      kind: 'basicAttack',
+      heroId: 'greg',
+      damageBonusPerRank: 0.1,
+      cooldownReductionPerRank: 0.04,
+      pierceAtRank: 3,
+    },
+  }),
+  frozenDefinition({
+    id: 'basic-attack:benny-brace-burst',
+    title: 'Brace Bloom',
+    description: 'Benny’s starter burst gains weight and cadence; rank 2 adds a third bolt.',
+    repeatable: true,
+    maxRank: 3,
+    effect: {
+      kind: 'basicAttack',
+      heroId: 'benny',
+      damageBonusPerRank: 0.12,
+      cooldownReductionPerRank: 0.03,
+      projectileCountAtRank: 2,
+    },
+  }),
+  frozenDefinition({
+    id: 'basic-attack:gracie-keen-dart',
+    title: 'Keen Dart',
+    description: 'Gracie’s starter dart gains damage, cadence, and range; rank 3 adds a second dart.',
+    repeatable: true,
+    maxRank: 3,
+    effect: {
+      kind: 'basicAttack',
+      heroId: 'gracie',
+      damageBonusPerRank: 0.06,
+      cooldownReductionPerRank: 0.06,
+      projectileCountAtRank: 3,
+      rangeBonusPerRank: 12,
+    },
+  }),
+]);
+
 export const UNIVERSAL_UPGRADE_CATALOG: UniversalUpgradeCatalog = Object.freeze([
   SWIFT_PAWS,
   XP_MAGNET,
@@ -199,6 +265,17 @@ export const UNIVERSAL_UPGRADE_CATALOG: UniversalUpgradeCatalog = Object.freeze(
   RAPID_INSTINCT,
   GROWTH,
 ]);
+
+/** App-facing catalog: shared neutral choices plus the selected hero's mastery. */
+export function getUniversalUpgradeCatalogForHero(
+  heroId: HeroId,
+  baseCatalog: UniversalUpgradeCatalog = UNIVERSAL_UPGRADE_CATALOG,
+): UniversalUpgradeCatalog {
+  const upgrade = HERO_BASIC_ATTACK_UPGRADES.find((candidate) => candidate.effect.kind === 'basicAttack' && candidate.effect.heroId === heroId);
+  if (upgrade === undefined) throw new Error(`No basic attack upgrade authored for hero ${heroId}`);
+  const sharedCatalog = baseCatalog.filter((candidate) => candidate.effect.kind !== 'basicAttack');
+  return Object.freeze([...sharedCatalog, upgrade]);
+}
 
 function requireFinitePositive(name: string, value: number): void {
   if (!Number.isFinite(value) || value <= 0) {
@@ -230,6 +307,18 @@ function validateEffect(effect: UniversalUpgradeEffect, label: string): void {
       requireFinitePositive(`${label}.effect.pickupRadiusBonusPerRank`, effect.pickupRadiusBonusPerRank);
       requireFinitePositive(`${label}.effect.attractionRadiusBonusPerRank`, effect.attractionRadiusBonusPerRank);
       requireFinitePositive(`${label}.effect.attractionSpeedBonusPerRank`, effect.attractionSpeedBonusPerRank);
+      return;
+    case 'basicAttack':
+      requireNonEmptyString(`${label}.effect.heroId`, effect.heroId);
+      requireFinitePositive(`${label}.effect.damageBonusPerRank`, effect.damageBonusPerRank);
+      requireFinitePositive(`${label}.effect.cooldownReductionPerRank`, effect.cooldownReductionPerRank);
+      if (effect.projectileCountAtRank !== undefined && (!Number.isSafeInteger(effect.projectileCountAtRank) || effect.projectileCountAtRank < 1)) {
+        throw new RangeError(`${label}.effect.projectileCountAtRank must be a positive safe integer`);
+      }
+      if (effect.pierceAtRank !== undefined && (!Number.isSafeInteger(effect.pierceAtRank) || effect.pierceAtRank < 1)) {
+        throw new RangeError(`${label}.effect.pierceAtRank must be a positive safe integer`);
+      }
+      if (effect.rangeBonusPerRank !== undefined) requireFinitePositive(`${label}.effect.rangeBonusPerRank`, effect.rangeBonusPerRank);
       return;
     default:
       throw new TypeError(`unknown universal upgrade effect ${(effect as { kind?: unknown }).kind as string}`);
@@ -266,6 +355,17 @@ export function validateUniversalUpgradeCatalog(catalog: UniversalUpgradeCatalog
     ) {
       throw new RangeError(`${label}.effect reduction would make weapon cooldown non-positive at max rank`);
     }
+    if (definition.effect.kind === 'basicAttack') {
+      if (definition.effect.cooldownReductionPerRank * definition.maxRank >= 1) {
+        throw new RangeError(`${label}.effect reduction would make basic attack cooldown non-positive at max rank`);
+      }
+      if (definition.effect.projectileCountAtRank !== undefined && definition.effect.projectileCountAtRank > definition.maxRank) {
+        throw new RangeError(`${label}.effect.projectileCountAtRank cannot exceed maxRank`);
+      }
+      if (definition.effect.pierceAtRank !== undefined && definition.effect.pierceAtRank > definition.maxRank) {
+        throw new RangeError(`${label}.effect.pierceAtRank cannot exceed maxRank`);
+      }
+    }
   }
 }
 
@@ -298,6 +398,14 @@ export function fingerprintUniversalUpgradeCatalog(catalog: UniversalUpgradeCata
         writer.f64(definition.effect.pickupRadiusBonusPerRank);
         writer.f64(definition.effect.attractionRadiusBonusPerRank);
         writer.f64(definition.effect.attractionSpeedBonusPerRank);
+        break;
+      case 'basicAttack':
+        writer.str(definition.effect.heroId);
+        writer.f64(definition.effect.damageBonusPerRank);
+        writer.f64(definition.effect.cooldownReductionPerRank);
+        writer.f64(definition.effect.projectileCountAtRank ?? 0);
+        writer.f64(definition.effect.pierceAtRank ?? 0);
+        writer.f64(definition.effect.rangeBonusPerRank ?? 0);
         break;
     }
   }
@@ -443,6 +551,11 @@ export function resolveUniversalUpgradeStats(
   let weaponDamageMultiplier = 1;
   let weaponCooldownMultiplier = 1;
   let xpMultiplier = 1;
+  let basicAttackDamageMultiplier = 1;
+  let basicAttackCooldownMultiplier = 1;
+  let basicAttackProjectileCountBonus = 0;
+  let basicAttackPierceBonus = 0;
+  let basicAttackRangeBonus = 0;
 
   for (let index = 0; index < catalog.length; index++) {
     const rank = state.ranks[index]!;
@@ -469,6 +582,17 @@ export function resolveUniversalUpgradeStats(
       case 'xpMultiplier':
         xpMultiplier += effect.bonusPerRank * rank;
         break;
+      case 'basicAttack':
+        basicAttackDamageMultiplier += effect.damageBonusPerRank * rank;
+        basicAttackCooldownMultiplier -= effect.cooldownReductionPerRank * rank;
+        if (effect.projectileCountAtRank !== undefined && rank >= effect.projectileCountAtRank) {
+          basicAttackProjectileCountBonus += 1;
+        }
+        if (effect.pierceAtRank !== undefined && rank >= effect.pierceAtRank) {
+          basicAttackPierceBonus += 1;
+        }
+        basicAttackRangeBonus += (effect.rangeBonusPerRank ?? 0) * rank;
+        break;
     }
   }
 
@@ -481,5 +605,10 @@ export function resolveUniversalUpgradeStats(
     weaponDamageMultiplier,
     weaponCooldownMultiplier,
     xpMultiplier,
+    basicAttackDamageMultiplier,
+    basicAttackCooldownMultiplier,
+    basicAttackProjectileCountBonus,
+    basicAttackPierceBonus,
+    basicAttackRangeBonus,
   });
 }

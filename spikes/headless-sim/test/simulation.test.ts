@@ -5,9 +5,32 @@ import type { SimConfig } from '../src/config.js';
 import { DEFAULT_CONFIG } from '../src/config.js';
 import { createSimulation } from '../src/simulation.js';
 import { UNIVERSAL_UPGRADE_CATALOG } from '../src/universal-upgrades.js';
+import { RUN_START_LOADOUT_VERSION } from '../src/run-start-loadout.js';
 
 function circleInput(t: number): TickInput {
   return { moveX: Math.cos(t * 0.05), moveY: Math.sin(t * 0.05), paused: false };
+}
+
+function spawnStationaryEnemy(sim: ReturnType<typeof createSimulation>, x: number, y: number, hp = 500): number {
+  const slot = sim.enemies.spawn();
+  assert.ok(slot >= 0);
+  const data = sim.enemies.data;
+  data.posX[slot] = x;
+  data.posY[slot] = y;
+  data.velX[slot] = 0;
+  data.velY[slot] = 0;
+  data.hp[slot] = hp;
+  data.maxHp[slot] = hp;
+  data.speed[slot] = 0;
+  data.radius[slot] = 8;
+  data.touchDamage[slot] = 1;
+  data.contactCooldown[slot] = 0;
+  data.zoneDamageCooldown[slot] = 0;
+  data.archetype[slot] = 0;
+  data.xpDrop[slot] = 1;
+  data.marked[slot] = 0;
+  sim.grid.insert(sim.enemies.idOf(slot), x, y);
+  return slot;
 }
 
 // A "hotter" config than DEFAULT_CONFIG: smaller world, tighter weapon range
@@ -15,7 +38,7 @@ function circleInput(t: number): TickInput {
 // faster spawns and a faster weapon cooldown. Spread from DEFAULT_CONFIG per
 // the frozen shape; config.ts itself is never modified.
 const HOT_WAVES: readonly WaveSegment[] = [
-  { startTick: 0, endTick: 100_000, spawnIntervalTicks: 5, archetypeWeights: [1, 0, 0, 0], maxAlive: 30 },
+  { startTick: 0, endTick: 100_000, spawnIntervalTicks: 5, archetypeWeights: [1, 0, 0, 0, 0, 0, 0, 0], maxAlive: 30 },
 ];
 
 const HOT_CONFIG: SimConfig = {
@@ -25,7 +48,7 @@ const HOT_CONFIG: SimConfig = {
   enemyCap: 50,
   projectileCap: 50,
   pickupCap: 50,
-  player: { ...DEFAULT_CONFIG.player, startX: 300, startY: 300 },
+  player: { ...DEFAULT_CONFIG.player, startX: 300, startY: 300, pickupRadius: 1_000 },
   weapon: { ...DEFAULT_CONFIG.weapon, range: 100, cooldownTicks: 5 },
   waves: HOT_WAVES,
 };
@@ -53,6 +76,111 @@ test('sim runs 600 ticks under a hot config without throwing; enemies spawn, pro
   assert.ok(totalProjectilesFired > 0, 'expected at least one projectile fired');
   assert.ok(totalKills > 0, 'expected at least one kill by tick 600');
   assert.ok(totalPickups > 0, 'expected at least one pickup collection by tick 600');
+});
+
+test('Greg Rush Rake charges from movement and emits three deterministic projectile waves', () => {
+  const config: SimConfig = {
+    ...DEFAULT_CONFIG,
+    worldWidth: 2_000_000,
+    worldHeight: 2_000_000,
+    player: { ...DEFAULT_CONFIG.player, startX: 100, startY: 100, speed: 720_000 },
+    waves: [],
+  };
+  const sim = createSimulation(config, 8080);
+  const waveTicks: number[] = [];
+
+  for (let step = 0; step < 26; step++) {
+    const events = sim.step({ moveX: step === 0 ? 1 : 0, moveY: 0, paused: false });
+    if (events.projectilesFired > 0) waveTicks.push(sim.tick);
+    if (sim.traitPresentationEvents.some((event) => event.sourceId === 'greg-rush-rake')) {
+      assert.equal(sim.traitPresentationEvents.filter((event) => event.sourceId === 'greg-rush-rake').length, 1);
+    }
+  }
+
+  assert.deepEqual(waveTicks, [1, 13, 25]);
+  assert.equal(sim.projectiles.data.count, 9);
+
+  const replay = sim.getReplay();
+  const control = createSimulation(config, 8080);
+  for (const input of replay.inputs) control.step(input);
+  assert.equal(control.hash(), sim.hash(), 'Rush Rake must preserve deterministic replay parity');
+});
+
+test('Greg Rush Rake stays an earned movement combo at normal speed instead of firing every walking beat', () => {
+  const config: SimConfig = {
+    ...DEFAULT_CONFIG,
+    worldWidth: 10_000,
+    worldHeight: 10_000,
+    player: { ...DEFAULT_CONFIG.player, startX: 1_000, startY: 1_000 },
+    waves: [],
+  };
+  const sim = createSimulation(config, 8081);
+  const waveTicks: number[] = [];
+
+  for (let step = 0; step < 180; step++) {
+    sim.step({ moveX: 1, moveY: 0, paused: false });
+    if (sim.traitPresentationEvents.some((event) => event.sourceId === 'greg-rush-rake')) {
+      waveTicks.push(sim.tick);
+    }
+  }
+
+  assert.deepEqual(waveTicks, [75, 87, 99, 150, 162, 174]);
+  assert.ok(
+    waveTicks.every((tick, index) => index === 0 || tick - waveTicks[index - 1]! >= 12),
+    'separate rake waves remain visually readable instead of collapsing into a walking stream',
+  );
+});
+
+test('Benny Brace Bloom reacts to contact and pushes threats through authoritative state', () => {
+  const config: SimConfig = { ...DEFAULT_CONFIG, waves: [] };
+  const sim = createSimulation(config, 9090, {
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'benny', maxHpBonus: 0 },
+  });
+  const enemySlot = spawnStationaryEnemy(sim, sim.player.x + 1, sim.player.y);
+  const startX = sim.enemies.data.posX[enemySlot]!;
+  let pulseCount = 0;
+  for (let tick = 0; tick < 40; tick++) {
+    sim.step({ moveX: 0, moveY: 0, paused: false });
+    if (sim.traitPresentationEvents.some((event) => event.sourceId === 'benny-brace')) pulseCount++;
+  }
+  assert.ok(pulseCount >= 1, 'expected Brace Bloom after two contact hits');
+  assert.ok(sim.enemies.data.posX[enemySlot]! > startX, 'expected the brace pulse to create defensive space');
+});
+
+test('Gracie Scout marks forward targets and preserves replay parity', () => {
+  const config: SimConfig = { ...DEFAULT_CONFIG, waves: [] };
+  const loadout = { version: RUN_START_LOADOUT_VERSION, heroId: 'gracie' as const, maxHpBonus: 0 };
+  const sim = createSimulation(config, 9191, { runStartLoadout: loadout });
+  const enemySlot = spawnStationaryEnemy(sim, sim.player.x + 80, sim.player.y);
+  sim.step({ moveX: 1, moveY: 0, paused: false });
+  assert.equal(sim.enemies.data.marked[enemySlot], 1);
+  assert.ok(sim.traitPresentationEvents.some((event) => event.sourceId === 'gracie-scout'));
+
+  const replay = sim.getReplay();
+  const control = createSimulation(config, 9191, { runStartLoadout: loadout });
+  // Recreate the same external enemy setup before replaying the recorded input.
+  spawnStationaryEnemy(control, control.player.x + 80, control.player.y);
+  for (const input of replay.inputs) control.step(input);
+  assert.equal(control.hash(), sim.hash());
+});
+
+test('marked prey redirects every founding hero starter attack', () => {
+  const config: SimConfig = { ...DEFAULT_CONFIG, waves: [] };
+  for (const heroId of ['greg', 'benny', 'gracie'] as const) {
+    const sim = createSimulation(config, 10_001, {
+      runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId, maxHpBonus: 0 },
+    });
+    const markedSlot = spawnStationaryEnemy(sim, sim.player.x - 96, sim.player.y);
+    sim.enemies.data.marked[markedSlot] = 1;
+    spawnStationaryEnemy(sim, sim.player.x + 32, sim.player.y);
+
+    const events = sim.step({ moveX: 0, moveY: 0, paused: false });
+    assert.ok(events.projectilesFired > 0, `${heroId} should fire a starter attack`);
+    assert.ok(
+      sim.projectiles.data.velX[0]! < 0,
+      `${heroId} should prioritize the farther marked target over the closer unmarked threat`,
+    );
+  }
 });
 
 test('xp thresholds: forced pickups fire levelUps in order with the right count', () => {

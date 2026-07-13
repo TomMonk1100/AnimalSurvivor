@@ -41,9 +41,9 @@ test('charges from integer movement distance and advances exactly one integer ti
 test('explicit near misses shorten the remaining charge distance deterministically', () => {
   const previous = { ...createRushRakeState(), chargeMilliunits: 2_000 };
   const reduced = stepRushRake(previous, input({ distanceMovedMilliunits: 500, nearMissCount: 1 }));
-  assert.equal(reduced.state.chargeMilliunits, 4_000);
+  assert.equal(reduced.state.chargeMilliunits, 12_500);
 
-  const triggered = stepRushRake(reduced.state, input({ nearMissCount: 99 }));
+  const triggered = stepRushRake(reduced.state, input({ nearMissCount: 14 }));
   assert.equal(triggered.state.chargeMilliunits, 0);
   assert.equal(triggered.command?.kind, 'gregRushRakeBurst');
 });
@@ -71,8 +71,8 @@ test('emits exactly three fixed-tick claw waves and resets charge at threshold',
     targetClusterId: null,
     waves: [
       { index: 0, tickOffset: 0 },
-      { index: 1, tickOffset: 4 },
-      { index: 2, tickOffset: 8 },
+      { index: 1, tickOffset: 12 },
+      { index: 2, tickOffset: 24 },
     ],
   });
 });

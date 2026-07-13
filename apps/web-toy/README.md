@@ -1,7 +1,7 @@
 # Animal Survivor browser playtest
 
-`apps/web-toy` is the playable browser presentation for Greg’s deterministic
-**Forest Arsenal** alpha. It owns input, DOM UI, audio controls, WebGL
+`apps/web-toy` is the playable browser presentation for the founding animals'
+deterministic **Forest Arsenal** alpha. It owns input, DOM UI, audio controls, WebGL
 presentation, and the local prep/profile surface. The authoritative simulation,
 trait runtime, and run director live in their respective packages.
 
@@ -25,22 +25,68 @@ Run the local checks from the same directory:
 npm run typecheck
 npm run lint
 npm test
+npm run verify:assets
+npm run verify:content
 npm run build
+npm run verify:artifact
+npm run verify:served
 ```
+
+`npm run build` emits `dist/build-info.json` and `dist/asset-manifest.json`.
+`npm run verify:artifact` hashes the generated files into
+`dist/dist-manifest.json` and checks that the document title and build meta tag
+identify the same build. The complete Gate 0 evidence procedure is in
+[`../../docs/release/gate0-evidence.md`](../../docs/release/gate0-evidence.md).
+`npm run verify:served` serves the exact `dist` directory on a temporary local
+HTTP port and checks the served identity, UI markers, Saltwind route, and 404
+behavior. It does not replace hosted-browser or human evidence.
 
 ## Player controls
 
 - **Start run** begins a manual run. Until it is chosen, the game remains at
   tick 0 behind the intro card.
-- **WASD** or **arrow keys** move Greg. On touch, drag in the lower-left virtual
-  joystick.
-- Greg attacks automatically. There is no aiming input.
+- **WASD**, **arrow keys**, a standard gamepad's **left stick/D-pad**, or hold-drag on the
+  arena with a mouse move the selected animal. On touch, drag in the lower-left virtual
+  joystick; precedence is joystick, mouse, gamepad, then keyboard.
+- The selected animal attacks automatically. There is no aiming input.
 - An upgrade card pauses the run. The first card receives focus; choose with
   the mouse, **1**, **2**, or **3**, or **Tab** + **Enter**.
 - **Esc** toggles pause/resume on desktop. The visible pause control supports
   pointer and touch play.
-- **Sound effects** are optional and off by default. They never affect gameplay
-  or replay; browser audio being unavailable is a silent, nonfatal fallback.
+- The prep launch dialog keeps focus inside its controls, reveals the focused
+  control inside its scrollable card, and automatically pauses an active run
+  when the page is hidden; only a visibility-owned pause resumes on return, so
+  manual pauses and level-up choices remain untouched.
+- Browser zoom remains available, and the arena/HUD/prep surfaces honor
+  safe-area insets for notched or home-indicator devices.
+- **Sound effects** are optional and off by default. The prep card exposes
+  master, music-bed, and SFX mix sliders; these never affect gameplay or replay.
+  Browser audio being unavailable is a silent, nonfatal fallback. The current
+  voices and phase bed are procedural release scaffolding, not final authored
+  audio; source-aware launch trait, instinct, boss-telegraph, and support-warning
+  identities are covered by the same rate-safe presentation router.
+- The Field Guide exposes the complete six-recipe Mythic catalog, including
+  ingredient pairs and deterministic locked/discovered states; discovery remains
+  profile-owned and never changes a run hash.
+- The Field Guide also exposes a six-card Habitat Atlas. Forest is the known
+  starting habitat; victories with each hero and in Saltwind, plus archived
+  Mythic forms, reveal the remaining postcards without adding currency or run
+  state.
+- Accessibility settings include persistent one-key-per-direction keyboard
+  remapping; Arrow Keys remain available and the remap never changes the
+  canonical sampled-input or replay boundary.
+
+Before a normal run, choose one of the founding animals:
+
+- **Greg the fox — The Pouncer:** baseline all-rounder;
+- **Benny the bull — The Bastion:** more starting health, lower movement and
+  attack cadence;
+- **Gracie the alpaca — The Surveyor:** wider pickup field and faster cadence,
+  with a lighter starting body.
+
+The choice is stored locally and included in the deterministic run-start
+fingerprint. Benny and Gracie use authored procedural low-poly presentation
+variants and each has a distinct deterministic starter attack plus mastery path.
 
 The live HUD focuses on health, level, XP, time, phase, and the immediate goal.
 It intentionally does not repeat a description every time an attack fires.
@@ -74,9 +120,15 @@ elites add ranged pressure, and elites give larger XP rewards.
 
 ### Attacks and evolutions
 
-Greg’s starter **Auto-Fire** occupies one active-attack slot. A normal run can
-choose up to four of six acquired trait families, for five active attack slots
-total:
+The selected animal’s starter attack occupies one active-attack slot. A normal
+run can choose up to three of twelve acquired trait families, for four active
+attack slots total:
+
+| Starter | Pattern | Mastery |
+| --- | --- | --- |
+| **Greg’s Auto-Fire** | Precise nearest-target shot; movement charges a three-wave Rush Rake | Pouncer’s Precision; rank 3 unlocks one pierce |
+| **Benny’s Brace Burst** | Heavy two-bolt spread | Brace Bloom; rank 2 adds a third bolt |
+| **Gracie’s Keen Dart** | Fast highest-health dart | Keen Dart; rank 3 adds a second dart |
 
 | Attack | Bud effect | Adapted effect |
 | --- | --- | --- |
@@ -85,7 +137,13 @@ total:
 | **Electric Eel Coil** | Instant strike on the nearest threat, then chain to 1 nearby unhit foe | Instant strike on the nearest threat, then chain to 3 nearby unhit foes |
 | **Firefly Colony** | Two fireflies orbit Greg and zap enemies on contact | Four fireflies orbit wider and zap nearby enemies |
 | **Mantis Scythes** | Auto-aimed narrow scythe sweep | Wider, stronger auto-aimed scythe sweep |
-| **Gecko Pads** | After traveling 150 units, create a damaging pad at Greg's feet; it does not slow enemies | After traveling 110 units, create a stronger damaging pad at Greg's feet; it does not slow enemies |
+| **Gecko Pads** | After traveling 150 units, create a damaging pad at the selected animal's feet; it does not slow enemies | After traveling 110 units, create a stronger damaging pad at the selected animal's feet; it does not slow enemies |
+| **Owl Pinions** | Four-feather spread at the nearest threat | Wider seven-feather spread |
+| **Bat Ears** | Echo-marks a nearby cluster; every automatic attack prioritizes it | Echo-marks a larger priority cluster for every automatic attack |
+| **Crab Pincers** | Compact area strike | Wider, heavier area strike |
+| **Armadillo Greaves** | Shoves nearby threats away | Stronger defensive shove |
+| **Skunk Brush** | Damaging stink cloud | Larger, stronger stink cloud |
+| **Monarch Brood** | Two orbiting butterflies sting nearby enemies on contact | Three wider-orbit butterflies sting nearby enemies more often |
 
 Every attack has Bud and Adapted forms. Three paired evolutions are available:
 
@@ -95,9 +153,18 @@ Every attack has Bud and Adapted forms. Three paired evolutions are available:
   then release a larger chain discharge across nearby enemies.
 - **Razorstep Chimera** combines Adapted Mantis Scythes and Adapted Gecko Pads:
   moving leaves stronger scythe pads every 90 units.
+- **Midnight Radar** combines Adapted Bat Ears and Adapted Owl Pinions: marks a
+  wide threat cluster for priority targeting.
+- **Meteor Mauler** combines Adapted Crab Pincers and Adapted Armadillo Greaves:
+  a heavy close-range impact crushes the nearest crowd.
+- **Royal Stinkcloud** combines Adapted Skunk Brush and Adapted Monarch Brood:
+  creates a larger monarch-crowned hazard cloud.
 
 Each Mythic retains its two ingredient slots. Evolving is a power conversion,
-not a way to open a sixth active-attack slot.
+not a way to open a fifth active-attack slot. Base starter fire does not pierce;
+Quills and the selected starter mastery own piercing explicitly.
+Greg's movement and near-misses charge a replay-safe three-wave Rush Rake burst;
+its cyan directional cue is rendered through the same read-only presentation path.
 
 ### Neutral passives and Essence
 
@@ -113,12 +180,15 @@ upgrade remains, the chooser offers repeatable **Essence Cache**.
 
 Terminal Essence is settled once per run. **Continue to upgrades** returns to
 the prep surface, where saved Essence can buy capped Starting Vitality for the
-next fresh run only.
+next fresh run only. The Field Guide archives each terminal build and provides
+versioned save export, import, reset, migration, and corrupt-save recovery.
 
 ## Local URL controls
 
 | Control | Effect |
 | --- | --- |
+| `?hero=greg`, `?hero=benny`, or `?hero=gracie` | Selects a founding animal before the run starts; useful for repeatable visual QA. |
+| `?biome=saltwind` | Selects Saltwind Ruins after the local profile has recorded a Forest victory; otherwise the app stays in Forest Arsenal and labels the biome as locked. |
 | `?seed=<number or text>` | Starts with an explicit deterministic seed. Text is hashed to a 32-bit seed. |
 | `?debug=1` | Shows diagnostics and engineering controls; the default view remains player-facing. |
 | `?autopilot=1` | Boots into deterministic autopilot and skips the Start run gate. |
@@ -134,7 +204,8 @@ the driver hash, tick, controls, and stop method.
 - The browser consumes authoritative simulation snapshots and command cues; it
   does not author combat outcomes, loot, timing, or upgrade selection results.
 - The forest clearing, hero facing, trait attachments, attack cues, world
-  effects, HUD, boss bar, and sound are read-only presentation.
+  effects, HUD, authored boss portraits, boss bar, and sound are read-only
+  presentation.
 - A pause frame advances no simulation clock, RNG, entity state, trait runtime,
   or run director state.
 - The renderer uses bounded, reusable presentation pools and fixed instanced

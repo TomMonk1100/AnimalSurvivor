@@ -15,7 +15,7 @@ import {
   type SpatialGrid,
   type ZonePool,
 } from './types.js';
-import { selectTarget } from './targeting.js';
+import { selectPriorityTarget, selectTarget } from './targeting.js';
 import { zoneTagFromCommandTag } from './zones.js';
 
 export interface TraitCombatCommand {
@@ -79,6 +79,20 @@ export interface TraitCommandExecutionContext {
     x: number,
     y: number,
   ) => void;
+  /**
+   * Presentation-only observer for actual orbit/contact victims. Both the
+   * companion position and the victim position are reported before a lethal
+   * cleanup so the renderer can show a truthful contact spark instead of a
+   * cosmetic pulse that implies damage.
+   */
+  readonly onOrbitingDamageHit?: (
+    commandIndex: number,
+    hitIndex: number,
+    flyX: number,
+    flyY: number,
+    targetX: number,
+    targetY: number,
+  ) => void;
   /** Presentation-only direction resolved from a successful melee acquisition. */
   readonly onMeleeArcResolved?: (
     commandIndex: number,
@@ -126,6 +140,8 @@ export interface TraitCommandExecutionStats {
   enemiesGathered: number;
   enemiesKnockedBack: number;
   areaDamageHits: number;
+  markTargetsCommands: number;
+  markedTargets: number;
   enemiesKilled: number;
   telegraphs: number;
   traitCues: number;
@@ -166,6 +182,7 @@ const SUPPORTED_KINDS = new Set([
   'areaKnockback',
   'applyAreaDamage',
   'spawnZone',
+  'markTargets',
   'chainDamage',
   'meleeArc',
   'telegraph',
@@ -173,7 +190,6 @@ const SUPPORTED_KINDS = new Set([
 ]);
 /** These need state/pools not yet owned by the accepted simulation. */
 export const REJECTED_TRAIT_COMMAND_KINDS = Object.freeze([
-  'markTargets',
   'grantShield',
 ] as const);
 const REJECTED_KINDS = new Set<string>(REJECTED_TRAIT_COMMAND_KINDS);
@@ -349,6 +365,16 @@ function validateCommand(
       float32('command.range', command.range);
       break;
     }
+    case 'markTargets':
+      if (!Number.isSafeInteger(command.count) || command.count < 1 || command.count > options.maxBurstCount) {
+        throw new RangeError(`command.count must be an integer in [1, ${options.maxBurstCount}] for markTargets`);
+      }
+      positive('command.radius', command.radius);
+      float32('command.radius', command.radius);
+      if (typeof command.tag !== 'string' || command.tag.length === 0) {
+        throw new RangeError('markTargets command.tag must be a non-empty string');
+      }
+      break;
   }
 }
 
@@ -374,6 +400,8 @@ function resetStats(stats: TraitCommandExecutionStats): void {
   stats.enemiesGathered = 0;
   stats.enemiesKnockedBack = 0;
   stats.areaDamageHits = 0;
+  stats.markTargetsCommands = 0;
+  stats.markedTargets = 0;
   stats.enemiesKilled = 0;
   stats.telegraphs = 0;
   stats.traitCues = 0;
@@ -426,7 +454,7 @@ function executeDirectedBurst(
   let baseX = command.dirX;
   let baseY = command.dirY;
   if (command.targeting !== 'none') {
-    const target: EntityId = selectTarget(
+    const target: EntityId = selectPriorityTarget(
       targetingPolicy(command.targeting),
       {
         originX: command.originX,
@@ -520,6 +548,7 @@ function selectOrbitContact(
  */
 function executeOrbitingDamage(
   command: TraitCombatCommand,
+  commandIndex: number,
   context: TraitCommandExecutionContext,
   scratch: EntityId[],
   visited: EntityId[],
@@ -538,6 +567,14 @@ function executeOrbitingDamage(
     const slot = context.enemies.slotOf(target);
     if (slot < 0) continue;
     visited.push(target);
+    context.onOrbitingDamageHit?.(
+      commandIndex,
+      stats.orbitingDamageHits,
+      flyX,
+      flyY,
+      context.enemies.data.posX[slot]!,
+      context.enemies.data.posY[slot]!,
+    );
     context.enemies.data.hp[slot] = context.enemies.data.hp[slot]! - command.damage;
     stats.orbitingDamageHits++;
     if (context.enemies.data.hp[slot]! <= 0) {
@@ -617,7 +654,7 @@ function executeMeleeArc(
   let dirY = 0;
   let hasDirection = false;
   if (command.targeting !== 'none') {
-    const target = selectTarget(
+    const target = selectPriorityTarget(
       targetingPolicy(command.targeting),
       {
         originX: command.originX,
@@ -744,7 +781,7 @@ function executeChainDamage(
   visited: EntityId[],
   stats: TraitCommandExecutionStats,
 ): void {
-  const initial = selectTarget(
+  const initial = selectPriorityTarget(
     targetingPolicy(command.targeting),
     {
       originX: command.originX,
@@ -821,6 +858,51 @@ function executeSpawnZone(
   stats.zonesSpawned++;
 }
 
+/**
+ * Marks a deterministic cluster around the selected anchor. Marks are a
+ * simulation-owned byte on each enemy, so marked targeting participates in
+ * hashes/replays without a second status pool. A mark persists until that
+ * enemy leaves the pool; future status expiry can be added without changing
+ * the command vocabulary.
+ */
+function executeMarkTargets(
+  command: TraitCombatCommand,
+  context: TraitCommandExecutionContext,
+  scratch: EntityId[],
+  stats: TraitCommandExecutionStats,
+): void {
+  const anchor = selectTarget(
+    targetingPolicy(command.targeting),
+    {
+      originX: command.originX,
+      originY: command.originY,
+      range: Math.max(command.radius, DEFAULT_OPTIONS.defaultTargetRange),
+      moveDirX: context.moveDirX,
+      moveDirY: context.moveDirY,
+    },
+    context.enemies,
+    context.enemyGrid,
+    DEFAULT_OPTIONS.clusterRadius,
+  );
+  if (anchor === NO_ENTITY) return;
+  const anchorSlot = context.enemies.slotOf(anchor);
+  if (anchorSlot < 0) return;
+  const count = context.enemyGrid.queryRadius(
+    context.enemies.data.posX[anchorSlot]!,
+    context.enemies.data.posY[anchorSlot]!,
+    command.radius,
+    scratch,
+  );
+  let marked = 0;
+  for (let index = 0; index < count && marked < command.count; index++) {
+    const slot = context.enemies.slotOf(scratch[index]!);
+    if (slot < 0) continue;
+    context.enemies.data.marked[slot] = 1;
+    marked++;
+  }
+  stats.markedTargets += marked;
+}
+
 export function createTraitCommandExecutor(
   overrides: Partial<TraitCommandExecutorOptions> = {},
 ): TraitCommandExecutor {
@@ -851,6 +933,8 @@ export function createTraitCommandExecutor(
     enemiesGathered: 0,
     enemiesKnockedBack: 0,
     areaDamageHits: 0,
+    markTargetsCommands: 0,
+    markedTargets: 0,
     enemiesKilled: 0,
     telegraphs: 0,
     traitCues: 0,
@@ -887,7 +971,7 @@ export function createTraitCommandExecutor(
             break;
           case 'orbitingDamage':
             stats.orbitingDamageCommands++;
-            executeOrbitingDamage(command, context, scratch, chainVisited, stats);
+            executeOrbitingDamage(command, index, context, scratch, chainVisited, stats);
             break;
           case 'areaGather':
             stats.enemiesGathered += executeAreaMove(command, context, scratch, true);
@@ -904,6 +988,10 @@ export function createTraitCommandExecutor(
             break;
           case 'spawnZone':
             executeSpawnZone(command, context, options, stats);
+            break;
+          case 'markTargets':
+            stats.markTargetsCommands++;
+            executeMarkTargets(command, context, scratch, stats);
             break;
           case 'chainDamage':
             stats.chainDamageCommands++;

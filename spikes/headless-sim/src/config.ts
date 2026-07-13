@@ -5,10 +5,9 @@
 import type { EnemyArchetype, WaveSegment } from './types.js';
 import { createHashWriter } from './state-hash.js';
 
-// Version 9 adds bounded, hashed persistent damage zones and their per-enemy
-// overlap guard for Gecko/Razorstep. Old records must reject rather than
-// silently diverge.
-export const CONFIG_VERSION = 9;
+// Version 10 removes the unintended default basic-attack pierce. Old records
+// must reject rather than silently replay with different projectile behavior.
+export const CONFIG_VERSION = 10;
 
 export interface WeaponConfig {
   /** Ticks between automatic shots. */
@@ -70,6 +69,44 @@ export interface EnemyBehaviorConfig {
   spitterFireIntervalTicks: number;
   /** Damage dealt by one spitter projectile. */
   spitterProjectileDamage: number;
+  /** Preferred spacing for The Final Threat outside its charge beat. */
+  bossPreferredRange: number;
+  /** Half-width of the boss's preferred spacing band. */
+  bossRangeBand: number;
+  /** Full deterministic boss attack cycle length. */
+  bossCycleTicks: number;
+  /** Wind-up duration before the boss lunge. */
+  bossChargeWindupTicks: number;
+  /** Active lunge duration after the wind-up. */
+  bossChargeDurationTicks: number;
+  /** Movement multiplier during the lunge. */
+  bossChargeSpeedMultiplier: number;
+  /** Cycle tick at which the radial hostile volley fires. */
+  bossVolleyTick: number;
+  /** Number of projectiles in the radial hostile volley. */
+  bossVolleyCount: number;
+  /** World-space speed of each boss volley projectile. */
+  bossProjectileSpeed: number;
+  /** Damage dealt by each boss volley projectile. */
+  bossProjectileDamage: number;
+  /** Lifetime of each boss volley projectile. */
+  bossProjectileLifetimeTicks: number;
+  /** Collision radius of each boss volley projectile. */
+  bossProjectileHitRadius: number;
+  /** Preferred approach distance for flankers. */
+  flankerPreferredRange: number;
+  /** Tangential movement fraction used by flankers. */
+  flankerOrbitStrength: number;
+  /** Preferred spacing for support threats. */
+  supportPreferredRange: number;
+  /** Half-width of the support spacing band. */
+  supportRangeBand: number;
+  /** Ticks between support healing pulses. */
+  supportHealIntervalTicks: number;
+  /** Radius in which a support pulse restores enemy health. */
+  supportHealRadius: number;
+  /** Health restored to each enemy touched by a support pulse. */
+  supportHealAmount: number;
 }
 
 export interface SimConfig {
@@ -161,6 +198,29 @@ export function validateConfig(config: SimConfig): void {
   requireInteger('enemyBehavior.spitterInitialFireDelayTicks', behavior.spitterInitialFireDelayTicks, 0, 0xffff);
   requireInteger('enemyBehavior.spitterFireIntervalTicks', behavior.spitterFireIntervalTicks, 1, 0xffff);
   requireFinite('enemyBehavior.spitterProjectileDamage', behavior.spitterProjectileDamage, Number.MIN_VALUE);
+  requireFinite('enemyBehavior.bossPreferredRange', behavior.bossPreferredRange, Number.MIN_VALUE);
+  requireFinite('enemyBehavior.bossRangeBand', behavior.bossRangeBand, 0);
+  requireInteger('enemyBehavior.bossCycleTicks', behavior.bossCycleTicks, 1, 0xffff);
+  requireInteger('enemyBehavior.bossChargeWindupTicks', behavior.bossChargeWindupTicks, 1, 0xffff);
+  requireInteger('enemyBehavior.bossChargeDurationTicks', behavior.bossChargeDurationTicks, 1, 0xffff);
+  requireFinite('enemyBehavior.bossChargeSpeedMultiplier', behavior.bossChargeSpeedMultiplier, Number.MIN_VALUE);
+  requireInteger('enemyBehavior.bossVolleyTick', behavior.bossVolleyTick, 0, behavior.bossCycleTicks - 1);
+  requireInteger('enemyBehavior.bossVolleyCount', behavior.bossVolleyCount, 1, 32);
+  requireFinite('enemyBehavior.bossProjectileSpeed', behavior.bossProjectileSpeed, Number.MIN_VALUE);
+  requireFinite('enemyBehavior.bossProjectileDamage', behavior.bossProjectileDamage, Number.MIN_VALUE);
+  requireInteger('enemyBehavior.bossProjectileLifetimeTicks', behavior.bossProjectileLifetimeTicks, 1, 0xffff);
+  requireFinite('enemyBehavior.bossProjectileHitRadius', behavior.bossProjectileHitRadius, 0);
+  if (behavior.bossChargeWindupTicks + behavior.bossChargeDurationTicks >= behavior.bossVolleyTick) {
+    throw new RangeError('boss charge must resolve before boss volley tick');
+  }
+  requireFinite('enemyBehavior.flankerPreferredRange', behavior.flankerPreferredRange, Number.MIN_VALUE);
+  requireFinite('enemyBehavior.flankerOrbitStrength', behavior.flankerOrbitStrength, 0);
+  if (behavior.flankerOrbitStrength > 1) throw new RangeError('flankerOrbitStrength must be <= 1');
+  requireFinite('enemyBehavior.supportPreferredRange', behavior.supportPreferredRange, Number.MIN_VALUE);
+  requireFinite('enemyBehavior.supportRangeBand', behavior.supportRangeBand, 0);
+  requireInteger('enemyBehavior.supportHealIntervalTicks', behavior.supportHealIntervalTicks, 1, 0xffff);
+  requireFinite('enemyBehavior.supportHealRadius', behavior.supportHealRadius, 0);
+  requireFinite('enemyBehavior.supportHealAmount', behavior.supportHealAmount, Number.MIN_VALUE);
 
   const weapon = config.weapon;
   requireInteger('weapon.cooldownTicks', weapon.cooldownTicks, 1, 0xffff);
@@ -249,6 +309,25 @@ export function fingerprintConfig(config: SimConfig): string {
   w.u32(behavior.spitterInitialFireDelayTicks);
   w.u32(behavior.spitterFireIntervalTicks);
   w.f64(behavior.spitterProjectileDamage);
+  w.f64(behavior.bossPreferredRange);
+  w.f64(behavior.bossRangeBand);
+  w.u32(behavior.bossCycleTicks);
+  w.u32(behavior.bossChargeWindupTicks);
+  w.u32(behavior.bossChargeDurationTicks);
+  w.f64(behavior.bossChargeSpeedMultiplier);
+  w.u32(behavior.bossVolleyTick);
+  w.u32(behavior.bossVolleyCount);
+  w.f64(behavior.bossProjectileSpeed);
+  w.f64(behavior.bossProjectileDamage);
+  w.u32(behavior.bossProjectileLifetimeTicks);
+  w.f64(behavior.bossProjectileHitRadius);
+  w.f64(behavior.flankerPreferredRange);
+  w.f64(behavior.flankerOrbitStrength);
+  w.f64(behavior.supportPreferredRange);
+  w.f64(behavior.supportRangeBand);
+  w.u32(behavior.supportHealIntervalTicks);
+  w.f64(behavior.supportHealRadius);
+  w.f64(behavior.supportHealAmount);
 
   const weapon = config.weapon;
   w.u32(weapon.cooldownTicks); w.f64(weapon.range); w.f64(weapon.projectileSpeed);
@@ -278,6 +357,10 @@ export const DEFAULT_ARCHETYPES: readonly EnemyArchetype[] = [
   { name: 'runner', hp: 12, speed: 95, radius: 5, touchDamage: 4, xpDrop: 1 },
   { name: 'brute', hp: 80, speed: 35, radius: 10, touchDamage: 12, xpDrop: 4 },
   { name: 'spitter', hp: 36, speed: 48, radius: 7, touchDamage: 6, xpDrop: 2 },
+  { name: 'charger', hp: 46, speed: 66, radius: 8, touchDamage: 9, xpDrop: 3 },
+  { name: 'denial', hp: 58, speed: 24, radius: 12, touchDamage: 8, xpDrop: 3 },
+  { name: 'flanker', hp: 28, speed: 84, radius: 7, touchDamage: 7, xpDrop: 2 },
+  { name: 'support', hp: 44, speed: 30, radius: 9, touchDamage: 4, xpDrop: 3 },
 ];
 
 export const DEFAULT_WAVES: readonly WaveSegment[] = [
@@ -285,14 +368,14 @@ export const DEFAULT_WAVES: readonly WaveSegment[] = [
     startTick: 0,
     endTick: 1800,
     spawnIntervalTicks: 30,
-    archetypeWeights: [8, 2, 0, 0],
+    archetypeWeights: [8, 2, 0, 0, 0, 0, 0, 0],
     maxAlive: 300,
   },
   {
     startTick: 1800,
     endTick: 4800,
     spawnIntervalTicks: 12,
-    archetypeWeights: [6, 3, 1, 0],
+    archetypeWeights: [6, 3, 1, 0, 0, 0, 0, 0],
     maxAlive: 700,
     elites: [{ tick: 3000, archetype: 2, hpMultiplier: 5 }],
   },
@@ -300,7 +383,7 @@ export const DEFAULT_WAVES: readonly WaveSegment[] = [
     startTick: 4800,
     endTick: 2147483647,
     spawnIntervalTicks: 6,
-    archetypeWeights: [5, 3, 2, 0],
+    archetypeWeights: [5, 3, 2, 0, 1, 0, 1, 0],
     maxAlive: 1000,
     elites: [
       { tick: 6000, archetype: 2, hpMultiplier: 8 },
@@ -345,6 +428,25 @@ export const DEFAULT_CONFIG: SimConfig = {
     spitterInitialFireDelayTicks: 90,
     spitterFireIntervalTicks: 180,
     spitterProjectileDamage: 6,
+    bossPreferredRange: 320,
+    bossRangeBand: 50,
+    bossCycleTicks: 360,
+    bossChargeWindupTicks: 36,
+    bossChargeDurationTicks: 42,
+    bossChargeSpeedMultiplier: 2.4,
+    bossVolleyTick: 180,
+    bossVolleyCount: 8,
+    bossProjectileSpeed: 220,
+    bossProjectileDamage: 10,
+    bossProjectileLifetimeTicks: 180,
+    bossProjectileHitRadius: 8,
+    flankerPreferredRange: 220,
+    flankerOrbitStrength: 0.84,
+    supportPreferredRange: 300,
+    supportRangeBand: 45,
+    supportHealIntervalTicks: 120,
+    supportHealRadius: 150,
+    supportHealAmount: 8,
   },
   weapon: {
     cooldownTicks: 20,
@@ -353,7 +455,9 @@ export const DEFAULT_CONFIG: SimConfig = {
     damage: 10,
     lifetimeTicks: 90,
     hitRadius: 6,
-    pierce: 1,
+    // Basic Auto-Fire is single-target. Quills and future starter upgrades own
+    // their pierce explicitly; it must not leak from the global default.
+    pierce: 0,
     clusterRadius: 60,
   },
   archetypes: DEFAULT_ARCHETYPES,

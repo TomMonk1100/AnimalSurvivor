@@ -1,4 +1,5 @@
-import type { RunPhaseView } from '@sim';
+import type { BiomeId, RunPhaseView } from '@sim';
+import { getBiomePresentationCopy } from './biome-copy';
 
 export interface RunProgress {
   /** Compact, persistent status intended for the player HUD. */
@@ -11,6 +12,7 @@ export interface RunProgressInput {
   readonly tick: number;
   readonly hz: number;
   readonly phase: RunPhaseView | null;
+  readonly biomeId?: BiomeId;
 }
 
 interface PhaseCopy {
@@ -63,7 +65,12 @@ export function formatRunElapsed(tick: number, hz: number): string {
  * It intentionally does not predict waves, timing, or outcomes.
  */
 export function presentRunProgress(input: RunProgressInput): RunProgress {
-  const copy = input.phase === null ? PREPARING : PHASE_COPY[input.phase];
+  const biomeCopy = getBiomePresentationCopy(input.biomeId);
+  const baseCopy = input.phase === null ? PREPARING : PHASE_COPY[input.phase];
+  const copy = {
+    label: input.phase === 'boss' ? biomeCopy.bossName : baseCopy.label,
+    objective: baseCopy.objective.replace('Final Threat', biomeCopy.bossName.slice(4)),
+  };
   return {
     status: `RUN ${formatRunElapsed(input.tick, input.hz)} · ${copy.label.toUpperCase()}`,
     objective: copy.objective,

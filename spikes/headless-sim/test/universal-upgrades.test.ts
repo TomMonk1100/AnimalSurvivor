@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   GROWTH,
+  HERO_BASIC_ATTACK_UPGRADES,
   RAPID_INSTINCT,
   SHARPENED_INSTINCT,
   STURDY_HIDE,
@@ -12,6 +13,7 @@ import {
   availableUniversalUpgradeOffers,
   createUniversalUpgradeState,
   fingerprintUniversalUpgradeCatalog,
+  getUniversalUpgradeCatalogForHero,
   resolveUniversalUpgradeStats,
   universalUpgradeRank,
   validateUniversalUpgradeCatalog,
@@ -119,6 +121,11 @@ test('projects concrete truthful stat effects from the six independent ranks', (
     weaponDamageMultiplier: 1.6,
     weaponCooldownMultiplier: 0.84,
     xpMultiplier: 0,
+    basicAttackDamageMultiplier: 1,
+    basicAttackCooldownMultiplier: 1,
+    basicAttackProjectileCountBonus: 0,
+    basicAttackPierceBonus: 0,
+    basicAttackRangeBonus: 0,
   });
   assert.ok(Math.abs(stats.xpMultiplier - 1.36) < 1e-12);
 });
@@ -144,6 +151,24 @@ test('catalog fingerprints include authored effect values and reject mismatched 
     () => validateUniversalUpgradeState(alteredCatalog, state),
     /catalog fingerprint mismatch/,
   );
+});
+
+test('selected hero catalog exposes only that hero mastery and projects its authored path', () => {
+  const catalog = getUniversalUpgradeCatalogForHero('greg');
+  assert.equal(catalog.at(-1)?.id, HERO_BASIC_ATTACK_UPGRADES[0]?.id);
+  assert.equal(catalog.some((definition) => definition.id === HERO_BASIC_ATTACK_UPGRADES[1]?.id), false);
+  let state = createUniversalUpgradeState(catalog);
+  for (let rank = 0; rank < 3; rank++) {
+    const result = applyUniversalUpgrade(catalog, state, 'basic-attack:greg-precision');
+    assert.equal(result.ok, true);
+    if (!result.ok) throw new Error('expected Greg mastery to remain applicable');
+    state = result.state;
+  }
+  const stats = resolveUniversalUpgradeStats(catalog, state);
+  assert.equal(stats.basicAttackDamageMultiplier, 1.3);
+  assert.equal(stats.basicAttackCooldownMultiplier, 0.88);
+  assert.equal(stats.basicAttackPierceBonus, 1);
+  assert.equal(stats.basicAttackProjectileCountBonus, 0);
 });
 
 test('validates rank state before projection instead of silently accepting malformed saves', () => {
