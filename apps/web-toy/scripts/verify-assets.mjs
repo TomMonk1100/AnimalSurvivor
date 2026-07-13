@@ -32,6 +32,10 @@ const enemySprites = [
 const vfxAtlases = [
   { relativePath: 'ui/vfx/wildguard-signature-frames-v2.png', width: 768, height: 768, maxBytes: 600_000 },
   { relativePath: 'ui/vfx/wildguard-world-frames-v2.png', width: 768, height: 768, maxBytes: 550_000 },
+  { relativePath: 'ui/vfx/wildguard-fields-frames-v3.png', width: 768, height: 768, maxBytes: 450_000 },
+  { relativePath: 'ui/vfx/wildguard-melee-frames-v3.png', width: 768, height: 768, maxBytes: 450_000 },
+  { relativePath: 'ui/vfx/wildguard-projectile-frames-v3.png', width: 768, height: 768, maxBytes: 400_000 },
+  { relativePath: 'ui/vfx/wildguard-aura-frames-v3.png', width: 768, height: 768, maxBytes: 250_000 },
 ];
 const foxPath = 'vendor/quaternius/ultimate_animated_animals/Fox.gltf';
 const gladeFiles = [
@@ -82,10 +86,10 @@ const MAX_KEY_ART_BYTES = 600_000;
 const MAX_TERRAIN_BYTES = 800_000;
 const MAX_FOX_BYTES = 4_000_000;
 const MAX_GLADE_BYTES = 1_250_000;
-// The launch visual pass adds one compressed clearing plate, two transparent
-// playable-hero sprites, four enemy sprites, and a curated CC0 glTF prop set.
-// The full authored runtime payload remains bounded below 17 MB.
-const MAX_RUNTIME_ASSET_BYTES = 17_000_000;
+// The completed VFX pass adds four compact 768px alpha atlases to replace
+// procedural placeholder geometry across every player attack family. The
+// full authored runtime payload remains bounded below 19 MB.
+const MAX_RUNTIME_ASSET_BYTES = 19_000_000;
 
 function fail(message) {
   throw new Error(`[verify-assets] ${message}`);

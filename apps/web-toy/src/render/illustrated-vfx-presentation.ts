@@ -7,8 +7,13 @@
  * simulation ticks, and never mutates a combat, pickup, or hero state.
  */
 import * as pc from 'playcanvas';
-import type { TraitPresentationEventView } from '@sim';
+import type { TraitPresentationEventView, TraitVisualAttachmentView } from '@sim';
 import type { CombatPresentationEventView } from '../presentation/combat-presentation-events';
+import {
+  DEFAULT_ILLUSTRATED_VFX_RANK_PROFILE,
+  illustratedVfxRankProfileForSource,
+  type IllustratedVfxRankProfile,
+} from './illustrated-vfx-rank-profile';
 import {
   WILDGUARD_VFX_CLIP,
   type WildguardVfxClip,
@@ -25,6 +30,7 @@ export const DEFAULT_ILLUSTRATED_VFX_PRESENTATION_CAPACITY = 40;
 export type IllustratedTraitVfxEvent = Pick<
   TraitPresentationEventView,
   'kind' | 'sourceId' | 'tag' | 'meleeArcResolved'
+  | 'resolvedHitCount' | 'resolvedHitX' | 'resolvedHitY'
 >;
 
 /** A similarly narrow, read-only outcome view for the impact routing policy. */
@@ -64,7 +70,92 @@ export function illustratedVfxClipForTraitEvent(event: IllustratedTraitVfxEvent)
     event.kind === 'playTraitCue'
     && (is('armor-block') || is('fox-dodge'))
   ) return WILDGUARD_VFX_CLIP.shieldRecharge;
-  return null;
+
+  // The remaining routes are intentionally source-aware. A command kind by
+  // itself is never enough to borrow a player trait's artwork: that would let
+  // a hostile or an unowned future command masquerade as a player upgrade.
+  switch (event.kind) {
+    case 'telegraph':
+      // Gracie's Scout is a non-damaging targeting pulse, but it still earns
+      // a true animated information read instead of a raw procedural eye.
+      // Midnight's cyan radar language is intentionally reused here because
+      // both effects expose priority targets without claiming a damage hit.
+      if (event.sourceId === 'gracie-scout' && event.tag === 'gracie-scout') {
+        return WILDGUARD_VFX_CLIP.midnightRadar;
+      }
+      if (event.sourceId === 'thornstorm-mantle' && event.tag === 'thornstorm-inhale') {
+        return WILDGUARD_VFX_CLIP.thornstorm;
+      }
+      if (event.sourceId === 'thunderbug-dynamo' && event.tag === 'thunderbug-charge') {
+        return WILDGUARD_VFX_CLIP.thunderbug;
+      }
+      return null;
+    case 'spawnProjectileBurst':
+      if (event.sourceId === 'porcupine-quills') return WILDGUARD_VFX_CLIP.quillVolley;
+      if (event.sourceId === 'owl-pinions') return WILDGUARD_VFX_CLIP.owlPinions;
+      return null;
+    case 'radialProjectileBurst':
+      return event.sourceId === 'thornstorm-mantle' ? WILDGUARD_VFX_CLIP.thornstorm : null;
+    case 'areaGather':
+      if (event.sourceId === 'puffer-pouch') return WILDGUARD_VFX_CLIP.pufferPulse;
+      return event.sourceId === 'thornstorm-mantle' ? WILDGUARD_VFX_CLIP.thornstorm : null;
+    case 'areaKnockback':
+      if (event.sourceId === 'puffer-pouch') return WILDGUARD_VFX_CLIP.pufferPulse;
+      if (event.sourceId === 'armadillo-greaves') return WILDGUARD_VFX_CLIP.armadilloRoll;
+      // Benny's brace is a player-owned defensive burst. It intentionally
+      // reuses his established earth signature instead of a generic ring.
+      return event.tag === 'benny-brace' ? WILDGUARD_VFX_CLIP.earthWave : null;
+    case 'applyAreaDamage':
+      if (event.sourceId === 'crab-pincers') return WILDGUARD_VFX_CLIP.crabCrush;
+      return event.sourceId === 'meteor-mauler' ? WILDGUARD_VFX_CLIP.meteorImpact : null;
+    case 'meleeArc':
+      if (event.meleeArcResolved !== true) return null;
+      return event.sourceId === 'mantis-scythes' ? WILDGUARD_VFX_CLIP.mantisSweep : null;
+    case 'spawnZone':
+      if (event.sourceId === 'royal-stinkcloud' && event.tag === 'royal-stink') {
+        return WILDGUARD_VFX_CLIP.royalStink;
+      }
+      if (event.sourceId === 'skunk-brush' && event.tag === 'stink-cloud') {
+        return WILDGUARD_VFX_CLIP.skunkCloud;
+      }
+      if (
+        event.sourceId === 'gecko-pads'
+        && event.tag === 'gecko-pad'
+      ) return WILDGUARD_VFX_CLIP.geckoPad;
+      if (
+        event.sourceId === 'razorstep-chimera'
+        && event.tag === 'razorstep-scythe-pad'
+      ) return WILDGUARD_VFX_CLIP.geckoPad;
+      return null;
+    case 'orbitingDamage':
+      if (event.sourceId === 'firefly-colony') return WILDGUARD_VFX_CLIP.fireflyOrbit;
+      return event.sourceId === 'monarch-brood' ? WILDGUARD_VFX_CLIP.monarchOrbit : null;
+    case 'chainDamage':
+      // Electric Eel Coil and its Thunderbug evolution share the authored
+      // lightning language, but its illustrated contact card can only exist
+      // after the executor exposes an actual struck endpoint. Otherwise it
+      // would falsely imply a hit from a targetless chain command.
+      return hasResolvedIllustratedChainEndpoint(event)
+        && (event.sourceId === 'electric-eel-coil' || event.sourceId === 'thunderbug-dynamo')
+        ? WILDGUARD_VFX_CLIP.thunderbug
+        : null;
+    case 'markTargets':
+      if (event.sourceId === 'bat-ears' && event.tag === 'echo-mark') return WILDGUARD_VFX_CLIP.batSonar;
+      return event.sourceId === 'midnight-radar' && event.tag === 'night-vision'
+        ? WILDGUARD_VFX_CLIP.midnightRadar
+        : null;
+    default:
+      return null;
+  }
+}
+
+function hasResolvedIllustratedChainEndpoint(event: IllustratedTraitVfxEvent): boolean {
+  const count = Math.floor(Number.isFinite(event.resolvedHitCount) ? event.resolvedHitCount : 0);
+  return count > 0
+    && event.resolvedHitX.length > 0
+    && event.resolvedHitY.length > 0
+    && Number.isFinite(event.resolvedHitX[0])
+    && Number.isFinite(event.resolvedHitY[0]);
 }
 
 /**
@@ -105,6 +196,7 @@ export interface IllustratedVfxPresentation {
     currentTick: number,
     traitEvents: readonly TraitPresentationEventView[],
     combatEvents: readonly CombatPresentationEventView[],
+    traitVisualState?: readonly TraitVisualAttachmentView[],
   ): void;
   /** Clears all renderer-owned cards; call at a run/replay boundary. */
   reset(): void;
@@ -126,11 +218,15 @@ interface IllustratedVfxSlot {
   radius: number;
   yawDegrees: number;
   seed: number;
+  /** Snapshot-derived presentation only; never feeds a combat command back. */
+  rankProfile: IllustratedVfxRankProfile;
 }
 
 const MIN_CAPACITY = 1;
 const MAX_CAPACITY = 96;
 const HEIGHT = 1.56;
+/** One Master flourish per source every 0.75 seconds keeps dense fights clean. */
+const MASTER_ACCENT_MIN_INTERVAL_TICKS = 45;
 
 function finite(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
@@ -175,6 +271,22 @@ function lifetimeForClip(clip: WildguardVfxClip): number {
     case WILDGUARD_VFX_CLIP.xpCollect: return 8;
     case WILDGUARD_VFX_CLIP.hostileThorn: return 12;
     case WILDGUARD_VFX_CLIP.masterXp: return 12;
+    case WILDGUARD_VFX_CLIP.pufferPulse: return 18;
+    case WILDGUARD_VFX_CLIP.geckoPad: return 18;
+    case WILDGUARD_VFX_CLIP.skunkCloud: return 28;
+    case WILDGUARD_VFX_CLIP.royalStink: return 34;
+    case WILDGUARD_VFX_CLIP.mantisSweep: return 9;
+    case WILDGUARD_VFX_CLIP.crabCrush: return 13;
+    case WILDGUARD_VFX_CLIP.armadilloRoll: return 16;
+    case WILDGUARD_VFX_CLIP.meteorImpact: return 18;
+    case WILDGUARD_VFX_CLIP.quillVolley: return 8;
+    case WILDGUARD_VFX_CLIP.owlPinions: return 14;
+    case WILDGUARD_VFX_CLIP.thornstorm: return 24;
+    case WILDGUARD_VFX_CLIP.thunderbug: return 20;
+    case WILDGUARD_VFX_CLIP.fireflyOrbit: return 30;
+    case WILDGUARD_VFX_CLIP.monarchOrbit: return 30;
+    case WILDGUARD_VFX_CLIP.batSonar: return 24;
+    case WILDGUARD_VFX_CLIP.midnightRadar: return 28;
   }
 }
 
@@ -183,6 +295,9 @@ function priorityForClip(clip: WildguardVfxClip): number {
     case WILDGUARD_VFX_CLIP.foxSwipe:
     case WILDGUARD_VFX_CLIP.earthWave:
     case WILDGUARD_VFX_CLIP.spitComet:
+    case WILDGUARD_VFX_CLIP.thornstorm:
+    case WILDGUARD_VFX_CLIP.thunderbug:
+    case WILDGUARD_VFX_CLIP.meteorImpact:
       return 4;
     case WILDGUARD_VFX_CLIP.fluffyShield:
     case WILDGUARD_VFX_CLIP.shieldRecharge:
@@ -191,6 +306,13 @@ function priorityForClip(clip: WildguardVfxClip): number {
     case WILDGUARD_VFX_CLIP.bomb:
     case WILDGUARD_VFX_CLIP.magnet:
     case WILDGUARD_VFX_CLIP.food:
+    case WILDGUARD_VFX_CLIP.royalStink:
+    case WILDGUARD_VFX_CLIP.mantisSweep:
+    case WILDGUARD_VFX_CLIP.crabCrush:
+    case WILDGUARD_VFX_CLIP.armadilloRoll:
+    case WILDGUARD_VFX_CLIP.owlPinions:
+    case WILDGUARD_VFX_CLIP.monarchOrbit:
+    case WILDGUARD_VFX_CLIP.midnightRadar:
       return 3;
     case WILDGUARD_VFX_CLIP.normalImpact:
       return 1;
@@ -212,6 +334,38 @@ function radiusForTrait(event: TraitPresentationEventView, clip: WildguardVfxCli
       return clamp(16 + Math.sqrt(Math.max(0, finite(event.strength, 1))) * 3.6, 20, 38);
     case WILDGUARD_VFX_CLIP.shieldRecharge:
       return clamp(12 + Math.sqrt(Math.max(0, finite(event.strength, 1))) * 2.4, 16, 30);
+    case WILDGUARD_VFX_CLIP.pufferPulse:
+      return clamp(positive(authoredRadius, 90), 34, 154);
+    case WILDGUARD_VFX_CLIP.geckoPad:
+      return clamp(positive(authoredRadius, 38), 16, 78);
+    case WILDGUARD_VFX_CLIP.skunkCloud:
+      return clamp(positive(authoredRadius, 70), 30, 136);
+    case WILDGUARD_VFX_CLIP.royalStink:
+      return clamp(positive(authoredRadius, 110), 48, 168);
+    case WILDGUARD_VFX_CLIP.mantisSweep:
+      return clamp(positive(authoredRadius, 68), 26, 96);
+    case WILDGUARD_VFX_CLIP.crabCrush:
+      return clamp(positive(authoredRadius, 50), 20, 88);
+    case WILDGUARD_VFX_CLIP.armadilloRoll:
+      return clamp(positive(authoredRadius, 70), 28, 114);
+    case WILDGUARD_VFX_CLIP.meteorImpact:
+      return clamp(positive(authoredRadius, 100), 42, 164);
+    case WILDGUARD_VFX_CLIP.quillVolley:
+      return clamp(positive(authoredRadius, 18), 11, 34);
+    case WILDGUARD_VFX_CLIP.owlPinions:
+      return clamp(positive(authoredRadius, 42), 22, 72);
+    case WILDGUARD_VFX_CLIP.thornstorm:
+      return clamp(positive(authoredRadius, 140), 64, 190);
+    case WILDGUARD_VFX_CLIP.thunderbug:
+      return clamp(positive(authoredRadius, 150), 56, 205);
+    case WILDGUARD_VFX_CLIP.fireflyOrbit:
+      return clamp(positive(authoredRadius, 50), 28, 88);
+    case WILDGUARD_VFX_CLIP.monarchOrbit:
+      return clamp(positive(authoredRadius, 72), 42, 110);
+    case WILDGUARD_VFX_CLIP.batSonar:
+      return clamp(positive(authoredRadius, 200), 80, 290);
+    case WILDGUARD_VFX_CLIP.midnightRadar:
+      return clamp(positive(authoredRadius, 320), 130, 390);
     default:
       return clamp(positive(authoredRadius, 18), 10, 44);
   }
@@ -250,6 +404,23 @@ function seededAngleDegrees(seed: number): number {
 function resetSlot(slot: IllustratedVfxSlot): void {
   slot.active = false;
   slot.entity.enabled = false;
+}
+
+/**
+ * Master accents deliberately attach only to resolved non-projectile, non-zone
+ * casts. They are a read of the existing renderer snapshot, not a new combat
+ * event, hit, area, or traversal path.
+ */
+function masterAccentEligible(event: TraitPresentationEventView): boolean {
+  switch (event.kind) {
+    case 'meleeArc':
+    case 'areaGather':
+    case 'areaKnockback':
+    case 'applyAreaDamage':
+      return true;
+    default:
+      return false;
+  }
 }
 
 /**
@@ -301,6 +472,7 @@ export function createIllustratedVfxPresentation(
       radius: 1,
       yawDegrees: 0,
       seed: index,
+      rankProfile: DEFAULT_ILLUSTRATED_VFX_RANK_PROFILE,
     });
   }
 
@@ -308,6 +480,7 @@ export function createIllustratedVfxPresentation(
   let liveSlots = 0;
   let highWaterSlots = 0;
   let lastTick = -1;
+  const lastMasterAccentTickBySource = new Map<string, number>();
 
   function selectSlot(priority: number): IllustratedVfxSlot | null {
     for (const slot of slots) {
@@ -336,9 +509,13 @@ export function createIllustratedVfxPresentation(
     seed: number,
     currentTick: number,
     fallbackFacing = 0,
+    rankProfile: IllustratedVfxRankProfile = DEFAULT_ILLUSTRATED_VFX_RANK_PROFILE,
   ): void {
     const tick = normalizedTick(eventTick);
-    const lifetime = lifetimeForClip(clip);
+    const lifetime = Math.max(
+      1,
+      Math.round(lifetimeForClip(clip) * rankProfile.lifetimeMultiplier),
+    );
     if (tick + lifetime <= currentTick) return;
     const priority = priorityForClip(clip);
     const slot = selectSlot(priority);
@@ -358,25 +535,62 @@ export function createIllustratedVfxPresentation(
     slot.radius = Math.max(1, finite(radius, 18));
     slot.yawDegrees = yawFromDirection(slot.dirX, slot.dirY, fallbackFacing);
     slot.seed = Math.floor(finite(seed, tick));
+    slot.rankProfile = rankProfile;
   }
 
-  function startTraitEvents(events: readonly TraitPresentationEventView[], currentTick: number): void {
+  function startTraitEvents(
+    events: readonly TraitPresentationEventView[],
+    currentTick: number,
+    traitVisualState: readonly TraitVisualAttachmentView[],
+  ): void {
     for (let index = 0; index < events.length; index++) {
       const event = events[index]!;
       const clip = illustratedVfxClipForTraitEvent(event);
       if (clip === null) continue;
+      const rankProfile = illustratedVfxRankProfileForSource(traitVisualState, event.sourceId);
+      const radius = radiusForTrait(event, clip);
+      // A chain card is a resolved contact marker, not a decorative bolt
+      // travelling from the command's origin. The routing guard above proves
+      // the first endpoint exists, so use that exact copied victim position.
+      const isResolvedChain = event.kind === 'chainDamage';
+      const x = isResolvedChain ? event.resolvedHitX[0]! : event.originX;
+      const y = isResolvedChain ? event.resolvedHitY[0]! : event.originY;
       start(
         clip,
         event.tick,
-        event.originX,
-        event.originY,
+        x,
+        y,
         event.dirX,
         event.dirY,
-        radiusForTrait(event, clip),
+        radius,
         event.tick * 31 + index * 17,
         currentTick,
         event.facing,
+        rankProfile,
       );
+
+      const lastAccentTick = lastMasterAccentTickBySource.get(event.sourceId);
+      if (
+        rankProfile.showMasterAccent
+        && masterAccentEligible(event)
+        && (lastAccentTick === undefined || event.tick - lastAccentTick >= MASTER_ACCENT_MIN_INTERVAL_TICKS)
+      ) {
+        // Existing critical art gives Master one unmistakable but compact read.
+        // The eligibility gate above keeps this outside projectile and zone paths.
+        start(
+          WILDGUARD_VFX_CLIP.criticalImpact,
+          event.tick,
+          event.originX,
+          event.originY,
+          event.dirX,
+          event.dirY,
+          clamp(radius * 0.26, 10, 24),
+          event.tick * 71 + index * 19,
+          currentTick,
+          event.facing,
+        );
+        lastMasterAccentTickBySource.set(event.sourceId, event.tick);
+      }
     }
   }
 
@@ -495,12 +709,149 @@ export function createIllustratedVfxPresentation(
         height += 0.3 + progress * 0.18;
         opacity = 0.92 * (1 - progress * 0.46);
         break;
+      case WILDGUARD_VFX_CLIP.pufferPulse:
+        scaleX = slot.radius * (0.34 + progress * 0.86);
+        scaleZ = scaleX;
+        yaw += progress * 24;
+        height = 0.38;
+        opacity = 0.84 * (1 - progress * 0.38);
+        break;
+      case WILDGUARD_VFX_CLIP.geckoPad:
+        scaleX = slot.radius * (0.68 + pulse * 0.24);
+        scaleZ = scaleX;
+        yaw += progress * 18;
+        height = 0.32;
+        opacity = 0.82 * (1 - progress * 0.44);
+        break;
+      case WILDGUARD_VFX_CLIP.skunkCloud:
+        scaleX = slot.radius * (0.48 + progress * 0.5);
+        scaleZ = scaleX;
+        yaw -= progress * 26;
+        height = 0.44 + progress * 0.08;
+        opacity = 0.72 * (1 - progress * 0.3);
+        break;
+      case WILDGUARD_VFX_CLIP.royalStink:
+        scaleX = slot.radius * (0.42 + progress * 0.64);
+        scaleZ = scaleX;
+        yaw += progress * 34;
+        height = 0.5 + progress * 0.1;
+        opacity = 0.88 * (1 - progress * 0.24);
+        break;
+      case WILDGUARD_VFX_CLIP.mantisSweep: {
+        const travel = slot.radius * (0.1 + progress * 0.34);
+        x += slot.dirX * travel;
+        y += slot.dirY * travel;
+        scaleX = slot.radius * (0.74 + pulse * 0.28);
+        scaleZ = scaleX;
+        height += 0.2;
+        break;
+      }
+      case WILDGUARD_VFX_CLIP.crabCrush:
+        scaleX = slot.radius * (0.36 + pulse * 0.72);
+        scaleZ = scaleX;
+        yaw += seededAngleDegrees(slot.seed) + progress * 20;
+        height += 0.16;
+        opacity = 0.94 * (1 - progress * 0.64);
+        break;
+      case WILDGUARD_VFX_CLIP.armadilloRoll: {
+        const travel = slot.radius * (0.08 + progress * 0.38);
+        x += slot.dirX * travel;
+        y += slot.dirY * travel;
+        scaleX = slot.radius * (0.78 + pulse * 0.24);
+        scaleZ = slot.radius * (0.56 + pulse * 0.18);
+        yaw += progress * 72;
+        height += 0.14;
+        break;
+      }
+      case WILDGUARD_VFX_CLIP.meteorImpact:
+        scaleX = slot.radius * (0.24 + pulse * 0.88);
+        scaleZ = scaleX;
+        yaw += seededAngleDegrees(slot.seed) - progress * 28;
+        height += 0.3;
+        opacity = 1 - progress * 0.7;
+        break;
+      case WILDGUARD_VFX_CLIP.quillVolley: {
+        const travel = slot.radius * (0.18 + progress * 0.92);
+        x += slot.dirX * travel;
+        y += slot.dirY * travel;
+        scaleX = slot.radius * (0.72 + pulse * 0.16);
+        scaleZ = slot.radius * (1.16 + progress * 0.24);
+        height += 0.16;
+        break;
+      }
+      case WILDGUARD_VFX_CLIP.owlPinions: {
+        const travel = slot.radius * (0.12 + progress * 0.72);
+        x += slot.dirX * travel;
+        y += slot.dirY * travel;
+        scaleX = slot.radius * (1.18 + pulse * 0.28);
+        scaleZ = slot.radius * (0.72 + pulse * 0.16);
+        height += 0.2;
+        break;
+      }
+      case WILDGUARD_VFX_CLIP.thornstorm:
+        scaleX = slot.radius * (0.3 + pulse * 0.84);
+        scaleZ = scaleX;
+        yaw += progress * 58;
+        height += 0.18;
+        opacity = 0.96 * (1 - progress * 0.48);
+        break;
+      case WILDGUARD_VFX_CLIP.thunderbug:
+        scaleX = slot.radius * (0.34 + pulse * 0.7);
+        scaleZ = scaleX;
+        yaw += seededAngleDegrees(slot.seed) - progress * 46;
+        height += 0.26;
+        opacity = 0.98 * (1 - progress * 0.48);
+        break;
+      case WILDGUARD_VFX_CLIP.fireflyOrbit: {
+        const angle = seededAngleDegrees(slot.seed) * Math.PI / 180 + progress * Math.PI * 2;
+        const orbitRadius = slot.radius * 0.34;
+        x += Math.cos(angle) * orbitRadius;
+        y += Math.sin(angle) * orbitRadius;
+        scaleX = slot.radius * 0.42;
+        scaleZ = scaleX;
+        yaw += progress * 48;
+        height += 0.24;
+        opacity = 0.84 * (1 - progress * 0.34);
+        break;
+      }
+      case WILDGUARD_VFX_CLIP.monarchOrbit: {
+        const angle = seededAngleDegrees(slot.seed) * Math.PI / 180 - progress * Math.PI * 1.5;
+        const orbitRadius = slot.radius * 0.3;
+        x += Math.cos(angle) * orbitRadius;
+        y += Math.sin(angle) * orbitRadius;
+        scaleX = slot.radius * 0.48;
+        scaleZ = scaleX;
+        yaw -= progress * 36;
+        height += 0.28;
+        opacity = 0.9 * (1 - progress * 0.3);
+        break;
+      }
+      case WILDGUARD_VFX_CLIP.batSonar:
+        scaleX = slot.radius * (0.12 + progress * 0.94);
+        scaleZ = scaleX;
+        yaw -= progress * 14;
+        height = 0.44;
+        opacity = 0.76 * (1 - progress * 0.62);
+        break;
+      case WILDGUARD_VFX_CLIP.midnightRadar:
+        scaleX = slot.radius * (0.1 + progress * 0.96);
+        scaleZ = scaleX;
+        yaw += progress * 20;
+        height = 0.48;
+        opacity = 0.88 * (1 - progress * 0.58);
+        break;
       default:
         scaleX = slot.radius * (0.74 + pulse * 0.28);
         scaleZ = scaleX;
         break;
     }
 
+    // This is the only rank treatment applied to a live card. Duration already
+    // drives the motion curve above, so R1–R5 read as a deliberately paced,
+    // bounded escalation rather than a second gameplay effect.
+    scaleX *= slot.rankProfile.scaleMultiplier;
+    scaleZ *= slot.rankProfile.scaleMultiplier;
+    opacity *= slot.rankProfile.opacityMultiplier;
     slot.meshInstance.material = materialBank.materialFor(slot.clip, Math.max(0, currentTick - slot.tick));
     slot.meshInstance.setParameter('material_opacity', clamp(opacity, 0, 1));
     slot.entity.setLocalPosition(x - worldHalfWidth, height, worldHalfHeight - y);
@@ -518,7 +869,7 @@ export function createIllustratedVfxPresentation(
     get highWaterSlots(): number {
       return highWaterSlots;
     },
-    update(currentTick, traitEvents, combatEvents): void {
+    update(currentTick, traitEvents, combatEvents, traitVisualState = []): void {
       if (disposed) return;
       const tick = normalizedTick(currentTick);
       // A replay seek or fresh run that moves backwards cannot retain an art
@@ -526,8 +877,9 @@ export function createIllustratedVfxPresentation(
       // respect to gameplay after this renderer-owned reset.
       if (lastTick >= 0 && tick < lastTick) {
         for (const slot of slots) resetSlot(slot);
+        lastMasterAccentTickBySource.clear();
       }
-      startTraitEvents(traitEvents, tick);
+      startTraitEvents(traitEvents, tick, traitVisualState);
       startCombatEvents(combatEvents, tick);
       let active = 0;
       for (const slot of slots) {
@@ -543,6 +895,7 @@ export function createIllustratedVfxPresentation(
       liveSlots = 0;
       highWaterSlots = 0;
       lastTick = -1;
+      lastMasterAccentTickBySource.clear();
     },
     dispose(): void {
       if (disposed) return;

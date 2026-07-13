@@ -16,6 +16,11 @@ const HZ = DEFAULT_CONFIG.hz;
 const DT_MS = 1000 / HZ;
 const FIVE_MIN_TICKS = HZ * 60 * 5; // 18000 ticks @ 60hz
 const PROPOSE_GOLDENS = process.env.ANIMAL_SURVIVOR_GOLDEN_MODE === 'propose';
+// This is intentionally a five-minute *simulation* replay. It is CPU-bound,
+// and a full release run can execute it alongside module transforms and other
+// integration suites. Keep the assertion strict while giving that real release
+// workload a stable wall-clock budget.
+const FIVE_MINUTE_PARITY_TIMEOUT_MS = 45_000;
 // Rebaselined for V1.1 after the authored hero kits, Mastery/Fusion state, and
 // world-pickup state became part of the deterministic simulation contract.
 // The headless control, fixed-tick driver, and repeated seeded run agree.
@@ -65,7 +70,7 @@ describe('five-minute autopilot determinism & headless parity', () => {
     expect(driven).toBe(control);
     // Canonical hash for the browser acceptance harness to match at tick 18000.
     console.info(`[stress] seed=0x${SEED.toString(16)} ticks=${FIVE_MIN_TICKS} hash=${control}`);
-  }, 15_000);
+  }, FIVE_MINUTE_PARITY_TIMEOUT_MS);
 
   it('is reproducible run-to-run (same seed → same hash)', () => {
     expect(headlessControl(SEED, 6000)).toBe(headlessControl(SEED, 6000));

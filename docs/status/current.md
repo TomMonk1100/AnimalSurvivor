@@ -1,6 +1,6 @@
 # Current Project Status
 
-**Updated:** 2026-07-13 — V1.1 visual-overhaul handoff added
+**Updated:** 2026-07-13 — attack-family visual overhaul approved by the final panel
 **Active milestone:** V1.1 feature-complete visual-overhaul candidate; owner playtest and balance evidence next
 **Project state:** Playtestable V1.1 candidate with deterministic implementation coverage and a renderer-only combat-language overhaul; fresh human retest remains open
 **Budget model:** AI subscription usage; no additional cash
@@ -30,6 +30,15 @@ particle engine or combat system.
   aftermath layers. Greg's claw/rake, Benny's earth fronts, and Gracie's
   comet-spit are materially different silhouettes; rank/count/strength scale
   the same read instead of flooding the screen with unrelated effects.
+- **Full attack-family coverage:** the renderer routes every current player
+  trait and Mythic command through an explicit animated VFX recipe: Puffer,
+  Gecko/Razorstep, Skunk/Royal Stinkcloud, Mantis, Crab, Armadillo, Meteor,
+  Quills, Owl, Thornstorm, Thunderbug/Eel, Firefly, Monarch, Bat, and Midnight.
+  Persistent Gecko, Razorstep, Skunk, and Royal zones now use alpha-cut
+  animated cards instead of raw colored planes. The remaining legacy geometry
+  is a quiet contact/area footprint, never the primary visual read. Founding
+  instincts route as well: Rush Rake uses the Fox combo art, Brace Bloom the
+  earth-wave language, and Scout the cyan radar pulse.
 - **Rewards:** XP is a tiered mint-and-gold reward field with deterministic
   bob/pulse/spin, distinct high-value prisms, and bounded comet choreography
   on collection. Bomb, Magnet, and Food retain unique silhouettes with their
@@ -42,7 +51,7 @@ particle engine or combat system.
   white-gold critical bursts, and coral player-danger flashes in addition to
   the optional white/yellow damage numbers.
 - **Cost boundary:** all high-volume layers are fixed-capacity GPU-instanced
-  batches. Two transparent 768px four-frame VFX sheets carry the primary
+  batches. Six transparent 768px four-frame VFX sheets carry the primary
   signature, reward, threat, and impact art; reduced quality removes halos and
   travel trails before core rewards, warnings, or hit markers. Simulation
   state, replay hashes, input, and combat outcomes remain untouched.
@@ -52,6 +61,18 @@ The precise sheet provenance and cleanup are recorded in
 Automated gates establish deterministic safety and bounded renderer behavior;
 a fresh owner pass is still the authority for whether the visual contrast feels
 right on the intended display.
+
+### Final visual-panel acceptance — 2026-07-13
+
+Three independent roles approved the player-attack finish after a fresh live
+review: technical integrity, panel chair, and art direction. Their acceptance
+required source-aware projectile art at live projectile positions, a resolved
+endpoint before chain art can appear, explicit R1–R5/Master escalation, and no
+raw Skunk/Royal colored-zone plane. The integrated build passed those checks:
+Fox Swipe, Owl Pinions, and Master Skunk read as separate animated families;
+the Skunk lane is one bounded alpha smoke field with a quiet fade rather than a
+stacked pink square. This records the panel decision, not a substitute for the
+owner's human playtest.
 
 ### Six delivered pillars
 

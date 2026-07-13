@@ -646,11 +646,12 @@ export function resolveTraitCommandVisualIntensity(
 }
 
 /**
- * The illustrated V2 cards are the primary read for the four hero signatures
- * below. Keep their existing procedural silhouettes as deliberately muted
- * timing/area cues instead of stacking two equally loud attack effects. The
- * multiplier never reaches zero: gameplay telegraphs remain readable if an
- * illustrated card is briefly off-screen or fades first.
+ * The illustrated cards are the primary read for every authored player attack
+ * below. Keep the legacy geometry only as a quiet timing / contact footprint;
+ * treating it as a second full-strength effect was the source of the visual
+ * pile-up in dense runs. Unknown commands and explicit enemy warnings retain
+ * their normal opacity, so this renderer-only choice cannot hide new combat
+ * information behind an assumed player-art route.
  */
 export function resolveIllustratedHeroUnderlayOpacityMultiplier(
   profile: TraitCommandEffectProfile,
@@ -658,13 +659,46 @@ export function resolveIllustratedHeroUnderlayOpacityMultiplier(
   switch (profile.material) {
     case 'greg-fox-swipe':
     case 'greg-rush-rake':
-      return 0.34;
+      return 0.12;
     case 'benny-trample-wave':
-      return 0.44;
+      return 0.14;
     case 'gracie-spit':
-      return 0.4;
+      return 0.12;
     case 'fluffy-shield':
-      return 0.48;
+      return 0.18;
+    case 'armor-block':
+    case 'fox-dodge':
+    case 'trait-cue':
+      return 0.16;
+    case 'quill-volley':
+    case 'owl-volley':
+    case 'melee-arc':
+    case 'crab-crush':
+    case 'meteor-impact':
+    case 'skunk-cloud':
+    case 'royal-stink-cloud':
+      return 0.12;
+    case 'puffer-blast':
+    case 'armadillo-roll':
+    case 'benny-brace':
+    case 'thornstorm-volley':
+    case 'thornstorm-telegraph':
+    case 'thunderbug-telegraph':
+    case 'orbiting-damage':
+    case 'monarch-brood-orbit':
+    case 'gather':
+    case 'gecko-zone-spawn':
+    case 'razorstep-zone-spawn':
+    case 'bat-ears-sonar':
+    case 'midnight-radar-sonar':
+    case 'gracie-scout':
+    case 'mark-pulse':
+      return 0.14;
+    // The line itself communicates the resolved chain endpoints. It stays
+    // legible, but it is deliberately subordinate to Thunderbug's animated
+    // primary card.
+    case 'chain-lightning':
+      return 0.36;
     default:
       return 1;
   }

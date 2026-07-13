@@ -62,7 +62,6 @@
 import * as pc from 'playcanvas';
 import type { BiomeId, SimConfig } from '@sim';
 import {
-  COMBAT_DAMAGE_SOURCE,
   DEFAULT_CONFIG,
   idSlot,
   POWER_PICKUP_KIND,
@@ -113,9 +112,17 @@ import {
   createCombatImpactPresentation,
 } from './combat-impact-presentation';
 import {
+  PERSISTENT_ZONE_PRIMARY_CAPACITY,
+  createPersistentZoneVisualPresentation,
+} from './persistent-zone-visual-presentation';
+import {
   createWildguardVfxMaterialBank,
 } from './wildguard-vfx-atlas';
 import { createIllustratedVfxPresentation } from './illustrated-vfx-presentation';
+import {
+  createProjectileVisualTruth,
+  PLAYER_PROJECTILE_VISUAL_FAMILY,
+} from './projectile-visual-truth';
 
 /** Backing-store size cap: CSS size * min(devicePixelRatio, RESOLUTION_CAP). */
 const RESOLUTION_CAP = 2;
@@ -144,7 +151,6 @@ const PICKUP_COLOR = new pc.Color(0.16, 1, 0.66); // cold mint, never grass gree
 const BOMB_PICKUP_COLOR = new pc.Color(1, 0.3, 0.1); // urgent ember-orange
 const MAGNET_PICKUP_COLOR = new pc.Color(0.4, 0.62, 1); // map-wide pull blue
 const FOOD_PICKUP_COLOR = new pc.Color(0.44, 1, 0.22); // bright restorative bloom
-const GECKO_PAD_COLOR = new pc.Color(0.24, 1, 0.58); // mint
 const HOSTILE_PROJECTILE_COLOR = new pc.Color(1, 0.22, 0.24); // hot coral-red
 /** Fixed role treatments: never a unique material or mesh per enemy. */
 const ELITE_ENEMY_COLOR = new pc.Color(1, 0.58, 0.12); // amber
@@ -154,9 +160,6 @@ const DENIAL_ENEMY_COLOR = new pc.Color(0.55, 0.35, 0.9); // dusk violet
 const FLANKER_ENEMY_COLOR = new pc.Color(1, 0.24, 0.5); // hot pink
 const SUPPORT_ENEMY_COLOR = new pc.Color(0.28, 0.95, 0.42); // healing green
 const MARKED_ENEMY_COLOR = new pc.Color(0.76, 0.3, 1); // Bat Ears weak-point halo
-const RAZORSTEP_ZONE_COLOR = new pc.Color(0.82, 1, 0.36); // lime scythe pad
-const STINK_CLOUD_ZONE_COLOR = new pc.Color(0.82, 0.32, 0.9); // violet hazard cloud
-const ROYAL_STINK_ZONE_COLOR = new pc.Color(1, 0.48, 0.18); // royal orange hazard
 const ELITE_SCALE_MULTIPLIER = 1.35;
 const BOSS_SCALE_MULTIPLIER = 2.2;
 const RANGED_SCALE_MULTIPLIER = 1.62;
@@ -300,16 +303,6 @@ function createShadowMaterial(): pc.StandardMaterial {
   material.emissive.set(0, 0, 0);
   material.opacity = 0.24;
   material.blendType = pc.BLEND_NORMAL;
-  material.depthWrite = false;
-  material.update();
-  return material;
-}
-
-/** Persistent pads read as translucent ground decals rather than solid mobs. */
-function createZoneMaterial(color: pc.Color): pc.StandardMaterial {
-  const material = createFlatMaterial(color);
-  material.opacity = 0.4;
-  material.blendType = pc.BLEND_ADDITIVEALPHA;
   material.depthWrite = false;
   material.update();
   return material;
@@ -483,8 +476,6 @@ export function createRenderer(
   const bombPickupMaterial = createFlatMaterial(BOMB_PICKUP_COLOR);
   const magnetPickupMaterial = createFlatMaterial(MAGNET_PICKUP_COLOR);
   const foodPickupMaterial = createFlatMaterial(FOOD_PICKUP_COLOR);
-  const zoneMaterial = createZoneMaterial(GECKO_PAD_COLOR);
-
   // Each art family keeps a small set of shared tint materials. The texture is
   // decoded only once per family, while role colors preserve the immediate
   // mechanical read that the old primitive batches provided.
@@ -500,9 +491,6 @@ export function createRenderer(
   const supportEnemyMaterial = createCutoutSpriteMaterial(SUPPORT_ENEMY_COLOR);
   const markedEnemyMaterial = createFlatMaterial(MARKED_ENEMY_COLOR);
   const hostileProjectileMaterial = createFlatMaterial(HOSTILE_PROJECTILE_COLOR);
-  const razorstepZoneMaterial = createZoneMaterial(RAZORSTEP_ZONE_COLOR);
-  const stinkCloudZoneMaterial = createZoneMaterial(STINK_CLOUD_ZONE_COLOR);
-  const royalStinkZoneMaterial = createZoneMaterial(ROYAL_STINK_ZONE_COLOR);
   const enemyShadowMaterial = createShadowMaterial();
   const playerMaterial = createCreatureMaterial(PLAYER_COLOR);
 
@@ -512,6 +500,12 @@ export function createRenderer(
   const wildguardVfxMaterialBank = createWildguardVfxMaterialBank(app.graphicsDevice);
   const playerProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('normalImpact');
   const spitProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('spitComet', 1);
+  // Trait projectile art is selected only after the renderer has tied a
+  // command to a real live projectile identity. Each family remains one
+  // shared flipbook material and one bounded instanced draw.
+  const quillProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('quillVolley');
+  const owlProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('owlPinions');
+  const thornProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('thornstorm');
   const criticalProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('criticalImpact');
   const xpAccentMaterial = wildguardVfxMaterialBank.materialForFrame('xpOrbit');
   const xpHaloMaterial = wildguardVfxMaterialBank.materialForFrame('xpCollect');
@@ -524,6 +518,16 @@ export function createRenderer(
   const bombCollectionMaterial = wildguardVfxMaterialBank.materialForFrame('bomb');
   const magnetCollectionMaterial = wildguardVfxMaterialBank.materialForFrame('magnet');
   const foodCollectionMaterial = wildguardVfxMaterialBank.materialForFrame('food');
+  // Persistent zones are alpha-cutout art, never a filled colored plane. The
+  // bank owns these materials, and `refreshAnimatedWorldArt` advances their
+  // finite frames once per semantic lane without making per-zone resources.
+  // Frame zero is Gecko's spawn leaf and frame three is its decay scatter.
+  // Persistent pads deliberately begin in the two readable living frames;
+  // refreshAnimatedWorldArt alternates those frames while the sim zone lives.
+  const geckoPadMaterial = wildguardVfxMaterialBank.materialForFrame('geckoPad', 1);
+  const razorstepPadMaterial = wildguardVfxMaterialBank.materialForFrame('geckoPad', 2);
+  const skunkCloudMaterial = wildguardVfxMaterialBank.materialForFrame('skunkCloud');
+  const royalStinkMaterial = wildguardVfxMaterialBank.materialForFrame('royalStink');
   const hostileProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('hostileThorn', 1);
   const hostileTrailAccentMaterial = wildguardVfxMaterialBank.materialForFrame('hostileThorn', 2);
   // Painted hostile thorns identify the threat while flat, palette-specific
@@ -662,14 +666,6 @@ export function createRenderer(
     app.graphicsDevice,
     new pc.ConeGeometry({ baseRadius: 0.5, height: 0.04, heightSegments: 1, capSegments: 4 }),
   );
-  const zoneMesh = pc.Mesh.fromGeometry(
-    app.graphicsDevice,
-    new pc.PlaneGeometry({
-      halfExtents: new pc.Vec2(0.5, 0.5),
-      widthSegments: 1,
-      lengthSegments: 1,
-    }),
-  );
   // VFX use two normalized silhouettes: a textured top-down card for core,
   // comet, burst, and telegraph marks; and a faceted ring for spatial danger
   // reads. They are reused by every fixed instanced visual layer below.
@@ -767,8 +763,8 @@ export function createRenderer(
     entitiesRoot,
     'gecko-pad',
     config.zoneCap,
-    zoneMesh,
-    zoneMaterial,
+    vfxCardMesh,
+    geckoPadMaterial,
     0.08,
   );
   const eliteEnemyBatch = createInstancedCategoryBatch(
@@ -867,6 +863,18 @@ export function createRenderer(
   const spitProjectileAccentBatch = createInstancedCategoryBatch(
     app.graphicsDevice, entitiesRoot, 'spit-projectile-accent', config.projectileCap,
     vfxCardMesh, spitProjectileAccentMaterial, 0.57,
+  );
+  const quillProjectileAccentBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'quill-projectile-accent', config.projectileCap,
+    vfxCardMesh, quillProjectileAccentMaterial, 0.56,
+  );
+  const owlProjectileAccentBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'owl-projectile-accent', config.projectileCap,
+    vfxCardMesh, owlProjectileAccentMaterial, 0.58,
+  );
+  const thornProjectileAccentBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'thornstorm-projectile-accent', config.projectileCap,
+    vfxCardMesh, thornProjectileAccentMaterial, 0.55,
   );
   const criticalProjectileAccentBatch = createInstancedCategoryBatch(
     app.graphicsDevice, entitiesRoot, 'critical-projectile-accent', config.projectileCap,
@@ -1005,6 +1013,12 @@ export function createRenderer(
     playerProjectileAccentBatch.setOpacity(0.46);
     spitProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('spitComet', tick));
     spitProjectileAccentBatch.setOpacity(0.6);
+    quillProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('quillVolley', tick));
+    quillProjectileAccentBatch.setOpacity(0.78);
+    owlProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('owlPinions', tick));
+    owlProjectileAccentBatch.setOpacity(0.8);
+    thornProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('thornstorm', tick));
+    thornProjectileAccentBatch.setOpacity(0.74);
     criticalProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('criticalImpact', tick));
     criticalProjectileAccentBatch.setOpacity(0.68);
     xpAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('xpOrbit', tick));
@@ -1014,6 +1028,18 @@ export function createRenderer(
     bombAccentBatch.setOpacity(0.92);
     magnetAccentBatch.setOpacity(0.94);
     foodAccentBatch.setOpacity(0.92);
+    // Every persistent combat field advances through native-alpha painted
+    // frames. The slight phase offsets distinguish the movement trail, its
+    // upgraded scythe field, and the two stink variants while retaining one
+    // material switch per bounded instanced lane.
+    const geckoLivingFrame = 1 + Math.floor(tick / 5) % 2;
+    const razorstepLivingFrame = 1 + Math.floor((tick + 3) / 5) % 2;
+    zoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame('geckoPad', geckoLivingFrame));
+    zoneBatch.setOpacity(0.7);
+    razorstepZoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame('geckoPad', razorstepLivingFrame));
+    razorstepZoneBatch.setOpacity(0.76);
+    stinkCloudZoneBatch.setMaterial(wildguardVfxMaterialBank.materialFor('skunkCloud', tick + 2));
+    royalStinkZoneBatch.setMaterial(wildguardVfxMaterialBank.materialFor('royalStink', tick + 4));
     hostileProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('hostileThorn', tick));
     hostileTrailAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('hostileThorn', tick + 3));
   }
@@ -1022,26 +1048,26 @@ export function createRenderer(
     entitiesRoot,
     'razorstep-pad',
     config.zoneCap,
-    zoneMesh,
-    razorstepZoneMaterial,
+    vfxCardMesh,
+    razorstepPadMaterial,
     0.09,
   );
   const stinkCloudZoneBatch = createInstancedCategoryBatch(
     app.graphicsDevice,
     entitiesRoot,
     'stink-cloud',
-    config.zoneCap,
-    zoneMesh,
-    stinkCloudZoneMaterial,
+    PERSISTENT_ZONE_PRIMARY_CAPACITY,
+    vfxCardMesh,
+    skunkCloudMaterial,
     0.1,
   );
   const royalStinkZoneBatch = createInstancedCategoryBatch(
     app.graphicsDevice,
     entitiesRoot,
     'royal-stink',
-    config.zoneCap,
-    zoneMesh,
-    royalStinkZoneMaterial,
+    PERSISTENT_ZONE_PRIMARY_CAPACITY,
+    vfxCardMesh,
+    royalStinkMaterial,
     0.11,
   );
 
@@ -1074,14 +1100,31 @@ export function createRenderer(
   const markedEnemyTransforms = new InstancedTransformStore(config.enemyCap);
   const hostileProjectileTransforms = new InstancedTransformStore(config.projectileCap);
   const razorstepZoneTransforms = new InstancedTransformStore(config.zoneCap);
-  const stinkCloudZoneTransforms = new InstancedTransformStore(config.zoneCap);
-  const royalStinkZoneTransforms = new InstancedTransformStore(config.zoneCap);
+  // A Master Skunk can keep several authoritative damage zones alive. The
+  // renderer deliberately promotes only the newest one to a bright painted
+  // cloud and lets it settle to a quiet footprint, preventing fog from
+  // masking Greg while preserving every simulation-owned zone underneath.
+  const stinkCloudZoneVisuals = createPersistentZoneVisualPresentation({
+    zoneTag: ZONE_TAG.stinkCloud,
+    baseOpacity: 0.54,
+    scaleMultiplier: 0.78,
+    quietOpacityRatio: 0.22,
+  });
+  const royalStinkZoneVisuals = createPersistentZoneVisualPresentation({
+    zoneTag: ZONE_TAG.royalStink,
+    baseOpacity: 0.6,
+    scaleMultiplier: 0.82,
+    quietOpacityRatio: 0.24,
+  });
   // These stores are all fixed-capacity and renderer-owned. They turn the
   // projection modules' bounded descriptors into GPU instance matrices with
   // no per-entity scene nodes or simulation writes.
   const vfxTransforms = {
     playerProjectileAccent: new VfxTransformStore(config.projectileCap),
     spitProjectileAccent: new VfxTransformStore(config.projectileCap),
+    quillProjectileAccent: new VfxTransformStore(config.projectileCap),
+    owlProjectileAccent: new VfxTransformStore(config.projectileCap),
+    thornProjectileAccent: new VfxTransformStore(config.projectileCap),
     criticalProjectileAccent: new VfxTransformStore(config.projectileCap),
     xpAccent: new VfxTransformStore(config.pickupCap),
     xpHalo: new VfxTransformStore(config.pickupCap),
@@ -1099,6 +1142,9 @@ export function createRenderer(
   const vfxTransformStores: readonly VfxTransformStore[] = [
     vfxTransforms.playerProjectileAccent,
     vfxTransforms.spitProjectileAccent,
+    vfxTransforms.quillProjectileAccent,
+    vfxTransforms.owlProjectileAccent,
+    vfxTransforms.thornProjectileAccent,
     vfxTransforms.criticalProjectileAccent,
     vfxTransforms.xpAccent,
     vfxTransforms.xpHalo,
@@ -1163,6 +1209,9 @@ export function createRenderer(
   const previousProjectileIndexBySlot = new Int32Array(config.projectileCap);
   const previousProjectileStampBySlot = new Uint32Array(config.projectileCap);
   let previousProjectileLookupStamp = 0;
+  // Retains only renderer-owned visual family ids; it never modifies a
+  // snapshot or the deterministic projectile pool.
+  const projectileVisualTruth = createProjectileVisualTruth(config.projectileCap, config.hz);
   const threatOwnedTraitTelegraphScratch: TraitPresentationEventView[] = [];
 
   function collectionRouteForStyle(style: number): VfxRoutedBatch | null {
@@ -1258,6 +1307,7 @@ export function createRenderer(
       lootVisuals.reset();
       enemyThreatVisuals.reset();
       combatImpactVisuals.reset();
+      projectileVisualTruth.reset();
     }
     lastVisualTick = curr.tick;
     refreshAnimatedWorldArt(curr.tick);
@@ -1273,11 +1323,13 @@ export function createRenderer(
       previousProjectileIndexBySlot[slot] = index;
       previousProjectileStampBySlot[slot] = projectileLookupStamp;
     }
+    projectileVisualTruth.update(curr.projectiles, presentationEvents, curr.tick);
 
     // Player projectiles retain their cheap physical core batch below, then
-    // receive a source/crit-aware illustrated accent that faces actual copied
-    // velocity. The two layers make shots readable at both close and crowded
-    // launch-camera distance.
+    // receive exactly one source-aware illustrated accent at their real copied
+    // position. A family card is never given invented event-radius travel:
+    // unknown/ambiguous traits remain generic, and a confident attribution
+    // replaces rather than stacks the generic player accent.
     for (let index = 0; index < curr.projectiles.count; index++) {
       if (curr.projectiles.role[index] !== 0) continue;
       const id = curr.projectiles.id[index]!;
@@ -1303,9 +1355,16 @@ export function createRenderer(
       const source = curr.projectiles.source[index] ?? 0;
       const yaw = Math.atan2(velocityX, -velocityY);
       const coreScale = baseScale * (isCritical ? 1.22 : 1);
-      const store = source === COMBAT_DAMAGE_SOURCE.heroSpit
+      const family = projectileVisualTruth.familyFor(id, source);
+      const store = family === PLAYER_PROJECTILE_VISUAL_FAMILY.gracieSpit
         ? vfxTransforms.spitProjectileAccent
-        : vfxTransforms.playerProjectileAccent;
+        : family === PLAYER_PROJECTILE_VISUAL_FAMILY.porcupineQuills
+          ? vfxTransforms.quillProjectileAccent
+          : family === PLAYER_PROJECTILE_VISUAL_FAMILY.owlPinions
+            ? vfxTransforms.owlProjectileAccent
+            : family === PLAYER_PROJECTILE_VISUAL_FAMILY.thornstorm
+              ? vfxTransforms.thornProjectileAccent
+              : vfxTransforms.playerProjectileAccent;
       store.push(sceneX(worldX), sceneZ(worldY), coreScale, 1, coreScale, 0.2, yaw);
       if (isCritical) {
         const starScale = coreScale * 1.28;
@@ -1536,6 +1595,7 @@ export function createRenderer(
       curr.tick,
       presentationEvents,
       pendingCombatImpactEvents,
+      traitVisualState,
     );
     damageNumberPresentation.update(curr.tick, cameraTarget.x, cameraTarget.y, cameraAspect);
     writeCombatVisualOverhaul(prev, curr, alpha, presentationEvents);
@@ -1796,24 +1856,22 @@ export function createRenderer(
       -1,
       ZONE_TAG.razorstepScythePad,
     );
-    stinkCloudZoneTransforms.update(
-      prev.zones,
+    stinkCloudZoneVisuals.update(
       curr.zones,
-      alpha,
+      curr.tick,
       -worldHalfWidth,
       worldHalfHeight,
       -1,
-      ZONE_TAG.stinkCloud,
     );
-    royalStinkZoneTransforms.update(
-      prev.zones,
+    stinkCloudZoneBatch.setOpacity(stinkCloudZoneVisuals.opacity);
+    royalStinkZoneVisuals.update(
       curr.zones,
-      alpha,
+      curr.tick,
       -worldHalfWidth,
       worldHalfHeight,
       -1,
-      ZONE_TAG.royalStink,
     );
+    royalStinkZoneBatch.setOpacity(royalStinkZoneVisuals.opacity);
     walkerEnemyBatch.sync(walkerEnemyTransforms);
     runnerEnemyBatch.sync(runnerEnemyTransforms);
     bruteEnemyBatch.sync(bruteEnemyTransforms);
@@ -1830,6 +1888,9 @@ export function createRenderer(
     hostileProjectileBatch.sync(hostileProjectileTransforms);
     playerProjectileAccentBatch.sync(vfxTransforms.playerProjectileAccent);
     spitProjectileAccentBatch.sync(vfxTransforms.spitProjectileAccent);
+    quillProjectileAccentBatch.sync(vfxTransforms.quillProjectileAccent);
+    owlProjectileAccentBatch.sync(vfxTransforms.owlProjectileAccent);
+    thornProjectileAccentBatch.sync(vfxTransforms.thornProjectileAccent);
     criticalProjectileAccentBatch.sync(vfxTransforms.criticalProjectileAccent);
     pickupBatch.sync(transformStores.pickup);
     xpAccentBatch.sync(vfxTransforms.xpAccent);
@@ -1848,8 +1909,8 @@ export function createRenderer(
     playerImpactBatch.sync(vfxTransforms.playerImpacts);
     zoneBatch.sync(transformStores.zone);
     razorstepZoneBatch.sync(razorstepZoneTransforms);
-    stinkCloudZoneBatch.sync(stinkCloudZoneTransforms);
-    royalStinkZoneBatch.sync(royalStinkZoneTransforms);
+    stinkCloudZoneBatch.sync(stinkCloudZoneVisuals.transforms);
+    royalStinkZoneBatch.sync(royalStinkZoneVisuals.transforms);
 
     // app.render() is called manually rather than through app.tick(), so
     // ApplicationStats.updateBasic() never transfers the device counter into
@@ -1882,6 +1943,9 @@ export function createRenderer(
         hostileProjectileBatch.liveViews +
         playerProjectileAccentBatch.liveViews +
         spitProjectileAccentBatch.liveViews +
+        quillProjectileAccentBatch.liveViews +
+        owlProjectileAccentBatch.liveViews +
+        thornProjectileAccentBatch.liveViews +
         criticalProjectileAccentBatch.liveViews +
         pickupBatch.liveViews +
         xpAccentBatch.liveViews +
@@ -1920,6 +1984,9 @@ export function createRenderer(
         hostileProjectileBatch.highWaterViews +
         playerProjectileAccentBatch.highWaterViews +
         spitProjectileAccentBatch.highWaterViews +
+        quillProjectileAccentBatch.highWaterViews +
+        owlProjectileAccentBatch.highWaterViews +
+        thornProjectileAccentBatch.highWaterViews +
         criticalProjectileAccentBatch.highWaterViews +
         pickupBatch.highWaterViews +
         xpAccentBatch.highWaterViews +
@@ -1984,6 +2051,9 @@ export function createRenderer(
     hostileProjectileBatch.dispose();
     playerProjectileAccentBatch.dispose();
     spitProjectileAccentBatch.dispose();
+    quillProjectileAccentBatch.dispose();
+    owlProjectileAccentBatch.dispose();
+    thornProjectileAccentBatch.dispose();
     criticalProjectileAccentBatch.dispose();
     pickupBatch.dispose();
     xpAccentBatch.dispose();
@@ -2016,7 +2086,6 @@ export function createRenderer(
     bossEnemyMesh.destroy();
     markedEnemyMesh.destroy();
     enemyShadowMesh.destroy();
-    zoneMesh.destroy();
     vfxCardMesh.destroy();
     vfxRingMesh.destroy();
     walkerTextureBinding.dispose();
@@ -2041,10 +2110,6 @@ export function createRenderer(
     bombPickupMaterial.destroy();
     magnetPickupMaterial.destroy();
     foodPickupMaterial.destroy();
-    zoneMaterial.destroy();
-    razorstepZoneMaterial.destroy();
-    stinkCloudZoneMaterial.destroy();
-    royalStinkZoneMaterial.destroy();
     playerMaterial.destroy();
     for (const material of proceduralThreatMaterials) material.destroy();
     wildguardVfxMaterialBank.dispose();

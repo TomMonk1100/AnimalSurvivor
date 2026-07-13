@@ -18,6 +18,10 @@ import {
 export const WILDGUARD_VFX_SHEET = Object.freeze({
   signature: 'signature',
   world: 'world',
+  fields: 'fields',
+  melee: 'melee',
+  projectile: 'projectile',
+  aura: 'aura',
 } as const);
 
 export type WildguardVfxSheet = (typeof WILDGUARD_VFX_SHEET)[keyof typeof WILDGUARD_VFX_SHEET];
@@ -29,6 +33,22 @@ export const WILDGUARD_VFX_SHEET_URLS: Readonly<Record<WildguardVfxSheet, string
   ).href,
   world: new URL(
     '../../../../assets/ui/vfx/wildguard-world-frames-v2.png',
+    import.meta.url,
+  ).href,
+  fields: new URL(
+    '../../../../assets/ui/vfx/wildguard-fields-frames-v3.png',
+    import.meta.url,
+  ).href,
+  melee: new URL(
+    '../../../../assets/ui/vfx/wildguard-melee-frames-v3.png',
+    import.meta.url,
+  ).href,
+  projectile: new URL(
+    '../../../../assets/ui/vfx/wildguard-projectile-frames-v3.png',
+    import.meta.url,
+  ).href,
+  aura: new URL(
+    '../../../../assets/ui/vfx/wildguard-aura-frames-v3.png',
     import.meta.url,
   ).href,
 });
@@ -49,6 +69,22 @@ export const WILDGUARD_VFX_CLIP = Object.freeze({
   magnet: 'magnet',
   food: 'food',
   masterXp: 'masterXp',
+  pufferPulse: 'pufferPulse',
+  geckoPad: 'geckoPad',
+  skunkCloud: 'skunkCloud',
+  royalStink: 'royalStink',
+  mantisSweep: 'mantisSweep',
+  crabCrush: 'crabCrush',
+  armadilloRoll: 'armadilloRoll',
+  meteorImpact: 'meteorImpact',
+  quillVolley: 'quillVolley',
+  owlPinions: 'owlPinions',
+  thornstorm: 'thornstorm',
+  thunderbug: 'thunderbug',
+  fireflyOrbit: 'fireflyOrbit',
+  monarchOrbit: 'monarchOrbit',
+  batSonar: 'batSonar',
+  midnightRadar: 'midnightRadar',
 } as const);
 
 export type WildguardVfxClip = (typeof WILDGUARD_VFX_CLIP)[keyof typeof WILDGUARD_VFX_CLIP];
@@ -82,6 +118,22 @@ const SIGNATURE_SPIT = Object.freeze([frame(0, 2), frame(1, 2), frame(2, 2), fra
 const WORLD_XP = Object.freeze([frame(0, 0), frame(1, 0), frame(2, 0), frame(3, 0)]);
 const WORLD_HOSTILE = Object.freeze([frame(0, 1), frame(1, 1), frame(2, 1), frame(3, 1)]);
 const WORLD_SHIELD = Object.freeze([frame(0, 2), frame(1, 2), frame(2, 2), frame(3, 2)]);
+const FIELDS_PUFFER = Object.freeze([frame(0, 0), frame(1, 0), frame(2, 0), frame(3, 0)]);
+const FIELDS_GECKO = Object.freeze([frame(0, 1), frame(1, 1), frame(2, 1), frame(3, 1)]);
+const FIELDS_SKUNK = Object.freeze([frame(0, 2), frame(1, 2), frame(2, 2), frame(3, 2)]);
+const FIELDS_ROYAL_STINK = Object.freeze([frame(0, 3), frame(1, 3), frame(2, 3), frame(3, 3)]);
+const MELEE_MANTIS = Object.freeze([frame(0, 0), frame(1, 0), frame(2, 0), frame(3, 0)]);
+const MELEE_CRAB = Object.freeze([frame(0, 1), frame(1, 1), frame(2, 1), frame(3, 1)]);
+const MELEE_ARMADILLO = Object.freeze([frame(0, 2), frame(1, 2), frame(2, 2), frame(3, 2)]);
+const MELEE_METEOR = Object.freeze([frame(0, 3), frame(1, 3), frame(2, 3), frame(3, 3)]);
+const PROJECTILE_QUILL = Object.freeze([frame(0, 0), frame(1, 0), frame(2, 0), frame(3, 0)]);
+const PROJECTILE_OWL = Object.freeze([frame(0, 1), frame(1, 1), frame(2, 1), frame(3, 1)]);
+const PROJECTILE_THORNSTORM = Object.freeze([frame(0, 2), frame(1, 2), frame(2, 2), frame(3, 2)]);
+const PROJECTILE_THUNDERBUG = Object.freeze([frame(0, 3), frame(1, 3), frame(2, 3), frame(3, 3)]);
+const AURA_FIREFLY = Object.freeze([frame(0, 0), frame(1, 0), frame(2, 0), frame(3, 0)]);
+const AURA_MONARCH = Object.freeze([frame(0, 1), frame(1, 1), frame(2, 1), frame(3, 1)]);
+const AURA_BAT = Object.freeze([frame(0, 2), frame(1, 2), frame(2, 2), frame(3, 2)]);
+const AURA_MIDNIGHT = Object.freeze([frame(0, 3), frame(1, 3), frame(2, 3), frame(3, 3)]);
 
 /**
  * The frame order follows the authored sheets left-to-right. One-frame clips
@@ -104,6 +156,22 @@ export const WILDGUARD_VFX_CLIPS: Readonly<Record<WildguardVfxClip, WildguardVfx
   magnet: Object.freeze({ sheet: 'world', sequence: sequence('magnet', [frame(1, 3)], 10) }),
   food: Object.freeze({ sheet: 'world', sequence: sequence('food', [frame(2, 3)], 10) }),
   masterXp: Object.freeze({ sheet: 'world', sequence: sequence('masterXp', [frame(3, 3)], 10) }),
+  pufferPulse: Object.freeze({ sheet: 'fields', sequence: sequence('pufferPulse', FIELDS_PUFFER, 5, true) }),
+  geckoPad: Object.freeze({ sheet: 'fields', sequence: sequence('geckoPad', FIELDS_GECKO, 5) }),
+  skunkCloud: Object.freeze({ sheet: 'fields', sequence: sequence('skunkCloud', FIELDS_SKUNK, 6, true) }),
+  royalStink: Object.freeze({ sheet: 'fields', sequence: sequence('royalStink', FIELDS_ROYAL_STINK, 6, true) }),
+  mantisSweep: Object.freeze({ sheet: 'melee', sequence: sequence('mantisSweep', MELEE_MANTIS, 3) }),
+  crabCrush: Object.freeze({ sheet: 'melee', sequence: sequence('crabCrush', MELEE_CRAB, 4) }),
+  armadilloRoll: Object.freeze({ sheet: 'melee', sequence: sequence('armadilloRoll', MELEE_ARMADILLO, 3) }),
+  meteorImpact: Object.freeze({ sheet: 'melee', sequence: sequence('meteorImpact', MELEE_METEOR, 5) }),
+  quillVolley: Object.freeze({ sheet: 'projectile', sequence: sequence('quillVolley', PROJECTILE_QUILL, 3) }),
+  owlPinions: Object.freeze({ sheet: 'projectile', sequence: sequence('owlPinions', PROJECTILE_OWL, 4) }),
+  thornstorm: Object.freeze({ sheet: 'projectile', sequence: sequence('thornstorm', PROJECTILE_THORNSTORM, 3) }),
+  thunderbug: Object.freeze({ sheet: 'projectile', sequence: sequence('thunderbug', PROJECTILE_THUNDERBUG, 4) }),
+  fireflyOrbit: Object.freeze({ sheet: 'aura', sequence: sequence('fireflyOrbit', AURA_FIREFLY, 5, true) }),
+  monarchOrbit: Object.freeze({ sheet: 'aura', sequence: sequence('monarchOrbit', AURA_MONARCH, 5, true) }),
+  batSonar: Object.freeze({ sheet: 'aura', sequence: sequence('batSonar', AURA_BAT, 6, true) }),
+  midnightRadar: Object.freeze({ sheet: 'aura', sequence: sequence('midnightRadar', AURA_MIDNIGHT, 6, true) }),
 });
 
 export function wildguardVfxClipDefinition(clip: WildguardVfxClip): WildguardVfxClipDefinition {
@@ -197,6 +265,10 @@ export function createWildguardVfxMaterialBank(device: pc.GraphicsDevice): Wildg
   const materialsBySheet: Record<WildguardVfxSheet, pc.StandardMaterial[]> = {
     signature: [],
     world: [],
+    fields: [],
+    melee: [],
+    projectile: [],
+    aura: [],
   };
   const sampleByClip = new Map<WildguardVfxClip, AnimatedVfxAtlasSample>();
   const allMaterials: pc.StandardMaterial[] = [];
@@ -214,16 +286,11 @@ export function createWildguardVfxMaterialBank(device: pc.GraphicsDevice): Wildg
     }
   }
 
-  const signatureBinding = bindSheetTexture(
+  const sheetBindings = (Object.values(WILDGUARD_VFX_SHEET) as WildguardVfxSheet[]).map((sheet) => bindSheetTexture(
     device,
-    WILDGUARD_VFX_SHEET_URLS.signature,
-    materialsBySheet.signature,
-  );
-  const worldBinding = bindSheetTexture(
-    device,
-    WILDGUARD_VFX_SHEET_URLS.world,
-    materialsBySheet.world,
-  );
+    WILDGUARD_VFX_SHEET_URLS[sheet],
+    materialsBySheet[sheet],
+  ));
   let disposed = false;
 
   function materialForFrame(clip: WildguardVfxClip, frameIndex = 0): pc.StandardMaterial {
@@ -245,8 +312,7 @@ export function createWildguardVfxMaterialBank(device: pc.GraphicsDevice): Wildg
     dispose(): void {
       if (disposed) return;
       disposed = true;
-      signatureBinding.dispose();
-      worldBinding.dispose();
+      for (const binding of sheetBindings) binding.dispose();
       for (const material of allMaterials) material.destroy();
     },
   };

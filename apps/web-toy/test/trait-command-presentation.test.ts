@@ -348,7 +348,7 @@ describe('trait command presentation profiles', () => {
     expect(malformed).toBe(baseline);
   });
 
-  it('keeps procedural hero signatures as readable underlays for illustrated primary effects', () => {
+  it('keeps all authored player geometry as quiet underlays for illustrated primary effects', () => {
     const fox = projectTraitCommandEffect(command({
       kind: 'meleeArc', sourceId: 'greg-fox-swipe', tag: 'greg-fox-swipe',
       arc: 1.72, range: 96, meleeArcResolved: true,
@@ -360,12 +360,20 @@ describe('trait command presentation profiles', () => {
       kind: 'spawnProjectileBurst', sourceId: 'gracie-spit', tag: 'gracie-spit', count: 3,
     }))!;
     const shield = projectHeroDefenseEffect('fluffy-shield')!;
-    const generic = projectTraitCommandEffect(command({ kind: 'areaGather' }))!;
+    const puffer = projectTraitCommandEffect(command({
+      kind: 'areaKnockback', sourceId: 'puffer-pouch', tag: 'puffer-pouch',
+    }))!;
+    const skunk = projectTraitCommandEffect(command({
+      kind: 'spawnZone', sourceId: 'skunk-brush', tag: 'stink-cloud',
+    }))!;
+    const enemyWarning = projectTraitCommandEffect(command({ kind: 'telegraph', tag: 'boss-charge' }))!;
 
-    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(fox)).toBe(0.34);
-    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(trample)).toBe(0.44);
-    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(spit)).toBe(0.4);
-    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(shield)).toBe(0.48);
-    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(generic)).toBe(1);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(fox)).toBe(0.12);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(trample)).toBe(0.14);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(spit)).toBe(0.12);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(shield)).toBe(0.18);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(puffer)).toBe(0.14);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(skunk)).toBe(0.12);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(enemyWarning)).toBe(1);
   });
 });
