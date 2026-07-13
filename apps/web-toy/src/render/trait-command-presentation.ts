@@ -646,6 +646,31 @@ export function resolveTraitCommandVisualIntensity(
 }
 
 /**
+ * The illustrated V2 cards are the primary read for the four hero signatures
+ * below. Keep their existing procedural silhouettes as deliberately muted
+ * timing/area cues instead of stacking two equally loud attack effects. The
+ * multiplier never reaches zero: gameplay telegraphs remain readable if an
+ * illustrated card is briefly off-screen or fades first.
+ */
+export function resolveIllustratedHeroUnderlayOpacityMultiplier(
+  profile: TraitCommandEffectProfile,
+): number {
+  switch (profile.material) {
+    case 'greg-fox-swipe':
+    case 'greg-rush-rake':
+      return 0.34;
+    case 'benny-trample-wave':
+      return 0.44;
+    case 'gracie-spit':
+      return 0.4;
+    case 'fluffy-shield':
+      return 0.48;
+    default:
+      return 1;
+  }
+}
+
+/**
  * Most commands keep the presentation pool's natural capacity. Porcupine
  * Quills and Mantis Scythes intentionally coalesce to one live cue: the
  * former already has real projectile meshes, while the latter is a broad
@@ -2004,7 +2029,9 @@ export function createTraitCommandPresentation(
     // area. The simulation still owns radius, damage, and contact timing.
     const radius = Math.max(1, slot.radius * scale * (1 + (slot.intensity - 1) * 0.24));
     const fadeRate = profile.motion === 'pulse' ? 0.32 : 0.68;
-    const opacity = OPACITY[slot.material] * (1 - progress * fadeRate);
+    const opacity = OPACITY[slot.material]
+      * resolveIllustratedHeroUnderlayOpacityMultiplier(profile)
+      * (1 - progress * fadeRate);
     const radialScale = radius / EFFECT_UNIT_RADIUS;
     const groundHeight = GROUND_EFFECT_HEIGHT + Math.min(0.55, radius * 0.006);
     slot.meshInstance.mesh = effectMeshes[slot.material];
@@ -2115,7 +2142,9 @@ export function createTraitCommandPresentation(
     const profile = PROFILES[slot.material];
     const blueprint = resolveTraitCommandVisualBlueprint(profile);
     const stage = resolveTraitCommandVisualStage(progress, profile);
-    const opacity = OPACITY[slot.material] * (1 - progress * 0.72);
+    const opacity = OPACITY[slot.material]
+      * resolveIllustratedHeroUnderlayOpacityMultiplier(profile)
+      * (1 - progress * 0.72);
     slot.meshInstance.mesh = slot.mesh;
     slot.meshInstance.material = materials.get(slot.material)!;
     slot.meshInstance.setParameter('material_opacity', opacity);

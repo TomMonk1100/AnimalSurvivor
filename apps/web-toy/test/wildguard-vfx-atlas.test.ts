@@ -1,27 +1,35 @@
 import { describe, expect, it } from 'vitest';
 import {
-  WILDGUARD_VFX_ATLAS_CELLS,
-  WILDGUARD_VFX_ATLAS_GRID_SIZE,
-  wildguardVfxAtlasUv,
+  WILDGUARD_VFX_CLIP,
+  WILDGUARD_VFX_CLIPS,
+  WILDGUARD_VFX_SHEET_URLS,
+  wildguardVfxClipDefinition,
 } from '../src/render/wildguard-vfx-atlas';
 
-describe('Wildguard VFX atlas routing', () => {
-  it('keeps every semantic visual in the compact four-by-four atlas', () => {
-    expect(Object.keys(WILDGUARD_VFX_ATLAS_CELLS)).toHaveLength(16);
-    for (const cell of Object.values(WILDGUARD_VFX_ATLAS_CELLS)) {
-      expect(cell.column).toBeGreaterThanOrEqual(0);
-      expect(cell.column).toBeLessThan(WILDGUARD_VFX_ATLAS_GRID_SIZE);
-      expect(cell.row).toBeGreaterThanOrEqual(0);
-      expect(cell.row).toBeLessThan(WILDGUARD_VFX_ATLAS_GRID_SIZE);
+describe('Wildguard animated VFX routing', () => {
+  it('routes every semantic effect into an authored four-by-four sheet', () => {
+    expect(Object.keys(WILDGUARD_VFX_CLIPS)).toHaveLength(15);
+    for (const definition of Object.values(WILDGUARD_VFX_CLIPS)) {
+      expect(definition.sequence.frames.length).toBeGreaterThan(0);
+      expect(definition.sequence.ticksPerFrame).toBeGreaterThan(0);
+      for (const cell of definition.sequence.frames) {
+        expect(cell.column).toBeGreaterThanOrEqual(0);
+        expect(cell.column).toBeLessThan(4);
+        expect(cell.row).toBeGreaterThanOrEqual(0);
+        expect(cell.row).toBeLessThan(4);
+      }
     }
   });
 
-  it('converts top-left authored cells into bottom-left PlayCanvas UV offsets', () => {
-    expect(wildguardVfxAtlasUv('foxSwipe')).toEqual({
-      tilingX: 0.25, tilingY: 0.25, offsetX: 0, offsetY: 0.75,
-    });
-    expect(wildguardVfxAtlasUv('arcaneComet')).toEqual({
-      tilingX: 0.25, tilingY: 0.25, offsetX: 0.75, offsetY: 0,
-    });
+  it('keeps signature moves as multi-frame native-color sequences', () => {
+    expect(wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.foxSwipe).sequence.frames).toHaveLength(4);
+    expect(wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.earthWave).sequence.frames).toHaveLength(4);
+    expect(wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.spitComet).sequence.frames).toHaveLength(4);
+    expect(wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.xpOrbit).sequence.loop).toBe(true);
+  });
+
+  it('loads dedicated transparent hero and world sheets rather than the old accent atlas', () => {
+    expect(WILDGUARD_VFX_SHEET_URLS.signature).toContain('wildguard-signature-frames-v2.png');
+    expect(WILDGUARD_VFX_SHEET_URLS.world).toContain('wildguard-world-frames-v2.png');
   });
 });

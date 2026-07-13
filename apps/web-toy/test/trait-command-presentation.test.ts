@@ -10,6 +10,7 @@ import {
   resolveTraitCommandVisualConcurrencyCap,
   resolveTraitCommandVisualIntensity,
   resolveTraitCommandVisualStage,
+  resolveIllustratedHeroUnderlayOpacityMultiplier,
   resolveTraitCommandEffectRadius,
   type TraitCommandPresentationEvent,
 } from '../src/render/trait-command-presentation';
@@ -345,5 +346,26 @@ describe('trait command presentation profiles', () => {
     expect(upgraded).toBeGreaterThan(baseline);
     expect(upgraded).toBeLessThanOrEqual(1.36);
     expect(malformed).toBe(baseline);
+  });
+
+  it('keeps procedural hero signatures as readable underlays for illustrated primary effects', () => {
+    const fox = projectTraitCommandEffect(command({
+      kind: 'meleeArc', sourceId: 'greg-fox-swipe', tag: 'greg-fox-swipe',
+      arc: 1.72, range: 96, meleeArcResolved: true,
+    }))!;
+    const trample = projectTraitCommandEffect(command({
+      kind: 'telegraph', sourceId: 'benny-trample', tag: 'benny-trample-wave', radius: 48,
+    }))!;
+    const spit = projectTraitCommandEffect(command({
+      kind: 'spawnProjectileBurst', sourceId: 'gracie-spit', tag: 'gracie-spit', count: 3,
+    }))!;
+    const shield = projectHeroDefenseEffect('fluffy-shield')!;
+    const generic = projectTraitCommandEffect(command({ kind: 'areaGather' }))!;
+
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(fox)).toBe(0.34);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(trample)).toBe(0.44);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(spit)).toBe(0.4);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(shield)).toBe(0.48);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(generic)).toBe(1);
   });
 });

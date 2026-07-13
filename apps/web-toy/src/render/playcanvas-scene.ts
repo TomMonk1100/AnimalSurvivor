@@ -113,10 +113,9 @@ import {
   createCombatImpactPresentation,
 } from './combat-impact-presentation';
 import {
-  WILDGUARD_VFX_ATLAS_URL,
-  wildguardVfxAtlasUv,
-  type WildguardVfxSprite,
+  createWildguardVfxMaterialBank,
 } from './wildguard-vfx-atlas';
+import { createIllustratedVfxPresentation } from './illustrated-vfx-presentation';
 
 /** Backing-store size cap: CSS size * min(devicePixelRatio, RESOLUTION_CAP). */
 const RESOLUTION_CAP = 2;
@@ -278,71 +277,19 @@ function bindCutoutSpriteTexture(
 }
 
 /**
- * A shared atlas material keeps the overhaul's illustrated marks vivid over
- * the arena without adding a texture or material per enemy/projectile. The
- * texture itself is decoded only once below and supplied to every semantic
- * cell material.
+ * Exact danger geometry deliberately remains a compact procedural layer.
+ * The painted VFX cards carry identity and impact; these rings and lanes
+ * retain the unambiguous footprint players need to dodge under heavy swarm
+ * density.
  */
-function createVfxAtlasMaterial(
-  color: pc.Color,
-  sprite: WildguardVfxSprite,
-  opacity = 1,
-): pc.StandardMaterial {
-  const material = new pc.StandardMaterial();
-  const uv = wildguardVfxAtlasUv(sprite);
-  material.useLighting = false;
-  material.diffuse.copy(color);
-  material.emissive.copy(color);
+function createTelegraphMaterial(color: pc.Color, opacity: number): pc.StandardMaterial {
+  const material = createFlatMaterial(color);
   material.opacity = opacity;
-  material.diffuseMapTiling.set(uv.tilingX, uv.tilingY);
-  material.diffuseMapOffset.set(uv.offsetX, uv.offsetY);
-  material.opacityMapTiling.set(uv.tilingX, uv.tilingY);
-  material.opacityMapOffset.set(uv.offsetX, uv.offsetY);
   material.blendType = pc.BLEND_ADDITIVEALPHA;
   material.depthWrite = false;
   material.cull = pc.CULLFACE_NONE;
   material.update();
   return material;
-}
-
-/** Shares one decoded transparent atlas across all finite VFX materials. */
-function bindVfxAtlasTexture(
-  device: pc.GraphicsDevice,
-  materials: readonly pc.StandardMaterial[],
-): CutoutTextureBinding {
-  const texture = new pc.Texture(device, { mipmaps: true });
-  texture.addressU = pc.ADDRESS_CLAMP_TO_EDGE;
-  texture.addressV = pc.ADDRESS_CLAMP_TO_EDGE;
-  texture.minFilter = pc.FILTER_LINEAR_MIPMAP_LINEAR;
-  texture.magFilter = pc.FILTER_LINEAR;
-
-  for (const material of materials) {
-    material.diffuseMap = texture;
-    material.diffuseMapChannel = 'rgb';
-    material.opacityMap = texture;
-    material.opacityMapChannel = 'a';
-    material.update();
-  }
-
-  let disposed = false;
-  if (typeof Image !== 'undefined') {
-    const image = new Image();
-    image.decoding = 'async';
-    image.onload = () => {
-      if (disposed) return;
-      texture.setSource(image);
-      for (const material of materials) material.update();
-    };
-    image.src = WILDGUARD_VFX_ATLAS_URL;
-  }
-
-  return {
-    dispose(): void {
-      if (disposed) return;
-      disposed = true;
-      texture.destroy();
-    },
-  };
 }
 
 /** A short, soft creature contact shadow kept below gameplay entities. */
@@ -559,119 +506,56 @@ export function createRenderer(
   const enemyShadowMaterial = createShadowMaterial();
   const playerMaterial = createCreatureMaterial(PLAYER_COLOR);
 
-  // One compact generated atlas supplies the whole new combat vocabulary.
-  // Each entry below is a shared semantic material, never an entity-specific
-  // allocation; inactive categories cost no draw calls.
-  const playerProjectileAccentMaterial = createVfxAtlasMaterial(
-    new pc.Color(1, 0.82, 0.32), 'arcaneComet', 0.9,
-  );
-  const spitProjectileAccentMaterial = createVfxAtlasMaterial(
-    new pc.Color(0.76, 1, 0.74), 'spitComet', 0.96,
-  );
-  const criticalProjectileAccentMaterial = createVfxAtlasMaterial(
-    new pc.Color(1, 0.96, 0.66), 'critStar', 1,
-  );
-  const xpAccentMaterial = createVfxAtlasMaterial(
-    new pc.Color(0.48, 1, 0.78), 'xpDiamond', 0.94,
-  );
-  const xpHaloMaterial = createVfxAtlasMaterial(
-    new pc.Color(0.18, 0.96, 0.82), 'wardGlyph', 0.42,
-  );
-  const bombAccentMaterial = createVfxAtlasMaterial(
-    new pc.Color(1, 0.52, 0.12), 'bomb', 0.9,
-  );
-  const magnetAccentMaterial = createVfxAtlasMaterial(
-    new pc.Color(0.48, 0.72, 1), 'magnet', 0.92,
-  );
-  const foodAccentMaterial = createVfxAtlasMaterial(
-    new pc.Color(0.72, 1, 0.36), 'frostBurst', 0.82,
-  );
-  // Collection descriptors carry a real style, not merely an animation
-  // curve. Route their six languages to six atlas cells so a crystal comet,
-  // bomb nova, magnet vortex, and food bloom remain recognizable while they
-  // travel toward Greg.
-  const xpMoteCollectionMaterial = createVfxAtlasMaterial(
-    new pc.Color(0.46, 1, 0.78), 'windSpiral', 0.82,
-  );
-  const xpGemCollectionMaterial = createVfxAtlasMaterial(
-    new pc.Color(0.62, 1, 0.84), 'arcaneComet', 0.88,
-  );
-  const xpPrismCollectionMaterial = createVfxAtlasMaterial(
-    new pc.Color(1, 0.84, 0.26), 'critStar', 0.96,
-  );
-  const bombCollectionMaterial = createVfxAtlasMaterial(
-    new pc.Color(1, 0.34, 0.1), 'bomb', 0.96,
-  );
-  const magnetCollectionMaterial = createVfxAtlasMaterial(
-    new pc.Color(0.36, 0.7, 1), 'magnet', 0.9,
-  );
-  const foodCollectionMaterial = createVfxAtlasMaterial(
-    new pc.Color(0.68, 1, 0.34), 'frostBurst', 0.9,
-  );
-  const hostileProjectileAccentMaterial = createVfxAtlasMaterial(
-    new pc.Color(1, 0.38, 0.28), 'hostileComet', 0.98,
-  );
-  const hostileTrailAccentMaterial = createVfxAtlasMaterial(
-    new pc.Color(1, 0.12, 0.28), 'hostileSlash', 0.72,
-  );
-  // A threat descriptor's palette is now a GPU routing key. Danger stays
-  // warm, but chargers, elites, apex threats, Saltwind tells, and support
-  // pulses keep their authored hue rather than collapsing into one red ring.
+  // The two authored sheets are the actual combat language. The bank owns a
+  // finite material per painted cell and preserves native source colors;
+  // semantic lanes select a cell/flipbook frame without per-event allocation.
+  const wildguardVfxMaterialBank = createWildguardVfxMaterialBank(app.graphicsDevice);
+  const playerProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('normalImpact');
+  const spitProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('spitComet', 1);
+  const criticalProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('criticalImpact');
+  const xpAccentMaterial = wildguardVfxMaterialBank.materialForFrame('xpOrbit');
+  const xpHaloMaterial = wildguardVfxMaterialBank.materialForFrame('xpCollect');
+  const bombAccentMaterial = wildguardVfxMaterialBank.materialForFrame('bomb');
+  const magnetAccentMaterial = wildguardVfxMaterialBank.materialForFrame('magnet');
+  const foodAccentMaterial = wildguardVfxMaterialBank.materialForFrame('food');
+  const xpMoteCollectionMaterial = wildguardVfxMaterialBank.materialForFrame('xpCollect');
+  const xpGemCollectionMaterial = wildguardVfxMaterialBank.materialForFrame('xpOrbit', 1);
+  const xpPrismCollectionMaterial = wildguardVfxMaterialBank.materialForFrame('masterXp');
+  const bombCollectionMaterial = wildguardVfxMaterialBank.materialForFrame('bomb');
+  const magnetCollectionMaterial = wildguardVfxMaterialBank.materialForFrame('magnet');
+  const foodCollectionMaterial = wildguardVfxMaterialBank.materialForFrame('food');
+  const hostileProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('hostileThorn', 1);
+  const hostileTrailAccentMaterial = wildguardVfxMaterialBank.materialForFrame('hostileThorn', 2);
+  // Painted hostile thorns identify the threat while flat, palette-specific
+  // rings retain the exact warning geometry. Each remains a bounded lane.
   const threatTelegraphMaterials: Record<EnemyThreatPaletteId, pc.StandardMaterial> = {
-    hostile: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.hostile.primary), 'emberRing', 0.62),
-    charger: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.charger.primary), 'hostileSlash', 0.68),
-    elite: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.elite.primary), 'wardGlyph', 0.7),
-    boss: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.boss.accent), 'hostileSlash', 0.78),
-    saltwind: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.saltwind.primary), 'earthWave', 0.7),
-    support: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.support.primary), 'frostBurst', 0.6),
+    hostile: wildguardVfxMaterialBank.materialForFrame('hostileThorn', 0),
+    charger: wildguardVfxMaterialBank.materialForFrame('hostileThorn', 1),
+    elite: wildguardVfxMaterialBank.materialForFrame('hostileThorn', 2),
+    boss: wildguardVfxMaterialBank.materialForFrame('hostileThorn', 1),
+    saltwind: wildguardVfxMaterialBank.materialForFrame('earthWave', 1),
+    support: wildguardVfxMaterialBank.materialForFrame('fluffyShield', 1),
   };
   const threatRingMaterials: Record<EnemyThreatPaletteId, pc.StandardMaterial> = {
-    hostile: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.hostile.accent), 'emberRing', 0.72),
-    charger: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.charger.primary), 'emberRing', 0.74),
-    elite: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.elite.primary), 'emberRing', 0.74),
-    boss: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.boss.primary), 'emberRing', 0.82),
-    saltwind: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.saltwind.accent), 'emberRing', 0.74),
-    support: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.support.accent), 'wardGlyph', 0.58),
+    hostile: createTelegraphMaterial(parseHexColor(ENEMY_THREAT_PALETTES.hostile.accent), 0.72),
+    charger: createTelegraphMaterial(parseHexColor(ENEMY_THREAT_PALETTES.charger.primary), 0.74),
+    elite: createTelegraphMaterial(parseHexColor(ENEMY_THREAT_PALETTES.elite.primary), 0.74),
+    boss: createTelegraphMaterial(parseHexColor(ENEMY_THREAT_PALETTES.boss.primary), 0.82),
+    saltwind: createTelegraphMaterial(parseHexColor(ENEMY_THREAT_PALETTES.saltwind.accent), 0.74),
+    support: createTelegraphMaterial(parseHexColor(ENEMY_THREAT_PALETTES.support.accent), 0.58),
   };
   const eliteAuraMaterials = {
-    elite: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.elite.primary), 'wardGlyph', 0.58),
-    boss: createVfxAtlasMaterial(parseHexColor(ENEMY_THREAT_PALETTES.boss.accent), 'wardGlyph', 0.72),
+    elite: createTelegraphMaterial(parseHexColor(ENEMY_THREAT_PALETTES.elite.primary), 0.58),
+    boss: createTelegraphMaterial(parseHexColor(ENEMY_THREAT_PALETTES.boss.accent), 0.72),
   } as const;
-  const normalImpactMaterial = createVfxAtlasMaterial(
-    new pc.Color(1, 0.78, 0.24), 'critStar', 0.78,
-  );
-  const criticalImpactMaterial = createVfxAtlasMaterial(
-    new pc.Color(1, 0.98, 0.72), 'critStar', 1,
-  );
-  const playerImpactMaterial = createVfxAtlasMaterial(
-    new pc.Color(1, 0.22, 0.26), 'emberRing', 0.88,
-  );
-  const vfxAtlasMaterials: readonly pc.StandardMaterial[] = [
-    playerProjectileAccentMaterial,
-    spitProjectileAccentMaterial,
-    criticalProjectileAccentMaterial,
-    xpAccentMaterial,
-    xpHaloMaterial,
-    bombAccentMaterial,
-    magnetAccentMaterial,
-    foodAccentMaterial,
-    xpMoteCollectionMaterial,
-    xpGemCollectionMaterial,
-    xpPrismCollectionMaterial,
-    bombCollectionMaterial,
-    magnetCollectionMaterial,
-    foodCollectionMaterial,
-    hostileProjectileAccentMaterial,
-    hostileTrailAccentMaterial,
-    ...Object.values(threatTelegraphMaterials),
+  const normalImpactMaterial = wildguardVfxMaterialBank.materialForFrame('normalImpact');
+  const criticalImpactMaterial = wildguardVfxMaterialBank.materialForFrame('criticalImpact');
+  const playerImpactMaterial = wildguardVfxMaterialBank.materialForFrame('playerImpact');
+  const proceduralThreatMaterials: readonly pc.StandardMaterial[] = [
     ...Object.values(threatRingMaterials),
     eliteAuraMaterials.elite,
     eliteAuraMaterials.boss,
-    normalImpactMaterial,
-    criticalImpactMaterial,
-    playerImpactMaterial,
   ];
-  const vfxAtlasTextureBinding = bindVfxAtlasTexture(app.graphicsDevice, vfxAtlasMaterials);
 
   const walkerTextureBinding = bindCutoutSpriteTexture(
     app.graphicsDevice,
@@ -796,6 +680,16 @@ export function createRenderer(
   const vfxRingMesh = pc.Mesh.fromGeometry(
     app.graphicsDevice,
     new pc.TorusGeometry({ tubeRadius: 0.09, ringRadius: 0.46, segments: 14, sides: 5 }),
+  );
+  // This bounded card pool is the primary illustrated layer for hero casts
+  // and resolved contact beats. It sits above precise procedural telegraphs
+  // but consumes only copied presentation events and never writes simulation.
+  const illustratedVfxPresentation = createIllustratedVfxPresentation(
+    app.graphicsDevice,
+    entitiesRoot,
+    worldHalfWidth,
+    worldHalfHeight,
+    wildguardVfxMaterialBank,
   );
   const walkerEnemyBatch = createInstancedCategoryBatch(
     app.graphicsDevice,
@@ -1099,6 +993,30 @@ export function createRenderer(
     app.graphicsDevice, entitiesRoot, 'player-danger-bursts', 48,
     vfxCardMesh, playerImpactMaterial, 0.84,
   );
+
+  /**
+   * High-volume world lanes share a deterministic flipbook frame per semantic
+   * lane. Signature casts and contacts have their own per-event pool below;
+   * this keeps the ambient economy and hostile traffic animated without
+   * turning every live mote/projectile into a separate material or entity.
+   */
+  function refreshAnimatedWorldArt(tick: number): void {
+    playerProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('normalImpact', tick));
+    playerProjectileAccentBatch.setOpacity(0.46);
+    spitProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('spitComet', tick));
+    spitProjectileAccentBatch.setOpacity(0.6);
+    criticalProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('criticalImpact', tick));
+    criticalProjectileAccentBatch.setOpacity(0.68);
+    xpAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('xpOrbit', tick));
+    xpAccentBatch.setOpacity(0.98);
+    xpHaloBatch.setMaterial(wildguardVfxMaterialBank.materialFor('xpOrbit', tick + 6));
+    xpHaloBatch.setOpacity(0.44);
+    bombAccentBatch.setOpacity(0.92);
+    magnetAccentBatch.setOpacity(0.94);
+    foodAccentBatch.setOpacity(0.92);
+    hostileProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('hostileThorn', tick));
+    hostileTrailAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('hostileThorn', tick + 3));
+  }
   const razorstepZoneBatch = createInstancedCategoryBatch(
     app.graphicsDevice,
     entitiesRoot,
@@ -1342,6 +1260,7 @@ export function createRenderer(
       combatImpactVisuals.reset();
     }
     lastVisualTick = curr.tick;
+    refreshAnimatedWorldArt(curr.tick);
     for (const store of vfxTransformStores) store.reset();
     for (const route of routedVfxBatches) resetRoutedBatchOpacity(route);
 
@@ -1612,6 +1531,11 @@ export function createRenderer(
     traitCommandPresentation.update(
       curr.tick,
       traitCommandEventsWithoutThreatTelegraphs(presentationEvents),
+    );
+    illustratedVfxPresentation.update(
+      curr.tick,
+      presentationEvents,
+      pendingCombatImpactEvents,
     );
     damageNumberPresentation.update(curr.tick, cameraTarget.x, cameraTarget.y, cameraAspect);
     writeCombatVisualOverhaul(prev, curr, alpha, presentationEvents);
@@ -1974,6 +1898,7 @@ export function createRenderer(
         normalImpactBatch.liveViews +
         criticalImpactBatch.liveViews +
         playerImpactBatch.liveViews +
+        illustratedVfxPresentation.liveSlots +
         zoneBatch.liveViews +
         razorstepZoneBatch.liveViews +
         stinkCloudZoneBatch.liveViews +
@@ -2011,6 +1936,7 @@ export function createRenderer(
         normalImpactBatch.highWaterViews +
         criticalImpactBatch.highWaterViews +
         playerImpactBatch.highWaterViews +
+        illustratedVfxPresentation.highWaterSlots +
         zoneBatch.highWaterViews +
         razorstepZoneBatch.highWaterViews +
         stinkCloudZoneBatch.highWaterViews +
@@ -2074,6 +2000,7 @@ export function createRenderer(
     normalImpactBatch.dispose();
     criticalImpactBatch.dispose();
     playerImpactBatch.dispose();
+    illustratedVfxPresentation.dispose();
     zoneBatch.dispose();
     razorstepZoneBatch.dispose();
     stinkCloudZoneBatch.dispose();
@@ -2096,7 +2023,6 @@ export function createRenderer(
     runnerTextureBinding.dispose();
     bruteTextureBinding.dispose();
     bossTextureBinding.dispose();
-    vfxAtlasTextureBinding.dispose();
     walkerEnemyMaterial.destroy();
     runnerEnemyMaterial.destroy();
     bruteEnemyMaterial.destroy();
@@ -2120,7 +2046,8 @@ export function createRenderer(
     stinkCloudZoneMaterial.destroy();
     royalStinkZoneMaterial.destroy();
     playerMaterial.destroy();
-    for (const material of vfxAtlasMaterials) material.destroy();
+    for (const material of proceduralThreatMaterials) material.destroy();
+    wildguardVfxMaterialBank.dispose();
     damageNumberPresentation.dispose();
     traitCommandPresentation.dispose();
     combatFeedbackPresentation.dispose();

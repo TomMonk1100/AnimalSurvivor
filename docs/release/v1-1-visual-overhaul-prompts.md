@@ -1,48 +1,57 @@
 # V1.1 Visual Overhaul Asset Record
 
-## Wildguard Prism VFX atlas — `assets/ui/vfx/wildguard-prism-atlas-v1.png`
+## Animated Wildguard VFX sheets
 
-This single 1024×1024 RGBA atlas is the only new runtime bitmap in the visual
-overhaul. It is shared across fixed, renderer-only instanced layers for hero
-attack accents, XP and power-pickup reads, hostile projectile trails, danger
-telegraphs, and impact stars. It never participates in simulation state,
+The visual overhaul uses two 768×768 8-bit RGBA sheets, each arranged as a
+4×4 grid. The authored motion rows advance deterministically from presentation
+ticks, while the final rows hold distinct outcome/reward marks; the runtime
+binds the un-tinted illustrated art as the primary effect. The sheets do not
+participate in simulation state,
 replay hashes, damage, pickup collection, or RNG.
 
-- Tool: Built-in OpenAI image generation
-- Date: 2026-07-13
-- Reference images: none
-- Generated source: `exec-362ca417-fa7d-44d6-8f65-024e7dcb9f17.png`
-- Source dimensions: 1254×1254 PNG on a flat `#00ff00` chroma background
-- Runtime hash: `1c54ebf0409076cc0b0c087898c3448a0da1055fb86ea435b8a18941b75b19f9`
-- Runtime dimensions: 1024×1024 8-bit RGBA PNG, 845,320 bytes
+| Runtime file | Source | Final SHA-256 | Runtime size | Contents |
+| --- | --- | --- | --- | --- |
+| `assets/ui/vfx/wildguard-signature-frames-v2.png` | `exec-5bbf37b3-5f48-4f9d-afd2-9f2ae8d4a4ed.png` | `94f3edc4a590b741d538ac383830d2ee379e7ecabb9dc687b917ceaa44f8cdd2` | 768×768 RGBA, 565,056 bytes | Fox Swipe, Benny Trample, Gracie Spit, normal/critical/player impacts, and shield recharge |
+| `assets/ui/vfx/wildguard-world-frames-v2.png` | `exec-73ab216b-dec0-4bf3-a082-a6ff9640e17a.png` | `633e69d99dba94e25ed0371299a7675313ca54f9f3131c5993e26d7a9ca040ce` | 768×768 RGBA, 503,315 bytes | XP idle/collection, hostile thorn, fluffy shield, Bomb, Magnet, Food, and master XP |
 
-### Generation request
+The combined VFX payload is 1,068,371 bytes. The asset verifier caps the
+signature sheet at 600,000 bytes and the world sheet at 550,000 bytes, while
+the full authored runtime payload remains bounded below 17 MB.
 
-> Create a compact reusable 4 by 4 game VFX sprite atlas for a high-polish
-> top-down animal survival game. Perfectly flat neon chroma-key green
-> (#00ff00) background only. No text, no UI, no characters, no border, no grid
-> lines. Put 16 evenly spaced isolated sprites in a precise 4x4 layout, each
-> with generous green padding: ivory fox claw crescents, amber earth fracture
-> wave, mint-magenta spit comet, cyan shield tuft, lime XP diamond, blue magnet
-> spark, orange bomb burst, red hostile thorn comet, plus variations of
-> starbursts, impact shards, ring pulses, and motion streaks. Style: bold
-> storybook low-poly hand-painted shapes, crisp opaque edges, saturated
-> emissive cores, clean readable silhouette at small scale, no soft gray
-> shadows. Every sprite must be separate from the others and surrounded by
-> uninterrupted chroma green.
+### Generation requests
 
-### Alpha cleanup
+Both sources were generated on 2026-07-13 with Built-in OpenAI image
+generation, no reference image, as a precise 4×4 grid on a flat chroma-magenta
+background (`#ff00ff` requested). The prompts required isolated, high-polish
+storybook low-poly VFX with no text, UI, characters, border, grid lines, or
+shadowed background.
 
-The runtime texture was produced from that source with the repository's
-image-generation chroma-key helper and the bundled image runtime:
+**Signature sheet.** Four evenly spaced animation rows: ivory/gold fox claw
+sweep from windup through impact; amber rock-and-earth trample ridge from
+ignition through dust; mint-and-magenta spit comet from charge through splash;
+and readable normal-hit, critical-hit, player-hit, and shield frames. Art must
+be bold, faceted, luminous at the core, and cleanly legible at small scale.
 
-```text
-remove_chroma_key.py --key-color #00ff00 --tolerance 32 --soft-matte \
-  --transparent-threshold 20 --opaque-threshold 96 --edge-contract 1 \
-  --spill-cleanup
-```
+**World sheet.** Four evenly spaced animation rows: mint/gold XP mote and
+collection burst; coral hostile thorn warning, flight, and impact; cyan fluffy
+shield seed, bubble, crack, and bloom; then Bomb, Magnet, Food, and master-XP
+rewards. Art must be bold, faceted, luminous at the core, and cleanly legible
+at small scale.
 
-The chroma-cleaned 1254px source was non-destructively reduced to 1024px with
-`sips -Z 1024` before being committed. The resulting atlas is intentionally used as a tiled shared texture rather
-than a sequence of animation frames. That keeps runtime art payload and draw
-calls bounded while allowing motion to remain deterministic and GPU-instanced.
+### Alpha cleanup and finalization
+
+The source images were first non-destructively reduced from 1254×1254 to 768px
+with `sips -Z 768`. A border-connected flood cleanup then removed only
+key-colored pixels that were connected to the outside of each image (tolerance
+50), followed by two halo-cleanup passes. The actual sampled border key was
+`#e90be0` for the signature source and `#e40ad9` for the world source.
+
+That connected-border rule is deliberate: a conventional global chroma-key
+would erase legitimate mint and magenta details inside the artwork. The final
+assets therefore keep their intended colored effects while remaining transparent
+outside the illustrated silhouettes.
+
+At runtime, the material bank uses native white RGB and normal alpha blending;
+it does not globally tint or additively recolor the sheets. Exact combat-area
+telegraphs remain procedural for precision, while these four-frame sheets carry
+the primary signature, reward, threat, and impact language.

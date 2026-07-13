@@ -18,6 +18,12 @@ export interface InstanceMatrices {
 export interface InstancedCategoryBatch {
   sync(instances: InstanceMatrices): void;
   /**
+   * Swaps the single shared material for this semantic lane. This is used for
+   * deterministic flipbook frames: one material change per lane, never one
+   * material per live instance.
+   */
+  setMaterial(material: pc.Material): void;
+  /**
    * Overrides the shared material-opacity uniform for this one instanced draw.
    * It is intentionally batch-scoped: renderers use it only after routing
    * descriptors into bounded semantic lanes, never by allocating a material
@@ -72,6 +78,7 @@ export function createInstancedCategoryBatch(
   let highWaterViews = 0;
   let disposed = false;
   let lastOpacity = Number.NaN;
+  let lastMaterial: pc.Material = material;
 
   function sync(instances: InstanceMatrices): void {
     if (disposed) {
@@ -129,8 +136,18 @@ export function createInstancedCategoryBatch(
     lastOpacity = safeOpacity;
   }
 
+  function setMaterial(material: pc.Material): void {
+    if (disposed || material === lastMaterial) return;
+    meshInstance.material = material;
+    lastMaterial = material;
+    // The opacity override belongs to the mesh instance, but forcing a fresh
+    // value on the next call is safer across engine/context material swaps.
+    lastOpacity = Number.NaN;
+  }
+
   return {
     sync,
+    setMaterial,
     setOpacity,
     get liveViews(): number {
       return liveViews;

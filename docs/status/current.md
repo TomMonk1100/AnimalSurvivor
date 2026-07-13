@@ -42,12 +42,12 @@ particle engine or combat system.
   white-gold critical bursts, and coral player-danger flashes in addition to
   the optional white/yellow damage numbers.
 - **Cost boundary:** all high-volume layers are fixed-capacity GPU-instanced
-  batches. The shared 1024px VFX atlas is the sole new runtime bitmap; reduced
-  quality removes halos and travel trails before core rewards, warnings, or hit
-  markers. Simulation state, replay hashes, input, and combat outcomes remain
-  untouched.
+  batches. Two transparent 768px four-frame VFX sheets carry the primary
+  signature, reward, threat, and impact art; reduced quality removes halos and
+  travel trails before core rewards, warnings, or hit markers. Simulation
+  state, replay hashes, input, and combat outcomes remain untouched.
 
-The precise atlas provenance and cleanup are recorded in
+The precise sheet provenance and cleanup are recorded in
 [`docs/release/v1-1-visual-overhaul-prompts.md`](../release/v1-1-visual-overhaul-prompts.md).
 Automated gates establish deterministic safety and bounded renderer behavior;
 a fresh owner pass is still the authority for whether the visual contrast feels
