@@ -63,12 +63,22 @@ test('boss requestTick === BOSS_ENTRANCE_TICK (23,400 / 6:30)', () => {
   assert.equal(def.boss.requestTick, 23_400);
 });
 
-test('ordinary waves approach from off-screen while the boss enters quickly enough to fight', () => {
+test('opening fodder becomes readable within the first dodge window while the boss enters quickly enough to fight', () => {
   const def = getDefaultDefinition();
   const fodder = def.archetypes.find((archetype) => archetype.id === 'enemy:fodder');
   assert.ok(fodder);
-  assert.deepEqual([fodder.minDistance, fodder.maxDistance], [38, 46]);
+  assert.deepEqual([fodder.minDistance, fodder.maxDistance], [22, 26]);
   assert.deepEqual([def.boss.minDistance, def.boss.maxDistance], [20, 24]);
+});
+
+test('adaptation adds pressure without repeating the old three-minute density cliff', () => {
+  const def = getDefaultDefinition();
+  const adaptation = def.phases.find((phase) => phase.id === 'adaptation');
+  assert.deepEqual(adaptation, {
+    id: 'adaptation', startTick: 10_800, endTick: 17_999,
+    softCap: 24, hardCap: 40, threatPerTick: 5,
+  });
+  assert.equal(def.waves.phaseIntervalTicks?.adaptation, 50);
 });
 
 test('normal-plus spitters arrive after the opening and never crowd the boss entrance', () => {

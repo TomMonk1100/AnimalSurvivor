@@ -5,7 +5,7 @@
 
 ## Decision
 
-Adopt `spikes/headless-sim/` as the renderer-independent starting point for the
+Adopt `packages/sim/` as the renderer-independent starting point for the
 Gate 1 technical toy. Preserve its fixed-tick TypeScript architecture, seeded
 RNG, typed-array pools, generation IDs, enemy spatial grid, targeting policies,
 wave director, replay recorder, and canonical state hash.

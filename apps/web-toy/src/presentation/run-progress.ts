@@ -13,6 +13,10 @@ export interface RunProgressInput {
   readonly hz: number;
   readonly phase: RunPhaseView | null;
   readonly biomeId?: BiomeId;
+  /** Authoritative director tick at which the boss is requested. */
+  readonly bossRequestTick?: number;
+  /** Authoritative terminal boundary for a finite normal run. */
+  readonly durationTicks?: number;
 }
 
 interface PhaseCopy {
@@ -60,6 +64,13 @@ export function formatRunElapsed(tick: number, hz: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
+/** Formats remaining authoritative ticks without allowing a negative clock. */
+export function formatRunRemaining(endTick: number, tick: number, hz: number): string {
+  const safeEndTick = Number.isFinite(endTick) ? Math.max(0, endTick) : 0;
+  const safeTick = Number.isFinite(tick) ? Math.max(0, tick) : 0;
+  return formatRunElapsed(Math.max(0, safeEndTick - safeTick), hz);
+}
+
 /**
  * Projects only authoritative tick and phase facts into persistent player copy.
  * It intentionally does not predict waves, timing, or outcomes.
@@ -71,8 +82,15 @@ export function presentRunProgress(input: RunProgressInput): RunProgress {
     label: input.phase === 'boss' ? biomeCopy.bossName : baseCopy.label,
     objective: baseCopy.objective.replace('Final Threat', biomeCopy.bossName.slice(4)),
   };
-  return {
-    status: `RUN ${formatRunElapsed(input.tick, input.hz)} · ${copy.label.toUpperCase()}`,
-    objective: copy.objective,
-  };
+  const statusParts = [`RUN ${formatRunElapsed(input.tick, input.hz)}`, copy.label.toUpperCase()];
+  let objective = copy.objective;
+  if (input.phase !== null && input.phase !== 'boss' && input.phase !== 'overtime'
+    && Number.isFinite(input.bossRequestTick)) {
+    statusParts.push(`FINAL THREAT IN ${formatRunRemaining(input.bossRequestTick!, input.tick, input.hz)}`);
+  }
+  if (input.phase === 'boss' && Number.isFinite(input.durationTicks)) {
+    statusParts.push(`${formatRunRemaining(input.durationTicks!, input.tick, input.hz)} LEFT`);
+    objective = `Objective: defeat the ${biomeCopy.bossName.slice(4)} before time runs out.`;
+  }
+  return { status: statusParts.join(' · '), objective };
 }

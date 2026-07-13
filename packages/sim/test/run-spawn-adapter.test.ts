@@ -140,7 +140,7 @@ test('keeps off-screen approach formations at their authored radius near a world
     kind: 'spawnRequested', tick: 27, seq: 3, phase: 'opening',
     intent: {
       archetypeId: 'enemy:fodder', count: 4, formation: 'arc',
-      minDistance: 38, maxDistance: 46, elite: false, boss: false,
+      minDistance: 22, maxDistance: 26, elite: false, boss: false,
     },
   };
   const stats = createRunSpawnAdapter().execute([event], {
@@ -152,7 +152,7 @@ test('keeps off-screen approach formations at their authored radius near a world
   assert.ok(out.every((request) => request.x >= 0 && request.x <= 2_000 && request.y >= 0 && request.y <= 2_000));
   for (const request of out) {
     const distance = Math.hypot(request.x - 50, request.y - 50);
-    assert.ok(distance >= 760 && distance <= 920, `spawn distance ${distance} stays in authored off-screen band`);
+    assert.ok(distance >= 440 && distance <= 520, `spawn distance ${distance} stays in the authored opening band`);
   }
 });
 

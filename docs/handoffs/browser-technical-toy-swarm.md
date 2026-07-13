@@ -10,7 +10,7 @@ apps/web-toy/
 ```
 
 Do not edit anything outside that directory. In particular, do not modify the
-accepted simulation at `spikes/headless-sim/`, root files, docs, assets, Gate 0
+accepted simulation at `packages/sim/`, root files, docs, assets, Gate 0
 artifacts, or Git metadata. You may read and import the simulation's public API.
 
 Use strict TypeScript, Vite, and the standalone MIT PlayCanvas Engine, as fixed
@@ -43,7 +43,7 @@ and rendering-performance toy only.
 
 ## Frozen integration rules
 
-1. Import from `../../spikes/headless-sim/src/index.ts` through a Vite alias or
+1. Import from `../../packages/sim/src/index.ts` through a Vite alias or
    another app-local adapter. Never copy simulation source into the app.
 2. The simulation is authoritative. Rendering reads public player/pool state and
    per-tick events; it never writes positions, health, timers, RNG, or entity

@@ -18,15 +18,17 @@ import { createAutopilot } from '../src/stress/autopilot';
 
 const RUN_TICKS = DEFAULT_CONFIG.hz * 60 * 8;
 const CORPUS_SEED = 0x51_aa_2026;
+const PROPOSE_GOLDENS = process.env.ANIMAL_SURVIVOR_GOLDEN_MODE === 'propose';
 
 const GOLDEN_HASHES: Readonly<Record<string, string>> = Object.freeze({
-  // Greg-only entries rebaselined for the earned Rush Rake cadence/damage pass.
-  'greg/forest': '83ccb985d1bf8b00',
-  'benny/forest': '8ed78cb3c0d1505c',
-  'gracie/forest': '108962479289edea',
-  'greg/saltwind': '153694c034060c52',
-  'benny/saltwind': 'caa1786d50ac2fad',
-  'gracie/saltwind': '53fe1b9a530d8f8e',
+  // Rebaselined after the opening-arrival, XP pacing, and adaptation-density
+  // adjustments were observed identically across three deterministic runs.
+  'greg/forest': '006b135f8b7efd20',
+  'benny/forest': '96579e9d86408b1b',
+  'gracie/forest': 'a7754245f851014b',
+  'greg/saltwind': 'e916f07c553487d9',
+  'benny/saltwind': 'cc8975c1ec88800f',
+  'gracie/saltwind': 'bb3d901bb2d89168',
 });
 
 const traitRuntimeFactory: TraitRuntimeFactory = ({ seed, initialTick }) =>
@@ -94,6 +96,10 @@ describe('golden replay corpus', () => {
       observed[`${heroId}/${biomeId}`] = finalHash;
       console.info(`[golden] ${heroId}/${biomeId} tick=${sim.tick} hash=${finalHash}`);
     }
-    expect(observed).toEqual(GOLDEN_HASHES);
+    if (PROPOSE_GOLDENS) {
+      process.stderr.write(`[golden:propose] ${JSON.stringify(observed)}\n`);
+    } else {
+      expect(observed).toEqual(GOLDEN_HASHES);
+    }
   }, 60_000);
 });

@@ -178,7 +178,7 @@ export const XP_MAGNET: UniversalUpgradeDefinition = frozenDefinition({
 export const STURDY_HIDE: UniversalUpgradeDefinition = frozenDefinition({
   id: 'sturdy-hide',
   title: 'Sturdy Hide',
-  description: '+15 maximum health per rank.',
+  description: '+15 maximum health and restore 15 health per rank.',
   repeatable: true,
   maxRank: 5,
   effect: { kind: 'maxHp', bonusPerRank: 15 },

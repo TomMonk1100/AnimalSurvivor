@@ -17,6 +17,11 @@ describe('director notice projection', () => {
     expect(projectDirectorEvent(event('defeat'))).toMatchObject({ tone: 'defeat', expiresAtTick: null });
   });
 
+  it('uses selected-hero names for terminal notices', () => {
+    expect(projectDirectorEvent(event('victory'), 'forest', 'Benny')?.title).toBe('Benny survives');
+    expect(projectDirectorEvent(event('defeat'), 'forest', 'Gracie')?.title).toBe('Gracie was overwhelmed');
+  });
+
   it('ignores routine spawn events and derives stable keys from sequence', () => {
     expect(projectDirectorEvent(event('spawnRequested'))).toBeNull();
     expect(projectDirectorEvent(event('bossWarning'))?.key).toBe('4:bossWarning');

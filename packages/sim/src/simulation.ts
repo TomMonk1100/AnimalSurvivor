@@ -54,7 +54,7 @@
  * Nothing else in this module or in the wired-in modules touches rng.
  *
  * GRID INVARIANT: only enemies are ever inserted into `grid` (projectiles and
- * pickups are never gridded in this spike — collision/collection uses a
+ * pickups are never gridded in this simulation — collision/collection uses a
  * hitRadius+maxEnemyRadius query against the same enemy grid, and pickups use
  * a linear scan). killEnemy() removes an id from the grid BEFORE despawning
  * the pool slot, so the grid never holds a dead id across a tick boundary,

@@ -19,7 +19,7 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "paths": {
-      "@sim": ["../../spikes/headless-sim/src/index.ts"],
+      "@sim": ["../../packages/sim/src/index.ts"],
       "@traits": ["../../packages/trait-runtime/src/index.ts"],
       "@director": ["../../packages/run-director/src/index.ts"]
     }

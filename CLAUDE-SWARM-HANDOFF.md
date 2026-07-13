@@ -155,11 +155,11 @@ families. The visible attachment system now covers the six current attack
 families and the three current Mythics with primitive prototype geometry. It is
 not final art.
 
-### Current verification snapshot
+### Historical verification snapshot
 
 The local owner review immediately before this brief recorded:
 
-- headless simulation: **226 tests passed**;
+- simulation package: **226 tests passed**;
 - trait runtime: **73 tests passed**;
 - run director: **71 tests passed**;
 - web toy: **232 tests passed**;
@@ -169,7 +169,8 @@ The local owner review immediately before this brief recorded:
 - working tree clean at review time.
 
 These are supplied facts from the owner-side review, not work performed by the
-Claude swarm. Do not claim to have rerun them.
+Claude swarm. Do not claim to have rerun them. Current validation is recorded
+in [`docs/status/current.md`](docs/status/current.md).
 
 The latest local browser build reported approximately 2.11 MB minified main
 JavaScript, 542.7 kB gzip, and a 3.16 MB Fox glTF asset, plus PlayCanvas

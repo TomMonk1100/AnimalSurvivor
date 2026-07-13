@@ -88,7 +88,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationPresentationDefin
     'bud',
     'Puffer Pouch',
     'Bud',
-    'Pulls nearby enemies toward Greg with an inhale pulse.',
+    'Pulls nearby enemies toward you with an inhale pulse.',
     'Every 1.7 seconds',
   ),
   'puffer-pouch:adapted': definition(
@@ -133,7 +133,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationPresentationDefin
     'bud',
     'Firefly Colony',
     'Bud',
-    'Two fireflies orbit Greg and zap the nearest enemy they touch.',
+    'Two fireflies orbit you and zap the nearest enemy they touch.',
     'Every 0.5 seconds',
   ),
   'firefly-colony:adapted': definition(
@@ -178,7 +178,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationPresentationDefin
     'bud',
     'Gecko Pads',
     'Bud',
-    "After moving, leaves a damaging pad at Greg's feet.",
+    'After moving, leaves a damaging pad at your feet.',
     'Placement: after travelling 150 units',
   ),
   'gecko-pads:adapted': definition(
@@ -187,7 +187,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationPresentationDefin
     'adapted',
     'Gecko Pads',
     'Adapted',
-    "After moving, leaves larger, stronger damaging pads at Greg's feet.",
+    'After moving, leaves larger, stronger damaging pads at your feet.',
     'Placement: after travelling 110 units',
   ),
   'razorstep-chimera:mythic': definition(
@@ -196,7 +196,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationPresentationDefin
     'mythic',
     'Razorstep Chimera',
     'Mythic',
-    "Movement leaves stronger scythe pads at Greg's feet.",
+    'Movement leaves stronger scythe pads at your feet.',
     'Placement: after travelling 90 units',
   ),
   'owl-pinions:bud': definition('owl-pinions:bud', 'owl-pinions', 'bud', 'Owl Pinions', 'Bud', 'Fires a four-feather spread at the nearest threat.', 'Every 1.6 seconds'),
@@ -211,7 +211,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationPresentationDefin
   'meteor-mauler:mythic': definition('meteor-mauler:mythic', 'meteor-mauler', 'mythic', 'Meteor Mauler', 'Mythic', 'A heavy close-range impact crushes the nearest crowd.', 'Every 1.5 seconds'),
   'skunk-brush:bud': definition('skunk-brush:bud', 'skunk-brush', 'bud', 'Skunk Brush', 'Bud', 'Leaves a damaging stink cloud that punishes pursuit.', 'Every 2.7 seconds'),
   'skunk-brush:adapted': definition('skunk-brush:adapted', 'skunk-brush', 'adapted', 'Skunk Brush', 'Adapted', 'Leaves a larger, stronger stink cloud.', 'Every 2 seconds'),
-  'monarch-brood:bud': definition('monarch-brood:bud', 'monarch-brood', 'bud', 'Monarch Brood', 'Bud', 'Two monarchs orbit Greg and sting nearby enemies on contact.', 'Every second'),
+  'monarch-brood:bud': definition('monarch-brood:bud', 'monarch-brood', 'bud', 'Monarch Brood', 'Bud', 'Two monarchs orbit you and sting nearby enemies on contact.', 'Every second'),
   'monarch-brood:adapted': definition('monarch-brood:adapted', 'monarch-brood', 'adapted', 'Monarch Brood', 'Adapted', 'Three monarchs orbit wider and sting nearby enemies more often.', 'Every 0.75 seconds'),
   'royal-stinkcloud:mythic': definition('royal-stinkcloud:mythic', 'royal-stinkcloud', 'mythic', 'Royal Stinkcloud', 'Mythic', 'A monarch-crowned cloud turns the space around you into a hazard.', 'Every 2.3 seconds'),
 });

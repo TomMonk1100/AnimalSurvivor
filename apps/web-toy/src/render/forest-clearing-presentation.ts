@@ -44,6 +44,8 @@ export interface ForestClearingLayout {
   readonly roots: readonly ForestDecoration[];
   /** Warm, very low-opacity pools kept away from the exact spawn point. */
   readonly lightPools: readonly ForestDecoration[];
+  /** A soft visual rim that makes the simulation's outer wall legible. */
+  readonly boundaryFog: readonly ForestDecoration[];
   readonly landmarks: readonly ForestDecoration[];
 }
 
@@ -60,6 +62,7 @@ export const FOREST_TREE_BASE_COUNT = Math.ceil(FOREST_CANOPY_COUNT / 3);
 export const FOREST_STONE_COUNT = 76;
 export const FOREST_ROOT_COUNT = 58;
 export const FOREST_LIGHT_POOL_COUNT = 11;
+export const FOREST_BOUNDARY_FOG_BAND_COUNT = 4;
 export const SALTWIND_RUIN_COUNT = 12;
 
 const VISUAL_SEED = 0x57_49_4c_44;
@@ -83,6 +86,7 @@ const CANOPY_HEIGHT = -0.69;
 const TREE_BASE_HEIGHT = -0.705;
 const ROOT_HEIGHT = -0.7;
 const STONE_HEIGHT = -0.704;
+const BOUNDARY_FOG_HEIGHT = -0.682;
 const DEFAULT_WORLD_AREA = 2_000 * 2_000;
 
 /** A very small local PRNG: visual placement only, never simulation entropy. */
@@ -174,6 +178,24 @@ function createDecoration(
 }
 
 /**
+ * A renderer-only inner rim, deliberately inset from the true simulation
+ * wall. The camera stops before framing void; this tells players why moving
+ * farther outward is a bad route without changing collision or spawn logic.
+ */
+function createBoundaryFogDecorations(worldWidth: number, worldHeight: number): readonly ForestDecoration[] {
+  const halfWidth = worldWidth * 0.5;
+  const halfHeight = worldHeight * 0.5;
+  const bandDepth = Math.max(6, Math.min(140, Math.min(worldWidth, worldHeight) * 0.16));
+  const halfBand = bandDepth * 0.5;
+  return Object.freeze([
+    createDecoration(0, BOUNDARY_FOG_HEIGHT, -halfHeight + halfBand, halfWidth, 1, halfBand, 0),
+    createDecoration(0, BOUNDARY_FOG_HEIGHT, halfHeight - halfBand, halfWidth, 1, halfBand, 0),
+    createDecoration(-halfWidth + halfBand, BOUNDARY_FOG_HEIGHT, 0, halfBand, 1, halfHeight, 0),
+    createDecoration(halfWidth - halfBand, BOUNDARY_FOG_HEIGHT, 0, halfBand, 1, halfHeight, 0),
+  ]);
+}
+
+/**
  * Produces a repeatable set of low-profile forest-floor details in centered
  * renderer space. The only deliberate open area is the starting clearing;
  * all art remains decorative and has no physics or collision representation.
@@ -201,6 +223,7 @@ export function createForestClearingLayout(
   const stones: ForestDecoration[] = [];
   const roots: ForestDecoration[] = [];
   const lightPools: ForestDecoration[] = [];
+  const boundaryFog = createBoundaryFogDecorations(worldWidth, worldHeight);
   const landmarks: ForestDecoration[] = [];
 
   // Five overlapping, deliberately asymmetric meadow silhouettes make a
@@ -391,6 +414,7 @@ export function createForestClearingLayout(
     stones,
     roots,
     lightPools,
+    boundaryFog,
     landmarks,
   };
 }
@@ -981,6 +1005,11 @@ export function createForestClearingPresentation(
   const stoneMeshA = createBoulderMesh(device, [0.88, 1.04, 0.75, 0.96, 0.72, 1.08]);
   const stoneMeshB = createBoulderMesh(device, [1.02, 0.7, 0.9, 1.08, 0.78, 0.94, 0.68]);
   const rootMesh = createRootClusterMesh(device);
+  const boundaryFogMesh = pc.Mesh.fromGeometry(device, new pc.PlaneGeometry({
+    halfExtents: new pc.Vec2(1, 1),
+    widthSegments: 1,
+    lengthSegments: 1,
+  }));
   const ruinMesh = biomeId === 'saltwind'
     ? createTaperedTrunkMesh(device)
     : null;
@@ -1008,6 +1037,7 @@ export function createForestClearingPresentation(
   addBatch(`${biomeId}-meadow-inner`, clearingInnerMesh, color(art.clearingInner), layout.clearingLayers.slice(2), { opacity: 0.045 });
   addBatch(`${biomeId}-moss-patch`, mossMesh, color(art.moss), layout.mossPatches, { opacity: 0.06 });
   addBatch(`${biomeId}-sun-dapple`, lightPoolMesh, color(art.lightPool), layout.lightPools, { opacity: 0.09 });
+  addBatch(`${biomeId}-boundary-fog`, boundaryFogMesh, color(art.canopyShadow), layout.boundaryFog, { opacity: 0.42 });
   addBatch(`${biomeId}-leaf-litter`, leafLitterMesh, color(art.leafLitter), layout.leafLitter);
   addBatch(`${biomeId}-grass-tuft`, grassMesh, color(art.grass), layout.grassTufts, { diorama: true });
   addBatch(`${biomeId}-fern`, fernMesh, color(art.fern), layout.ferns, { diorama: true });

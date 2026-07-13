@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatRunElapsed, presentRunProgress } from '../src/presentation/run-progress';
+import { formatRunElapsed, formatRunRemaining, presentRunProgress } from '../src/presentation/run-progress';
 
 describe('run progress presentation', () => {
   it('formats the opening clock from authoritative ticks', () => {
     expect(formatRunElapsed(0, 60)).toBe('0:00');
     expect(formatRunElapsed(119, 60)).toBe('0:01');
+    expect(formatRunRemaining(390, 0, 60)).toBe('0:06');
     expect(presentRunProgress({ tick: 42 * 60, hz: 60, phase: 'opening' })).toEqual({
       status: 'RUN 0:42 · THE OPENING',
       objective: 'Objective: survive until the Final Threat.',
@@ -18,21 +19,46 @@ describe('run progress presentation', () => {
     });
   });
 
-  it('makes defeating the Final Threat explicit during boss and overtime', () => {
-    expect(presentRunProgress({ tick: 660 * 60, hz: 60, phase: 'boss' })).toMatchObject({
-      status: 'RUN 11:00 · THE FINAL THREAT',
-      objective: 'Objective: defeat the Final Threat.',
+  it('shows the boss arrival and normal-run clocks from injected director facts', () => {
+    expect(presentRunProgress({
+      tick: 6 * 60,
+      hz: 60,
+      phase: 'opening',
+      bossRequestTick: 390 * 60,
+      durationTicks: 480 * 60,
+    })).toMatchObject({
+      status: 'RUN 0:06 · THE OPENING · FINAL THREAT IN 6:24',
     });
-    expect(presentRunProgress({ tick: 721 * 60, hz: 60, phase: 'overtime' })).toMatchObject({
-      status: 'RUN 12:01 · OVERTIME',
-      objective: 'Objective: defeat the Final Threat to escape.',
+    expect(presentRunProgress({
+      tick: 370 * 60,
+      hz: 60,
+      phase: 'adaptation',
+      bossRequestTick: 390 * 60,
+      durationTicks: 480 * 60,
+    }).status).toBe('RUN 6:10 · ADAPTATION · FINAL THREAT IN 0:20');
+    expect(presentRunProgress({
+      tick: 390 * 60,
+      hz: 60,
+      phase: 'boss',
+      bossRequestTick: 390 * 60,
+      durationTicks: 480 * 60,
+    })).toEqual({
+      status: 'RUN 6:30 · THE FINAL THREAT · 1:30 LEFT',
+      objective: 'Objective: defeat the Final Threat before time runs out.',
     });
   });
 
   it('names the Saltwind apex in the persistent HUD objective', () => {
-    expect(presentRunProgress({ tick: 660 * 60, hz: 60, phase: 'boss', biomeId: 'saltwind' })).toEqual({
-      status: 'RUN 11:00 · THE SANDGLASS SOVEREIGN',
-      objective: 'Objective: defeat the Sandglass Sovereign.',
+    expect(presentRunProgress({
+      tick: 479 * 60,
+      hz: 60,
+      phase: 'boss',
+      biomeId: 'saltwind',
+      bossRequestTick: 390 * 60,
+      durationTicks: 480 * 60,
+    })).toEqual({
+      status: 'RUN 7:59 · THE SANDGLASS SOVEREIGN · 0:01 LEFT',
+      objective: 'Objective: defeat the Sandglass Sovereign before time runs out.',
     });
   });
 

@@ -38,7 +38,11 @@ function notice(
 }
 
 /** Pure projection only; it never advances or mutates director/simulation state. */
-export function projectDirectorEvent(event: RunDirectorEventView, biomeId: BiomeId = 'forest'): DirectorNotice | null {
+export function projectDirectorEvent(
+  event: RunDirectorEventView,
+  biomeId: BiomeId = 'forest',
+  heroName = 'Greg',
+): DirectorNotice | null {
   const biomeCopy = getBiomePresentationCopy(biomeId);
   switch (event.kind) {
     case 'phaseStarted': {
@@ -57,9 +61,9 @@ export function projectDirectorEvent(event: RunDirectorEventView, biomeId: Biome
     case 'overtimeStarted':
       return notice(event, 'danger', 'Overtime', 'The wild will keep closing in until the boss falls.', 300);
     case 'victory':
-      return notice(event, 'victory', 'Greg survives', 'The run is complete.', null);
+      return notice(event, 'victory', `${heroName} survives`, 'The run is complete.', null);
     case 'defeat':
-      return notice(event, 'defeat', 'Greg was overwhelmed', 'Return stronger and try again.', null);
+      return notice(event, 'defeat', `${heroName} was overwhelmed`, 'Return stronger and try again.', null);
     default:
       return null;
   }

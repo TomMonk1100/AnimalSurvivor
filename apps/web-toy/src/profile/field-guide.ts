@@ -34,6 +34,9 @@ export interface FieldGuidePortrait {
 export interface HeroPortraitAsset {
   readonly assetUrl: string;
   readonly assetAlt: string;
+  /** Always-available visual fallback for delayed or failed image loads. */
+  readonly fallbackGlyph: string;
+  readonly fallbackAccent: string;
 }
 
 export interface FieldGuideEvolutionStep {
@@ -75,9 +78,12 @@ const HERO_PORTRAIT_ASSETS: Readonly<Record<HeroId, string>> = Object.freeze({
 
 export function getHeroPortraitAsset(heroId: HeroId): HeroPortraitAsset {
   const heroName = HERO_NAMES[heroId];
+  const portrait = HERO_PORTRAITS[heroId];
   return Object.freeze({
     assetUrl: HERO_PORTRAIT_ASSETS[heroId],
     assetAlt: `${heroName} founding hero portrait`,
+    fallbackGlyph: portrait.glyph,
+    fallbackAccent: portrait.accent,
   });
 }
 

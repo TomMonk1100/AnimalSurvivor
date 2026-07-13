@@ -3,7 +3,7 @@
 The run director emits stable archetype IDs, while the renderer-free simulation
 owns numeric pools and the browser owns pooled visual batches. Their bridge is
 the data-defined manifest at
-`spikes/headless-sim/src/run-enemy-content.ts`.
+`packages/sim/src/run-enemy-content.ts`.
 
 | Authored ID | Simulation archetype | Behavior | Reward | Visual role | Spawn profile |
 | --- | ---: | --- | --- | --- | --- |

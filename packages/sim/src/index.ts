@@ -1,5 +1,5 @@
 /**
- * Public API surface for the headless-sim spike.
+ * Public API surface for the deterministic simulation package.
  */
 export type * from './types.js';
 export { makeId, idSlot, idGeneration, NO_ENTITY } from './types.js';

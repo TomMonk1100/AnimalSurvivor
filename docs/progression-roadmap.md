@@ -2,10 +2,10 @@
 
 ## Current playable milestone
 
-Forest Arsenal is the current Greg alpha: an eight-minute, build-making survival
-run in which the player moves, auto-attacks, levels without a visible level cap,
-chooses attacks and passives, faces rising off-screen pressure, and earns
-Essence after an attempt.
+Forest Arsenal is the current founding-roster alpha: an eight-minute,
+build-making survival run in which the player moves, auto-attacks, levels
+without a visible level cap, chooses attacks and passives, faces rising
+off-screen pressure, and earns Essence after an attempt.
 
 The aim is a clear first version of the bullet-heaven decision loop, not a claim
 that the catalog, balance, art, or progression are complete. The first owner
@@ -53,7 +53,7 @@ The current neutral candidates are:
 
 - **Swift Paws** — movement speed.
 - **XP Magnet** — larger collection radius and visible XP-mote attraction.
-- **Sturdy Hide** — maximum health.
+- **Sturdy Hide** — maximum health and a current-health restore when selected.
 - **Sharpened Instinct** — damage for every attack.
 - **Rapid Instinct** — cooldown reduction for every attack.
 - **Growth** — XP gained.
@@ -98,6 +98,9 @@ use ranged pressure, and elites drop larger XP rewards.
 The exact cadence, caps, placement, health, and reward values are authored,
 deterministic tuning. They are expected to change only in response to focused
 playtest evidence, with replay-safe definitions and no same-tick wave burst.
+The current V1 cleanup lowers early fodder formation caps, brings the first XP
+thresholds forward, and softens/slows Adaptation escalation; it still needs a
+fresh human retest before any balance conclusion is claimed.
 
 ## What is deliberately not shipped
 
@@ -112,9 +115,10 @@ playtest evidence, with replay-safe definitions and no same-tick wave burst.
 
 ## Next validation sequence
 
-1. Run hands-on Forest Arsenal playtests. Check forest readability, whether the
-   eight-minute curve feels urgent, whether off-screen waves read fairly, and
-   whether standing still remains unsafe as pressure rises.
+1. Run hands-on Forest Arsenal playtests, including the cleanup's early fodder,
+   XP, and Adaptation retune. Check forest readability, whether the eight-minute
+   curve feels urgent, whether off-screen waves read fairly, and whether standing
+   still remains unsafe as pressure rises.
 2. Check attack clarity: players should understand what each of the six
    candidates does, why a Mythic needs two slots, and where to inspect a build
    without on-screen combat clutter.

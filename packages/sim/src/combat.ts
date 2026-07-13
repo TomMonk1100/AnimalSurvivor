@@ -431,7 +431,7 @@ export function collectPickups(
   // protects direct headless consumers as well as the main simulation loop.
   if (!player.alive) return;
   const data = pickups.data;
-  // Linear scan: pickup cap is small in this spike, so a spatial grid for
+  // Linear scan: pickup cap is small in this simulation, so a spatial grid for
   // pickups is not worth the complexity/allocation tradeoff.
   for (let slot = 0; slot < data.capacity; slot++) {
     if (data.alive[slot] === 0) continue;

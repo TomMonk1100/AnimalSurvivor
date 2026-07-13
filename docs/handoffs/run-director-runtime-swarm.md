@@ -11,7 +11,7 @@ packages/run-director/
 ```
 
 Do not edit anything outside that directory. Other agents are actively reviewing
-the trait runtime and modifying the headless simulation, browser game, renderer,
+the trait runtime and modifying the deterministic simulation, browser game, renderer,
 Greg's hero presentation, and documentation. Return a commit or patch containing
 only `packages/run-director/`.
 
@@ -335,6 +335,6 @@ Return:
 6. known limitations;
 7. commit hash or patch containing only `packages/run-director/`.
 
-Do not integrate the package into `spikes/headless-sim` or `apps/web-toy`. The
+Do not integrate the package into `packages/sim` or `apps/web-toy`. The
 lead agent will review it and perform that integration after the trait runtime
 review.

@@ -43,9 +43,12 @@ const PHASES: readonly PhaseDefinition[] = [
     id: 'adaptation',
     startTick: 10_800,
     endTick: 17_999,
-    softCap: 30,
-    hardCap: 48,
-    threatPerTick: 6,
+    // The first two owner runs both collapsed just after this boundary. Keep
+    // the phase's new enemy grammar, but make its first density step one rung
+    // below the old 30/48/6 cliff so a growing build can respond.
+    softCap: 24,
+    hardCap: 40,
+    threatPerTick: 5,
   },
   {
     id: 'mutation',
@@ -76,8 +79,10 @@ const ARCHETYPES: readonly ArchetypeDefinition[] = [
     weight: 10,
     formation: 'arc',
     count: 4,
-    minDistance: 38,
-    maxDistance: 46,
+    // At the adapter's authored 20x scale this enters the camera/readability
+    // band at roughly 6–10 seconds instead of walking in for 15+ seconds.
+    minDistance: 22,
+    maxDistance: 26,
     elite: false,
     boss: false,
   },
@@ -298,7 +303,7 @@ const WAVES: WaveConfig = {
   phaseIntervalTicks: {
     opening: 75,
     pressure: 60,
-    adaptation: 45,
+    adaptation: 50,
     mutation: 30,
     boss: 36,
   },

@@ -9,6 +9,7 @@ test('default config validates and fingerprints identically across independent c
   assert.match(fingerprintConfig(DEFAULT_CONFIG), /^[0-9a-f]{16}$/);
   assert.equal(fingerprintConfig(DEFAULT_CONFIG), fingerprintConfig({ ...DEFAULT_CONFIG }));
   assert.equal(DEFAULT_CONFIG.weapon.pierce, 0, 'basic Auto-Fire must not inherit Quills pierce');
+  assert.deepEqual(DEFAULT_CONFIG.xpThresholds, [4, 10, 18, 30, 46, 68, 96, 132, 176, 228]);
 });
 
 test('fingerprint changes when a gameplay value changes', () => {

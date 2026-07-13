@@ -15,10 +15,11 @@ import { createSimDriver } from '../src/sim/simulation-driver';
 const HZ = DEFAULT_CONFIG.hz;
 const DT_MS = 1000 / HZ;
 const FIVE_MIN_TICKS = HZ * 60 * 5; // 18000 ticks @ 60hz
-// Rebaselined for the earned Rush Rake balance pass: movement charge, the
-// readable three-wave spacing, and its lower coverage damage participate in
-// canonical state.
-const EXPECTED_FIVE_MINUTE_HASH = '618aef913da86dbb';
+const PROPOSE_GOLDENS = process.env.ANIMAL_SURVIVOR_GOLDEN_MODE === 'propose';
+// Rebaselined after the reviewed opening-arrival, XP pacing, and adaptation
+// density pass; deterministic proposal runs agreed before this expectation
+// changed.
+const EXPECTED_FIVE_MINUTE_HASH = 'd23c536f1a478d8d';
 
 /** Headless control: step a bare simulation with autopilot inputs keyed on pre-step tick. */
 function headlessControl(seed: number, ticks: number): string {
@@ -56,7 +57,11 @@ describe('five-minute autopilot determinism & headless parity', () => {
   it('driver renderer-off hash equals headless control over 5 simulated minutes', () => {
     const control = headlessControl(SEED, FIVE_MIN_TICKS);
     const driven = driverRun(SEED, FIVE_MIN_TICKS);
-    expect(control).toBe(EXPECTED_FIVE_MINUTE_HASH);
+    if (PROPOSE_GOLDENS) {
+      process.stderr.write(`[stress:propose] ${control}\n`);
+    } else {
+      expect(control).toBe(EXPECTED_FIVE_MINUTE_HASH);
+    }
     expect(driven).toBe(control);
     // Canonical hash for the browser acceptance harness to match at tick 18000.
     console.info(`[stress] seed=0x${SEED.toString(16)} ticks=${FIVE_MIN_TICKS} hash=${control}`);

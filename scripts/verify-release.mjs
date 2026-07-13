@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
 const workspaceRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const checks = [
   {
-    label: 'headless simulation',
-    directory: 'spikes/headless-sim',
+    label: 'simulation',
+    directory: 'packages/sim',
     commands: [
       ['npm', ['test']],
       ['npm', ['run', 'typecheck']],

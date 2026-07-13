@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const workspaceRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const lockfiles = [
-  'spikes/headless-sim/package-lock.json',
+  'packages/sim/package-lock.json',
   'packages/trait-runtime/package-lock.json',
   'packages/run-director/package-lock.json',
   'apps/web-toy/package-lock.json',

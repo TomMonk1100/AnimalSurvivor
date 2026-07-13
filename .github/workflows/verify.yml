@@ -16,9 +16,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Headless simulation
-            directory: spikes/headless-sim
-            lockfile: spikes/headless-sim/package-lock.json
+          - name: Simulation
+            directory: packages/sim
+            lockfile: packages/sim/package-lock.json
           - name: Run director
             directory: packages/run-director
             lockfile: packages/run-director/package-lock.json

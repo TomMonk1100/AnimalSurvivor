@@ -7,7 +7,7 @@ reruns the three benchmark commands after their package lint gates.
 
 ## Headless simulation
 
-- Command: `spikes/headless-sim/npm run bench`
+- Command: `cd packages/sim && npm run bench`
 - Warmup/measured ticks: 2,000 / 10,000
 - Live enemies at measurement end: 1,000
 - Mean: 49.64 µs/tick
@@ -19,7 +19,7 @@ reruns the three benchmark commands after their package lint gates.
 
 ## Trait runtime
 
-- Command: `packages/trait-runtime/npm run bench`
+- Command: `cd packages/trait-runtime && npm run bench`
 - Ticks: 18,000
 - Commands emitted: 1,308
 - Buffer overflow: 0
@@ -29,7 +29,7 @@ reruns the three benchmark commands after their package lint gates.
 
 ## Run director
 
-- Command: `packages/run-director/npm run bench`
+- Command: `cd packages/run-director && npm run bench`
 - Full 28,800-tick update mean: 0.0004 ms
 - Full-run P95 / P99: 0.0007 / 0.0015 ms
 - Full-run outcome: defeat at the normal deadline

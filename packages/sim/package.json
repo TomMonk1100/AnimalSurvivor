@@ -1,8 +1,8 @@
 {
-  "name": "headless-sim",
+  "name": "@animalsurvivor/sim",
   "version": "0.1.0",
   "private": true,
-  "description": "Renderer-free deterministic simulation spike for AnimalSurvivor",
+  "description": "Renderer-free deterministic simulation package for Animal Survivor",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json --skipLibCheck",

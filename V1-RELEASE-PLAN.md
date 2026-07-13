@@ -659,7 +659,7 @@ maintenance work is required.
 ## Current validation commands
 
 ~~~bash
-cd /Users/adammuncie/GameDev/AnimalSurvivor/spikes/headless-sim
+cd /Users/adammuncie/GameDev/AnimalSurvivor/packages/sim
 npm test && npm run typecheck && npm run lint
 
 cd /Users/adammuncie/GameDev/AnimalSurvivor/packages/trait-runtime

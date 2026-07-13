@@ -83,6 +83,7 @@ import { createForestClearingPresentation } from './forest-clearing-presentation
 import { createQuaterniusGladePresentation } from './quaternius-glade-presentation';
 import { createContextLossController } from './context-loss-controller';
 import { WILDGUARD_ENEMY_SPRITE_URLS } from './wildguard-enemy-sprites';
+import { clampCameraTarget } from './camera-bounds';
 
 /** Backing-store size cap: CSS size * min(devicePixelRatio, RESOLUTION_CAP). */
 const RESOLUTION_CAP = 2;
@@ -704,10 +705,12 @@ export function createRenderer(
   let lastDrawCalls = 0;
   let qualityTier: RenderQualityTier = initialQualityTier;
   let resolutionCap = qualityTier === 'reduced' ? 1 : RESOLUTION_CAP;
+  let cameraAspect = 1;
 
   function resize(): void {
     const cssWidth = Math.max(1, canvas.clientWidth);
     const cssHeight = Math.max(1, canvas.clientHeight);
+    cameraAspect = cssWidth / cssHeight;
     const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
     app.graphicsDevice.maxPixelRatio = Math.min(dpr, resolutionCap);
     app.graphicsDevice.resizeCanvas(cssWidth, cssHeight);
@@ -731,6 +734,18 @@ export function createRenderer(
     const playerSceneX = playerWorldX - worldHalfWidth;
     // Camera-up is world -Z, so simulation +Y must map to scene -Z.
     const playerSceneZ = worldHalfHeight - playerWorldY;
+    const cameraTarget = clampCameraTarget({
+      targetX: playerWorldX,
+      targetY: playerWorldY,
+      worldWidth: config.worldWidth,
+      worldHeight: config.worldHeight,
+      aspect: cameraAspect,
+      orthoHalfHeight: CAMERA_ORTHO_HEIGHT,
+      cameraHeight: CAMERA_HEIGHT,
+      followBackOffset: CAMERA_FOLLOW_BACK_OFFSET,
+    });
+    const cameraSceneX = cameraTarget.x - worldHalfWidth;
+    const cameraSceneZ = worldHalfHeight - cameraTarget.y;
 
     heroPresentation.update(prev, curr, alpha, traitVisualState, traitPresentationEvents);
     combatFeedbackPresentation.update(combatFeedback);
@@ -744,8 +759,8 @@ export function createRenderer(
       playerEntity.setLocalScale(playerScale, playerScale, playerScale);
     }
 
-    camera.setPosition(playerSceneX, CAMERA_HEIGHT, playerSceneZ + CAMERA_FOLLOW_BACK_OFFSET);
-    camera.lookAt(playerSceneX, 0, playerSceneZ, 0, 0, -1);
+    camera.setPosition(cameraSceneX, CAMERA_HEIGHT, cameraSceneZ + CAMERA_FOLLOW_BACK_OFFSET);
+    camera.lookAt(cameraSceneX, 0, cameraSceneZ, 0, 0, -1);
 
     enemySpriteMotion.timeSeconds = lerp(prev.tick, curr.tick, alpha) / config.hz;
     walkerEnemyTransforms.update(

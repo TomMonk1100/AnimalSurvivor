@@ -6,14 +6,14 @@ You are a coding-only agent swarm working in the AnimalSurvivor repository.
 Build a self-contained, renderer-free simulation spike under:
 
 ```text
-spikes/headless-sim/
+packages/sim/
 ```
 
 This is parallel work. Other agents are editing the rest of the repository.
 
 ## Absolute ownership boundary
 
-You may create or edit files only inside `spikes/headless-sim/`.
+You may create or edit files only inside `packages/sim/`.
 
 Do not edit, move, format, stage, or delete anything outside that directory. In
 particular, do not touch root configuration, `README.md`, `docs/`, `assets/`,
@@ -63,7 +63,7 @@ Small development-only packages for tests and TypeScript compilation are allowed
 Suggested modules:
 
 ```text
-spikes/headless-sim/
+packages/sim/
   src/
     index.ts
     config.ts
@@ -189,7 +189,7 @@ scaling. The later browser integration will set the real frame budget.
 
 ## Quality gates
 
-The assignment is complete only when, from `spikes/headless-sim/`:
+The assignment is complete only when, from `packages/sim/`:
 
 ```text
 npm test
@@ -224,7 +224,7 @@ Return:
 3. benchmark table and final deterministic hash;
 4. known limitations and any behavior intentionally omitted;
 5. dependency list and why each dependency exists;
-6. commit hash or patch containing only `spikes/headless-sim/`.
+6. commit hash or patch containing only `packages/sim/`.
 
 Do not claim this validates rendering performance. It validates simulation
 correctness, determinism, and approximate CPU scaling only.

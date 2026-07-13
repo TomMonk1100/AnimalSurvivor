@@ -10,7 +10,7 @@ on:
       - 'assets/**'
       - 'packages/run-director/**'
       - 'packages/trait-runtime/**'
-      - 'spikes/headless-sim/**'
+      - 'packages/sim/**'
   workflow_dispatch:
 
 # The build can only read repository contents. The deploy job receives the
@@ -37,14 +37,14 @@ jobs:
           node-version: 24.18.0
           cache: npm
           cache-dependency-path: |
-            spikes/headless-sim/package-lock.json
+            packages/sim/package-lock.json
             packages/trait-runtime/package-lock.json
             packages/run-director/package-lock.json
             apps/web-toy/package-lock.json
 
-      - name: Install headless simulation dependencies
+      - name: Install simulation dependencies
         run: npm ci
-        working-directory: spikes/headless-sim
+        working-directory: packages/sim
 
       - name: Install trait runtime dependencies
         run: npm ci
@@ -58,9 +58,9 @@ jobs:
         run: npm ci
         working-directory: apps/web-toy
 
-      - name: Verify headless simulation
+      - name: Verify simulation
         run: npm run typecheck && npm run lint && npm test
-        working-directory: spikes/headless-sim
+        working-directory: packages/sim
 
       - name: Verify trait runtime
         run: npm run typecheck && npm run lint && npm test

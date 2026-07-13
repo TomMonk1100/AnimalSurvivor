@@ -13,6 +13,11 @@ describe('pause notice presentation', () => {
     }])).toEqual({
       title: 'Paused',
       detail: 'Press Esc or Resume to continue.',
+      actions: [
+        { id: 'resume', label: 'Resume' },
+        { id: 'restart', label: 'Restart run' },
+        { id: 'quit', label: 'Quit to den' },
+      ],
       upgrades: [{
         id: 'porcupine-quills:bud',
         title: 'Porcupine Quills',

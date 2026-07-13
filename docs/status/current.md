@@ -2,7 +2,7 @@
 
 **Updated:** 2026-07-12
 **Active milestone:** Gate 1 — Forest Arsenal playable alpha
-**Project state:** Playtestable V1 candidate, with combat proof, motion, audio, and local save slices validated
+**Project state:** Playtestable V1 cleanup candidate, with combat proof, motion, audio, and local save slices validated; fresh human retest remains open
 **Budget model:** AI subscription usage; no additional cash
 
 The external blind Claude swarm package has been reconciled in
@@ -10,12 +10,15 @@ The external blind Claude swarm package has been reconciled in
 Its standalone prototypes remain reference-only; no speculative content was
 merged from them.
 
+The deterministic simulation is the production package `packages/sim`. Release
+verification and the web toy resolve the simulation through that package path.
+
 ## Release Gate 0 implementation
 
 The web build now emits a public build identity manifest, source asset manifest,
 and hashed `dist-manifest.json`. The document title, build meta tag, and
 prep-screen label expose the same build ID. The Pages workflow verifies the
-headless simulation, trait runtime, run director, and web toy before building
+simulation, trait runtime, run director, and web toy before building
 one artifact, then preserves and deploys that exact output. See
 [`docs/release/gate0-evidence.md`](../release/gate0-evidence.md) for the local
 artifact and hosted-browser evidence procedure. Hosted identity and human
@@ -104,7 +107,9 @@ The founding roster has a deterministic browser survival loop with:
   remains replay-bound. Browser zoom remains available and safe-area insets are
   applied to the arena, HUD, touch joystick, and prep dialog; device
   certification is still open.
-- opt-in audio now has a presentation-only master, music-bed, and SFX mix
+- sound starts enabled by default from the Start-run gesture (with an immediate
+  opt-out),
+  and has a presentation-only master, music-bed, and SFX mix
   surface plus a V1 storybook procedural score with opening, pressure,
   adaptation, mutation, boss, victory, and defeat arrangements. Source-aware
   launch trait, instinct, boss-telegraph, and support-warning identities are
@@ -157,8 +162,10 @@ not only starter fire.
 
 ## What still needs evidence
 
-- A fresh human playtest of the compressed eight-minute curve: is pressure
-  urgent, fair, and readable from opening through boss?
+- A fresh human retest of the compressed eight-minute curve. The V1 cleanup
+  lowers early fodder formation caps, brings the first XP thresholds forward,
+  and softens/slows Adaptation escalation; is pressure now urgent, fair, and
+  readable from opening through boss?
 - Attack clarity: can a player distinguish Quills, Puffer, Coil, orbiting Firefly,
   Mantis Scythes, and Gecko Pads; understand each Mythic; and find build
   details naturally in the pause panel?

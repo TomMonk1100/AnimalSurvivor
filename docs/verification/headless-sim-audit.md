@@ -3,7 +3,7 @@
 **Audited:** 2026-07-10  
 **Source:** external branch `codex/headless-sim`, commit
 `8838735520891e7f36724bc0566cd2c719f025e8`  
-**Accepted location:** `spikes/headless-sim/`
+**Accepted location:** `packages/sim/`
 
 ## Outcome
 

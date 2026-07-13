@@ -401,7 +401,9 @@ export const DEFAULT_CONFIG: SimConfig = {
   projectileCap: 600,
   pickupCap: 300,
   zoneCap: 16,
-  xpThresholds: [5, 15, 30, 50, 80, 120, 170, 230, 300, 380],
+  // Cumulative thresholds: three choices can arrive in the first two minutes
+  // without introducing a later abrupt XP wall.
+  xpThresholds: [4, 10, 18, 30, 46, 68, 96, 132, 176, 228],
   enemyContactCooldownTicks: 30,
   player: {
     startX: 1000,

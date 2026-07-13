@@ -12,6 +12,8 @@ describe('Field Guide entry projection', () => {
     expect(getHeroPortraitAsset('gracie')).toEqual({
       assetUrl: expect.stringContaining('gracie-final-form-v1.png'),
       assetAlt: 'Gracie founding hero portrait',
+      fallbackGlyph: 'G',
+      fallbackAccent: '#8bd8bb',
     });
   });
 

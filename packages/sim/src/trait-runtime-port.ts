@@ -1,9 +1,9 @@
 /**
- * Structural boundary for injecting a trait runtime into the headless sim.
+ * Structural boundary for injecting a trait runtime into the simulation package.
  *
  * These views intentionally duplicate only the public data the simulation
  * consumes. The trait-runtime package satisfies them structurally, while this
- * spike remains independently buildable and has no cross-package dependency.
+ * package remains independently buildable and has no cross-package dependency.
  */
 
 export interface TraitRuntimeUpdateContext {

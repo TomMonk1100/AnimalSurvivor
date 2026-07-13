@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FOREST_CANOPY_COUNT,
+  FOREST_BOUNDARY_FOG_BAND_COUNT,
   FOREST_CLEARING_RADIUS,
   FOREST_CLEARING_LAYER_COUNT,
   FOREST_FERN_COUNT,
@@ -32,6 +33,7 @@ function everyDecoration(layout: ReturnType<typeof createForestClearingLayout>) 
     ...layout.stones,
     ...layout.roots,
     ...layout.lightPools,
+    ...layout.boundaryFog,
   ];
 }
 
@@ -52,6 +54,7 @@ describe('forest clearing presentation layout', () => {
     expect(first.stones).toHaveLength(FOREST_STONE_COUNT);
     expect(first.roots).toHaveLength(FOREST_ROOT_COUNT);
     expect(first.lightPools).toHaveLength(FOREST_LIGHT_POOL_COUNT);
+    expect(first.boundaryFog).toHaveLength(FOREST_BOUNDARY_FOG_BAND_COUNT);
   });
 
   it('keeps visual placements inside the centered world and preserves the opening clearing', () => {
@@ -89,6 +92,7 @@ describe('forest clearing presentation layout', () => {
         (FOREST_CLEARING_RADIUS * 0.82) ** 2,
       );
     }
+    expect(layout.boundaryFog.every((band) => band.scaleX > 0 && band.scaleZ > 0)).toBe(true);
   });
 
   it('supports a deterministic Saltwind dressing seed distinct from Forest', () => {

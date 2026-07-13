@@ -30,7 +30,7 @@ interface SourceFileRecord {
  * uses NodeNext-style `.js` import specifiers; Vite/esbuild resolves those to
  * the sibling `.ts` files automatically, so no simulation source is copied.
  */
-const simEntry = fileURLToPath(new URL('../../spikes/headless-sim/src/index.ts', import.meta.url));
+const simEntry = fileURLToPath(new URL('../../packages/sim/src/index.ts', import.meta.url));
 const traitsEntry = fileURLToPath(new URL('../../packages/trait-runtime/src/index.ts', import.meta.url));
 const directorEntry = fileURLToPath(new URL('../../packages/run-director/src/index.ts', import.meta.url));
 const workspaceRoot = fileURLToPath(new URL('../..', import.meta.url));
@@ -85,7 +85,7 @@ function createBuildIdentity(): { readonly info: BuildInfo; readonly assetManife
       ? new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000).toISOString()
       : new Date().toISOString());
   const contentFiles = [
-    ...filesUnder(join(workspaceRoot, 'spikes/headless-sim/src')),
+    ...filesUnder(join(workspaceRoot, 'packages/sim/src')),
     ...filesUnder(join(workspaceRoot, 'packages/trait-runtime/src')),
     ...filesUnder(join(workspaceRoot, 'packages/run-director/src')),
   ];

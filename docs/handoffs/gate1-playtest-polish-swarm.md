@@ -129,9 +129,9 @@ npm run lint
 ### Exclusive ownership
 
 ```text
-spikes/headless-sim/src/simulation.ts
-spikes/headless-sim/src/run-spawn-adapter.ts
-spikes/headless-sim/test/run-simulation.test.ts
+packages/sim/src/simulation.ts
+packages/sim/src/run-spawn-adapter.ts
+packages/sim/test/run-simulation.test.ts
 apps/web-toy/src/contracts.ts
 apps/web-toy/src/sim/snapshot-producer.ts
 apps/web-toy/src/render/instanced-transform-store.ts
@@ -158,7 +158,7 @@ Do not edit trait code, Greg hero code, `app.ts`, HTML/CSS, or package files.
 ### Acceptance
 
 ```text
-cd spikes/headless-sim
+cd packages/sim
 npm test && npm run typecheck && npm run lint
 
 cd ../../apps/web-toy
@@ -221,7 +221,7 @@ owned files.
 Run all four package gates plus the complete authored replay test:
 
 ```text
-cd spikes/headless-sim && npm test && npm run typecheck && npm run lint
+cd packages/sim && npm test && npm run typecheck && npm run lint
 cd ../../packages/trait-runtime && npm test && npm run typecheck && npm run lint
 cd ../run-director && npm test && npm run typecheck && npm run lint
 cd ../../apps/web-toy && npm test && npm run typecheck && npm run lint && npm run build

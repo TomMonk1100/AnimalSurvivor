@@ -66,6 +66,19 @@ describe('active adaptation presentation', () => {
     expect(cards[0]?.cadence).toContain('telegraph → gather → radial quill storm');
   });
 
+  it('keeps body-relative attack copy correct for every selected hero', () => {
+    const cards = presentActiveAdaptations([
+      visual({ sourceId: 'puffer-pouch', stage: 'bud', sockets: ['head'], visualKey: 'puffer-pouch:bud' }),
+      visual({ sourceId: 'firefly-colony', stage: 'bud', sockets: ['bodyOrbit'], visualKey: 'firefly-colony:bud' }),
+      visual({ sourceId: 'gecko-pads', stage: 'bud', sockets: ['feet'], visualKey: 'gecko-pads:bud' }),
+      visual({ sourceId: 'monarch-brood', stage: 'bud', sockets: ['bodyOrbit'], visualKey: 'monarch-brood:bud' }),
+    ]);
+    const effects = cards.map((card) => card.effect).join(' ');
+
+    expect(effects).toMatch(/you/i);
+    expect(effects).not.toMatch(/Greg/);
+  });
+
   it('keeps unrelated attacks visible beside a Mythic and supports a second Mythic', () => {
     const cards = presentActiveAdaptations([
       visual({ sourceId: 'thornstorm-mantle', stage: 'mythic', sockets: ['head', 'back'], visualKey: 'thornstorm-mantle:mythic' }),
@@ -152,7 +165,7 @@ describe('active adaptation presentation', () => {
       expect.objectContaining({
         id: 'gecko-pads:bud',
         title: 'Gecko Pads',
-        effect: "After moving, leaves a damaging pad at Greg's feet.",
+        effect: 'After moving, leaves a damaging pad at your feet.',
         cadence: 'Placement: after travelling 150 units',
       }),
     ]);
@@ -166,7 +179,7 @@ describe('active adaptation presentation', () => {
       }),
     ]);
     expect(adapted[0]).toMatchObject({
-      effect: "After moving, leaves larger, stronger damaging pads at Greg's feet.",
+      effect: 'After moving, leaves larger, stronger damaging pads at your feet.',
       cadence: 'Placement: after travelling 110 units',
     });
   });
@@ -224,7 +237,7 @@ describe('active adaptation presentation', () => {
         id: 'razorstep-chimera:mythic',
         title: 'Razorstep Chimera',
         stageLabel: 'Mythic',
-        effect: "Movement leaves stronger scythe pads at Greg's feet.",
+        effect: 'Movement leaves stronger scythe pads at your feet.',
         cadence: 'Placement: after travelling 90 units',
       }),
     ]);

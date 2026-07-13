@@ -27,4 +27,10 @@ describe('run intro presentation', () => {
     expect(presentation.objective).toMatch(/sturdy body/i);
     expect(presentation.controls).toMatch(/Benny auto-fires/i);
   });
+
+  it('keeps every controls prompt complete instead of relying on visual clipping', () => {
+    for (const heroId of ['greg', 'benny', 'gracie'] as const) {
+      expect(presentRunIntro({ autoStart: false, heroId }).controls).toMatch(/pause\.$/);
+    }
+  });
 });

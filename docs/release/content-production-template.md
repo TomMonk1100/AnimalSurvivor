@@ -57,10 +57,10 @@ deterministic state, and release provenance in one reviewable packet.
 - Trait/evolution behavior and structural validation:
   `packages/trait-runtime/src/content/` and `apps/web-toy/src/release/content-validator.ts`
 - Run archetype mapping:
-  `spikes/headless-sim/src/run-enemy-content.ts` and
+  `packages/sim/src/run-enemy-content.ts` and
   `docs/release/enemy-content-manifest.md`
 - Deterministic replay/hash coverage:
-  `spikes/headless-sim/test/` and `apps/web-toy/test/golden-replay-corpus.test.ts`
+  `packages/sim/test/` and `apps/web-toy/test/golden-replay-corpus.test.ts`
 - Player-facing threat copy:
   `apps/web-toy/src/presentation/enemy-glossary.ts`
 - Release gates:

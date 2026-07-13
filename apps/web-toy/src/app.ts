@@ -24,7 +24,7 @@ import {
 } from '@sim';
 import type { BiomeId, HeroId, RunDirectorFactory, SimConfig, TraitRuntimeFactory } from '@sim';
 import { GREG_FOREST_ARSENAL_CATALOG, TraitRuntime } from '@traits';
-import { RunDirector, SALTWIND_RUINS_RUN } from '@director';
+import { GREG_FIRST_RUN, RunDirector, SALTWIND_RUINS_RUN } from '@director';
 import type { HudStats, InputMode, InputSource } from './contracts';
 import { createSimDriver, MAX_CATCHUP_TICKS, type SimDriver } from './sim/simulation-driver';
 import { createRenderer } from './render/playcanvas-scene';
@@ -236,10 +236,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     ? requestedBiomeId
     : 'forest';
   const biomeWasLocked = requestedBiomeId !== null && selectedBiomeId !== requestedBiomeId;
-  const runDirectorFactory: RunDirectorFactory = ({ seed }) => new RunDirector({
-    seed,
-    definition: selectedBiomeId === 'saltwind' ? SALTWIND_RUINS_RUN : undefined,
-  });
+  const runDefinition = selectedBiomeId === 'saltwind' ? SALTWIND_RUINS_RUN : GREG_FIRST_RUN;
+  const runDirectorFactory: RunDirectorFactory = ({ seed }) => new RunDirector({ seed, definition: runDefinition });
   const queryHeroId = params.get('hero');
   const selectedQueryHero = queryHeroId !== null
     && (HERO_IDS as readonly string[]).includes(queryHeroId)
@@ -281,6 +279,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       hz: config.hz,
       phase: driver.runPhase,
       biomeId: selectedBiomeId,
+      bossRequestTick: runDefinition.boss.requestTick,
+      durationTicks: runDefinition.durationTicks,
     }),
   });
 
@@ -329,6 +329,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   let renderedOutcomeKey = '';
   let renderedInputMode = '';
   let visibilityPauseState: VisibilityPauseState = Object.freeze({ pausedByVisibility: false });
+  let soundPreferenceSet = false;
 
   function renderInputModeStatus(): void {
     if (controls.autopilotOn) {
@@ -383,13 +384,28 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       choice.style.setProperty('--hero-primary', hero.palette[0]);
       choice.style.setProperty('--hero-accent', hero.palette[1]);
       const portraitAsset = getHeroPortraitAsset(hero.id);
+      const portraitFrame = document.createElement('span');
+      portraitFrame.className = 'hero-selection-portrait-frame';
+      portraitFrame.dataset.state = 'loading';
+      portraitFrame.style.setProperty('--portrait-accent', portraitAsset.fallbackAccent);
+      const portraitFallback = document.createElement('span');
+      portraitFallback.className = 'hero-selection-portrait-fallback';
+      portraitFallback.setAttribute('aria-hidden', 'true');
+      portraitFallback.textContent = portraitAsset.fallbackGlyph;
       const portrait = document.createElement('img');
       portrait.className = 'hero-selection-portrait';
-      portrait.src = portraitAsset.assetUrl;
       portrait.alt = portraitAsset.assetAlt;
       portrait.loading = 'lazy';
       portrait.decoding = 'async';
-      portrait.addEventListener('error', () => portrait.remove(), { once: true });
+      portrait.addEventListener('load', () => {
+        portraitFrame.dataset.state = 'loaded';
+      }, { once: true });
+      portrait.addEventListener('error', () => {
+        portraitFrame.dataset.state = 'fallback';
+        portrait.hidden = true;
+      }, { once: true });
+      portrait.src = portraitAsset.assetUrl;
+      portraitFrame.append(portraitFallback, portrait);
       const title = document.createElement('strong');
       title.textContent = `${hero.displayName} · ${hero.species}`;
       const epithet = document.createElement('small');
@@ -404,7 +420,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       const statLine = document.createElement('small');
       statLine.className = 'hero-stat-line';
       statLine.textContent = hero.statLine;
-      choice.append(portrait, title, epithet, description, characterLine, statLine, silhouette);
+      choice.append(portraitFrame, title, epithet, description, characterLine, statLine, silhouette);
       choice.addEventListener('click', () => {
         if (runStarted || hero.id === selectedHeroId) return;
         try {
@@ -450,63 +466,86 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       empty.className = 'pause-upgrades-empty';
       empty.textContent = 'No upgrades selected yet.';
       pauseNoticeRoot.appendChild(empty);
-      return;
-    }
-    upgradesTitle.textContent = `Active attacks · ${attacks.slotsUsed}/${attacks.slotCapacity}`;
-    for (const upgrade of attacks.cards) {
-      const card = document.createElement('section');
-      card.className = 'pause-upgrade-card';
-      const cardTitle = document.createElement('strong');
-      cardTitle.textContent = `${upgrade.title} — ${upgrade.stageLabel}${upgrade.slotCost > 1 ? ` · ${upgrade.slotCost} slots` : ''}`;
-      const effect = document.createElement('span');
-      effect.textContent = upgrade.effect;
-      const cadence = document.createElement('small');
-      cadence.textContent = upgrade.cadence;
-      card.append(cardTitle, effect, cadence);
-      pauseNoticeRoot.appendChild(card);
-    }
-    if (universalUpgrades.length > 0) {
-      const runUpgradesTitle = document.createElement('strong');
-      runUpgradesTitle.className = 'pause-upgrades-title';
-      runUpgradesTitle.textContent = `Run upgrades · ${driver.universalUpgradeSlotsUsed}/${driver.universalUpgradeSlotCapacity}`;
-      pauseNoticeRoot.appendChild(runUpgradesTitle);
-      const neutralUpgrades = universalUpgrades.filter((upgrade) => upgrade.kind === 'neutral');
-      const starterMasteries = universalUpgrades.filter((upgrade) => upgrade.kind === 'starterMastery');
-      if (neutralUpgrades.length > 0) {
-        const neutralTitle = document.createElement('strong');
-        neutralTitle.className = 'pause-upgrades-title';
-        neutralTitle.textContent = 'Neutral passives';
-        pauseNoticeRoot.appendChild(neutralTitle);
-      }
-      for (const upgrade of neutralUpgrades) {
+    } else {
+      upgradesTitle.textContent = `Active attacks · ${attacks.slotsUsed}/${attacks.slotCapacity}`;
+      for (const upgrade of attacks.cards) {
         const card = document.createElement('section');
         card.className = 'pause-upgrade-card';
-        card.dataset.kind = 'universal';
         const cardTitle = document.createElement('strong');
-        cardTitle.textContent = `${upgrade.title} — Rank ${upgrade.rank}/${upgrade.maxRank}`;
+        cardTitle.textContent = `${upgrade.title} — ${upgrade.stageLabel}${upgrade.slotCost > 1 ? ` · ${upgrade.slotCost} slots` : ''}`;
         const effect = document.createElement('span');
         effect.textContent = upgrade.effect;
-        card.append(cardTitle, effect);
+        const cadence = document.createElement('small');
+        cadence.textContent = upgrade.cadence;
+        card.append(cardTitle, effect, cadence);
         pauseNoticeRoot.appendChild(card);
       }
-      if (starterMasteries.length > 0) {
-        const masteryTitle = document.createElement('strong');
-        masteryTitle.className = 'pause-upgrades-title';
-        masteryTitle.textContent = 'Starter mastery';
-        pauseNoticeRoot.appendChild(masteryTitle);
-      }
-      for (const upgrade of starterMasteries) {
-        const card = document.createElement('section');
-        card.className = 'pause-upgrade-card';
-        card.dataset.kind = 'starter-mastery';
-        const cardTitle = document.createElement('strong');
-        cardTitle.textContent = `${upgrade.title} — Rank ${upgrade.rank}/${upgrade.maxRank}`;
-        const effect = document.createElement('span');
-        effect.textContent = upgrade.effect;
-        card.append(cardTitle, effect);
-        pauseNoticeRoot.appendChild(card);
+      if (universalUpgrades.length > 0) {
+        const runUpgradesTitle = document.createElement('strong');
+        runUpgradesTitle.className = 'pause-upgrades-title';
+        runUpgradesTitle.textContent = `Run upgrades · ${driver.universalUpgradeSlotsUsed}/${driver.universalUpgradeSlotCapacity}`;
+        pauseNoticeRoot.appendChild(runUpgradesTitle);
+        const neutralUpgrades = universalUpgrades.filter((upgrade) => upgrade.kind === 'neutral');
+        const starterMasteries = universalUpgrades.filter((upgrade) => upgrade.kind === 'starterMastery');
+        if (neutralUpgrades.length > 0) {
+          const neutralTitle = document.createElement('strong');
+          neutralTitle.className = 'pause-upgrades-title';
+          neutralTitle.textContent = 'Neutral passives';
+          pauseNoticeRoot.appendChild(neutralTitle);
+        }
+        for (const upgrade of neutralUpgrades) {
+          const card = document.createElement('section');
+          card.className = 'pause-upgrade-card';
+          card.dataset.kind = 'universal';
+          const cardTitle = document.createElement('strong');
+          cardTitle.textContent = `${upgrade.title} — Rank ${upgrade.rank}/${upgrade.maxRank}`;
+          const effect = document.createElement('span');
+          effect.textContent = upgrade.effect;
+          card.append(cardTitle, effect);
+          pauseNoticeRoot.appendChild(card);
+        }
+        if (starterMasteries.length > 0) {
+          const masteryTitle = document.createElement('strong');
+          masteryTitle.className = 'pause-upgrades-title';
+          masteryTitle.textContent = 'Starter mastery';
+          pauseNoticeRoot.appendChild(masteryTitle);
+        }
+        for (const upgrade of starterMasteries) {
+          const card = document.createElement('section');
+          card.className = 'pause-upgrade-card';
+          card.dataset.kind = 'starter-mastery';
+          const cardTitle = document.createElement('strong');
+          cardTitle.textContent = `${upgrade.title} — Rank ${upgrade.rank}/${upgrade.maxRank}`;
+          const effect = document.createElement('span');
+          effect.textContent = upgrade.effect;
+          card.append(cardTitle, effect);
+          pauseNoticeRoot.appendChild(card);
+        }
       }
     }
+    const actions = document.createElement('div');
+    actions.className = 'pause-actions';
+    for (const action of notice.actions) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.pauseAction = action.id;
+      button.textContent = action.label;
+      button.addEventListener('click', () => {
+        switch (action.id) {
+          case 'resume':
+            setPaused(false);
+            break;
+          case 'restart':
+            restartRun();
+            break;
+          case 'quit':
+            quitToDen();
+            break;
+        }
+      });
+      actions.appendChild(button);
+    }
+    pauseNoticeRoot.appendChild(actions);
   }
 
   function renderDirectorNotice(): void {
@@ -519,7 +558,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       return;
     }
     for (const event of driver.directorEvents) {
-      const projected = projectDirectorEvent(event, selectedBiomeId);
+      const projected = projectDirectorEvent(event, selectedBiomeId, getHeroVisualProfile(selectedHeroId).displayName);
       if (projected !== null && projected.expiresAtTick !== null) activeDirectorNotice = projected;
     }
     if (activeDirectorNotice?.expiresAtTick !== null && activeDirectorNotice !== null
@@ -699,7 +738,13 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   }
 
   function renderRunOutcome(): void {
-    const summary = presentRunSummary(driver.runOutcome, driver.tick, config.hz, driver.runPhase);
+    const summary = presentRunSummary(
+      driver.runOutcome,
+      driver.tick,
+      config.hz,
+      driver.runPhase,
+      getHeroVisualProfile(selectedHeroId).displayName,
+    );
     const rewardDetail = driver.runOutcome === 'victory' || driver.runOutcome === 'defeat'
       ? settleTerminalReward(driver.runOutcome)
       : null;
@@ -751,7 +796,12 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     controlsRoot.appendChild(b);
     return b;
   }
-  const pauseBtn = button('Pause', () => setPaused(!controls.paused));
+  const pauseBtn = button('Pause', () => {
+    // Upgrade selection already freezes the simulation and owns keyboard focus.
+    // Do not layer an actionable pause card beneath that modal.
+    if (driver.upgradeSelectionPending) return;
+    setPaused(!controls.paused);
+  });
   const seedInput = document.createElement('input');
   seedInput.type = 'text';
   seedInput.value = String(currentSeed);
@@ -785,6 +835,19 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       audioCueRouter.beginRun();
     }
   }
+
+  /** Abandon a live run without granting terminal rewards or archiving it. */
+  function quitToDen(): void {
+    if (!runStarted) return;
+    runStarted = false;
+    restartRun();
+    proceduralAudio.suspend();
+    profileMessage = '';
+    introStartButton.textContent = 'Start run';
+    renderIntroCopy();
+    renderProfile();
+    renderRunIntro();
+  }
   if (diagnosticsMode) {
     const autoBtn = button(controls.autopilotOn ? 'Autopilot: ON' : 'Autopilot: OFF', () => {
       controls.autopilotOn = !controls.autopilotOn;
@@ -797,7 +860,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     });
     controlsRoot.appendChild(seedInput);
     button('Restart w/ seed', restartRun);
-    // The proof harness runs separate, headless simulations. It never reads or
+    // The proof harness runs separate deterministic simulations. It never reads or
     // mutates this live driver, so it can be trusted as an independent answer
     // to "did this attack actually damage something?" rather than telemetry
     // inferred from a visual effect.
@@ -1456,7 +1519,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     }
   }
 
-  function setSoundEnabled(enabled: boolean): void {
+  function setSoundEnabled(enabled: boolean, rememberPreference = true): void {
+    if (rememberPreference) soundPreferenceSet = true;
     const wasEnabled = proceduralAudio.enabled;
     const enabledAfterRequest = proceduralAudio.setEnabled(enabled);
     renderSoundControls(enabled && !enabledAfterRequest ? 'Sound couldn’t start; try again.' : null);
@@ -1485,6 +1549,9 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       currentRunId = createRunId(currentSeed, runSequence);
       terminalRewardDetail = null;
     }
+    // Browser audio can only begin from this player gesture. Start sound by
+    // default, while preserving an explicit pre-run opt-out.
+    if (!soundPreferenceSet && proceduralAudio.supported) setSoundEnabled(true, false);
     driver.restart(currentSeed, simulationOptions());
     audioCueRouter.resetForRestart();
     activeDirectorNotice = null;
@@ -1614,7 +1681,9 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       const firstOffer = driver.pendingUpgradeOffers[0];
       if (firstOffer !== undefined) driver.selectUpgrade(firstOffer.id);
     }
-    const musicState: MusicState = driver.runOutcome === 'victory'
+    const musicState: MusicState = !runStarted
+      ? 'idle'
+      : driver.runOutcome === 'victory'
       ? 'victory'
       : driver.runOutcome === 'defeat'
         ? 'defeat'

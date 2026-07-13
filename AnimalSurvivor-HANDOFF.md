@@ -61,9 +61,9 @@ Gracie's Scout mark instincts are integrated with authoritative state and cues.
 
 ## Current architecture
 
-### Deterministic headless simulation
+### Deterministic simulation package
 
-Path: `spikes/headless-sim/`
+Path: `packages/sim/`
 
 - TypeScript ESM, fixed 60 Hz simulation, renderer-independent.
 - Seeded RNG, typed-array entity pools, generation-safe entity IDs.
@@ -328,7 +328,7 @@ All package gates below completed successfully on 2026-07-12 from
 Useful gate commands:
 
 ```bash
-cd /Users/adammuncie/GameDev/AnimalSurvivor/spikes/headless-sim
+cd /Users/adammuncie/GameDev/AnimalSurvivor/packages/sim
 npm test && npm run typecheck && npm run lint
 
 cd /Users/adammuncie/GameDev/AnimalSurvivor/packages/trait-runtime

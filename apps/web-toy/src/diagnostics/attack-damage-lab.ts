@@ -1,6 +1,6 @@
 /**
  * Developer-only presentation for the deterministic combat proof harness.
- * The harness itself belongs to headless-sim; this module only turns its
+ * The harness itself belongs to @animalsurvivor/sim; this module only turns its
  * immutable report into an inspectable table and never observes or mutates a
  * live run.
  */

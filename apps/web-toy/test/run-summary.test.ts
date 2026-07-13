@@ -19,4 +19,10 @@ describe('run summary', () => {
       headline: 'Time ran out', detail: 'The boss was still standing at 8:00.', tone: 'defeat',
     });
   });
+
+  it('uses the selected hero only for personal outcome copy', () => {
+    expect(presentRunSummary('victory', 1_200, 60, 'opening', 'Benny')?.headline).toBe('Benny survives!');
+    expect(presentRunSummary('defeat', 1_200, 60, 'pressure', 'Gracie')?.headline).toBe('Gracie was overwhelmed');
+    expect(presentRunSummary('defeat', 28_800, 60, 'boss', 'Benny')?.headline).toBe('Time ran out');
+  });
 });

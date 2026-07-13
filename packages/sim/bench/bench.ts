@@ -1,5 +1,5 @@
 /**
- * Repeatable Node benchmark for the headless simulation core.
+ * Repeatable Node benchmark for the deterministic simulation core.
  *
  * This measures CPU cost of the simulation's step() loop in isolation,
  * BEFORE any rendering exists — it is not a rendering-performance claim, and
@@ -116,7 +116,7 @@ function main(): void {
 
   const cpuModel = os.cpus()[0]?.model ?? 'unknown';
 
-  console.log('=== headless-sim benchmark ===');
+  console.log('=== @animalsurvivor/sim benchmark ===');
   console.log(
     `node ${process.version} | ${process.platform}/${process.arch} | cpu: ${cpuModel}`,
   );

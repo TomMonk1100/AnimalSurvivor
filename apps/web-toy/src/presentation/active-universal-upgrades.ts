@@ -34,7 +34,7 @@ export function presentActiveUniversalUpgrades(
         effect = `+${definition.effect.pickupRadiusBonusPerRank * rank} pickup radius; XP motes pull from ${definition.effect.attractionRadiusBonusPerRank * rank} range at ${definition.effect.attractionSpeedBonusPerRank * rank}/sec.`;
         break;
       case 'maxHp':
-        effect = `+${definition.effect.bonusPerRank * rank} maximum health.`;
+        effect = `+${definition.effect.bonusPerRank * rank} maximum health; restores ${definition.effect.bonusPerRank * rank} health when selected.`;
         break;
       case 'weaponDamageMultiplier':
         effect = `+${percent(definition.effect.bonusPerRank * rank)}% damage for every attack.`;
