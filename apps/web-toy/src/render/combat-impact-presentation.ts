@@ -8,6 +8,7 @@
  * the presentation policy stays easy to test and cannot feed back into play.
  */
 import type { CombatPresentationEventView } from '../presentation/combat-presentation-events';
+import { envelope } from './vfx-easing';
 
 /** Numeric routing keys keep the hot descriptor buffer compact. */
 export const COMBAT_IMPACT_STYLE = Object.freeze({
@@ -127,14 +128,21 @@ export interface CombatImpactPresentation {
 }
 
 export const DEFAULT_COMBAT_IMPACT_CAPACITY = 72;
-export const DEFAULT_NORMAL_IMPACT_LIFETIME_TICKS = 7;
+/**
+ * Routine impacts need enough room to read as an authored contact, not a
+ * single-frame flash. Ten ticks still remains comfortably inside the fixed
+ * 6–12 tick visual window.
+ */
+export const DEFAULT_NORMAL_IMPACT_LIFETIME_TICKS = 10;
 export const DEFAULT_CRITICAL_IMPACT_LIFETIME_TICKS = 12;
-export const DEFAULT_PLAYER_HIT_IMPACT_LIFETIME_TICKS = 9;
+export const DEFAULT_PLAYER_HIT_IMPACT_LIFETIME_TICKS = 10;
 
 const MIN_LIFETIME_TICKS = 6;
 const MAX_LIFETIME_TICKS = 12;
 const MAX_CAPACITY = 192;
 const TAU = Math.PI * 2;
+const IMPACT_ENVELOPE_ATTACK = 0.12;
+const IMPACT_ENVELOPE_RELEASE = 0.55;
 
 function finite(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
@@ -310,7 +318,10 @@ export function createCombatImpactPresentation(
       if (active[index] === 0) continue;
       const activeStyle = style[index]! as CombatImpactStyle;
       const age = renderTick - startTick[index]!;
-      if (age < 0 || age >= lifetimeForStyle(activeStyle, normalLifetimeTicks, criticalLifetimeTicks, playerHitLifetimeTicks)) {
+      // Keep the terminal progress=1 sample for one render tick. The shared
+      // envelope evaluates to exact zero there, so pooled cards cannot be
+      // removed while still visibly bright.
+      if (age < 0 || age > lifetimeForStyle(activeStyle, normalLifetimeTicks, criticalLifetimeTicks, playerHitLifetimeTicks)) {
         active[index] = 0;
       }
     }
@@ -352,7 +363,9 @@ export function createCombatImpactPresentation(
       // A future event has not happened yet. Do not remember it, so a later
       // frame can accept it if the feed hands it over again.
       if (age < 0) continue;
-      if (age >= lifetime) continue;
+      // The final terminal tick is intentionally admitted so a late-arriving
+      // event can still produce the same exact-zero descriptor before expiry.
+      if (age > lifetime) continue;
 
       const hashA = hashEvent(event, 0x811c9dc5);
       const hashB = hashEvent(event, 0x9e3779b9);
@@ -383,8 +396,10 @@ export function createCombatImpactPresentation(
       const progress = clamp(age / lifetime, 0, 1);
       const phase = phaseForHash(identityA[index]! ^ identityB[index]!);
       const pop = Math.sin(progress * Math.PI);
-      const fade = Math.pow(1 - progress, 0.72);
-      const flicker = 0.9 + 0.1 * Math.sin(phase + age * 1.83);
+      // This is intentionally a tick-normalized, true-zero envelope. The old
+      // sine flicker ran at roughly 17.5Hz at the 60Hz sim rate and could make
+      // clustered impacts trip the flash audit even though combat was stable.
+      const fade = envelope(progress, IMPACT_ENVELOPE_ATTACK, IMPACT_ENVELOPE_RELEASE);
       const baseScale = scale[index]!;
 
       impacts.style[count] = activeStyle;
@@ -396,7 +411,7 @@ export function createCombatImpactPresentation(
       impacts.sparkRadius[count] = baseScale * (0.42 + progress * (activeStyle === COMBAT_IMPACT_STYLE.criticalEnemyHit ? 1.86 : 1.32));
       impacts.ringScale[count] = baseScale * (0.3 + progress * (activeStyle === COMBAT_IMPACT_STYLE.playerHit ? 1.42 : 1.12));
       impacts.lift[count] = baseScale * (0.06 + progress * (activeStyle === COMBAT_IMPACT_STYLE.criticalEnemyHit ? 0.32 : 0.2));
-      impacts.opacity[count] = fade * flicker;
+      impacts.opacity[count] = fade;
       impacts.progress[count] = progress;
       impacts.spinRadians[count] = recipe.spinRadians * progress + phase;
       impacts.sparkCount[count] = recipe.sparkCount;

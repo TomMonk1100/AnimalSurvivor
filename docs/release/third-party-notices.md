@@ -59,6 +59,14 @@ enemy sprites were generated with the same tool on that date without reference
 images; their exact prompts and post-processing are recorded in
 `docs/release/v1-visual-art-prompts.md`.
 
+The V1.1 Wildguard attack-VFX sheets and universal impact core were likewise
+created with the built-in OpenAI image-generation tool without reference
+images. Their alpha-matte repair, deterministic zone-dissolve derivatives,
+and lossless PNG filtering are project-authored processing; no third-party VFX
+pack, shader texture, or licensed visual asset was added. Exact hashes,
+sources, and processing records are in `assets/ASSET_LEDGER.md` and
+`docs/release/v1-1-visual-overhaul-prompts.md`.
+
 ## Scope note
 
 The project currently ships no third-party fonts, audio packs, analytics SDK,

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { CombatPresentationEventView } from '../src/presentation/combat-presentation-events';
 import {
+  DAMAGE_NUMBER_CRITICAL_MIN_INTERVAL_TICKS,
+  DAMAGE_NUMBER_NORMAL_MIN_INTERVAL_TICKS,
   createDamageNumberPresentation,
   presentDamageNumberLabel,
   projectDamageNumberScreenPosition,
@@ -68,5 +70,29 @@ describe('damage number presentation', () => {
     expect(numbers.every((number) => number.style.display === 'none')).toBe(true);
     presentation.dispose();
     expect(surface.querySelector('.damage-number-overlay')).toBeNull();
+  });
+
+  it('admits optional dense-hit labels at a flash-safe deterministic cadence and eases them from true zero', () => {
+    const surface = document.createElement('div');
+    const canvas = document.createElement('canvas');
+    surface.appendChild(canvas);
+    document.body.appendChild(surface);
+    const presentation = createDamageNumberPresentation(canvas, 190, 8);
+
+    presentation.setEvents([
+      event({ tick: 40, targetId: 'a' }),
+      event({ tick: 40, targetId: 'b' }),
+      event({ tick: 40 + DAMAGE_NUMBER_NORMAL_MIN_INTERVAL_TICKS, targetId: 'c' }),
+      event({ tick: 40 + DAMAGE_NUMBER_CRITICAL_MIN_INTERVAL_TICKS, targetId: 'crit-a', critical: true }),
+      event({ tick: 40 + DAMAGE_NUMBER_CRITICAL_MIN_INTERVAL_TICKS, targetId: 'crit-b', critical: true }),
+    ]);
+    presentation.update(40, 0, 0, 1);
+    const labels = [...surface.querySelectorAll<HTMLSpanElement>('.damage-number')]
+      .filter((label) => label.style.display === 'block');
+    expect(labels).toHaveLength(1);
+    expect(Number(labels[0]!.style.opacity)).toBe(0);
+
+    presentation.update(43, 0, 0, 1);
+    expect(Number(labels[0]!.style.opacity)).toBeGreaterThan(0);
   });
 });

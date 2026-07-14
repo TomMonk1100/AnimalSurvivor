@@ -52,9 +52,9 @@ despill. The runtime outputs are 8-bit RGBA PNGs.
 
 | Runtime asset | Generated source output | Source SHA-256 | Runtime SHA-256 | Source / runtime dimensions |
 | --- | --- | --- | --- | --- |
-| `assets/ui/enemies/thornwing-v1.png` | `exec-3017b2fa-f91d-4720-854c-8461bddff706.png` | `450fecc250ada89d4bd5c6d219375fd9b0ae89c74a10a00de01f92587986c96a` | `1613017699e230ee6af600e8ca05de60579040ff52fc79f5d2b95305a6be0133` | 1254×1254 / 1254×1254 |
-| `assets/ui/enemies/rootback-v1.png` | `exec-45a83ab6-2b49-4e05-a47b-d0c60c62a328.png` | `56c35984e64a6e2a073728adc6323f48c23aac3c4352741e7591413d3f736542` | `f4ca503943579d3e01081ab4af36c046be2af9c790d3623de1ca5a4747b1e7f0` | 1536×1024 / 1536×1024 |
-| `assets/ui/enemies/hollowhart-warden-v1.png` | `exec-9b1b1a0f-3d23-4711-a9c5-a84070223505.png` | `a41b1a47854cad52043634bb8214e1ee1ded1cffb556e519d73a9a21ce8abebe` | `df391827764ba1ae6e0ae5294195c57d6bfb0321e4a632c37982da324ceb6954` | 1254×1254 / 1254×1254 |
+| `assets/ui/enemies/thornwing-v1.png` | `exec-3017b2fa-f91d-4720-854c-8461bddff706.png` | `450fecc250ada89d4bd5c6d219375fd9b0ae89c74a10a00de01f92587986c96a` | `692b8d376d6cea5f24a1c7e0b719141888cd07c3f22472826791ec7df5a9d675` | 1254×1254 / 1254×1254 |
+| `assets/ui/enemies/rootback-v1.png` | `exec-45a83ab6-2b49-4e05-a47b-d0c60c62a328.png` | `56c35984e64a6e2a073728adc6323f48c23aac3c4352741e7591413d3f736542` | `be7e7ab985ec4c3ad4e7a4583df2fd69a112b3ac045bd54ea0e9e06c6c91ae69` | 1536×1024 / 1536×1024 |
+| `assets/ui/enemies/hollowhart-warden-v1.png` | `exec-9b1b1a0f-3d23-4711-a9c5-a84070223505.png` | `a41b1a47854cad52043634bb8214e1ee1ded1cffb556e519d73a9a21ce8abebe` | `5a78720e4aa592d8c4a07119745ccf957f3f7a63e3764acc5ce72067abc49eb6` | 1254×1254 / 1254×1254 |
 
 ## Thornwing skitter enemy sprite — `assets/ui/enemies/thornwing-v1.png`
 
@@ -107,8 +107,8 @@ despill. The runtime outputs are 8-bit RGBA PNGs.
 
 | Runtime asset | Generated source output | Source SHA-256 | Runtime SHA-256 | Source / runtime dimensions |
 | --- | --- | --- | --- | --- |
-| `assets/ui/heroes/benny-bastion-v1.png` | `exec-5740c719-1edc-4c9e-be60-7bddbab00199.png` | `2493d97851c59870d36cef6eeca759475382cf8b7be3018bc3c4bb90a5513093` | `adc3d4e27f49fdf9802abbf74f013e59fc63316930bbeeadd941195348e9224c` | 1254×1254 / 1254×1254 |
-| `assets/ui/heroes/gracie-surveyor-v1.png` | `exec-1612d45a-3615-49c6-94a6-5b94c0d6bfc2.png` | `de7906eb53136d227e6c4c01d52f0217b5e398d6987f5e29f0154f055048bb22` | `c6a4532a6a720616e3804dd8b9de55a09ec3cdfad3ac7bcd448945308c3cd370` | 1254×1254 / 1254×1254 |
+| `assets/ui/heroes/benny-bastion-v1.png` | `exec-5740c719-1edc-4c9e-be60-7bddbab00199.png` | `2493d97851c59870d36cef6eeca759475382cf8b7be3018bc3c4bb90a5513093` | `e0fd6f3810c8a4a2b11be325fa15d3756725b95311aedc83e51de7208c6b551e` | 1254×1254 / 1254×1254 |
+| `assets/ui/heroes/gracie-surveyor-v1.png` | `exec-1612d45a-3615-49c6-94a6-5b94c0d6bfc2.png` | `de7906eb53136d227e6c4c01d52f0217b5e398d6987f5e29f0154f055048bb22` | `b6a6246b74f8a1127972be66d39c0ecc1b666ec989a3f8d49c1b8858a2d7488a` | 1254×1254 / 1254×1254 |
 
 ## Benny the Bastion hero sprite — `assets/ui/heroes/benny-bastion-v1.png`
 

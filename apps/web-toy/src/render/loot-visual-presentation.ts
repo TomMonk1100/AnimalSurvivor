@@ -27,6 +27,11 @@ const XP_PRISM_MIN_RADIUS = 8;
 const XP_GEM_MIN_VALUE = 3;
 const XP_PRISM_MIN_VALUE = 9;
 
+/** Persistent pickup motion is capped at 0.5Hz for the 60Hz simulation. */
+export const PERSISTENT_LOOT_BREATH_PERIOD_TICKS = 120;
+export const PERSISTENT_LOOT_MAX_BREATH_HZ = 0.5;
+const PERSISTENT_LOOT_BREATH_RADIANS_PER_TICK = TAU / PERSISTENT_LOOT_BREATH_PERIOD_TICKS;
+
 /** Numeric styles are intentionally direct material/mesh routing keys. */
 export const LOOT_VISUAL_STYLE = Object.freeze({
   xpMote: 1,
@@ -87,8 +92,8 @@ const RECIPES: Readonly<Record<LootVisualStyle, LootVisualRecipe>> = Object.free
     scaleMultiplier: 0.22,
     haloScaleMultiplier: 1.9,
     glow: 1.15,
-    pulseAmplitude: 0.08,
-    bobAmplitude: 0.11,
+    pulseAmplitude: 0.025,
+    bobAmplitude: 0.04,
     spinRadiansPerTick: 0.14,
     collectionLifetimeTicks: 10,
   },
@@ -102,8 +107,8 @@ const RECIPES: Readonly<Record<LootVisualStyle, LootVisualRecipe>> = Object.free
     scaleMultiplier: 0.25,
     haloScaleMultiplier: 2.08,
     glow: 1.42,
-    pulseAmplitude: 0.115,
-    bobAmplitude: 0.16,
+    pulseAmplitude: 0.035,
+    bobAmplitude: 0.055,
     spinRadiansPerTick: -0.11,
     collectionLifetimeTicks: 12,
   },
@@ -117,8 +122,8 @@ const RECIPES: Readonly<Record<LootVisualStyle, LootVisualRecipe>> = Object.free
     scaleMultiplier: 0.3,
     haloScaleMultiplier: 2.35,
     glow: 1.85,
-    pulseAmplitude: 0.16,
-    bobAmplitude: 0.23,
+    pulseAmplitude: 0.045,
+    bobAmplitude: 0.07,
     spinRadiansPerTick: 0.21,
     collectionLifetimeTicks: 15,
   },
@@ -132,8 +137,8 @@ const RECIPES: Readonly<Record<LootVisualStyle, LootVisualRecipe>> = Object.free
     scaleMultiplier: 0.42,
     haloScaleMultiplier: 1.72,
     glow: 2.05,
-    pulseAmplitude: 0.14,
-    bobAmplitude: 0.2,
+    pulseAmplitude: 0.045,
+    bobAmplitude: 0.07,
     spinRadiansPerTick: 0.09,
     collectionLifetimeTicks: 22,
   },
@@ -147,8 +152,8 @@ const RECIPES: Readonly<Record<LootVisualStyle, LootVisualRecipe>> = Object.free
     scaleMultiplier: 0.4,
     haloScaleMultiplier: 2.18,
     glow: 1.92,
-    pulseAmplitude: 0.1,
-    bobAmplitude: 0.17,
+    pulseAmplitude: 0.035,
+    bobAmplitude: 0.06,
     spinRadiansPerTick: -0.18,
     collectionLifetimeTicks: 20,
   },
@@ -162,8 +167,8 @@ const RECIPES: Readonly<Record<LootVisualStyle, LootVisualRecipe>> = Object.free
     scaleMultiplier: 0.38,
     haloScaleMultiplier: 2.02,
     glow: 1.72,
-    pulseAmplitude: 0.12,
-    bobAmplitude: 0.19,
+    pulseAmplitude: 0.04,
+    bobAmplitude: 0.065,
     spinRadiansPerTick: 0.06,
     collectionLifetimeTicks: 20,
   },
@@ -417,6 +422,16 @@ function phaseForId(id: number): number {
   return (hash / 0x1_0000_0000) * TAU;
 }
 
+/**
+ * Persistent rewards should breathe, not pulse. This remains entirely
+ * deterministic because both inputs come from the copied entity id and the
+ * fixed simulation clock.
+ */
+function persistentBreathPulse(phase: number, renderClock: number, power: boolean): number {
+  const familyOffset = power ? TAU * 0.23 : 0;
+  return 0.5 + 0.5 * Math.sin(phase + familyOffset + renderClock * PERSISTENT_LOOT_BREATH_RADIANS_PER_TICK);
+}
+
 function assertCapacity(name: string, value: number): void {
   if (!Number.isInteger(value) || value < 0) {
     throw new RangeError(`${name} must be a non-negative integer; received ${value}`);
@@ -593,7 +608,7 @@ class LootVisualPresentationImpl implements LootVisualPresentation {
         ? currentY
         : lerp(finiteOr(previous.y[previousIndex]!, currentY), currentY, alpha);
       const phase = phaseForId(id);
-      const pulse = 0.5 + 0.5 * Math.sin(phase + renderClock * (power ? 0.31 : 0.47));
+      const pulse = persistentBreathPulse(phase, renderClock, power);
       const baseScale = positiveRadius(current.radius[index]!) * 2 * recipe.scaleMultiplier;
       const scale = baseScale * (1 + (pulse - 0.5) * 2 * recipe.pulseAmplitude);
 
@@ -602,8 +617,8 @@ class LootVisualPresentationImpl implements LootVisualPresentation {
       output.x[count] = x;
       output.y[count] = y;
       output.scale[count] = scale;
-      output.haloScale[count] = scale * recipe.haloScaleMultiplier * (0.93 + pulse * 0.14);
-      output.glow[count] = recipe.glow * (0.88 + pulse * 0.24);
+      output.haloScale[count] = scale * recipe.haloScaleMultiplier * (0.985 + pulse * 0.03);
+      output.glow[count] = recipe.glow * (0.97 + pulse * 0.06);
       output.pulse[count] = pulse;
       output.spinRadians[count] = phase + renderClock * recipe.spinRadiansPerTick;
       output.lift[count] = recipe.bobAmplitude * (0.22 + pulse * 0.78);

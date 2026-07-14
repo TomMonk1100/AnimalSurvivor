@@ -1,4 +1,13 @@
 import * as pc from 'playcanvas';
+import {
+  hasExplicitTraitSourcePaletteLane,
+  paletteLaneForEffectMaterial,
+  paletteLaneForTraitSource,
+  proceduralAccentOpacity,
+  proceduralColorForPaletteLane,
+  proceduralUnderlayOpacity,
+  type AttackVfxPaletteLane,
+} from './attack-vfx-palette';
 
 /**
  * Read-only, renderer-facing copy of a trait command.  It intentionally stays
@@ -352,59 +361,35 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
   },
 });
 
-const COLORS: Readonly<Record<EffectMaterial, pc.Color>> = Object.freeze({
-  telegraph: new pc.Color(0.72, 0.28, 1),
-  'thornstorm-telegraph': new pc.Color(0.98, 0.2, 0.72),
-  'thunderbug-telegraph': new pc.Color(0.3, 0.66, 1),
-  'boss-charge': new pc.Color(1, 0.22, 0.12),
-  'boss-volley': new pc.Color(0.82, 0.18, 1),
-  'saltwind-charge': new pc.Color(1, 0.52, 0.16),
-  'saltwind-sandstorm': new pc.Color(0.96, 0.78, 0.24),
-  'support-pulse': new pc.Color(0.3, 1, 0.42),
-  'directed-burst': new pc.Color(1, 0.8, 0.16),
-  'rush-rake': new pc.Color(0.35, 0.92, 1),
-  // Hero signatures own a hot amber / earth / mint language. Enemy danger
-  // remains reserved for the scene's red-coral threat treatment.
-  'greg-fox-swipe': new pc.Color(1, 0.76, 0.22),
-  'greg-rush-rake': new pc.Color(1, 0.62, 0.12),
-  'benny-trample-wave': new pc.Color(1, 0.38, 0.08),
-  'gracie-spit': new pc.Color(0.2, 1, 0.7),
-  'fluffy-shield': new pc.Color(0.46, 0.9, 1),
-  'armor-block': new pc.Color(1, 0.8, 0.38),
-  'fox-dodge': new pc.Color(0.7, 0.98, 1),
-  'quill-volley': new pc.Color(1, 0.7, 0.22),
-  'owl-volley': new pc.Color(0.42, 0.74, 1),
-  'radial-burst': new pc.Color(0.92, 0.48, 1),
-  'thornstorm-volley': new pc.Color(1, 0.22, 0.66),
-  // Fireflies deliberately skew warm-white rather than grass-green so the
-  // swarm stays visible against the forest floor at launch-camera distance.
-  'orbiting-damage': new pc.Color(0.95, 1, 0.34),
-  'firefly-contact': new pc.Color(1, 0.94, 0.3),
-  'monarch-brood-orbit': new pc.Color(1, 0.58, 0.08),
-  gather: new pc.Color(0.18, 0.85, 1),
-  knockback: new pc.Color(1, 0.3, 0.12),
-  'puffer-blast': new pc.Color(0.2, 0.94, 0.98),
-  'armadillo-roll': new pc.Color(0.72, 0.82, 0.96),
-  'benny-brace': new pc.Color(1, 0.68, 0.2),
-  'area-damage': new pc.Color(1, 0.16, 0.26),
-  'crab-crush': new pc.Color(1, 0.38, 0.22),
-  'meteor-impact': new pc.Color(1, 0.48, 0.1),
-  // Mantis needs a strong, unmistakable identity apart from red area pulses
-  // and gold projectile bursts: a high-contrast leaf-green scythe sweep.
-  'melee-arc': new pc.Color(0.72, 1, 0.3),
-  'gecko-zone-spawn': new pc.Color(0.28, 1, 0.62),
-  'razorstep-zone-spawn': new pc.Color(0.84, 1, 0.4),
-  'skunk-cloud': new pc.Color(0.68, 0.3, 0.94),
-  'royal-stink-cloud': new pc.Color(0.94, 0.28, 0.72),
-  'trait-cue': new pc.Color(0.34, 1, 0.58),
-  'chain-lightning': new pc.Color(0.76, 1, 1),
-  'mark-pulse': new pc.Color(0.52, 0.54, 1),
-  // Bat Ears begins as a violet echolocation wave; its Midnight Radar
-  // evolution shifts to a vivid cyan read without touching combat state.
-  'bat-ears-sonar': new pc.Color(0.66, 0.32, 1),
-  'midnight-radar-sonar': new pc.Color(0.22, 0.94, 1),
-  'gracie-scout': new pc.Color(0.42, 1, 0.82),
+// `PROFILES` is the authoritative list of current procedural material roles.
+// The palette module maps each one into one of six weapon families (or an
+// explicitly reserved hostile lane); no role gets an ad-hoc neon RGB value.
+const EFFECT_MATERIALS: readonly EffectMaterial[] = Object.freeze(
+  Object.keys(PROFILES) as EffectMaterial[],
+);
+
+type PaletteMaterialKey = string;
+
+/**
+ * Every role has one default material lane. The only historical compatibility
+ * route whose canonical source lane differs is Razorstep's older generic
+ * melee-arc command: modern Razorstep emits its venom zone profile, while an
+ * old replay can still carry its melee command. Both variants are built once
+ * at startup, so source-aware colour never allocates during a cast.
+ */
+const EXTRA_PREBUILT_PALETTE_LANES: Readonly<Partial<Record<EffectMaterial, readonly AttackVfxPaletteLane[]>>> = Object.freeze({
+  'melee-arc': Object.freeze(['venom'] as const),
 });
+
+function paletteMaterialKey(material: EffectMaterial, lane: AttackVfxPaletteLane): PaletteMaterialKey {
+  return `${material}:${lane}`;
+}
+
+function prebuiltPaletteLanesForEffectMaterial(material: EffectMaterial): readonly AttackVfxPaletteLane[] {
+  const defaultLane = paletteLaneForEffectMaterial(material);
+  const extras = EXTRA_PREBUILT_PALETTE_LANES[material] ?? [];
+  return extras.includes(defaultLane) ? extras : [defaultLane, ...extras];
+}
 
 const OPACITY: Readonly<Record<EffectMaterial, number>> = Object.freeze({
   telegraph: 0.28,
@@ -455,6 +440,19 @@ const OPACITY: Readonly<Record<EffectMaterial, number>> = Object.freeze({
   'midnight-radar-sonar': 0.84,
   'gracie-scout': 0.72,
 });
+
+/**
+ * Source profiles may ask for a strong timing cue, but the shared procedural
+ * layer is strictly an underpaint. These guards apply at both material setup
+ * and every dynamic mesh-parameter write below.
+ */
+function resolveProceduralUnderlayOpacity(material: EffectMaterial): number {
+  return proceduralUnderlayOpacity(OPACITY[material]);
+}
+
+function resolveProceduralAccentOpacity(material: EffectMaterial): number {
+  return proceduralAccentOpacity(OPACITY[material]);
+}
 
 // Every authored ground glyph is built in a normalized one-unit footprint, so
 // command radii remain the readable outside edge even though the silhouettes
@@ -643,6 +641,34 @@ export function resolveTraitCommandVisualIntensity(
     || profile.material === 'benny-trample-wave'
     || profile.material === 'gracie-spit';
   return clamp(1 + commandSignal * 0.3 + (heroSignature ? 0.06 : 0), 1, 1.36);
+}
+
+/**
+ * Palette routing remains renderer-only and is deliberately source-aware for
+ * the named weapon roster. Generic/legacy commands fall back to their effect
+ * material family, so a missing source id cannot accidentally become danger
+ * coral or a reward colour.
+ */
+export function resolveTraitCommandPaletteLane(
+  event: Pick<TraitCommandPresentationEvent, 'sourceId'>,
+  profile: TraitCommandEffectProfile,
+): AttackVfxPaletteLane {
+  return hasExplicitTraitSourcePaletteLane(event.sourceId)
+    ? paletteLaneForTraitSource(event.sourceId)
+    : paletteLaneForEffectMaterial(profile.material);
+}
+
+/**
+ * Public and focused-testable proof that the source-family resolver selects
+ * the same finite material key consumed by the live renderer below. This is
+ * intentionally separate from geometry/profile projection: it governs colour
+ * only and cannot change a command's simulation-owned shape or timing.
+ */
+export function resolveTraitCommandPaletteMaterialKey(
+  event: Pick<TraitCommandPresentationEvent, 'sourceId'>,
+  profile: TraitCommandEffectProfile,
+): string {
+  return paletteMaterialKey(profile.material, resolveTraitCommandPaletteLane(event, profile));
 }
 
 /**
@@ -1018,12 +1044,13 @@ function resolveAccentLongitudinalScale(accent: TraitCommandVisualAccent): numbe
   }
 }
 
-function createMaterial(role: EffectMaterial): pc.StandardMaterial {
+function createMaterial(role: EffectMaterial, lane: AttackVfxPaletteLane): pc.StandardMaterial {
   const material = new pc.StandardMaterial();
+  const color = proceduralColorForPaletteLane(lane);
   material.useLighting = false;
   material.diffuse.set(0, 0, 0);
-  material.emissive.copy(COLORS[role]);
-  material.opacity = OPACITY[role];
+  material.emissive.set(color.r, color.g, color.b);
+  material.opacity = resolveProceduralUnderlayOpacity(role);
   material.blendType = pc.BLEND_ADDITIVEALPHA;
   material.depthWrite = false;
   material.cull = pc.CULLFACE_NONE;
@@ -1032,21 +1059,17 @@ function createMaterial(role: EffectMaterial): pc.StandardMaterial {
 }
 
 /**
- * The accent layer is intentionally a slightly brighter sibling material,
- * not a second texture or particle emitter. It gives impacts a crisp core at
- * virtually no asset cost and stays inside the existing bounded mesh pools.
+ * Accent geometry inherits its family's muted colour instead of inventing a
+ * brighter neon sibling. Critical-impact art owns the only saturation spike;
+ * this retained layer stays a bounded timing/contact underpaint.
  */
-function createAccentMaterial(role: EffectMaterial): pc.StandardMaterial {
-  const source = COLORS[role];
+function createAccentMaterial(role: EffectMaterial, lane: AttackVfxPaletteLane): pc.StandardMaterial {
+  const source = proceduralColorForPaletteLane(lane);
   const material = new pc.StandardMaterial();
   material.useLighting = false;
   material.diffuse.set(0, 0, 0);
-  material.emissive.set(
-    Math.min(1, source.r * 1.16 + 0.08),
-    Math.min(1, source.g * 1.16 + 0.08),
-    Math.min(1, source.b * 1.16 + 0.08),
-  );
-  material.opacity = Math.min(1, OPACITY[role] * 0.92 + 0.16);
+  material.emissive.set(source.r, source.g, source.b);
+  material.opacity = resolveProceduralAccentOpacity(role);
   material.blendType = pc.BLEND_ADDITIVEALPHA;
   material.depthWrite = false;
   material.cull = pc.CULLFACE_NONE;
@@ -1694,6 +1717,7 @@ interface EffectSlot {
   active: boolean;
   profile: TraitCommandEffectProfile | null;
   material: EffectMaterial;
+  paletteLane: AttackVfxPaletteLane;
   tick: number;
   expiresAtTick: number;
   x: number;
@@ -1717,6 +1741,7 @@ interface ChainLightningSegmentSlot {
   toX: number;
   toY: number;
   intensity: number;
+  paletteLane: AttackVfxPaletteLane;
 }
 
 interface MeleeArcSlot {
@@ -1734,6 +1759,7 @@ interface MeleeArcSlot {
   dirX: number;
   dirY: number;
   intensity: number;
+  paletteLane: AttackVfxPaletteLane;
 }
 
 /**
@@ -1757,6 +1783,7 @@ interface GenericMeleeSlashSlot {
   radius: number;
   yawDegrees: number;
   intensity: number;
+  paletteLane: AttackVfxPaletteLane;
 }
 
 interface OrbitingDamageSlot {
@@ -1774,6 +1801,7 @@ interface OrbitingDamageSlot {
   speed: number;
   facing: number;
   intensity: number;
+  paletteLane: AttackVfxPaletteLane;
 }
 
 /** One actual firefly-to-enemy contact, captured by the authoritative executor. */
@@ -1789,6 +1817,7 @@ interface OrbitContactSlot {
   sourceY: number;
   targetX: number;
   targetY: number;
+  paletteLane: AttackVfxPaletteLane;
 }
 
 function resetSlot(slot: EffectSlot): void {
@@ -1846,10 +1875,33 @@ export function createTraitCommandPresentation(
     throw new RangeError('trait command presentation capacity must be a positive safe integer');
   }
 
-  const materials = new Map<EffectMaterial, pc.StandardMaterial>();
-  for (const role of Object.keys(COLORS) as EffectMaterial[]) materials.set(role, createMaterial(role));
-  const accentMaterials = new Map<EffectMaterial, pc.StandardMaterial>();
-  for (const role of Object.keys(COLORS) as EffectMaterial[]) accentMaterials.set(role, createAccentMaterial(role));
+  // A tiny finite material bank is built before any render event arrives.
+  // Most roles have their one semantic default; the one legacy Razorstep
+  // compatibility lane adds a second. This makes source-family selection a
+  // real render decision without creating a material during combat.
+  const materials = new Map<PaletteMaterialKey, pc.StandardMaterial>();
+  const accentMaterials = new Map<PaletteMaterialKey, pc.StandardMaterial>();
+  for (const role of EFFECT_MATERIALS) {
+    for (const lane of prebuiltPaletteLanesForEffectMaterial(role)) {
+      const key = paletteMaterialKey(role, lane);
+      materials.set(key, createMaterial(role, lane));
+      accentMaterials.set(key, createAccentMaterial(role, lane));
+    }
+  }
+  function materialFor(role: EffectMaterial, lane = paletteLaneForEffectMaterial(role)): pc.StandardMaterial {
+    const material = materials.get(paletteMaterialKey(role, lane));
+    if (material === undefined) {
+      throw new Error(`Missing prebuilt palette material for ${role}:${lane}`);
+    }
+    return material;
+  }
+  function accentMaterialFor(role: EffectMaterial, lane = paletteLaneForEffectMaterial(role)): pc.StandardMaterial {
+    const material = accentMaterials.get(paletteMaterialKey(role, lane));
+    if (material === undefined) {
+      throw new Error(`Missing prebuilt accent palette material for ${role}:${lane}`);
+    }
+    return material;
+  }
   const effectMeshes = createEffectMeshes(device);
   const accentMeshes = createAccentMeshes(device);
   const orbitingMeshes = createOrbitingMeshes(device);
@@ -1882,14 +1934,14 @@ export function createTraitCommandPresentation(
     ...meleeArcMeshes,
     genericMeleeSlashMesh,
     chainLightningMesh,
-  ].map((mesh) => new pc.MeshInstance(mesh, materials.get('telegraph')!));
+  ].map((mesh) => new pc.MeshInstance(mesh, materialFor('telegraph')));
 
   const slots: EffectSlot[] = [];
   for (let index = 0; index < capacity; index++) {
     const entity = new pc.Entity(`trait-command-effect-${index}`);
     const accentEntity = new pc.Entity(`trait-command-accent-${index}`);
-    const meshInstance = new pc.MeshInstance(effectMeshes.telegraph, materials.get('telegraph')!);
-    const accentMeshInstance = new pc.MeshInstance(accentMeshes.crown, accentMaterials.get('telegraph')!);
+    const meshInstance = new pc.MeshInstance(effectMeshes.telegraph, materialFor('telegraph'));
+    const accentMeshInstance = new pc.MeshInstance(accentMeshes.crown, accentMaterialFor('telegraph'));
     entity.addComponent('render', {
       meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
     });
@@ -1902,7 +1954,7 @@ export function createTraitCommandPresentation(
     parent.addChild(accentEntity);
     slots.push({
       entity, meshInstance, accentEntity, accentMeshInstance,
-      active: false, profile: null, material: 'telegraph', tick: 0, expiresAtTick: 0,
+      active: false, profile: null, material: 'telegraph', paletteLane: paletteLaneForEffectMaterial('telegraph'), tick: 0, expiresAtTick: 0,
       x: 0, y: 0, radius: 0, aspect: 1, yawDegrees: 0, dirX: 1, dirY: 0, intensity: 1,
     });
   }
@@ -1914,8 +1966,8 @@ export function createTraitCommandPresentation(
     for (let index = 0; index < meleeArcSlotsPerVariant; index++) {
       const entity = new pc.Entity(`mantis-scythe-arc-${variantIndex}-${index}`);
       const accentEntity = new pc.Entity(`mantis-scythe-accent-${variantIndex}-${index}`);
-      const meshInstance = new pc.MeshInstance(meleeArcMeshes[variantIndex]!, materials.get('melee-arc')!);
-      const accentMeshInstance = new pc.MeshInstance(accentMeshes.slash, accentMaterials.get('melee-arc')!);
+      const meshInstance = new pc.MeshInstance(meleeArcMeshes[variantIndex]!, materialFor('melee-arc'));
+      const accentMeshInstance = new pc.MeshInstance(accentMeshes.slash, accentMaterialFor('melee-arc'));
       entity.addComponent('render', {
         meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
       });
@@ -1930,6 +1982,7 @@ export function createTraitCommandPresentation(
         entity, meshInstance, accentEntity, accentMeshInstance,
         active: false, tick: 0, expiresAtTick: 0,
         x: 0, y: 0, radius: 0, yawDegrees: 0, dirX: 1, dirY: 0, intensity: 1,
+        paletteLane: paletteLaneForEffectMaterial('melee-arc'),
       });
     }
   }
@@ -1937,8 +1990,8 @@ export function createTraitCommandPresentation(
   for (let index = 0; index < meleeArcSlotsPerVariant; index++) {
     const entity = new pc.Entity(`generic-melee-slash-${index}`);
     const accentEntity = new pc.Entity(`generic-melee-accent-${index}`);
-    const meshInstance = new pc.MeshInstance(genericMeleeSlashMesh, materials.get('melee-arc')!);
-    const accentMeshInstance = new pc.MeshInstance(accentMeshes.slash, accentMaterials.get('melee-arc')!);
+    const meshInstance = new pc.MeshInstance(genericMeleeSlashMesh, materialFor('melee-arc'));
+    const accentMeshInstance = new pc.MeshInstance(accentMeshes.slash, accentMaterialFor('melee-arc'));
     entity.addComponent('render', {
       meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
     });
@@ -1953,6 +2006,7 @@ export function createTraitCommandPresentation(
       entity, meshInstance, accentEntity, accentMeshInstance,
       active: false, mesh: genericMeleeSlashMesh, material: 'melee-arc', tick: 0, expiresAtTick: 0,
       x: 0, y: 0, dirX: 1, dirY: 0, radius: 0, yawDegrees: 0, intensity: 1,
+      paletteLane: paletteLaneForEffectMaterial('melee-arc'),
     });
   }
 
@@ -1960,7 +2014,7 @@ export function createTraitCommandPresentation(
   const orbitingDamageCapacity = Math.max(4, Math.min(FIREFLY_ORBIT_MAX_COUNT, capacity));
   for (let index = 0; index < orbitingDamageCapacity; index++) {
     const entity = new pc.Entity(`firefly-orbit-${index}`);
-    const meshInstance = new pc.MeshInstance(orbitingMeshes['orbiting-damage'], materials.get('orbiting-damage')!);
+    const meshInstance = new pc.MeshInstance(orbitingMeshes['orbiting-damage'], materialFor('orbiting-damage'));
     entity.addComponent('render', {
       meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
     });
@@ -1969,6 +2023,7 @@ export function createTraitCommandPresentation(
     orbitingDamageSlots.push({
       entity, meshInstance, active: false, material: 'orbiting-damage', tick: 0, expiresAtTick: 0,
       originX: 0, originY: 0, count: 1, index: 0, radius: 0, speed: 0, facing: 0, intensity: 1,
+      paletteLane: paletteLaneForEffectMaterial('orbiting-damage'),
     });
   }
 
@@ -1981,8 +2036,8 @@ export function createTraitCommandPresentation(
   for (let index = 0; index < orbitContactCapacity; index++) {
     const linkEntity = new pc.Entity(`firefly-contact-link-${index}`);
     const impactEntity = new pc.Entity(`firefly-contact-impact-${index}`);
-    const linkMeshInstance = new pc.MeshInstance(fireflyContactLinkMesh, materials.get('firefly-contact')!);
-    const impactMeshInstance = new pc.MeshInstance(effectMeshes['firefly-contact'], materials.get('firefly-contact')!);
+    const linkMeshInstance = new pc.MeshInstance(fireflyContactLinkMesh, materialFor('firefly-contact'));
+    const impactMeshInstance = new pc.MeshInstance(effectMeshes['firefly-contact'], materialFor('firefly-contact'));
     linkEntity.addComponent('render', {
       meshInstances: [linkMeshInstance], castShadows: false, receiveShadows: false,
     });
@@ -2005,6 +2060,7 @@ export function createTraitCommandPresentation(
       sourceY: 0,
       targetX: 0,
       targetY: 0,
+      paletteLane: paletteLaneForEffectMaterial('firefly-contact'),
     });
   }
 
@@ -2015,7 +2071,7 @@ export function createTraitCommandPresentation(
   const chainLightningSlots: ChainLightningSegmentSlot[] = [];
   for (let index = 0; index < chainSegmentCapacity; index++) {
     const entity = new pc.Entity(`chain-lightning-segment-${index}`);
-    const meshInstance = new pc.MeshInstance(chainLightningMesh, materials.get('chain-lightning')!);
+    const meshInstance = new pc.MeshInstance(chainLightningMesh, materialFor('chain-lightning'));
     entity.addComponent('render', {
       meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
     });
@@ -2024,6 +2080,7 @@ export function createTraitCommandPresentation(
     chainLightningSlots.push({
       entity, meshInstance, active: false, tick: 0, expiresAtTick: 0,
       fromX: 0, fromY: 0, toX: 0, toY: 0, intensity: 1,
+      paletteLane: paletteLaneForEffectMaterial('chain-lightning'),
     });
   }
 
@@ -2063,13 +2120,14 @@ export function createTraitCommandPresentation(
     // area. The simulation still owns radius, damage, and contact timing.
     const radius = Math.max(1, slot.radius * scale * (1 + (slot.intensity - 1) * 0.24));
     const fadeRate = profile.motion === 'pulse' ? 0.32 : 0.68;
-    const opacity = OPACITY[slot.material]
-      * resolveIllustratedHeroUnderlayOpacityMultiplier(profile)
+    const underlayMultiplier = resolveIllustratedHeroUnderlayOpacityMultiplier(profile);
+    const opacity = resolveProceduralUnderlayOpacity(slot.material)
+      * underlayMultiplier
       * (1 - progress * fadeRate);
     const radialScale = radius / EFFECT_UNIT_RADIUS;
     const groundHeight = GROUND_EFFECT_HEIGHT + Math.min(0.55, radius * 0.006);
     slot.meshInstance.mesh = effectMeshes[slot.material];
-    slot.meshInstance.material = materials.get(slot.material)!;
+    slot.meshInstance.material = materialFor(slot.material, slot.paletteLane);
     slot.meshInstance.setParameter('material_opacity', opacity);
     slot.entity.setLocalPosition(
       slot.x - worldHalfWidth,
@@ -2092,10 +2150,14 @@ export function createTraitCommandPresentation(
       ? slot.radius * blueprint.travelDistance * resolveAccentTravel(progress, stage)
       : 0;
     const accentRadius = resolveAccentScale(slot.radius, slot.intensity, blueprint, stage);
-    const accentOpacity = resolveAccentOpacity(opacity, blueprint, stage);
+    const accentOpacity = resolveAccentOpacity(
+      resolveProceduralAccentOpacity(slot.material) * underlayMultiplier,
+      blueprint,
+      stage,
+    );
     const accent = resolveStagedAccent(blueprint, stage);
     slot.accentMeshInstance.mesh = accentMeshes[accent];
-    slot.accentMeshInstance.material = accentMaterials.get(slot.material)!;
+    slot.accentMeshInstance.material = accentMaterialFor(slot.material, slot.paletteLane);
     slot.accentMeshInstance.setParameter('material_opacity', accentOpacity);
     slot.accentEntity.setLocalPosition(
       slot.x + slot.dirX * accentTravel - worldHalfWidth,
@@ -2129,8 +2191,8 @@ export function createTraitCommandPresentation(
     // defensive aura. The authoritative damage itself remains instantaneous.
     const radius = Math.max(1, slot.radius * (0.32 + progress * 0.68) * (1 + (slot.intensity - 1) * 0.24));
     const radialScale = radius / MELEE_ARC_UNIT_RADIUS;
-    const opacity = OPACITY['melee-arc'] * (1 - progress * 0.68);
-    slot.meshInstance.material = materials.get('melee-arc')!;
+    const opacity = resolveProceduralUnderlayOpacity('melee-arc') * (1 - progress * 0.68);
+    slot.meshInstance.material = materialFor('melee-arc', slot.paletteLane);
     slot.meshInstance.setParameter('material_opacity', opacity);
     slot.entity.setLocalPosition(
       slot.x - worldHalfWidth,
@@ -2148,9 +2210,13 @@ export function createTraitCommandPresentation(
     const accent = resolveStagedAccent(blueprint, stage);
     const accentTravel = slot.radius * blueprint.travelDistance * resolveAccentTravel(progress, stage);
     const accentRadius = resolveAccentScale(slot.radius, slot.intensity, blueprint, stage);
-    const accentOpacity = resolveAccentOpacity(opacity, blueprint, stage);
+    const accentOpacity = resolveAccentOpacity(
+      resolveProceduralAccentOpacity('melee-arc'),
+      blueprint,
+      stage,
+    );
     slot.accentMeshInstance.mesh = accentMeshes[accent];
-    slot.accentMeshInstance.material = accentMaterials.get('melee-arc')!;
+    slot.accentMeshInstance.material = accentMaterialFor('melee-arc', slot.paletteLane);
     slot.accentMeshInstance.setParameter('material_opacity', accentOpacity);
     slot.accentEntity.setLocalPosition(
       slot.x + slot.dirX * accentTravel - worldHalfWidth,
@@ -2176,11 +2242,12 @@ export function createTraitCommandPresentation(
     const profile = PROFILES[slot.material];
     const blueprint = resolveTraitCommandVisualBlueprint(profile);
     const stage = resolveTraitCommandVisualStage(progress, profile);
-    const opacity = OPACITY[slot.material]
-      * resolveIllustratedHeroUnderlayOpacityMultiplier(profile)
+    const underlayMultiplier = resolveIllustratedHeroUnderlayOpacityMultiplier(profile);
+    const opacity = resolveProceduralUnderlayOpacity(slot.material)
+      * underlayMultiplier
       * (1 - progress * 0.72);
     slot.meshInstance.mesh = slot.mesh;
-    slot.meshInstance.material = materials.get(slot.material)!;
+    slot.meshInstance.material = materialFor(slot.material, slot.paletteLane);
     slot.meshInstance.setParameter('material_opacity', opacity);
     const isHeroSweep = slot.material === 'greg-fox-swipe' || slot.material === 'greg-rush-rake';
     let centerX = slot.x;
@@ -2218,9 +2285,13 @@ export function createTraitCommandPresentation(
     const accent = resolveStagedAccent(blueprint, stage);
     const accentTravel = slot.radius * blueprint.travelDistance * resolveAccentTravel(progress, stage);
     const accentRadius = resolveAccentScale(slot.radius, slot.intensity, blueprint, stage);
-    const accentOpacity = resolveAccentOpacity(opacity, blueprint, stage);
+    const accentOpacity = resolveAccentOpacity(
+      resolveProceduralAccentOpacity(slot.material) * underlayMultiplier,
+      blueprint,
+      stage,
+    );
     slot.accentMeshInstance.mesh = accentMeshes[accent];
-    slot.accentMeshInstance.material = accentMaterials.get(slot.material)!;
+    slot.accentMeshInstance.material = accentMaterialFor(slot.material, slot.paletteLane);
     slot.accentMeshInstance.setParameter('material_opacity', accentOpacity);
     slot.accentEntity.setLocalPosition(
       slot.x + slot.dirX * accentTravel - worldHalfWidth,
@@ -2255,8 +2326,11 @@ export function createTraitCommandPresentation(
       * (0.86 + Math.sin(progress * Math.PI) * 0.18);
     const tangentYawDegrees = Math.atan2(-Math.sin(angle), -Math.cos(angle)) * 180 / Math.PI;
     slot.meshInstance.mesh = orbitingMeshes[slot.material];
-    slot.meshInstance.material = materials.get(slot.material)!;
-    slot.meshInstance.setParameter('material_opacity', OPACITY[slot.material] * (1 - progress * 0.26));
+    slot.meshInstance.material = materialFor(slot.material, slot.paletteLane);
+    slot.meshInstance.setParameter(
+      'material_opacity',
+      resolveProceduralUnderlayOpacity(slot.material) * (1 - progress * 0.26),
+    );
     slot.entity.setLocalPosition(
       x - worldHalfWidth,
       FIREFLY_ORBIT_HEIGHT + Math.sin((progress * 2 + slot.index * 0.19) * Math.PI) * (isMonarch ? 0.2 : 0.12),
@@ -2277,8 +2351,8 @@ export function createTraitCommandPresentation(
     const dx = slot.targetX - slot.sourceX;
     const dy = slot.targetY - slot.sourceY;
     const length = Math.sqrt(dx * dx + dy * dy);
-    const opacity = OPACITY['firefly-contact'] * (1 - progress * 0.64);
-    const material = materials.get('firefly-contact')!;
+    const opacity = resolveProceduralUnderlayOpacity('firefly-contact') * (1 - progress * 0.64);
+    const material = materialFor('firefly-contact', slot.paletteLane);
 
     if (length > 0.001) {
       const midpointX = (slot.sourceX + slot.targetX) * 0.5;
@@ -2337,8 +2411,11 @@ export function createTraitCommandPresentation(
     const midpointY = (slot.fromY + slot.toY) * 0.5;
     // Scene +Z is simulation -Y; local +Z is the jagged bolt's travel axis.
     const yawDegrees = Math.atan2(dx, -dy) * 180 / Math.PI;
-    slot.meshInstance.material = materials.get('chain-lightning')!;
-    slot.meshInstance.setParameter('material_opacity', OPACITY['chain-lightning'] * (1 - progress * 0.6));
+    slot.meshInstance.material = materialFor('chain-lightning', slot.paletteLane);
+    slot.meshInstance.setParameter(
+      'material_opacity',
+      resolveProceduralUnderlayOpacity('chain-lightning') * (1 - progress * 0.6),
+    );
     slot.entity.setLocalPosition(
       midpointX - worldHalfWidth,
       CHAIN_LIGHTNING_HEIGHT,
@@ -2379,6 +2456,7 @@ export function createTraitCommandPresentation(
     slot.active = true;
     slot.profile = profile;
     slot.material = profile.material;
+    slot.paletteLane = resolveTraitCommandPaletteLane(event, profile);
     slot.tick = emittedTick;
     slot.expiresAtTick = emittedTick + lifetimeTicks;
     slot.x = finiteOr(event.originX, 0);
@@ -2468,6 +2546,7 @@ export function createTraitCommandPresentation(
     slot.dirX = directionLength > 1e-8 ? rawDirX / directionLength : Math.sin(yawRadians);
     slot.dirY = directionLength > 1e-8 ? rawDirY / directionLength : -Math.cos(yawRadians);
     slot.intensity = resolveTraitCommandVisualIntensity(event, profile);
+    slot.paletteLane = resolveTraitCommandPaletteLane(event, profile);
   }
 
   function startGenericMeleeSlash(
@@ -2495,6 +2574,7 @@ export function createTraitCommandPresentation(
     slot.yawDegrees = resolveYawDegrees(event);
     slot.intensity = resolveTraitCommandVisualIntensity(event, profile);
     slot.material = profile.material;
+    slot.paletteLane = resolveTraitCommandPaletteLane(event, profile);
     slot.mesh = profile.material === 'greg-fox-swipe'
       ? foxSwipeMesh
       : profile.material === 'greg-rush-rake'
@@ -2540,11 +2620,16 @@ export function createTraitCommandPresentation(
       slot.speed = finiteOr(event.speed, 0);
       slot.facing = finiteOr(event.facing, 0);
       slot.intensity = intensity;
+      slot.paletteLane = resolveTraitCommandPaletteLane(event, profile);
       if (assigned >= count) break;
     }
   }
 
-  function startOrbitContacts(event: TraitCommandPresentationEvent, currentTick: number): void {
+  function startOrbitContacts(
+    event: TraitCommandPresentationEvent,
+    profile: TraitCommandEffectProfile,
+    currentTick: number,
+  ): void {
     if (!hasResolvedOrbitContact(event)) return;
     const hitCount = resolvedOrbitHitCount(event);
     const emittedTick = normalizedTick(event.tick);
@@ -2576,6 +2661,7 @@ export function createTraitCommandPresentation(
       slot.sourceY = fromY;
       slot.targetX = toX;
       slot.targetY = toY;
+      slot.paletteLane = resolveTraitCommandPaletteLane(event, profile);
     }
   }
 
@@ -2587,6 +2673,7 @@ export function createTraitCommandPresentation(
     const hitX = event.resolvedHitX!;
     const hitY = event.resolvedHitY!;
     const intensity = resolveTraitCommandVisualIntensity(event, PROFILES['chain-lightning']);
+    const paletteLane = resolveTraitCommandPaletteLane(event, PROFILES['chain-lightning']);
     let fromX = finiteOr(event.originX, 0);
     let fromY = finiteOr(event.originY, 0);
     for (let index = 0; index < hitCount; index++) {
@@ -2613,6 +2700,7 @@ export function createTraitCommandPresentation(
       slot.toX = toX;
       slot.toY = toY;
       slot.intensity = intensity;
+      slot.paletteLane = paletteLane;
       fromX = toX;
       fromY = toY;
     }
@@ -2643,7 +2731,7 @@ export function createTraitCommandPresentation(
           startMeleeArc(event, profile, tick);
         } else if (profile.kind === 'orbiting-damage') {
           startOrbitingDamage(event, profile, tick);
-          startOrbitContacts(event, tick);
+          startOrbitContacts(event, profile, tick);
         } else {
           start(event, profile, tick);
         }

@@ -1,0 +1,202 @@
+{
+  "browser": {
+    "mode": "headed",
+    "fallbackReason": null
+  },
+  "browserMessages": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    }
+  ],
+  "captureRoute": "http://127.0.0.1:5199/?autopilot=1&hero=greg&seed=3",
+  "captureTimesAreSimulationSeconds": true,
+  "clipDurationRealSeconds": 10,
+  "finalState": {
+    "hasApp": true,
+    "introHidden": true,
+    "rendererBanner": "none",
+    "simTick": 11427,
+    "playerLevel": 11,
+    "enemiesLive": 23,
+    "webgl2": true
+  },
+  "flashAudits": [
+    {
+      "seconds": 30,
+      "file": "flash-audit-30s.json",
+      "source": "decoded from videos/clip-30s.webm",
+      "framesDirectory": "frames/clip-30s",
+      "framesRetained": false,
+      "frames": 250,
+      "fps": 25,
+      "grid": {
+        "rows": 8,
+        "columns": 8
+      },
+      "amplitudeThreshold": 0.1,
+      "maxSwingsPerSecond": 3,
+      "worstCell": {
+        "row": 3,
+        "column": 3
+      },
+      "swingsPerSecond": 4,
+      "offendingTimestamps": [
+        3.44,
+        3.56,
+        4.08,
+        4.16
+      ],
+      "failingCells": [
+        {
+          "row": 3,
+          "column": 3,
+          "swingsPerSecond": 4,
+          "timestamps": [
+            3.44,
+            3.56,
+            4.08,
+            4.16
+          ]
+        },
+        {
+          "row": 4,
+          "column": 4,
+          "swingsPerSecond": 4,
+          "timestamps": [
+            3.88,
+            4.04,
+            4.36,
+            4.88
+          ]
+        }
+      ],
+      "pass": false
+    },
+    {
+      "seconds": 180,
+      "file": "flash-audit-180s.json",
+      "source": "decoded from videos/clip-180s.webm",
+      "framesDirectory": "frames/clip-180s",
+      "framesRetained": false,
+      "frames": 243,
+      "fps": 24.3,
+      "grid": {
+        "rows": 8,
+        "columns": 8
+      },
+      "amplitudeThreshold": 0.1,
+      "maxSwingsPerSecond": 3,
+      "worstCell": {
+        "row": 3,
+        "column": 4
+      },
+      "swingsPerSecond": 6,
+      "offendingTimestamps": [
+        4.321,
+        4.444,
+        4.65,
+        4.815,
+        5.103,
+        5.309
+      ],
+      "failingCells": [
+        {
+          "row": 3,
+          "column": 3,
+          "swingsPerSecond": 4,
+          "timestamps": [
+            4.979,
+            5.226,
+            5.802,
+            5.967
+          ]
+        },
+        {
+          "row": 3,
+          "column": 4,
+          "swingsPerSecond": 6,
+          "timestamps": [
+            4.321,
+            4.444,
+            4.65,
+            4.815,
+            5.103,
+            5.309
+          ]
+        }
+      ],
+      "pass": false
+    }
+  ],
+  "flashPass": false,
+  "mode": "normal-autopilot-with-dom-upgrade-selection",
+  "serverMode": "dev",
+  "scriptedStartFallback": false,
+  "stills": [
+    {
+      "seconds": 5,
+      "file": "still-5s.png",
+      "bytes": 1054928,
+      "simTick": 301,
+      "playerLevel": 1,
+      "enemiesLive": 13,
+      "realSecondsAfterRunStart": 4.845
+    },
+    {
+      "seconds": 30,
+      "file": "still-30s.png",
+      "bytes": 1130888,
+      "simTick": 1802,
+      "playerLevel": 4,
+      "enemiesLive": 12,
+      "realSecondsAfterRunStart": 45.732
+    },
+    {
+      "seconds": 90,
+      "file": "still-90s.png",
+      "bytes": 1151664,
+      "simTick": 5401,
+      "playerLevel": 9,
+      "enemiesLive": 18,
+      "realSecondsAfterRunStart": 198.993
+    },
+    {
+      "seconds": 180,
+      "file": "still-180s.png",
+      "bytes": 1160483,
+      "simTick": 10800,
+      "playerLevel": 11,
+      "enemiesLive": 15,
+      "realSecondsAfterRunStart": 289.461
+    }
+  ],
+  "clips": [
+    {
+      "seconds": 30,
+      "simTick": 1802,
+      "video": "videos/clip-30s.webm",
+      "videoBytes": 918810,
+      "videoEncoding": "stream-copy",
+      "contactSheet": "contact-sheet-30s.png",
+      "grayscaleContactSheet": "contact-sheet-30s-gray.png",
+      "frameCount": 250,
+      "frameSamplingFps": 25,
+      "frameSamplingMode": "source-frame-fallback"
+    },
+    {
+      "seconds": 180,
+      "simTick": 10800,
+      "video": "videos/clip-180s.webm",
+      "videoBytes": 612985,
+      "videoEncoding": "stream-copy",
+      "contactSheet": "contact-sheet-180s.png",
+      "grayscaleContactSheet": "contact-sheet-180s-gray.png",
+      "frameCount": 243,
+      "frameSamplingFps": 24.3,
+      "frameSamplingMode": "source-frame-fallback"
+    }
+  ],
+  "upgradeChoiceClicks": 17,
+  "webgl2": true
+}

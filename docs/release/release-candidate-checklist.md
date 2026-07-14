@@ -23,7 +23,8 @@ decision.
       details are in `docs/verification/browser-boot-2026-07-12.md`.
 - [x] All four npm lockfiles pass the deterministic integrity/license metadata
       check; final legal and license review remains open.
-- [x] Root command `npm run verify:release` passes end to end.
+- [x] Root command `npm run verify:release` passed end to end on 2026-07-12,
+      before the V1.1 VFX flash-safety sub-gate was added.
 - [x] Diagnostic deterministic benchmarks run from the root release command;
       retained results are in `docs/verification/release-bench-2026-07-12.md`.
 - [x] Authored enemy content manifest covers every current director archetype
@@ -51,6 +52,19 @@ Latest local artifact identity:
 ```text
 0.1.0+c2c56a14f039.2b20bd83.5e81a607
 ```
+
+## V1.1 attack-VFX automated gate — pending final capture
+
+- [x] Texture alpha-matte verifier reads raw PNG bytes and rejects black
+      transparent mattes or chroma-key residue.
+- [x] Authored runtime payload is constrained below the 19 MB cap.
+- [x] The root release verifier now includes texture-matte validation and the
+      full 180-second VFX flash audit.
+- [ ] Fresh normal-speed 30 s/180 s contact sheets are scored against the
+      production rubric, with no item below 8/10 and no zero.
+- [ ] The 180-second 8×8 luminance flash gate passes at no more than three
+      swings per second in every region.
+- [ ] Three independent harsh reviewers sign the current evidence.
 
 ## Open ship gates
 

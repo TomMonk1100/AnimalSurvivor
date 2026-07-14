@@ -4,8 +4,12 @@ import type {
   IllustratedTraitVfxEvent,
 } from '../src/render/illustrated-vfx-presentation';
 import {
+  SIGNATURE_VFX_ENVELOPE_RELEASE,
   illustratedVfxClipForCombatEvent,
   illustratedVfxClipForTraitEvent,
+  illustratedVfxEnvelopeReleaseForClip,
+  illustratedVfxLifetimeForClip,
+  illustratedVfxRadiusForTraitEvent,
 } from '../src/render/illustrated-vfx-presentation';
 
 function trait(overrides: Partial<IllustratedTraitVfxEvent> = {}): IllustratedTraitVfxEvent {
@@ -31,6 +35,27 @@ function combat(overrides: Partial<IllustratedCombatVfxEvent> = {}): Illustrated
 }
 
 describe('illustrated VFX presentation routing', () => {
+  it('keeps blink-prone one-shot art at the ten-tick readability floor', () => {
+    expect(illustratedVfxLifetimeForClip('normalImpact')).toBe(10);
+    expect(illustratedVfxLifetimeForClip('quillVolley')).toBe(10);
+    expect(illustratedVfxLifetimeForClip('mantisSweep')).toBe(10);
+    expect(illustratedVfxLifetimeForClip('playerImpact')).toBe(10);
+  });
+
+  it('keeps coherent eight-frame dissolves visible beyond their source sequence', () => {
+    expect(illustratedVfxLifetimeForClip('fluffyShield')).toBeGreaterThanOrEqual(16);
+    expect(illustratedVfxLifetimeForClip('geckoPad')).toBeGreaterThanOrEqual(16);
+    expect(illustratedVfxLifetimeForClip('skunkCloud')).toBeGreaterThanOrEqual(16);
+    expect(illustratedVfxLifetimeForClip('royalStink')).toBeGreaterThanOrEqual(16);
+  });
+
+  it('gives every hero signature at least half of its life to visibly release', () => {
+    expect(SIGNATURE_VFX_ENVELOPE_RELEASE).toBeGreaterThanOrEqual(0.5);
+    for (const clip of ['foxSwipe', 'earthWave', 'spitComet'] as const) {
+      expect(illustratedVfxEnvelopeReleaseForClip(clip)).toBeGreaterThanOrEqual(0.5);
+    }
+  });
+
   it('requires a resolved target before drawing an illustrated Fox Swipe', () => {
     expect(illustratedVfxClipForTraitEvent(trait({
       kind: 'meleeArc', sourceId: 'greg-fox-swipe', tag: 'greg-fox-swipe', meleeArcResolved: false,
@@ -40,16 +65,16 @@ describe('illustrated VFX presentation routing', () => {
     }))).toBe('foxSwipe');
   });
 
-  it('routes the three hero signatures and defensive cards to authored clips', () => {
+  it('routes card-owned hero signatures and defensive cards without duplicating Gracie flight', () => {
     expect(illustratedVfxClipForTraitEvent(trait({
       sourceId: 'benny-trample', tag: 'benny-trample-wave', kind: 'telegraph',
     }))).toBe('earthWave');
     expect(illustratedVfxClipForTraitEvent(trait({
       sourceId: 'gracie-spit', tag: 'gracie-spit', kind: 'spawnProjectileBurst',
-    }))).toBe('spitComet');
+    }))).toBeNull();
     expect(illustratedVfxClipForTraitEvent(trait({
       sourceId: 'gracie-spit', tag: 'gracie-spit', kind: 'telegraph',
-    }))).toBe('spitComet');
+    }))).toBeNull();
     expect(illustratedVfxClipForTraitEvent(trait({
       sourceId: 'fluffy-shield', tag: 'fluffy-shield', kind: 'playTraitCue',
     }))).toBe('fluffyShield');
@@ -62,6 +87,14 @@ describe('illustrated VFX presentation routing', () => {
     expect(illustratedVfxClipForTraitEvent(trait({
       sourceId: 'gracie-scout', tag: 'gracie-scout', kind: 'telegraph',
     }))).toBe('midnightRadar');
+  });
+
+  it('uses bounded gameplay-camera scales for Benny’s ridge and Gracie’s real comet body', () => {
+    expect(illustratedVfxRadiusForTraitEvent({ range: 34, radius: 34, strength: 1 }, 'earthWave')).toBeCloseTo(66.3);
+    // Gracie's authoritative hit radius is deliberately compact; the card is
+    // a readable renderer-only body/tail, not a widened collision query.
+    expect(illustratedVfxRadiusForTraitEvent({ range: 12, radius: 12, strength: 1 }, 'spitComet')).toBe(56);
+    expect(illustratedVfxRadiusForTraitEvent({ range: 12, radius: 12, strength: 1 }, 'spitComet')).toBeGreaterThan(12 * 2);
   });
 
   it('gives every owned trait and mythic command an explicit animated art clip', () => {

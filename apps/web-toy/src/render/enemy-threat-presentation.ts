@@ -15,6 +15,13 @@ import { lerp } from './interpolation';
 /** The compact simulation faction copied into projectile snapshot roles. */
 export const HOSTILE_PROJECTILE_ROLE = 1;
 
+/**
+ * Threats must communicate direction and imminence without becoming a rapid
+ * luminance beacon. At the 60 Hz simulation rate this is exactly 0.5 Hz, the
+ * global maximum for any persistent VFX breathing loop.
+ */
+export const ENEMY_THREAT_BREATH_PERIOD_TICKS = 120;
+
 export type EnemyThreatPaletteId =
   | 'hostile'
   | 'charger'
@@ -721,7 +728,7 @@ export function createEnemyThreatPresentation(
       const tailLength = velocityLength > EPSILON ? clamp(velocityLength * 2.8, 5, 30) : 0;
       const descriptor = projectileStorage[candidate]!;
       const baseRadius = Math.max(2.8, finite(current.projectiles.radius[index]!, 3) * 1.32);
-      const pulse = trianglePulse(current.tick, id, 10);
+      const pulse = trianglePulse(current.tick, id, ENEMY_THREAT_BREATH_PERIOD_TICKS);
       const family = metadata?.family?.trim()
         || projectileFamilyFromSource(current.projectiles.source[index] ?? 0);
       const critical = metadata?.critical ?? current.projectiles.critical[index] === 1;
@@ -733,9 +740,9 @@ export function createEnemyThreatPresentation(
       descriptor.tailX = headX - directionX * tailLength;
       descriptor.tailY = headY - directionY * tailLength;
       descriptor.headingRadians = velocityLength > EPSILON ? Math.atan2(directionY, directionX) : 0;
-      descriptor.headRadius = baseRadius * (critical ? 1.24 : 1) * (0.96 + pulse * 0.12);
+      descriptor.headRadius = baseRadius * (critical ? 1.24 : 1) * (0.98 + pulse * 0.04);
       descriptor.tailWidth = baseRadius * 0.72;
-      descriptor.opacity = 0.88 + pulse * 0.1;
+      descriptor.opacity = 0.72 + pulse * 0.06;
       descriptor.pulse = pulse;
       descriptor.palette = 'hostile';
       hostileProjectiles.push(descriptor);
@@ -748,7 +755,7 @@ export function createEnemyThreatPresentation(
       if (!stored.active || telegraphs.length >= capacities.maxTelegraphs) continue;
       const duration = Math.max(1, stored.expiresAtTick - stored.startTick);
       const progress = clamp((tick - stored.startTick) / duration, 0, 1);
-      const pulse = trianglePulse(tick, stored.startTick, stored.severity === 'boss' ? 10 : 14);
+      const pulse = trianglePulse(tick, stored.startTick, ENEMY_THREAT_BREATH_PERIOD_TICKS);
       const descriptor = telegraphStorage[telegraphs.length]!;
       descriptor.key = stored.key;
       descriptor.source = stored.source;
@@ -763,7 +770,7 @@ export function createEnemyThreatPresentation(
       descriptor.length = stored.length;
       descriptor.thickness = clamp(stored.radius * (stored.severity === 'boss' ? 0.056 : 0.045), 2, 14);
       descriptor.progress = progress;
-      descriptor.opacity = clamp((stored.severity === 'boss' ? 0.84 : 0.7) * (0.82 + pulse * 0.18) * (1 - progress * 0.12), 0, 1);
+      descriptor.opacity = clamp((stored.severity === 'boss' ? 0.7 : 0.58) * (0.94 + pulse * 0.06) * (1 - progress * 0.08), 0, 1);
       descriptor.pulse = pulse;
       descriptor.startTick = stored.startTick;
       descriptor.expiresAtTick = stored.expiresAtTick;
@@ -789,7 +796,7 @@ export function createEnemyThreatPresentation(
       const directionX = distance > EPSILON ? distanceX / distance : 1;
       const directionY = distance > EPSILON ? distanceY / distance : 0;
       const progress = clamp(phase / capacities.chargerWindupTicks, 0, 1);
-      const pulse = trianglePulse(tick, id, 6);
+      const pulse = trianglePulse(tick, id, ENEMY_THREAT_BREATH_PERIOD_TICKS);
       const descriptor = telegraphStorage[telegraphs.length]!;
       descriptor.key = `charger|${id}|${tick - phase}`;
       descriptor.source = 'charger';
@@ -802,9 +809,9 @@ export function createEnemyThreatPresentation(
       descriptor.dirY = directionY;
       descriptor.radius = clamp(finite(current.enemies.radius[index]!, 10) * 1.4, 12, 42);
       descriptor.length = clamp(distance, 72, 230);
-      descriptor.thickness = 4 + pulse * 2;
+      descriptor.thickness = 4 + pulse * 0.5;
       descriptor.progress = progress;
-      descriptor.opacity = 0.66 + progress * 0.22 + pulse * 0.1;
+      descriptor.opacity = 0.52 + progress * 0.14 + pulse * 0.04;
       descriptor.pulse = pulse;
       descriptor.startTick = tick - phase;
       descriptor.expiresAtTick = tick - phase + capacities.chargerWindupTicks;
@@ -848,16 +855,16 @@ export function createEnemyThreatPresentation(
       const urgency = clamp(1 - distance / Math.max(1, threatRange), 0, 1);
       const id = enemies.id[index]!;
       const severity = roleSeverity(role);
-      const pulse = trianglePulse(current.tick, id, severity === 'boss' ? 10 : 16);
+      const pulse = trianglePulse(current.tick, id, ENEMY_THREAT_BREATH_PERIOD_TICKS);
       const descriptor = contactStorage[candidate]!;
       descriptor.entityId = id;
       descriptor.severity = severity;
       descriptor.x = x;
       descriptor.y = y;
-      descriptor.radius = radius + (severity === 'boss' ? 16 : severity === 'elite' ? 12 : 8) + pulse * 2;
+      descriptor.radius = radius + (severity === 'boss' ? 16 : severity === 'elite' ? 12 : 8) + pulse * 0.8;
       descriptor.thickness = severity === 'boss' ? 5 : severity === 'elite' ? 4 : 3;
       descriptor.urgency = urgency;
-      descriptor.opacity = clamp(0.3 + urgency * 0.54 + pulse * 0.12, 0, 0.98);
+      descriptor.opacity = clamp(0.24 + urgency * 0.35 + pulse * 0.05, 0, 0.64);
       descriptor.pulse = pulse;
       descriptor.palette = paletteForRole(role);
       contactRings.push(descriptor);
@@ -886,17 +893,17 @@ export function createEnemyThreatPresentation(
       const hp = Math.max(0, finite(enemies.hp[index]!, 0));
       const maxHp = Math.max(1, finite(enemies.maxHp[index]!, 1));
       const id = enemies.id[index]!;
-      const pulse = trianglePulse(current.tick, id, boss ? 12 : 18);
+      const pulse = trianglePulse(current.tick, id, ENEMY_THREAT_BREATH_PERIOD_TICKS);
       const descriptor = auraStorage[candidate]!;
       descriptor.entityId = id;
       descriptor.severity = boss ? 'boss' : 'elite';
       descriptor.x = finite(enemies.x[index]!, 0);
       descriptor.y = finite(enemies.y[index]!, 0);
       descriptor.innerRadius = radius * (boss ? 1.26 : 1.15) + 7;
-      descriptor.outerRadius = radius * (boss ? 1.86 : 1.5) + 15 + pulse * (boss ? 7 : 4);
+      descriptor.outerRadius = radius * (boss ? 1.86 : 1.5) + 15 + pulse * (boss ? 2 : 1.2);
       descriptor.thickness = boss ? 6 : 4;
       descriptor.healthFraction = clamp(hp / maxHp, 0, 1);
-      descriptor.opacity = boss ? 0.72 + pulse * 0.18 : 0.54 + pulse * 0.16;
+      descriptor.opacity = boss ? 0.46 + pulse * 0.06 : 0.34 + pulse * 0.05;
       descriptor.pulse = pulse;
       descriptor.palette = boss ? 'boss' : 'elite';
       eliteBossAuras.push(descriptor);

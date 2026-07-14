@@ -32,6 +32,12 @@ interface DamageNumberView {
 
 export const DEFAULT_DAMAGE_NUMBER_CAPACITY = 36;
 export const DAMAGE_NUMBER_LIFETIME_TICKS = 28;
+/** A normal-number stream stays readable without turning each hit into a flash. */
+export const DAMAGE_NUMBER_NORMAL_MIN_INTERVAL_TICKS = 4;
+/** Criticals remain special, but may not stack a second white/gold burst instantly. */
+export const DAMAGE_NUMBER_CRITICAL_MIN_INTERVAL_TICKS = 6;
+const DAMAGE_NUMBER_ENTER_TICKS = 3;
+const DAMAGE_NUMBER_RELEASE_START = 0.42;
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
@@ -145,6 +151,8 @@ export function createDamageNumberPresentation(
   let enabled = true;
   let lastRenderTick = -1;
   let nextReplacement = 0;
+  let lastNormalAdmissionTick = Number.NEGATIVE_INFINITY;
+  let lastCriticalAdmissionTick = Number.NEGATIVE_INFINITY;
 
   if (overlay !== null && parent !== null) {
     overlay.className = 'damage-number-overlay';
@@ -175,6 +183,26 @@ export function createDamageNumberPresentation(
     for (const view of views) hide(view);
     seenEvents.clear();
     nextReplacement = 0;
+    lastNormalAdmissionTick = Number.NEGATIVE_INFINITY;
+    lastCriticalAdmissionTick = Number.NEGATIVE_INFINITY;
+  }
+
+  /**
+   * Damage is still canonical and every event remains available to the combat
+   * feed. This only throttles the optional DOM overlay, which otherwise makes
+   * a dense multi-hit look like alternating white pixels in the flash audit.
+   */
+  function admitsDamageNumber(event: CombatPresentationEventView): boolean {
+    if (event.kind !== 'enemyHit') return true;
+    const eventTick = Math.max(0, Math.floor(finite(event.tick, 0)));
+    if (event.critical) {
+      if (eventTick - lastCriticalAdmissionTick < DAMAGE_NUMBER_CRITICAL_MIN_INTERVAL_TICKS) return false;
+      lastCriticalAdmissionTick = eventTick;
+      return true;
+    }
+    if (eventTick - lastNormalAdmissionTick < DAMAGE_NUMBER_NORMAL_MIN_INTERVAL_TICKS) return false;
+    lastNormalAdmissionTick = eventTick;
+    return true;
   }
 
   function acquireView(): DamageNumberView | null {
@@ -198,9 +226,12 @@ export function createDamageNumberPresentation(
       for (const event of events) {
         const key = eventKey(event);
         if (seenEvents.has(key)) continue;
+        // Remember rejected optional labels too: the same copied event is
+        // supplied across several rAF frames and must not get admitted late.
+        seenEvents.set(key, event.tick);
+        if (!admitsDamageNumber(event)) continue;
         const view = acquireView();
         if (view === null) return;
-        seenEvents.set(key, event.tick);
         view.active = { event: { ...event } };
       }
       // A bounded event identity cache prevents a long run from retaining a
@@ -219,7 +250,7 @@ export function createDamageNumberPresentation(
         const active = view.active;
         if (active === null) continue;
         const age = safeTick - active.event.tick;
-        if (age < 0 || age > DAMAGE_NUMBER_LIFETIME_TICKS) {
+        if (age < 0 || age >= DAMAGE_NUMBER_LIFETIME_TICKS) {
           hide(view);
           continue;
         }
@@ -239,8 +270,12 @@ export function createDamageNumberPresentation(
         const label = presentDamageNumberLabel(active.event);
         const risePixels = 12 + progress * 43;
         const driftPixels = ((active.event.x * 0.37 + active.event.y * 0.19 + active.event.tick) % 9 - 4) * progress;
-        const opacity = 1 - progress * progress;
-        const scale = label.fontScale * (1.12 - progress * 0.18);
+        const enter = clamp(age / DAMAGE_NUMBER_ENTER_TICKS, 0, 1);
+        const release = progress <= DAMAGE_NUMBER_RELEASE_START
+          ? 1
+          : 1 - ((progress - DAMAGE_NUMBER_RELEASE_START) / (1 - DAMAGE_NUMBER_RELEASE_START)) ** 2;
+        const opacity = (active.event.critical ? 0.88 : 0.7) * (1 - (1 - enter) ** 3) * release;
+        const scale = label.fontScale * (0.92 + 0.16 * (1 - (1 - enter) ** 3) - progress * 0.12);
         view.element.textContent = label.text;
         view.element.style.color = label.color;
         view.element.style.left = `${position.leftPercent}%`;

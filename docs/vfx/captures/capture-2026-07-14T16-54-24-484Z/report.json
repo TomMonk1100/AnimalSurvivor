@@ -1,0 +1,135 @@
+{
+  "browser": {
+    "mode": "headless-swiftshader",
+    "fallbackReason": null
+  },
+  "browserMessages": [
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x11c00476600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x11c00476600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x11c00476600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x11c00476600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+    }
+  ],
+  "captureRoute": "http://127.0.0.1:5199/?autopilot=1&hero=greg&seed=3",
+  "captureTimesAreSimulationSeconds": true,
+  "clipDurationRealSeconds": 10,
+  "finalState": {
+    "hasApp": true,
+    "introHidden": true,
+    "rendererBanner": "none",
+    "simTick": 11444,
+    "playerLevel": 11,
+    "enemiesLive": 26,
+    "webgl2": true
+  },
+  "flashAudits": [
+    {
+      "seconds": 180,
+      "file": "flash-audit-180s.json",
+      "source": "decoded from videos/clip-180s.webm",
+      "frames": 250,
+      "fps": 25,
+      "grid": {
+        "rows": 8,
+        "columns": 8
+      },
+      "amplitudeThreshold": 0.1,
+      "maxSwingsPerSecond": 3,
+      "worstCell": {
+        "row": 4,
+        "column": 4
+      },
+      "swingsPerSecond": 6,
+      "offendingTimestamps": [
+        7.64,
+        7.72,
+        7.84,
+        7.92,
+        8,
+        8.08
+      ],
+      "failingCells": [
+        {
+          "row": 3,
+          "column": 3,
+          "swingsPerSecond": 4,
+          "timestamps": [
+            2.04,
+            2.12,
+            2.84,
+            2.96
+          ]
+        },
+        {
+          "row": 3,
+          "column": 4,
+          "swingsPerSecond": 4,
+          "timestamps": [
+            4.76,
+            4.92,
+            5.08,
+            5.16
+          ]
+        },
+        {
+          "row": 4,
+          "column": 4,
+          "swingsPerSecond": 6,
+          "timestamps": [
+            7.64,
+            7.72,
+            7.84,
+            7.92,
+            8,
+            8.08
+          ]
+        }
+      ],
+      "pass": false,
+      "framesDirectory": "frames/clip-180s",
+      "framesRetained": false
+    }
+  ],
+  "flashPass": false,
+  "mode": "normal-autopilot-with-dom-upgrade-selection",
+  "serverMode": "preview",
+  "scriptedStartFallback": false,
+  "stills": [
+    {
+      "seconds": 180,
+      "file": "still-180s.png",
+      "bytes": 1140468,
+      "simTick": 10800,
+      "playerLevel": 11,
+      "enemiesLive": 15,
+      "realSecondsAfterRunStart": 182.734
+    }
+  ],
+  "clips": [
+    {
+      "seconds": 180,
+      "simTick": 10800,
+      "video": "videos/clip-180s.webm",
+      "videoBytes": 839954,
+      "videoEncoding": "stream-copy",
+      "contactSheet": "contact-sheet-180s.png",
+      "grayscaleContactSheet": "contact-sheet-180s-gray.png",
+      "frameCount": 250,
+      "frameSamplingFps": 25,
+      "frameSamplingMode": "source-frame-fallback"
+    }
+  ],
+  "upgradeChoiceClicks": 10,
+  "webgl2": true
+}

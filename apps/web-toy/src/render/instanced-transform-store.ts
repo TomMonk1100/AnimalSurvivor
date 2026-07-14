@@ -35,6 +35,13 @@ export interface SpriteMotionOptions {
   readonly facingSwayRadians?: number;
 }
 
+/**
+ * Optional renderer-only admission policy for a high-density category. The
+ * simulation snapshot remains intact; the caller only chooses which stable
+ * instance identities deserve a visible representative this frame.
+ */
+export type InstanceIdAdmissionPolicy = (id: number, liveCount: number) => boolean;
+
 function clampAlpha(alpha: number): number {
   return alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
 }
@@ -122,6 +129,7 @@ export class InstancedTransformStore {
     markedFilter?: number,
     archetypeFilter?: number,
     spriteMotion?: SpriteMotionOptions,
+    instanceIdAdmissionPolicy?: InstanceIdAdmissionPolicy,
   ): void {
     if (current.count > this.capacity) {
       throw new RangeError(
@@ -144,6 +152,7 @@ export class InstancedTransformStore {
       if (markedFilter !== undefined && current.marked[index] !== markedFilter) continue;
       if (archetypeFilter !== undefined && current.archetype[index] !== archetypeFilter) continue;
       const id = current.id[index]!;
+      if (instanceIdAdmissionPolicy !== undefined && !instanceIdAdmissionPolicy(id, current.count)) continue;
       const previousIndex = this.previousIndexBySlot[idSlot(id)]!;
       const currentX = current.x[index]!;
       const currentZ = current.y[index]!;

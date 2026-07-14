@@ -41,6 +41,8 @@ export interface PersistentZoneVisualPresentation {
   readonly transforms: VfxTransformStore;
   /** Read-only diagnostic identity for focused renderer tests. */
   readonly selectedId: number | null;
+  /** Fixed-tick age of the selected primary, used only for coherent art aging. */
+  readonly selectedAgeTicks: number | null;
   /** Current batch opacity after this lane's renderer-only age curve. */
   readonly opacity: number;
   /** Rebuilds the sole visible primary from immutable zone snapshot data. */
@@ -88,6 +90,7 @@ export function createPersistentZoneVisualPresentation(
 
   let lastTick = -1;
   let selectedId: number | null = null;
+  let selectedAgeTicks: number | null = null;
   let opacity = 0;
 
   function reset(): void {
@@ -96,6 +99,7 @@ export function createPersistentZoneVisualPresentation(
     transforms.reset();
     lastTick = -1;
     selectedId = null;
+    selectedAgeTicks = null;
     opacity = 0;
   }
 
@@ -110,6 +114,7 @@ export function createPersistentZoneVisualPresentation(
     lastTick = tick;
     transforms.reset();
     selectedId = null;
+    selectedAgeTicks = null;
     opacity = 0;
 
     let selectedIndex = -1;
@@ -146,6 +151,7 @@ export function createPersistentZoneVisualPresentation(
       scale,
     );
     selectedId = zones.id[selectedIndex]!;
+    selectedAgeTicks = selectedAge;
     opacity = baseOpacity * visualStrength;
   }
 
@@ -153,6 +159,9 @@ export function createPersistentZoneVisualPresentation(
     transforms,
     get selectedId(): number | null {
       return selectedId;
+    },
+    get selectedAgeTicks(): number | null {
+      return selectedAgeTicks;
     },
     get opacity(): number {
       return opacity;

@@ -16,6 +16,14 @@
     "verify:artifact": "node scripts/verify-dist.mjs",
     "verify:served": "node scripts/verify-served-artifact.mjs",
     "golden:propose": "node scripts/propose-golden-hashes.mjs",
+    "vfx:capture": "node scripts/vfx-capture.mjs",
+    "vfx:make-signature-v3": "node scripts/make-signature-v3.mjs",
+    "vfx:flash-audit": "node scripts/flash-audit.mjs",
+    "vfx:make-p3-crops": "node scripts/make-p3-crops.mjs",
+    "vfx:reencode-textures": "node scripts/reencode-vfx-textures.mjs --write",
+    "assets:reencode-runtime-pngs": "node scripts/reencode-vfx-textures.mjs --include-ui-runtime --write",
+    "verify:vfx-textures": "node scripts/verify-vfx-textures.mjs",
+    "verify:vfx-flash": "node scripts/vfx-capture.mjs --flash-only --preview --headless",
     "test:watch": "vitest",
     "serve": "vite --host",
     "stress": "vite --host --open \"/?autopilot=1&stress=1&renderstress=1\""
@@ -30,6 +38,7 @@
     "@typescript-eslint/parser": "^8.15.0",
     "eslint": "^9.15.0",
     "happy-dom": "^20.10.6",
+    "playwright": "^1.61.1",
     "typescript": "^5.6.0",
     "vite": "^8.1.4",
     "vitest": "^4.1.10"

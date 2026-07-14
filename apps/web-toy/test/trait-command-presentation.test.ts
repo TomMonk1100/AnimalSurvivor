@@ -9,6 +9,8 @@ import {
   resolveTraitCommandVisualBlueprint,
   resolveTraitCommandVisualConcurrencyCap,
   resolveTraitCommandVisualIntensity,
+  resolveTraitCommandPaletteMaterialKey,
+  resolveTraitCommandPaletteLane,
   resolveTraitCommandVisualStage,
   resolveIllustratedHeroUnderlayOpacityMultiplier,
   resolveTraitCommandEffectRadius,
@@ -135,6 +137,44 @@ describe('trait command presentation profiles', () => {
     expect(projectHeroDefenseEffect('fox-dodge')?.material).toBe('fox-dodge');
     expect(projectTraitCommandEffect(command({ kind: 'grantShield', sourceId: 'fluffy-shield' }))?.material)
       .toBe('fluffy-shield');
+  });
+
+  it('routes source-aware procedural underlays through the shared palette law', () => {
+    const fox = command({
+      kind: 'meleeArc', sourceId: 'greg-fox-swipe', tag: 'greg-fox-swipe',
+      arc: 1.72, range: 96, meleeArcResolved: true,
+    });
+    const foxProfile = projectTraitCommandEffect(fox)!;
+    expect(resolveTraitCommandPaletteLane(fox, foxProfile)).toBe('physical');
+
+    const skunk = command({ kind: 'spawnZone', sourceId: 'skunk-brush', tag: 'stink-cloud' });
+    expect(resolveTraitCommandPaletteLane(skunk, projectTraitCommandEffect(skunk)!)).toBe('venom');
+
+    const boss = command({ kind: 'telegraph', sourceId: 'boss-charge', tag: 'boss-charge' });
+    expect(resolveTraitCommandPaletteLane(boss, projectTraitCommandEffect(boss)!)).toBe('danger');
+  });
+
+  it('selects the finite live material key from the source family, including the Razorstep compatibility route', () => {
+    const fox = command({
+      kind: 'meleeArc', sourceId: 'greg-fox-swipe', tag: 'greg-fox-swipe',
+      arc: 1.72, range: 96, meleeArcResolved: true,
+    });
+    const foxProfile = projectTraitCommandEffect(fox)!;
+    expect(resolveTraitCommandPaletteMaterialKey(fox, foxProfile)).toBe('greg-fox-swipe:physical');
+
+    const trample = command({
+      kind: 'telegraph', sourceId: 'benny-trample', tag: 'benny-trample-wave', radius: 48,
+    });
+    const trampleProfile = projectTraitCommandEffect(trample)!;
+    expect(resolveTraitCommandPaletteMaterialKey(trample, trampleProfile)).toBe('benny-trample-wave:earth');
+
+    // Current Razorstep is a venom zone; this verifies the bounded prebuilt
+    // fallback lane retained for older deterministic melee replays as well.
+    const razorstep = command({
+      kind: 'meleeArc', sourceId: 'razorstep-chimera', arc: 2, range: 72, meleeArcResolved: true,
+    });
+    const razorstepProfile = projectTraitCommandEffect(razorstep)!;
+    expect(resolveTraitCommandPaletteMaterialKey(razorstep, razorstepProfile)).toBe('melee-arc:venom');
   });
 
   it('projects Bat Ears echo marks as a violet sonar pulse and Midnight Radar as cyan', () => {

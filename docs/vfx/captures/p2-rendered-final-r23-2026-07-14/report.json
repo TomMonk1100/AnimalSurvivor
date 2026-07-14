@@ -1,0 +1,5333 @@
+{
+  "captureMode": "real-driver-event-playwright-compositor-video",
+  "evidenceSchemaVersion": "p2-signature-lifecycle-proof-v4",
+  "ffmpegPath": "/Users/adammuncie/Library/Caches/ms-playwright/ffmpeg-1011/ffmpeg-mac",
+  "generatedAt": "2026-07-14T15:56:47.063Z",
+  "outputDirectory": "/Users/adammuncie/GameDev/AnimalSurvivor/docs/vfx/captures/p2-rendered-final-r23-2026-07-14",
+  "seed": "3",
+  "serverMode": "production-preview",
+  "build": {
+    "command": "npm run build",
+    "source": {
+      "headSha": "25c0556cee0603881cba0cd51f18ea0756b002c8",
+      "dirty": true,
+      "visualAssetProvenance": {
+        "signatureAtlas": {
+          "relativePath": "assets/ui/vfx/wildguard-signature-frames-v3.png",
+          "bytes": 580910,
+          "sha256": "bbc5240ee1ca7ba6ef421fd8f83f66195de18a78c5dbdc5fc42168dcefd6fcd8"
+        },
+        "signatureBodiesAtlas": {
+          "relativePath": "assets/ui/vfx/wildguard-signature-bodies-v1.png",
+          "bytes": 141241,
+          "sha256": "6a7f825b1280fb4b4bc2181d697771185a9edec150271f2c313826a88c103161"
+        },
+        "impactCore": {
+          "relativePath": "assets/ui/vfx/wildguard-impact-core-v1.png",
+          "bytes": 28806,
+          "sha256": "30c60d6cbbcf4188408168e657246c926069f877e9f991343b06a36fdc1e0705"
+        },
+        "signatureDebris": {
+          "relativePath": "assets/ui/vfx/wildguard-signature-debris-v1.png",
+          "bytes": 38740,
+          "sha256": "28b0184ceb1acd5d14b6110e50795d10f1193b5d40f72d81206caefea32f17e9"
+        },
+        "groundContact": {
+          "relativePath": "assets/ui/vfx/wildguard-ground-contact-v1.png",
+          "bytes": 8437,
+          "sha256": "813209b6eaa0d2515d2e4ea99d96d060b0e0011fd34314a463d725f239a679cc"
+        },
+        "rendererSources": {
+          "atlasRouter": {
+            "relativePath": "apps/web-toy/src/render/wildguard-vfx-atlas.ts",
+            "sha256": "d1e2eb147fece7047b566b7c24dfc1ef4a81953ce83fa4a8e65fe8d557ab59af"
+          },
+          "illustratedMotion": {
+            "relativePath": "apps/web-toy/src/render/illustrated-vfx-motion.ts",
+            "sha256": "e8454b71ee2a8e493009848703bbd0db652d08284789ad7bf19b60fdf337e857"
+          },
+          "signatureComposite": {
+            "relativePath": "apps/web-toy/src/render/signature-vfx-composite-presentation.ts",
+            "sha256": "36120814c792a639d61d07207ca0a2f14750a347177b27c57aa897c814586ee6"
+          },
+          "sceneIntegration": {
+            "relativePath": "apps/web-toy/src/render/playcanvas-scene.ts",
+            "sha256": "1d08ef1c4377413a502d7f3f437689ab90eb3f19463b07e808fdabf6e688692d"
+          }
+        }
+      }
+    },
+    "buildStartedAt": "2026-07-14T15:56:19.512Z",
+    "buildCompletedAt": "2026-07-14T15:56:21.831Z"
+  },
+  "visualAssetProvenance": {
+    "signatureAtlas": {
+      "relativePath": "assets/ui/vfx/wildguard-signature-frames-v3.png",
+      "bytes": 580910,
+      "sha256": "bbc5240ee1ca7ba6ef421fd8f83f66195de18a78c5dbdc5fc42168dcefd6fcd8"
+    },
+    "signatureBodiesAtlas": {
+      "relativePath": "assets/ui/vfx/wildguard-signature-bodies-v1.png",
+      "bytes": 141241,
+      "sha256": "6a7f825b1280fb4b4bc2181d697771185a9edec150271f2c313826a88c103161"
+    },
+    "impactCore": {
+      "relativePath": "assets/ui/vfx/wildguard-impact-core-v1.png",
+      "bytes": 28806,
+      "sha256": "30c60d6cbbcf4188408168e657246c926069f877e9f991343b06a36fdc1e0705"
+    },
+    "signatureDebris": {
+      "relativePath": "assets/ui/vfx/wildguard-signature-debris-v1.png",
+      "bytes": 38740,
+      "sha256": "28b0184ceb1acd5d14b6110e50795d10f1193b5d40f72d81206caefea32f17e9"
+    },
+    "groundContact": {
+      "relativePath": "assets/ui/vfx/wildguard-ground-contact-v1.png",
+      "bytes": 8437,
+      "sha256": "813209b6eaa0d2515d2e4ea99d96d060b0e0011fd34314a463d725f239a679cc"
+    },
+    "rendererSources": {
+      "atlasRouter": {
+        "relativePath": "apps/web-toy/src/render/wildguard-vfx-atlas.ts",
+        "sha256": "d1e2eb147fece7047b566b7c24dfc1ef4a81953ce83fa4a8e65fe8d557ab59af"
+      },
+      "illustratedMotion": {
+        "relativePath": "apps/web-toy/src/render/illustrated-vfx-motion.ts",
+        "sha256": "e8454b71ee2a8e493009848703bbd0db652d08284789ad7bf19b60fdf337e857"
+      },
+      "signatureComposite": {
+        "relativePath": "apps/web-toy/src/render/signature-vfx-composite-presentation.ts",
+        "sha256": "36120814c792a639d61d07207ca0a2f14750a347177b27c57aa897c814586ee6"
+      },
+      "sceneIntegration": {
+        "relativePath": "apps/web-toy/src/render/playcanvas-scene.ts",
+        "sha256": "1d08ef1c4377413a502d7f3f437689ab90eb3f19463b07e808fdabf6e688692d"
+      }
+    }
+  },
+  "stripFrames": 3,
+  "targets": [
+    {
+      "id": "greg-fox-swipe",
+      "hero": "greg",
+      "label": "Greg — Fox Swipe",
+      "predicate": {
+        "stream": "trait",
+        "kind": "meleeArc",
+        "sourceId": "greg-fox-swipe",
+        "meleeArcResolved": true
+      },
+      "evidencePolicy": {
+        "captureMode": "single-event-lifecycle",
+        "eventEvidenceRole": "signature-event",
+        "telegraphCardClaimed": true,
+        "burst": null,
+        "releaseEvidence": {
+          "phase": "post-fox-swipe-family-zero-envelope",
+          "mode": "post-family-event-envelope-terminal-and-zero",
+          "familyId": "illustrated-fox-swipe",
+          "familyVisualLifetimeTicks": 12,
+          "inclusiveTerminalTick": true,
+          "minimumClearTickDelta": 13,
+          "maximumCaptureTickDelta": 15,
+          "maximumWaitTicks": 24,
+          "requiresNoLaterSameSourceOrFamilyEvent": true,
+          "familyPredicate": {
+            "kind": "meleeArc",
+            "sourceIds": [
+              "greg-fox-swipe",
+              "greg-rush-rake"
+            ],
+            "tags": [
+              "greg-fox-swipe",
+              "greg-rush-rake"
+            ],
+            "meleeArcResolved": true
+          }
+        },
+        "postBurstReleaseEvidence": null,
+        "projectile": null,
+        "impactEvidence": null
+      },
+      "attempt": 1,
+      "browserMessages": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        }
+      ],
+      "browserMode": "headed-hardware-recordVideo",
+      "boot": {
+        "scriptedStartFallback": false,
+        "state": {
+          "hasApp": true,
+          "introHidden": true,
+          "rendererBanner": "none",
+          "simTick": 20,
+          "webgl2": true
+        }
+      },
+      "captureRoute": "http://127.0.0.1:5202/?autopilot=1&hero=greg&seed=3",
+      "focusAnchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "captureMode": "single-event-lifecycle",
+      "eventEvidenceRole": "signature-event",
+      "telegraphCardClaimed": true,
+      "finalState": {
+        "hasApp": true,
+        "introHidden": true,
+        "rendererBanner": "none",
+        "simTick": 286,
+        "webgl2": true
+      },
+      "captureContract": "supporting Playwright compositor video plus post-render compositor screenshots for Greg’s phase-timed early, mid, and near-terminal review, with an optional terminal frame only after the full illustrated foxSwipe family is clear and no later same-source or family-alias event contaminates the selected cast",
+      "compositorVideo": "greg-fox-swipe/compositor.webm",
+      "compositorVideoBytes": 834644,
+      "compositorVideoStartNodeEpochMs": 1784044582529,
+      "compositorVideoFrameRate": 25,
+      "compositorVideoDurationSeconds": 7.12,
+      "compositorTimingProbe": "greg-fox-swipe/recording-attempt-1/timing-probe.png",
+      "matchedEvent": {
+        "kind": "meleeArc",
+        "sourceId": "greg-fox-swipe",
+        "tag": "greg-fox-swipe",
+        "tick": 230,
+        "amount": 0,
+        "count": 1,
+        "critical": null,
+        "meleeArcResolved": true,
+        "originX": 1027.8060636293062,
+        "originY": 1154.9355715640413,
+        "dirX": -0.3878284662436943,
+        "dirY": 0.9217315665480181,
+        "radius": 252,
+        "range": 252,
+        "durationTicks": 0
+      },
+      "matchedEventTick": 230,
+      "matchedEventPageNowMs": 4104.199999988079,
+      "matchedEventWallEpochMs": 1784044586948.8,
+      "matchedEventRelativeVideoSeconds": 4.419800048828125,
+      "firstPostEventRafSample": {
+        "pageNowMs": 4119.799999982119,
+        "wallEpochMs": 1784044586964.4001,
+        "simTick": 231
+      },
+      "firstPostEventRelativeVideoSeconds": 4.435400146484375,
+      "requestedPostEventVideoSeconds": 4.435400146484375,
+      "visualLifetimeTicks": 12,
+      "timingJournal": [
+        {
+          "pageNowMs": 4104.199999988079,
+          "wallEpochMs": 1784044586948.8,
+          "simTick": 230
+        },
+        {
+          "pageNowMs": 4119.799999982119,
+          "wallEpochMs": 1784044586964.4001,
+          "simTick": 231
+        },
+        {
+          "pageNowMs": 4136.5,
+          "wallEpochMs": 1784044586981.1,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4153.5999999940395,
+          "wallEpochMs": 1784044586998.2002,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4169.5,
+          "wallEpochMs": 1784044587014.1,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4183.699999988079,
+          "wallEpochMs": 1784044587028.3,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4202.799999982119,
+          "wallEpochMs": 1784044587047.4001,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4219.399999976158,
+          "wallEpochMs": 1784044587064,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4236.199999988079,
+          "wallEpochMs": 1784044587080.8,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4252.5,
+          "wallEpochMs": 1784044587097.1,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4269.699999988079,
+          "wallEpochMs": 1784044587114.3,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4369.399999976158,
+          "wallEpochMs": 1784044587214,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4407.399999976158,
+          "wallEpochMs": 1784044587252,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4409,
+          "wallEpochMs": 1784044587253.6,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4419.699999988079,
+          "wallEpochMs": 1784044587264.3,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4434.299999982119,
+          "wallEpochMs": 1784044587278.9001,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4452.699999988079,
+          "wallEpochMs": 1784044587297.3,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4469.799999982119,
+          "wallEpochMs": 1784044587314.4001,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4485.799999982119,
+          "wallEpochMs": 1784044587330.4001,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4502.699999988079,
+          "wallEpochMs": 1784044587347.3,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4519.5999999940395,
+          "wallEpochMs": 1784044587364.2002,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4536.199999988079,
+          "wallEpochMs": 1784044587380.8,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4552.899999976158,
+          "wallEpochMs": 1784044587397.5,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4567.0999999940395,
+          "wallEpochMs": 1784044587411.7002,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 4586.399999976158,
+          "wallEpochMs": 1784044587431,
+          "simTick": 234
+        },
+        {
+          "pageNowMs": 4603.399999976158,
+          "wallEpochMs": 1784044587448,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4619.299999982119,
+          "wallEpochMs": 1784044587463.9001,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4636.399999976158,
+          "wallEpochMs": 1784044587481,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4653.0999999940395,
+          "wallEpochMs": 1784044587497.7002,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4669.299999982119,
+          "wallEpochMs": 1784044587513.9001,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4685.899999976158,
+          "wallEpochMs": 1784044587530.5,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4702.699999988079,
+          "wallEpochMs": 1784044587547.3,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4719.199999988079,
+          "wallEpochMs": 1784044587563.8,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4736.399999976158,
+          "wallEpochMs": 1784044587581,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4836,
+          "wallEpochMs": 1784044587680.6,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4852.5999999940395,
+          "wallEpochMs": 1784044587697.2002,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4869.299999982119,
+          "wallEpochMs": 1784044587713.9001,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4884,
+          "wallEpochMs": 1784044587728.6,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4902.799999982119,
+          "wallEpochMs": 1784044587747.4001,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4919.899999976158,
+          "wallEpochMs": 1784044587764.5,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4936.0999999940395,
+          "wallEpochMs": 1784044587780.7002,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4950.5999999940395,
+          "wallEpochMs": 1784044587795.2002,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4969.899999976158,
+          "wallEpochMs": 1784044587814.5,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 4986,
+          "wallEpochMs": 1784044587830.6,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 5000.5999999940395,
+          "wallEpochMs": 1784044587845.2002,
+          "simTick": 236
+        },
+        {
+          "pageNowMs": 5017.199999988079,
+          "wallEpochMs": 1784044587861.8,
+          "simTick": 237
+        },
+        {
+          "pageNowMs": 5033.799999982119,
+          "wallEpochMs": 1784044587878.4001,
+          "simTick": 238
+        },
+        {
+          "pageNowMs": 5052.799999982119,
+          "wallEpochMs": 1784044587897.4001,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5067.299999982119,
+          "wallEpochMs": 1784044587911.9001,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5086.0999999940395,
+          "wallEpochMs": 1784044587930.7002,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5102.799999982119,
+          "wallEpochMs": 1784044587947.4001,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5119.299999982119,
+          "wallEpochMs": 1784044587963.9001,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5135.699999988079,
+          "wallEpochMs": 1784044587980.3,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5150.299999982119,
+          "wallEpochMs": 1784044587994.9001,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5169.399999976158,
+          "wallEpochMs": 1784044588014,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5185.699999988079,
+          "wallEpochMs": 1784044588030.3,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5285.799999982119,
+          "wallEpochMs": 1784044588130.4001,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5302.799999982119,
+          "wallEpochMs": 1784044588147.4001,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5319.199999988079,
+          "wallEpochMs": 1784044588163.8,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5335.899999976158,
+          "wallEpochMs": 1784044588180.5,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5352.5999999940395,
+          "wallEpochMs": 1784044588197.2002,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5367.0999999940395,
+          "wallEpochMs": 1784044588211.7002,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5383.699999988079,
+          "wallEpochMs": 1784044588228.3,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5402.699999988079,
+          "wallEpochMs": 1784044588247.3,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5419.199999988079,
+          "wallEpochMs": 1784044588263.8,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5436.0999999940395,
+          "wallEpochMs": 1784044588280.7002,
+          "simTick": 239
+        },
+        {
+          "pageNowMs": 5453.5,
+          "wallEpochMs": 1784044588298.1,
+          "simTick": 240
+        },
+        {
+          "pageNowMs": 5467.199999988079,
+          "wallEpochMs": 1784044588311.8,
+          "simTick": 241
+        },
+        {
+          "pageNowMs": 5486,
+          "wallEpochMs": 1784044588330.6,
+          "simTick": 242
+        },
+        {
+          "pageNowMs": 5502.799999982119,
+          "wallEpochMs": 1784044588347.4001,
+          "simTick": 243
+        },
+        {
+          "pageNowMs": 5519.399999976158,
+          "wallEpochMs": 1784044588364,
+          "simTick": 244
+        },
+        {
+          "pageNowMs": 5536.199999988079,
+          "wallEpochMs": 1784044588380.8,
+          "simTick": 245
+        },
+        {
+          "pageNowMs": 5550.299999982119,
+          "wallEpochMs": 1784044588394.9001,
+          "simTick": 246
+        },
+        {
+          "pageNowMs": 5567.199999988079,
+          "wallEpochMs": 1784044588411.8,
+          "simTick": 247
+        },
+        {
+          "pageNowMs": 5585.699999988079,
+          "wallEpochMs": 1784044588430.3,
+          "simTick": 248
+        },
+        {
+          "pageNowMs": 5602.5999999940395,
+          "wallEpochMs": 1784044588447.2002,
+          "simTick": 249
+        },
+        {
+          "pageNowMs": 5619.199999988079,
+          "wallEpochMs": 1784044588463.8,
+          "simTick": 250
+        },
+        {
+          "pageNowMs": 5636,
+          "wallEpochMs": 1784044588480.6,
+          "simTick": 251
+        },
+        {
+          "pageNowMs": 5651.199999988079,
+          "wallEpochMs": 1784044588495.8,
+          "simTick": 252
+        },
+        {
+          "pageNowMs": 5667.399999976158,
+          "wallEpochMs": 1784044588512,
+          "simTick": 253
+        },
+        {
+          "pageNowMs": 5683.799999982119,
+          "wallEpochMs": 1784044588528.4001,
+          "simTick": 254
+        },
+        {
+          "pageNowMs": 5703.5999999940395,
+          "wallEpochMs": 1784044588548.2002,
+          "simTick": 255
+        },
+        {
+          "pageNowMs": 5719.5,
+          "wallEpochMs": 1784044588564.1,
+          "simTick": 256
+        },
+        {
+          "pageNowMs": 5735.0999999940395,
+          "wallEpochMs": 1784044588579.7002,
+          "simTick": 257
+        },
+        {
+          "pageNowMs": 5750.399999976158,
+          "wallEpochMs": 1784044588595,
+          "simTick": 258
+        },
+        {
+          "pageNowMs": 5767.199999988079,
+          "wallEpochMs": 1784044588611.8,
+          "simTick": 259
+        },
+        {
+          "pageNowMs": 5783.799999982119,
+          "wallEpochMs": 1784044588628.4001,
+          "simTick": 260
+        },
+        {
+          "pageNowMs": 5802.899999976158,
+          "wallEpochMs": 1784044588647.5,
+          "simTick": 261
+        },
+        {
+          "pageNowMs": 5820,
+          "wallEpochMs": 1784044588664.6,
+          "simTick": 262
+        },
+        {
+          "pageNowMs": 5834.199999988079,
+          "wallEpochMs": 1784044588678.8,
+          "simTick": 263
+        },
+        {
+          "pageNowMs": 5850.799999982119,
+          "wallEpochMs": 1784044588695.4001,
+          "simTick": 264
+        },
+        {
+          "pageNowMs": 5869.899999976158,
+          "wallEpochMs": 1784044588714.5,
+          "simTick": 265
+        },
+        {
+          "pageNowMs": 5885.899999976158,
+          "wallEpochMs": 1784044588730.5,
+          "simTick": 266
+        },
+        {
+          "pageNowMs": 5900.299999982119,
+          "wallEpochMs": 1784044588744.9001,
+          "simTick": 267
+        },
+        {
+          "pageNowMs": 5917.0999999940395,
+          "wallEpochMs": 1784044588761.7002,
+          "simTick": 268
+        },
+        {
+          "pageNowMs": 5936,
+          "wallEpochMs": 1784044588780.6,
+          "simTick": 269
+        },
+        {
+          "pageNowMs": 5952.699999988079,
+          "wallEpochMs": 1784044588797.3,
+          "simTick": 270
+        },
+        {
+          "pageNowMs": 5967.0999999940395,
+          "wallEpochMs": 1784044588811.7002,
+          "simTick": 271
+        },
+        {
+          "pageNowMs": 5983.699999988079,
+          "wallEpochMs": 1784044588828.3,
+          "simTick": 272
+        },
+        {
+          "pageNowMs": 6002.5999999940395,
+          "wallEpochMs": 1784044588847.2002,
+          "simTick": 273
+        },
+        {
+          "pageNowMs": 6017.0999999940395,
+          "wallEpochMs": 1784044588861.7002,
+          "simTick": 274
+        },
+        {
+          "pageNowMs": 6035.899999976158,
+          "wallEpochMs": 1784044588880.5,
+          "simTick": 275
+        },
+        {
+          "pageNowMs": 6052.799999982119,
+          "wallEpochMs": 1784044588897.4001,
+          "simTick": 276
+        },
+        {
+          "pageNowMs": 6068.699999988079,
+          "wallEpochMs": 1784044588913.3,
+          "simTick": 277
+        },
+        {
+          "pageNowMs": 6083.699999988079,
+          "wallEpochMs": 1784044588928.3,
+          "simTick": 278
+        },
+        {
+          "pageNowMs": 6103.0999999940395,
+          "wallEpochMs": 1784044588947.7002,
+          "simTick": 279
+        },
+        {
+          "pageNowMs": 6119.699999988079,
+          "wallEpochMs": 1784044588964.3,
+          "simTick": 280
+        },
+        {
+          "pageNowMs": 6136.199999988079,
+          "wallEpochMs": 1784044588980.8,
+          "simTick": 281
+        },
+        {
+          "pageNowMs": 6152.699999988079,
+          "wallEpochMs": 1784044588997.3,
+          "simTick": 282
+        },
+        {
+          "pageNowMs": 6169.5,
+          "wallEpochMs": 1784044589014.1,
+          "simTick": 283
+        },
+        {
+          "pageNowMs": 6186.0999999940395,
+          "wallEpochMs": 1784044589030.7002,
+          "simTick": 284
+        },
+        {
+          "pageNowMs": 6202.799999982119,
+          "wallEpochMs": 1784044589047.4001,
+          "simTick": 285
+        },
+        {
+          "pageNowMs": 6216.899999976158,
+          "wallEpochMs": 1784044589061.5,
+          "simTick": 286
+        }
+      ],
+      "matchingSourceEvents": [
+        {
+          "kind": "meleeArc",
+          "sourceId": "greg-fox-swipe",
+          "tag": "greg-fox-swipe",
+          "tick": 230,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": true,
+          "originX": 1027.8060636293062,
+          "originY": 1154.9355715640413,
+          "dirX": -0.3878284662436943,
+          "dirY": 0.9217315665480181,
+          "radius": 252,
+          "range": 252,
+          "durationTicks": 0
+        },
+        {
+          "kind": "meleeArc",
+          "sourceId": "greg-fox-swipe",
+          "tag": "greg-fox-swipe",
+          "tick": 252,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": true,
+          "originX": 1039.6352204418458,
+          "originY": 1139.0889201450711,
+          "dirX": -0.9126554632593182,
+          "dirY": 0.4087297461439764,
+          "radius": 252,
+          "range": 252,
+          "durationTicks": 0
+        }
+      ],
+      "targetFamilyEvents": [
+        {
+          "kind": "meleeArc",
+          "sourceId": "greg-rush-rake",
+          "tag": "greg-rush-rake",
+          "tick": 97,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": true,
+          "originX": 1097.129150390625,
+          "originY": 1058.104248046875,
+          "dirX": 0.42264411514813155,
+          "dirY": 0.9062957309458392,
+          "radius": 58,
+          "range": 58,
+          "durationTicks": 0
+        },
+        {
+          "kind": "meleeArc",
+          "sourceId": "greg-rush-rake",
+          "tag": "greg-rush-rake",
+          "tick": 109,
+          "amount": 1,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": true,
+          "originX": 1100.5103032588959,
+          "originY": 1065.3546137809753,
+          "dirX": 0.42264411514813155,
+          "dirY": 0.9062957309458392,
+          "radius": 70,
+          "range": 70,
+          "durationTicks": 0
+        },
+        {
+          "kind": "meleeArc",
+          "sourceId": "greg-rush-rake",
+          "tag": "greg-rush-rake",
+          "tick": 121,
+          "amount": 2,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": true,
+          "originX": 1103.8914561271667,
+          "originY": 1072.6049795150757,
+          "dirX": 0.42264411514813155,
+          "dirY": 0.9062957309458392,
+          "radius": 82,
+          "range": 82,
+          "durationTicks": 0
+        },
+        {
+          "kind": "meleeArc",
+          "sourceId": "greg-rush-rake",
+          "tag": "greg-rush-rake",
+          "tick": 206,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": true,
+          "originX": 1033.6973876953125,
+          "originY": 1131.31689453125,
+          "dirX": -0.3327558626054501,
+          "dirY": 0.9430130094021518,
+          "radius": 58,
+          "range": 58,
+          "durationTicks": 0
+        },
+        {
+          "kind": "meleeArc",
+          "sourceId": "greg-fox-swipe",
+          "tag": "greg-fox-swipe",
+          "tick": 208,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": true,
+          "originX": 1032.5840890753927,
+          "originY": 1134.60171814794,
+          "dirX": -0.3745270266481033,
+          "dirY": 0.9272159976564959,
+          "radius": 252,
+          "range": 252,
+          "durationTicks": 0
+        },
+        {
+          "kind": "meleeArc",
+          "sourceId": "greg-rush-rake",
+          "tag": "greg-rush-rake",
+          "tick": 218,
+          "amount": 1,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": true,
+          "originX": 1031.0353407859802,
+          "originY": 1138.8609986305237,
+          "dirX": -0.3327558626054501,
+          "dirY": 0.9430130094021518,
+          "radius": 70,
+          "range": 70,
+          "durationTicks": 0
+        },
+        {
+          "kind": "meleeArc",
+          "sourceId": "greg-rush-rake",
+          "tag": "greg-rush-rake",
+          "tick": 230,
+          "amount": 2,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": true,
+          "originX": 1028.373293876648,
+          "originY": 1146.4051027297974,
+          "dirX": -0.3327558626054501,
+          "dirY": 0.9430130094021518,
+          "radius": 82,
+          "range": 82,
+          "durationTicks": 0
+        },
+        {
+          "kind": "meleeArc",
+          "sourceId": "greg-fox-swipe",
+          "tag": "greg-fox-swipe",
+          "tick": 230,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": true,
+          "originX": 1027.8060636293062,
+          "originY": 1154.9355715640413,
+          "dirX": -0.3878284662436943,
+          "dirY": 0.9217315665480181,
+          "radius": 252,
+          "range": 252,
+          "durationTicks": 0
+        },
+        {
+          "kind": "meleeArc",
+          "sourceId": "greg-fox-swipe",
+          "tag": "greg-fox-swipe",
+          "tick": 252,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": true,
+          "originX": 1039.6352204418458,
+          "originY": 1139.0889201450711,
+          "dirX": -0.9126554632593182,
+          "dirY": 0.4087297461439764,
+          "radius": 252,
+          "range": 252,
+          "durationTicks": 0
+        }
+      ],
+      "releaseEvidence": {
+        "phase": "post-fox-swipe-family-zero-envelope",
+        "mode": "post-family-event-envelope-terminal-and-zero",
+        "familyId": "illustrated-fox-swipe",
+        "familyVisualLifetimeTicks": 12,
+        "inclusiveTerminalTick": true,
+        "minimumClearTickDelta": 13,
+        "maximumCaptureTickDelta": 15,
+        "maximumWaitTicks": 24,
+        "requiresNoLaterSameSourceOrFamilyEvent": true,
+        "familyPredicate": {
+          "kind": "meleeArc",
+          "sourceIds": [
+            "greg-fox-swipe",
+            "greg-rush-rake"
+          ],
+          "tags": [
+            "greg-fox-swipe",
+            "greg-rush-rake"
+          ],
+          "meleeArcResolved": true
+        }
+      },
+      "releaseEvidenceState": {
+        "status": "unavailable",
+        "familyId": "illustrated-fox-swipe",
+        "familyVisualLifetimeTicks": 12,
+        "inclusiveTerminalTick": true,
+        "contamination": {
+          "kind": "meleeArc",
+          "sourceId": "greg-rush-rake",
+          "tag": "greg-rush-rake",
+          "tick": 230,
+          "amount": 2,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": true,
+          "originX": 1028.373293876648,
+          "originY": 1146.4051027297974,
+          "dirX": -0.3327558626054501,
+          "dirY": 0.9430130094021518,
+          "radius": 82,
+          "range": 82,
+          "durationTicks": 0
+        },
+        "reason": "later or alias foxSwipe-family event at tick 230 (greg-rush-rake/greg-rush-rake) contaminates the selected Greg terminal window"
+      },
+      "projectileLock": null,
+      "projectileLockAttempts": [],
+      "projectileTrajectory": [],
+      "projectileTerminal": null,
+      "impactEvidence": null,
+      "projectileAnatomyContract": null,
+      "groupedBurstLifecycle": null,
+      "postBurstReleaseEvidencePolicy": null,
+      "supplementaryEvidence": {
+        "status": "unavailable",
+        "kind": "greg-zero-envelope",
+        "phase": "post-fox-swipe-family-zero-envelope",
+        "evidence": {
+          "selectedEvent": {
+            "kind": "meleeArc",
+            "sourceId": "greg-fox-swipe",
+            "tag": "greg-fox-swipe",
+            "tick": 230,
+            "amount": 0,
+            "count": 1,
+            "critical": null,
+            "meleeArcResolved": true,
+            "originX": 1027.8060636293062,
+            "originY": 1154.9355715640413,
+            "dirX": -0.3878284662436943,
+            "dirY": 0.9217315665480181,
+            "radius": 252,
+            "range": 252,
+            "durationTicks": 0
+          },
+          "contamination": {
+            "kind": "meleeArc",
+            "sourceId": "greg-rush-rake",
+            "tag": "greg-rush-rake",
+            "tick": 230,
+            "amount": 2,
+            "count": 1,
+            "critical": null,
+            "meleeArcResolved": true,
+            "originX": 1028.373293876648,
+            "originY": 1146.4051027297974,
+            "dirX": -0.3327558626054501,
+            "dirY": 0.9430130094021518,
+            "radius": 82,
+            "range": 82,
+            "durationTicks": 0
+          },
+          "targetFamilyEvents": [
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-rush-rake",
+              "tag": "greg-rush-rake",
+              "tick": 97,
+              "amount": 0,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1097.129150390625,
+              "originY": 1058.104248046875,
+              "dirX": 0.42264411514813155,
+              "dirY": 0.9062957309458392,
+              "radius": 58,
+              "range": 58,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-rush-rake",
+              "tag": "greg-rush-rake",
+              "tick": 109,
+              "amount": 1,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1100.5103032588959,
+              "originY": 1065.3546137809753,
+              "dirX": 0.42264411514813155,
+              "dirY": 0.9062957309458392,
+              "radius": 70,
+              "range": 70,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-rush-rake",
+              "tag": "greg-rush-rake",
+              "tick": 121,
+              "amount": 2,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1103.8914561271667,
+              "originY": 1072.6049795150757,
+              "dirX": 0.42264411514813155,
+              "dirY": 0.9062957309458392,
+              "radius": 82,
+              "range": 82,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-rush-rake",
+              "tag": "greg-rush-rake",
+              "tick": 206,
+              "amount": 0,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1033.6973876953125,
+              "originY": 1131.31689453125,
+              "dirX": -0.3327558626054501,
+              "dirY": 0.9430130094021518,
+              "radius": 58,
+              "range": 58,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-fox-swipe",
+              "tag": "greg-fox-swipe",
+              "tick": 208,
+              "amount": 0,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1032.5840890753927,
+              "originY": 1134.60171814794,
+              "dirX": -0.3745270266481033,
+              "dirY": 0.9272159976564959,
+              "radius": 252,
+              "range": 252,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-rush-rake",
+              "tag": "greg-rush-rake",
+              "tick": 218,
+              "amount": 1,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1031.0353407859802,
+              "originY": 1138.8609986305237,
+              "dirX": -0.3327558626054501,
+              "dirY": 0.9430130094021518,
+              "radius": 70,
+              "range": 70,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-rush-rake",
+              "tag": "greg-rush-rake",
+              "tick": 230,
+              "amount": 2,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1028.373293876648,
+              "originY": 1146.4051027297974,
+              "dirX": -0.3327558626054501,
+              "dirY": 0.9430130094021518,
+              "radius": 82,
+              "range": 82,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-fox-swipe",
+              "tag": "greg-fox-swipe",
+              "tick": 230,
+              "amount": 0,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1027.8060636293062,
+              "originY": 1154.9355715640413,
+              "dirX": -0.3878284662436943,
+              "dirY": 0.9217315665480181,
+              "radius": 252,
+              "range": 252,
+              "durationTicks": 0
+            }
+          ]
+        },
+        "reason": "later or alias foxSwipe-family event at tick 230 (greg-rush-rake/greg-rush-rake) contaminates the selected Greg terminal window",
+        "capture": null,
+        "full": null,
+        "fullBytes": null,
+        "focus2x": null,
+        "focus2xBytes": null,
+        "focus2xGray": null,
+        "focus2xGrayBytes": null,
+        "strips": null
+      },
+      "supplementaryState": {
+        "status": "unavailable",
+        "kind": "greg-zero-envelope",
+        "phase": "post-fox-swipe-family-zero-envelope",
+        "evidence": {
+          "selectedEvent": {
+            "kind": "meleeArc",
+            "sourceId": "greg-fox-swipe",
+            "tag": "greg-fox-swipe",
+            "tick": 230,
+            "amount": 0,
+            "count": 1,
+            "critical": null,
+            "meleeArcResolved": true,
+            "originX": 1027.8060636293062,
+            "originY": 1154.9355715640413,
+            "dirX": -0.3878284662436943,
+            "dirY": 0.9217315665480181,
+            "radius": 252,
+            "range": 252,
+            "durationTicks": 0
+          },
+          "contamination": {
+            "kind": "meleeArc",
+            "sourceId": "greg-rush-rake",
+            "tag": "greg-rush-rake",
+            "tick": 230,
+            "amount": 2,
+            "count": 1,
+            "critical": null,
+            "meleeArcResolved": true,
+            "originX": 1028.373293876648,
+            "originY": 1146.4051027297974,
+            "dirX": -0.3327558626054501,
+            "dirY": 0.9430130094021518,
+            "radius": 82,
+            "range": 82,
+            "durationTicks": 0
+          },
+          "targetFamilyEvents": [
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-rush-rake",
+              "tag": "greg-rush-rake",
+              "tick": 97,
+              "amount": 0,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1097.129150390625,
+              "originY": 1058.104248046875,
+              "dirX": 0.42264411514813155,
+              "dirY": 0.9062957309458392,
+              "radius": 58,
+              "range": 58,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-rush-rake",
+              "tag": "greg-rush-rake",
+              "tick": 109,
+              "amount": 1,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1100.5103032588959,
+              "originY": 1065.3546137809753,
+              "dirX": 0.42264411514813155,
+              "dirY": 0.9062957309458392,
+              "radius": 70,
+              "range": 70,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-rush-rake",
+              "tag": "greg-rush-rake",
+              "tick": 121,
+              "amount": 2,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1103.8914561271667,
+              "originY": 1072.6049795150757,
+              "dirX": 0.42264411514813155,
+              "dirY": 0.9062957309458392,
+              "radius": 82,
+              "range": 82,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-rush-rake",
+              "tag": "greg-rush-rake",
+              "tick": 206,
+              "amount": 0,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1033.6973876953125,
+              "originY": 1131.31689453125,
+              "dirX": -0.3327558626054501,
+              "dirY": 0.9430130094021518,
+              "radius": 58,
+              "range": 58,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-fox-swipe",
+              "tag": "greg-fox-swipe",
+              "tick": 208,
+              "amount": 0,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1032.5840890753927,
+              "originY": 1134.60171814794,
+              "dirX": -0.3745270266481033,
+              "dirY": 0.9272159976564959,
+              "radius": 252,
+              "range": 252,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-rush-rake",
+              "tag": "greg-rush-rake",
+              "tick": 218,
+              "amount": 1,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1031.0353407859802,
+              "originY": 1138.8609986305237,
+              "dirX": -0.3327558626054501,
+              "dirY": 0.9430130094021518,
+              "radius": 70,
+              "range": 70,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-rush-rake",
+              "tag": "greg-rush-rake",
+              "tick": 230,
+              "amount": 2,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1028.373293876648,
+              "originY": 1146.4051027297974,
+              "dirX": -0.3327558626054501,
+              "dirY": 0.9430130094021518,
+              "radius": 82,
+              "range": 82,
+              "durationTicks": 0
+            },
+            {
+              "kind": "meleeArc",
+              "sourceId": "greg-fox-swipe",
+              "tag": "greg-fox-swipe",
+              "tick": 230,
+              "amount": 0,
+              "count": 1,
+              "critical": null,
+              "meleeArcResolved": true,
+              "originX": 1027.8060636293062,
+              "originY": 1154.9355715640413,
+              "dirX": -0.3878284662436943,
+              "dirY": 0.9217315665480181,
+              "radius": 252,
+              "range": 252,
+              "durationTicks": 0
+            }
+          ]
+        },
+        "reason": "later or alias foxSwipe-family event at tick 230 (greg-rush-rake/greg-rush-rake) contaminates the selected Greg terminal window",
+        "captured": null,
+        "pendingHold": false
+      },
+      "milestones": {
+        "captureMode": "single-event-lifecycle",
+        "eventEvidenceRole": "signature-event",
+        "telegraphCardClaimed": true,
+        "phaseWindows": [
+          {
+            "phase": "early",
+            "minimumTickDelta": 1,
+            "maximumTickDelta": 3
+          },
+          {
+            "phase": "mid",
+            "minimumTickDelta": 4,
+            "maximumTickDelta": 6
+          },
+          {
+            "phase": "near-terminal",
+            "minimumTickDelta": 8,
+            "maximumTickDelta": 10
+          }
+        ],
+        "burstLifecyclePolicy": null,
+        "releaseEvidencePolicy": {
+          "phase": "post-fox-swipe-family-zero-envelope",
+          "mode": "post-family-event-envelope-terminal-and-zero",
+          "familyId": "illustrated-fox-swipe",
+          "familyVisualLifetimeTicks": 12,
+          "inclusiveTerminalTick": true,
+          "minimumClearTickDelta": 13,
+          "maximumCaptureTickDelta": 15,
+          "maximumWaitTicks": 24,
+          "requiresNoLaterSameSourceOrFamilyEvent": true,
+          "familyPredicate": {
+            "kind": "meleeArc",
+            "sourceIds": [
+              "greg-fox-swipe",
+              "greg-rush-rake"
+            ],
+            "tags": [
+              "greg-fox-swipe",
+              "greg-rush-rake"
+            ],
+            "meleeArcResolved": true
+          }
+        },
+        "postBurstReleaseEvidencePolicy": null,
+        "projectileLifecyclePolicy": null,
+        "impactEvidencePolicy": null,
+        "captureContract": "headed Playwright compositor screenshot taken after rAF observed the live driver inside each phase window, then momentarily paused the public presentation control to hold that already-rendered state; before/after driver ticks are recorded with every image.",
+        "scoringContract": "These post-render images are the timing authority for Greg’s early, mid, and near-terminal anatomy review. A separate supplementary zero-envelope frame is admitted only after every authored source that can paint the illustrated foxSwipe family is past its inclusive renderer lifetime and no later same-source or family alias event contaminates the selected cast; otherwise report.json records an explicit unavailable result. Reviewers inspect the compositor frame itself rather than trusting a pixel-read claim. Supporting WebM includes brief phase holds and is provenance-only; it is never used to claim an exact simulation tick or continuous motion.",
+        "frames": [
+          {
+            "offset": 0,
+            "phase": "early",
+            "tickDeltaWindow": {
+              "phase": "early",
+              "minimumTickDelta": 1,
+              "maximumTickDelta": 3
+            },
+            "phaseAnchor": "matched-trait-event",
+            "phaseAnchorTick": 230,
+            "phaseAnchorProjectileId": null,
+            "requestedTickDelta": 2,
+            "observedBeforeCaptureTick": 233,
+            "observedBeforeCaptureDelta": 3,
+            "observedBeforeCaptureEventDelta": 3,
+            "observedAfterCaptureTick": 233,
+            "observedAfterCaptureDelta": 3,
+            "observedAfterCaptureEventDelta": 3,
+            "projectileBeforePause": null,
+            "projectileAtPause": null,
+            "projectileAfterScreenshot": null,
+            "zeroEnvelopeBeforePause": null,
+            "zeroEnvelopeAtPause": null,
+            "zeroEnvelopeAfterScreenshot": null,
+            "full": "greg-fox-swipe/rendered-milestone-f0.png",
+            "fullBytes": 1069189,
+            "focus2x": "greg-fox-swipe/rendered-milestone-2x-f0.png",
+            "focus2xBytes": 498572,
+            "focus2xGray": "greg-fox-swipe/rendered-milestone-2x-f0-gray.png",
+            "focus2xGrayBytes": 248408,
+            "cropBox": {
+              "x": 320,
+              "y": 144,
+              "width": 640,
+              "height": 432
+            }
+          },
+          {
+            "offset": 1,
+            "phase": "mid",
+            "tickDeltaWindow": {
+              "phase": "mid",
+              "minimumTickDelta": 4,
+              "maximumTickDelta": 6
+            },
+            "phaseAnchor": "matched-trait-event",
+            "phaseAnchorTick": 230,
+            "phaseAnchorProjectileId": null,
+            "requestedTickDelta": 5,
+            "observedBeforeCaptureTick": 235,
+            "observedBeforeCaptureDelta": 5,
+            "observedBeforeCaptureEventDelta": 5,
+            "observedAfterCaptureTick": 235,
+            "observedAfterCaptureDelta": 5,
+            "observedAfterCaptureEventDelta": 5,
+            "projectileBeforePause": null,
+            "projectileAtPause": null,
+            "projectileAfterScreenshot": null,
+            "zeroEnvelopeBeforePause": null,
+            "zeroEnvelopeAtPause": null,
+            "zeroEnvelopeAfterScreenshot": null,
+            "full": "greg-fox-swipe/rendered-milestone-f1.png",
+            "fullBytes": 1067697,
+            "focus2x": "greg-fox-swipe/rendered-milestone-2x-f1.png",
+            "focus2xBytes": 500074,
+            "focus2xGray": "greg-fox-swipe/rendered-milestone-2x-f1-gray.png",
+            "focus2xGrayBytes": 248724,
+            "cropBox": {
+              "x": 320,
+              "y": 144,
+              "width": 640,
+              "height": 432
+            }
+          },
+          {
+            "offset": 2,
+            "phase": "near-terminal",
+            "tickDeltaWindow": {
+              "phase": "near-terminal",
+              "minimumTickDelta": 8,
+              "maximumTickDelta": 10
+            },
+            "phaseAnchor": "matched-trait-event",
+            "phaseAnchorTick": 230,
+            "phaseAnchorProjectileId": null,
+            "requestedTickDelta": 9,
+            "observedBeforeCaptureTick": 239,
+            "observedBeforeCaptureDelta": 9,
+            "observedBeforeCaptureEventDelta": 9,
+            "observedAfterCaptureTick": 239,
+            "observedAfterCaptureDelta": 9,
+            "observedAfterCaptureEventDelta": 9,
+            "projectileBeforePause": null,
+            "projectileAtPause": null,
+            "projectileAfterScreenshot": null,
+            "zeroEnvelopeBeforePause": null,
+            "zeroEnvelopeAtPause": null,
+            "zeroEnvelopeAfterScreenshot": null,
+            "full": "greg-fox-swipe/rendered-milestone-f2.png",
+            "fullBytes": 1064577,
+            "focus2x": "greg-fox-swipe/rendered-milestone-2x-f2.png",
+            "focus2xBytes": 494889,
+            "focus2xGray": "greg-fox-swipe/rendered-milestone-2x-f2-gray.png",
+            "focus2xGrayBytes": 246327,
+            "cropBox": {
+              "x": 320,
+              "y": 144,
+              "width": 640,
+              "height": 432
+            }
+          }
+        ],
+        "strips": {
+          "tick": "greg-fox-swipe/rendered-milestone-strip.png",
+          "tickGray": "greg-fox-swipe/rendered-milestone-strip-gray.png",
+          "focus2x": "greg-fox-swipe/rendered-milestone-2x-strip.png",
+          "focus2xGray": "greg-fox-swipe/rendered-milestone-2x-strip-gray.png"
+        }
+      },
+      "frames": [
+        {
+          "offset": 0,
+          "sourceFrameIndex": 111,
+          "videoPtsSeconds": 4.44,
+          "videoWallEpochMs": 1784044586969,
+          "simTick": 231,
+          "simTickDeltaFromEvent": 1,
+          "nearestRafSample": {
+            "pageNowMs": 4119.799999982119,
+            "wallEpochMs": 1784044586964.4001,
+            "simTick": 231,
+            "distanceMs": 4.599853515625
+          },
+          "full": "greg-fox-swipe/full-f0.png",
+          "fullBytes": 1359101,
+          "focus2x": "greg-fox-swipe/focus-2x-f0.png",
+          "focus2xBytes": 462084,
+          "focus2xGray": "greg-fox-swipe/focus-2x-f0-gray.png",
+          "focus2xGrayBytes": 218593,
+          "cropBox": {
+            "x": 320,
+            "y": 144,
+            "width": 640,
+            "height": 432
+          }
+        },
+        {
+          "offset": 1,
+          "sourceFrameIndex": 112,
+          "videoPtsSeconds": 4.48,
+          "videoWallEpochMs": 1784044587009,
+          "simTick": 233,
+          "simTickDeltaFromEvent": 3,
+          "nearestRafSample": {
+            "pageNowMs": 4169.5,
+            "wallEpochMs": 1784044587014.1,
+            "simTick": 233,
+            "distanceMs": 5.10009765625
+          },
+          "full": "greg-fox-swipe/full-f1.png",
+          "fullBytes": 1358084,
+          "focus2x": "greg-fox-swipe/focus-2x-f1.png",
+          "focus2xBytes": 457923,
+          "focus2xGray": "greg-fox-swipe/focus-2x-f1-gray.png",
+          "focus2xGrayBytes": 216364,
+          "cropBox": {
+            "x": 320,
+            "y": 144,
+            "width": 640,
+            "height": 432
+          }
+        },
+        {
+          "offset": 2,
+          "sourceFrameIndex": 113,
+          "videoPtsSeconds": 4.52,
+          "videoWallEpochMs": 1784044587049,
+          "simTick": 233,
+          "simTickDeltaFromEvent": 3,
+          "nearestRafSample": {
+            "pageNowMs": 4202.799999982119,
+            "wallEpochMs": 1784044587047.4001,
+            "simTick": 233,
+            "distanceMs": 1.599853515625
+          },
+          "full": "greg-fox-swipe/full-f2.png",
+          "fullBytes": 1360592,
+          "focus2x": "greg-fox-swipe/focus-2x-f2.png",
+          "focus2xBytes": 459777,
+          "focus2xGray": "greg-fox-swipe/focus-2x-f2-gray.png",
+          "focus2xGrayBytes": 217245,
+          "cropBox": {
+            "x": 320,
+            "y": 144,
+            "width": 640,
+            "height": 432
+          }
+        }
+      ],
+      "serverMode": "production-preview",
+      "strips": {
+        "tick": "greg-fox-swipe/tick-strip.png",
+        "tickGray": "greg-fox-swipe/tick-strip-gray.png",
+        "focus2x": "greg-fox-swipe/focus-2x-strip.png",
+        "focus2xGray": "greg-fox-swipe/focus-2x-strip-gray.png"
+      }
+    },
+    {
+      "id": "benny-earth-wave",
+      "hero": "benny",
+      "label": "Benny — Trample Earth Wave",
+      "predicate": {
+        "stream": "trait",
+        "kind": "telegraph",
+        "sourceId": "benny-trample",
+        "tag": "benny-trample-wave"
+      },
+      "evidencePolicy": {
+        "captureMode": "grouped-burst-lifecycle",
+        "eventEvidenceRole": "first-ridge-event",
+        "telegraphCardClaimed": true,
+        "burst": {
+          "id": "sequential-trample-ridges",
+          "minimumWaveCount": 2,
+          "maximumInterWaveGapTicks": 7,
+          "visualLifetimeTicks": 20,
+          "firstRidgeOverlapStartsAtTickDelta": 7,
+          "screenshotPolicy": "first-ridge-only-before-next-ridge",
+          "releaseFrameClaimed": false,
+          "noOverlapReason": "The next real ridge begins at +7 while the first ridge remains visible through its 20-tick presentation lifetime."
+        },
+        "releaseEvidence": null,
+        "postBurstReleaseEvidence": {
+          "phase": "after-complete-burst-zero-envelope",
+          "mode": "post-complete-group-zero-envelope",
+          "requiresNoIndependentWaveThroughExpiry": true,
+          "requiresNoActiveSameSourceEnvelope": true,
+          "maximumWaitTicks": 120
+        },
+        "projectile": null,
+        "impactEvidence": null
+      },
+      "attempt": 1,
+      "browserMessages": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        }
+      ],
+      "browserMode": "headed-hardware-recordVideo",
+      "boot": {
+        "scriptedStartFallback": false,
+        "state": {
+          "hasApp": true,
+          "introHidden": true,
+          "rendererBanner": "none",
+          "simTick": 11,
+          "webgl2": true
+        }
+      },
+      "captureRoute": "http://127.0.0.1:5202/?autopilot=1&hero=benny&seed=3",
+      "focusAnchor": {
+        "x": 0.48,
+        "y": 0.36
+      },
+      "captureMode": "grouped-burst-lifecycle",
+      "eventEvidenceRole": "first-ridge-event",
+      "telegraphCardClaimed": true,
+      "finalState": {
+        "hasApp": true,
+        "introHidden": true,
+        "rendererBanner": "none",
+        "simTick": 238,
+        "webgl2": true
+      },
+      "captureContract": "supporting Playwright compositor video plus post-render screenshots scoped to Benny’s nonoverlapped first ridge, with a separately journaled complete real ridge group and an optional after-complete-burst zero-envelope frame only when no independent wave overlaps its expiry",
+      "compositorVideo": "benny-earth-wave/compositor.webm",
+      "compositorVideoBytes": 764293,
+      "compositorVideoStartNodeEpochMs": 1784044591460,
+      "compositorVideoFrameRate": 25,
+      "compositorVideoDurationSeconds": 6.28,
+      "compositorTimingProbe": "benny-earth-wave/recording-attempt-1/timing-probe.png",
+      "matchedEvent": {
+        "kind": "telegraph",
+        "sourceId": "benny-trample",
+        "tag": "benny-trample-wave",
+        "tick": 166,
+        "amount": 0,
+        "count": 0,
+        "critical": null,
+        "meleeArcResolved": false,
+        "originX": 1047.9433977007866,
+        "originY": 1118.13995885849,
+        "dirX": -0.4314436614513397,
+        "dirY": 0.9021399021148682,
+        "radius": 34,
+        "range": 34,
+        "durationTicks": 20
+      },
+      "matchedEventTick": 166,
+      "matchedEventPageNowMs": 3014.5999999940395,
+      "matchedEventWallEpochMs": 1784044594706.6,
+      "matchedEventRelativeVideoSeconds": 3.24660009765625,
+      "firstPostEventRafSample": {
+        "pageNowMs": 3022.0999999940395,
+        "wallEpochMs": 1784044594714.1,
+        "simTick": 167
+      },
+      "firstPostEventRelativeVideoSeconds": 3.25410009765625,
+      "requestedPostEventVideoSeconds": 3.25410009765625,
+      "visualLifetimeTicks": 20,
+      "timingJournal": [
+        {
+          "pageNowMs": 3014.5999999940395,
+          "wallEpochMs": 1784044594706.6,
+          "simTick": 166
+        },
+        {
+          "pageNowMs": 3022.0999999940395,
+          "wallEpochMs": 1784044594714.1,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3038.5,
+          "wallEpochMs": 1784044594730.5,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3055,
+          "wallEpochMs": 1784044594747,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3069.5,
+          "wallEpochMs": 1784044594761.5,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3087.5999999940395,
+          "wallEpochMs": 1784044594779.6,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3105.199999988079,
+          "wallEpochMs": 1784044594797.2,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3134.0999999940395,
+          "wallEpochMs": 1784044594826.1,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3138,
+          "wallEpochMs": 1784044594830,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3155.0999999940395,
+          "wallEpochMs": 1784044594847.1,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3171.5999999940395,
+          "wallEpochMs": 1784044594863.6,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3255.2999999821186,
+          "wallEpochMs": 1784044594947.3,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3272.0999999940395,
+          "wallEpochMs": 1784044594964.1,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3288.5,
+          "wallEpochMs": 1784044594980.5,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3302.899999976158,
+          "wallEpochMs": 1784044594994.9,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3321.399999976158,
+          "wallEpochMs": 1784044595013.4,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3338,
+          "wallEpochMs": 1784044595030,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3354.899999976158,
+          "wallEpochMs": 1784044595046.9,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3369.5,
+          "wallEpochMs": 1784044595061.5,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3388,
+          "wallEpochMs": 1784044595080,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3402.5999999940395,
+          "wallEpochMs": 1784044595094.6,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3419.2999999821186,
+          "wallEpochMs": 1784044595111.3,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 3438.5,
+          "wallEpochMs": 1784044595130.5,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 3452.7999999821186,
+          "wallEpochMs": 1784044595144.8,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3469.7999999821186,
+          "wallEpochMs": 1784044595161.8,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3488.699999988079,
+          "wallEpochMs": 1784044595180.7,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3502.7999999821186,
+          "wallEpochMs": 1784044595194.8,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3521.899999976158,
+          "wallEpochMs": 1784044595213.9,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3538,
+          "wallEpochMs": 1784044595230,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3554.699999988079,
+          "wallEpochMs": 1784044595246.7,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3571.899999976158,
+          "wallEpochMs": 1784044595263.9,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3587.899999976158,
+          "wallEpochMs": 1784044595279.9,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3685.899999976158,
+          "wallEpochMs": 1784044595377.9,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3702.699999988079,
+          "wallEpochMs": 1784044595394.7,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3721.899999976158,
+          "wallEpochMs": 1784044595413.9,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3738.0999999940395,
+          "wallEpochMs": 1784044595430.1,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3754.699999988079,
+          "wallEpochMs": 1784044595446.7,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3769.399999976158,
+          "wallEpochMs": 1784044595461.4,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3789,
+          "wallEpochMs": 1784044595481,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3802.5999999940395,
+          "wallEpochMs": 1784044595494.6,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3821.5,
+          "wallEpochMs": 1784044595513.5,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3835.899999976158,
+          "wallEpochMs": 1784044595527.9,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 3852.899999976158,
+          "wallEpochMs": 1784044595544.9,
+          "simTick": 170
+        },
+        {
+          "pageNowMs": 3871.5999999940395,
+          "wallEpochMs": 1784044595563.6,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 3887.899999976158,
+          "wallEpochMs": 1784044595579.9,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 3904.699999988079,
+          "wallEpochMs": 1784044595596.7,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 3922,
+          "wallEpochMs": 1784044595614,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 3938.0999999940395,
+          "wallEpochMs": 1784044595630.1,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 3954.699999988079,
+          "wallEpochMs": 1784044595646.7,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 3971.399999976158,
+          "wallEpochMs": 1784044595663.4,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 3988.199999988079,
+          "wallEpochMs": 1784044595680.2,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 4004.7999999821186,
+          "wallEpochMs": 1784044595696.8,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 4102.799999982119,
+          "wallEpochMs": 1784044595794.8,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 4121.699999988079,
+          "wallEpochMs": 1784044595813.7,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 4138.0999999940395,
+          "wallEpochMs": 1784044595830.1,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 4154.799999982119,
+          "wallEpochMs": 1784044595846.8,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 4169.699999988079,
+          "wallEpochMs": 1784044595861.7,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 4188.399999976158,
+          "wallEpochMs": 1784044595880.4,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 4204.5999999940395,
+          "wallEpochMs": 1784044595896.6,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 4221.399999976158,
+          "wallEpochMs": 1784044595913.4,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 4236.0999999940395,
+          "wallEpochMs": 1784044595928.1,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 4252.5,
+          "wallEpochMs": 1784044595944.5,
+          "simTick": 171
+        },
+        {
+          "pageNowMs": 4269.299999982119,
+          "wallEpochMs": 1784044595961.3,
+          "simTick": 172
+        },
+        {
+          "pageNowMs": 4288.5999999940395,
+          "wallEpochMs": 1784044595980.6,
+          "simTick": 173
+        },
+        {
+          "pageNowMs": 4304.0999999940395,
+          "wallEpochMs": 1784044595996.1,
+          "simTick": 174
+        },
+        {
+          "pageNowMs": 4321.799999982119,
+          "wallEpochMs": 1784044596013.8,
+          "simTick": 175
+        },
+        {
+          "pageNowMs": 4336.0999999940395,
+          "wallEpochMs": 1784044596028.1,
+          "simTick": 176
+        },
+        {
+          "pageNowMs": 4355.199999988079,
+          "wallEpochMs": 1784044596047.2,
+          "simTick": 177
+        },
+        {
+          "pageNowMs": 4371.899999976158,
+          "wallEpochMs": 1784044596063.9,
+          "simTick": 178
+        },
+        {
+          "pageNowMs": 4387.199999988079,
+          "wallEpochMs": 1784044596079.2,
+          "simTick": 179
+        },
+        {
+          "pageNowMs": 4404.899999976158,
+          "wallEpochMs": 1784044596096.9,
+          "simTick": 180
+        },
+        {
+          "pageNowMs": 4419.399999976158,
+          "wallEpochMs": 1784044596111.4,
+          "simTick": 181
+        },
+        {
+          "pageNowMs": 4438.199999988079,
+          "wallEpochMs": 1784044596130.2,
+          "simTick": 182
+        },
+        {
+          "pageNowMs": 4455.0999999940395,
+          "wallEpochMs": 1784044596147.1,
+          "simTick": 183
+        },
+        {
+          "pageNowMs": 4471.5999999940395,
+          "wallEpochMs": 1784044596163.6,
+          "simTick": 184
+        },
+        {
+          "pageNowMs": 4487.899999976158,
+          "wallEpochMs": 1784044596179.9,
+          "simTick": 185
+        },
+        {
+          "pageNowMs": 4504.899999976158,
+          "wallEpochMs": 1784044596196.9,
+          "simTick": 186
+        },
+        {
+          "pageNowMs": 4521.5,
+          "wallEpochMs": 1784044596213.5,
+          "simTick": 187
+        },
+        {
+          "pageNowMs": 4537,
+          "wallEpochMs": 1784044596229,
+          "simTick": 188
+        },
+        {
+          "pageNowMs": 4555.299999982119,
+          "wallEpochMs": 1784044596247.3,
+          "simTick": 189
+        },
+        {
+          "pageNowMs": 4569.399999976158,
+          "wallEpochMs": 1784044596261.4,
+          "simTick": 190
+        },
+        {
+          "pageNowMs": 4586.399999976158,
+          "wallEpochMs": 1784044596278.4,
+          "simTick": 191
+        },
+        {
+          "pageNowMs": 4605.5,
+          "wallEpochMs": 1784044596297.5,
+          "simTick": 192
+        },
+        {
+          "pageNowMs": 4621.5999999940395,
+          "wallEpochMs": 1784044596313.6,
+          "simTick": 193
+        },
+        {
+          "pageNowMs": 4638.5999999940395,
+          "wallEpochMs": 1784044596330.6,
+          "simTick": 194
+        },
+        {
+          "pageNowMs": 4654.399999976158,
+          "wallEpochMs": 1784044596346.4,
+          "simTick": 195
+        },
+        {
+          "pageNowMs": 4670,
+          "wallEpochMs": 1784044596362,
+          "simTick": 196
+        },
+        {
+          "pageNowMs": 4686.5,
+          "wallEpochMs": 1784044596378.5,
+          "simTick": 197
+        },
+        {
+          "pageNowMs": 4705,
+          "wallEpochMs": 1784044596397,
+          "simTick": 198
+        },
+        {
+          "pageNowMs": 4721.899999976158,
+          "wallEpochMs": 1784044596413.9,
+          "simTick": 199
+        },
+        {
+          "pageNowMs": 4736.899999976158,
+          "wallEpochMs": 1784044596428.9,
+          "simTick": 200
+        },
+        {
+          "pageNowMs": 4755.0999999940395,
+          "wallEpochMs": 1784044596447.1,
+          "simTick": 201
+        },
+        {
+          "pageNowMs": 4772,
+          "wallEpochMs": 1784044596464,
+          "simTick": 202
+        },
+        {
+          "pageNowMs": 4788.5999999940395,
+          "wallEpochMs": 1784044596480.6,
+          "simTick": 203
+        },
+        {
+          "pageNowMs": 4802.5999999940395,
+          "wallEpochMs": 1784044596494.6,
+          "simTick": 204
+        },
+        {
+          "pageNowMs": 4821.5,
+          "wallEpochMs": 1784044596513.5,
+          "simTick": 205
+        },
+        {
+          "pageNowMs": 4838.399999976158,
+          "wallEpochMs": 1784044596530.4,
+          "simTick": 206
+        },
+        {
+          "pageNowMs": 4855.199999988079,
+          "wallEpochMs": 1784044596547.2,
+          "simTick": 207
+        },
+        {
+          "pageNowMs": 4869.399999976158,
+          "wallEpochMs": 1784044596561.4,
+          "simTick": 208
+        },
+        {
+          "pageNowMs": 4888.299999982119,
+          "wallEpochMs": 1784044596580.3,
+          "simTick": 209
+        },
+        {
+          "pageNowMs": 4905.199999988079,
+          "wallEpochMs": 1784044596597.2,
+          "simTick": 210
+        },
+        {
+          "pageNowMs": 4920.199999988079,
+          "wallEpochMs": 1784044596612.2,
+          "simTick": 211
+        },
+        {
+          "pageNowMs": 4937.0999999940395,
+          "wallEpochMs": 1784044596629.1,
+          "simTick": 212
+        },
+        {
+          "pageNowMs": 4955,
+          "wallEpochMs": 1784044596647,
+          "simTick": 213
+        },
+        {
+          "pageNowMs": 4971.899999976158,
+          "wallEpochMs": 1784044596663.9,
+          "simTick": 214
+        },
+        {
+          "pageNowMs": 4987.5,
+          "wallEpochMs": 1784044596679.5,
+          "simTick": 215
+        },
+        {
+          "pageNowMs": 5002.699999988079,
+          "wallEpochMs": 1784044596694.7,
+          "simTick": 216
+        },
+        {
+          "pageNowMs": 5019.399999976158,
+          "wallEpochMs": 1784044596711.4,
+          "simTick": 217
+        },
+        {
+          "pageNowMs": 5038.5999999940395,
+          "wallEpochMs": 1784044596730.6,
+          "simTick": 218
+        },
+        {
+          "pageNowMs": 5053,
+          "wallEpochMs": 1784044596745,
+          "simTick": 219
+        },
+        {
+          "pageNowMs": 5071.799999982119,
+          "wallEpochMs": 1784044596763.8,
+          "simTick": 220
+        },
+        {
+          "pageNowMs": 5088.299999982119,
+          "wallEpochMs": 1784044596780.3,
+          "simTick": 221
+        },
+        {
+          "pageNowMs": 5105.0999999940395,
+          "wallEpochMs": 1784044596797.1,
+          "simTick": 222
+        },
+        {
+          "pageNowMs": 5122.199999988079,
+          "wallEpochMs": 1784044596814.2,
+          "simTick": 223
+        },
+        {
+          "pageNowMs": 5136.299999982119,
+          "wallEpochMs": 1784044596828.3,
+          "simTick": 224
+        },
+        {
+          "pageNowMs": 5155,
+          "wallEpochMs": 1784044596847,
+          "simTick": 225
+        },
+        {
+          "pageNowMs": 5169.299999982119,
+          "wallEpochMs": 1784044596861.3,
+          "simTick": 226
+        },
+        {
+          "pageNowMs": 5188.799999982119,
+          "wallEpochMs": 1784044596880.8,
+          "simTick": 227
+        },
+        {
+          "pageNowMs": 5202.699999988079,
+          "wallEpochMs": 1784044596894.7,
+          "simTick": 228
+        },
+        {
+          "pageNowMs": 5219.5,
+          "wallEpochMs": 1784044596911.5,
+          "simTick": 229
+        },
+        {
+          "pageNowMs": 5238.299999982119,
+          "wallEpochMs": 1784044596930.3,
+          "simTick": 230
+        },
+        {
+          "pageNowMs": 5254.199999988079,
+          "wallEpochMs": 1784044596946.2,
+          "simTick": 231
+        },
+        {
+          "pageNowMs": 5271.799999982119,
+          "wallEpochMs": 1784044596963.8,
+          "simTick": 232
+        },
+        {
+          "pageNowMs": 5286,
+          "wallEpochMs": 1784044596978,
+          "simTick": 233
+        },
+        {
+          "pageNowMs": 5304.899999976158,
+          "wallEpochMs": 1784044596996.9,
+          "simTick": 234
+        },
+        {
+          "pageNowMs": 5319.5999999940395,
+          "wallEpochMs": 1784044597011.6,
+          "simTick": 235
+        },
+        {
+          "pageNowMs": 5338.0999999940395,
+          "wallEpochMs": 1784044597030.1,
+          "simTick": 236
+        },
+        {
+          "pageNowMs": 5354,
+          "wallEpochMs": 1784044597046,
+          "simTick": 237
+        },
+        {
+          "pageNowMs": 5370.699999988079,
+          "wallEpochMs": 1784044597062.7,
+          "simTick": 238
+        }
+      ],
+      "matchingSourceEvents": [
+        {
+          "kind": "telegraph",
+          "sourceId": "benny-trample",
+          "tag": "benny-trample-wave",
+          "tick": 166,
+          "amount": 0,
+          "count": 0,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1047.9433977007866,
+          "originY": 1118.13995885849,
+          "dirX": -0.4314436614513397,
+          "dirY": 0.9021399021148682,
+          "radius": 34,
+          "range": 34,
+          "durationTicks": 20
+        },
+        {
+          "kind": "telegraph",
+          "sourceId": "benny-trample",
+          "tag": "benny-trample-wave",
+          "tick": 173,
+          "amount": 0,
+          "count": 0,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1028.9598765969276,
+          "originY": 1157.8341145515442,
+          "dirX": -0.4314436614513397,
+          "dirY": 0.9021399021148682,
+          "radius": 36,
+          "range": 36,
+          "durationTicks": 20
+        },
+        {
+          "kind": "telegraph",
+          "sourceId": "benny-trample",
+          "tag": "benny-trample-wave",
+          "tick": 193,
+          "amount": 0,
+          "count": 0,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1023.3344085216522,
+          "originY": 1132.0593515634537,
+          "dirX": -0.3784903287887573,
+          "dirY": 0.9256052374839783,
+          "radius": 34,
+          "range": 34,
+          "durationTicks": 20
+        },
+        {
+          "kind": "telegraph",
+          "sourceId": "benny-trample",
+          "tag": "benny-trample-wave",
+          "tick": 200,
+          "amount": 0,
+          "count": 0,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1006.6808340549469,
+          "originY": 1172.7859820127487,
+          "dirX": -0.3784903287887573,
+          "dirY": 0.9256052374839783,
+          "radius": 36,
+          "range": 36,
+          "durationTicks": 20
+        },
+        {
+          "kind": "telegraph",
+          "sourceId": "benny-trample",
+          "tag": "benny-trample-wave",
+          "tick": 220,
+          "amount": 0,
+          "count": 0,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1010.1609800457954,
+          "originY": 1167.3582677841187,
+          "dirX": -0.3838219940662384,
+          "dirY": 0.9234070777893066,
+          "radius": 34,
+          "range": 34,
+          "durationTicks": 20
+        },
+        {
+          "kind": "telegraph",
+          "sourceId": "benny-trample",
+          "tag": "benny-trample-wave",
+          "tick": 227,
+          "amount": 0,
+          "count": 0,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 993.272812306881,
+          "originY": 1207.9881792068481,
+          "dirX": -0.3838219940662384,
+          "dirY": 0.9234070777893066,
+          "radius": 36,
+          "range": 36,
+          "durationTicks": 20
+        }
+      ],
+      "targetFamilyEvents": [],
+      "releaseEvidence": null,
+      "releaseEvidenceState": null,
+      "projectileLock": null,
+      "projectileLockAttempts": [],
+      "projectileTrajectory": [],
+      "projectileTerminal": null,
+      "impactEvidence": null,
+      "projectileAnatomyContract": null,
+      "groupedBurstLifecycle": {
+        "id": "sequential-trample-ridges",
+        "lifecycleKind": "grouped-sequential-trait-events",
+        "firstRidgeTick": 166,
+        "waveEvents": [
+          {
+            "kind": "telegraph",
+            "sourceId": "benny-trample",
+            "tag": "benny-trample-wave",
+            "tick": 166,
+            "amount": 0,
+            "count": 0,
+            "critical": null,
+            "meleeArcResolved": false,
+            "originX": 1047.9433977007866,
+            "originY": 1118.13995885849,
+            "dirX": -0.4314436614513397,
+            "dirY": 0.9021399021148682,
+            "radius": 34,
+            "range": 34,
+            "durationTicks": 20,
+            "ordinal": 1
+          },
+          {
+            "kind": "telegraph",
+            "sourceId": "benny-trample",
+            "tag": "benny-trample-wave",
+            "tick": 173,
+            "amount": 0,
+            "count": 0,
+            "critical": null,
+            "meleeArcResolved": false,
+            "originX": 1028.9598765969276,
+            "originY": 1157.8341145515442,
+            "dirX": -0.4314436614513397,
+            "dirY": 0.9021399021148682,
+            "radius": 36,
+            "range": 36,
+            "durationTicks": 20,
+            "ordinal": 2
+          }
+        ],
+        "observedInterWaveGaps": [
+          7
+        ],
+        "independentLaterWaveEvents": [
+          {
+            "kind": "telegraph",
+            "sourceId": "benny-trample",
+            "tag": "benny-trample-wave",
+            "tick": 193,
+            "amount": 0,
+            "count": 0,
+            "critical": null,
+            "meleeArcResolved": false,
+            "originX": 1023.3344085216522,
+            "originY": 1132.0593515634537,
+            "dirX": -0.3784903287887573,
+            "dirY": 0.9256052374839783,
+            "radius": 34,
+            "range": 34,
+            "durationTicks": 20
+          },
+          {
+            "kind": "telegraph",
+            "sourceId": "benny-trample",
+            "tag": "benny-trample-wave",
+            "tick": 200,
+            "amount": 0,
+            "count": 0,
+            "critical": null,
+            "meleeArcResolved": false,
+            "originX": 1006.6808340549469,
+            "originY": 1172.7859820127487,
+            "dirX": -0.3784903287887573,
+            "dirY": 0.9256052374839783,
+            "radius": 36,
+            "range": 36,
+            "durationTicks": 20
+          },
+          {
+            "kind": "telegraph",
+            "sourceId": "benny-trample",
+            "tag": "benny-trample-wave",
+            "tick": 220,
+            "amount": 0,
+            "count": 0,
+            "critical": null,
+            "meleeArcResolved": false,
+            "originX": 1010.1609800457954,
+            "originY": 1167.3582677841187,
+            "dirX": -0.3838219940662384,
+            "dirY": 0.9234070777893066,
+            "radius": 34,
+            "range": 34,
+            "durationTicks": 20
+          },
+          {
+            "kind": "telegraph",
+            "sourceId": "benny-trample",
+            "tag": "benny-trample-wave",
+            "tick": 227,
+            "amount": 0,
+            "count": 0,
+            "critical": null,
+            "meleeArcResolved": false,
+            "originX": 993.272812306881,
+            "originY": 1207.9881792068481,
+            "dirX": -0.3838219940662384,
+            "dirY": 0.9234070777893066,
+            "radius": 36,
+            "range": 36,
+            "durationTicks": 20
+          }
+        ],
+        "minimumWaveCount": 2,
+        "maximumInterWaveGapTicks": 7,
+        "visualLifetimeTicks": 20,
+        "firstRidgeOverlapStartsAtTickDelta": 7,
+        "screenshotPolicy": "first-ridge-only-before-next-ridge",
+        "releaseFrameClaimed": false,
+        "noOverlapReason": "The next real ridge begins at +7 while the first ridge remains visible through its 20-tick presentation lifetime.",
+        "status": "complete",
+        "groupClosedAtTick": 181,
+        "nominalLastGroupRidgeExpiryTick": 194,
+        "truePostBurstReleaseFrameClaimed": false
+      },
+      "postBurstReleaseEvidencePolicy": {
+        "phase": "after-complete-burst-zero-envelope",
+        "mode": "post-complete-group-zero-envelope",
+        "requiresNoIndependentWaveThroughExpiry": true,
+        "requiresNoActiveSameSourceEnvelope": true,
+        "maximumWaitTicks": 120
+      },
+      "supplementaryEvidence": {
+        "status": "unavailable",
+        "kind": "post-burst-release",
+        "phase": "after-complete-burst-zero-envelope",
+        "evidence": {
+          "groupClosedAtTick": 181,
+          "nominalLastGroupRidgeExpiryTick": 194,
+          "independentLaterWave": {
+            "kind": "telegraph",
+            "sourceId": "benny-trample",
+            "tag": "benny-trample-wave",
+            "tick": 193,
+            "amount": 0,
+            "count": 0,
+            "critical": null,
+            "meleeArcResolved": false,
+            "originX": 1023.3344085216522,
+            "originY": 1132.0593515634537,
+            "dirX": -0.3784903287887573,
+            "dirY": 0.9256052374839783,
+            "radius": 34,
+            "range": 34,
+            "durationTicks": 20
+          }
+        },
+        "reason": "independent benny-trample wave at tick 193 began on or before selected-group expiry 194; no unambiguous after-complete-burst zero-envelope frame exists",
+        "capture": null,
+        "full": null,
+        "fullBytes": null,
+        "focus2x": null,
+        "focus2xBytes": null,
+        "focus2xGray": null,
+        "focus2xGrayBytes": null,
+        "strips": null
+      },
+      "supplementaryState": {
+        "status": "unavailable",
+        "kind": "post-burst-release",
+        "phase": "after-complete-burst-zero-envelope",
+        "evidence": {
+          "groupClosedAtTick": 181,
+          "nominalLastGroupRidgeExpiryTick": 194,
+          "independentLaterWave": {
+            "kind": "telegraph",
+            "sourceId": "benny-trample",
+            "tag": "benny-trample-wave",
+            "tick": 193,
+            "amount": 0,
+            "count": 0,
+            "critical": null,
+            "meleeArcResolved": false,
+            "originX": 1023.3344085216522,
+            "originY": 1132.0593515634537,
+            "dirX": -0.3784903287887573,
+            "dirY": 0.9256052374839783,
+            "radius": 34,
+            "range": 34,
+            "durationTicks": 20
+          }
+        },
+        "reason": "independent benny-trample wave at tick 193 began on or before selected-group expiry 194; no unambiguous after-complete-burst zero-envelope frame exists",
+        "captured": null,
+        "pendingHold": false
+      },
+      "milestones": {
+        "captureMode": "grouped-burst-lifecycle",
+        "eventEvidenceRole": "first-ridge-event",
+        "telegraphCardClaimed": true,
+        "phaseWindows": [
+          {
+            "phase": "first-ridge-early",
+            "minimumTickDelta": 1,
+            "maximumTickDelta": 2,
+            "requiresNoSequentialOverlap": true
+          },
+          {
+            "phase": "first-ridge-mid",
+            "minimumTickDelta": 3,
+            "maximumTickDelta": 4,
+            "requiresNoSequentialOverlap": true
+          },
+          {
+            "phase": "first-ridge-pre-next-ridge",
+            "minimumTickDelta": 5,
+            "maximumTickDelta": 6,
+            "requiresNoSequentialOverlap": true
+          }
+        ],
+        "burstLifecyclePolicy": {
+          "id": "sequential-trample-ridges",
+          "minimumWaveCount": 2,
+          "maximumInterWaveGapTicks": 7,
+          "visualLifetimeTicks": 20,
+          "firstRidgeOverlapStartsAtTickDelta": 7,
+          "screenshotPolicy": "first-ridge-only-before-next-ridge",
+          "releaseFrameClaimed": false,
+          "noOverlapReason": "The next real ridge begins at +7 while the first ridge remains visible through its 20-tick presentation lifetime."
+        },
+        "releaseEvidencePolicy": null,
+        "postBurstReleaseEvidencePolicy": {
+          "phase": "after-complete-burst-zero-envelope",
+          "mode": "post-complete-group-zero-envelope",
+          "requiresNoIndependentWaveThroughExpiry": true,
+          "requiresNoActiveSameSourceEnvelope": true,
+          "maximumWaitTicks": 120
+        },
+        "projectileLifecyclePolicy": null,
+        "impactEvidencePolicy": null,
+        "captureContract": "headed Playwright compositor screenshot taken after rAF observed the live driver inside each phase window, then momentarily paused the public presentation control to hold that already-rendered state; before/after driver ticks are recorded with every image.",
+        "scoringContract": "These post-render images are the timing authority for Benny’s named grouped Trample lifecycle. They intentionally prove only first-ridge early, mid, and pre-next-ridge anatomy before the real second ridge begins at +7; no image is labeled or scored as a first-ridge release. A separate after-complete-burst frame is emitted only when the public event journal proves the selected group expired with no same-source envelope and no independently overlapping later wave; otherwise report.json records an explicit unavailable result. Supporting WebM is provenance-only.",
+        "frames": [
+          {
+            "offset": 0,
+            "phase": "first-ridge-early",
+            "tickDeltaWindow": {
+              "phase": "first-ridge-early",
+              "minimumTickDelta": 1,
+              "maximumTickDelta": 2,
+              "requiresNoSequentialOverlap": true
+            },
+            "phaseAnchor": "matched-trait-event",
+            "phaseAnchorTick": 166,
+            "phaseAnchorProjectileId": null,
+            "requestedTickDelta": 1,
+            "observedBeforeCaptureTick": 167,
+            "observedBeforeCaptureDelta": 1,
+            "observedBeforeCaptureEventDelta": 1,
+            "observedAfterCaptureTick": 167,
+            "observedAfterCaptureDelta": 1,
+            "observedAfterCaptureEventDelta": 1,
+            "projectileBeforePause": null,
+            "projectileAtPause": null,
+            "projectileAfterScreenshot": null,
+            "zeroEnvelopeBeforePause": null,
+            "zeroEnvelopeAtPause": null,
+            "zeroEnvelopeAfterScreenshot": null,
+            "full": "benny-earth-wave/rendered-milestone-f0.png",
+            "fullBytes": 1080153,
+            "focus2x": "benny-earth-wave/rendered-milestone-2x-f0.png",
+            "focus2xBytes": 474656,
+            "focus2xGray": "benny-earth-wave/rendered-milestone-2x-f0-gray.png",
+            "focus2xGrayBytes": 242967,
+            "cropBox": {
+              "x": 294,
+              "y": 43,
+              "width": 640,
+              "height": 432
+            }
+          },
+          {
+            "offset": 1,
+            "phase": "first-ridge-mid",
+            "tickDeltaWindow": {
+              "phase": "first-ridge-mid",
+              "minimumTickDelta": 3,
+              "maximumTickDelta": 4,
+              "requiresNoSequentialOverlap": true
+            },
+            "phaseAnchor": "matched-trait-event",
+            "phaseAnchorTick": 166,
+            "phaseAnchorProjectileId": null,
+            "requestedTickDelta": 3,
+            "observedBeforeCaptureTick": 169,
+            "observedBeforeCaptureDelta": 3,
+            "observedBeforeCaptureEventDelta": 3,
+            "observedAfterCaptureTick": 169,
+            "observedAfterCaptureDelta": 3,
+            "observedAfterCaptureEventDelta": 3,
+            "projectileBeforePause": null,
+            "projectileAtPause": null,
+            "projectileAfterScreenshot": null,
+            "zeroEnvelopeBeforePause": null,
+            "zeroEnvelopeAtPause": null,
+            "zeroEnvelopeAfterScreenshot": null,
+            "full": "benny-earth-wave/rendered-milestone-f1.png",
+            "fullBytes": 1082436,
+            "focus2x": "benny-earth-wave/rendered-milestone-2x-f1.png",
+            "focus2xBytes": 474070,
+            "focus2xGray": "benny-earth-wave/rendered-milestone-2x-f1-gray.png",
+            "focus2xGrayBytes": 242126,
+            "cropBox": {
+              "x": 294,
+              "y": 43,
+              "width": 640,
+              "height": 432
+            }
+          },
+          {
+            "offset": 2,
+            "phase": "first-ridge-pre-next-ridge",
+            "tickDeltaWindow": {
+              "phase": "first-ridge-pre-next-ridge",
+              "minimumTickDelta": 5,
+              "maximumTickDelta": 6,
+              "requiresNoSequentialOverlap": true
+            },
+            "phaseAnchor": "matched-trait-event",
+            "phaseAnchorTick": 166,
+            "phaseAnchorProjectileId": null,
+            "requestedTickDelta": 5,
+            "observedBeforeCaptureTick": 171,
+            "observedBeforeCaptureDelta": 5,
+            "observedBeforeCaptureEventDelta": 5,
+            "observedAfterCaptureTick": 171,
+            "observedAfterCaptureDelta": 5,
+            "observedAfterCaptureEventDelta": 5,
+            "projectileBeforePause": null,
+            "projectileAtPause": null,
+            "projectileAfterScreenshot": null,
+            "zeroEnvelopeBeforePause": null,
+            "zeroEnvelopeAtPause": null,
+            "zeroEnvelopeAfterScreenshot": null,
+            "full": "benny-earth-wave/rendered-milestone-f2.png",
+            "fullBytes": 1083623,
+            "focus2x": "benny-earth-wave/rendered-milestone-2x-f2.png",
+            "focus2xBytes": 475240,
+            "focus2xGray": "benny-earth-wave/rendered-milestone-2x-f2-gray.png",
+            "focus2xGrayBytes": 242925,
+            "cropBox": {
+              "x": 294,
+              "y": 43,
+              "width": 640,
+              "height": 432
+            }
+          }
+        ],
+        "strips": {
+          "tick": "benny-earth-wave/rendered-milestone-strip.png",
+          "tickGray": "benny-earth-wave/rendered-milestone-strip-gray.png",
+          "focus2x": "benny-earth-wave/rendered-milestone-2x-strip.png",
+          "focus2xGray": "benny-earth-wave/rendered-milestone-2x-strip-gray.png"
+        }
+      },
+      "frames": [
+        {
+          "offset": 0,
+          "sourceFrameIndex": 82,
+          "videoPtsSeconds": 3.28,
+          "videoWallEpochMs": 1784044594740,
+          "simTick": 167,
+          "simTickDeltaFromEvent": 1,
+          "nearestRafSample": {
+            "pageNowMs": 3055,
+            "wallEpochMs": 1784044594747,
+            "simTick": 167,
+            "distanceMs": 7
+          },
+          "full": "benny-earth-wave/full-f0.png",
+          "fullBytes": 1424363,
+          "focus2x": "benny-earth-wave/focus-2x-f0.png",
+          "focus2xBytes": 469112,
+          "focus2xGray": "benny-earth-wave/focus-2x-f0-gray.png",
+          "focus2xGrayBytes": 226185,
+          "cropBox": {
+            "x": 294,
+            "y": 43,
+            "width": 640,
+            "height": 432
+          }
+        },
+        {
+          "offset": 1,
+          "sourceFrameIndex": 83,
+          "videoPtsSeconds": 3.32,
+          "videoWallEpochMs": 1784044594780,
+          "simTick": 167,
+          "simTickDeltaFromEvent": 1,
+          "nearestRafSample": {
+            "pageNowMs": 3087.5999999940395,
+            "wallEpochMs": 1784044594779.6,
+            "simTick": 167,
+            "distanceMs": 0.39990234375
+          },
+          "full": "benny-earth-wave/full-f1.png",
+          "fullBytes": 1417471,
+          "focus2x": "benny-earth-wave/focus-2x-f1.png",
+          "focus2xBytes": 465849,
+          "focus2xGray": "benny-earth-wave/focus-2x-f1-gray.png",
+          "focus2xGrayBytes": 221825,
+          "cropBox": {
+            "x": 294,
+            "y": 43,
+            "width": 640,
+            "height": 432
+          }
+        },
+        {
+          "offset": 2,
+          "sourceFrameIndex": 84,
+          "videoPtsSeconds": 3.36,
+          "videoWallEpochMs": 1784044594820,
+          "simTick": 167,
+          "simTickDeltaFromEvent": 1,
+          "nearestRafSample": {
+            "pageNowMs": 3134.0999999940395,
+            "wallEpochMs": 1784044594826.1,
+            "simTick": 167,
+            "distanceMs": 6.10009765625
+          },
+          "full": "benny-earth-wave/full-f2.png",
+          "fullBytes": 1408950,
+          "focus2x": "benny-earth-wave/focus-2x-f2.png",
+          "focus2xBytes": 461309,
+          "focus2xGray": "benny-earth-wave/focus-2x-f2-gray.png",
+          "focus2xGrayBytes": 220565,
+          "cropBox": {
+            "x": 294,
+            "y": 43,
+            "width": 640,
+            "height": 432
+          }
+        }
+      ],
+      "serverMode": "production-preview",
+      "strips": {
+        "tick": "benny-earth-wave/tick-strip.png",
+        "tickGray": "benny-earth-wave/tick-strip-gray.png",
+        "focus2x": "benny-earth-wave/focus-2x-strip.png",
+        "focus2xGray": "benny-earth-wave/focus-2x-strip-gray.png"
+      }
+    },
+    {
+      "id": "gracie-spit",
+      "hero": "gracie",
+      "label": "Gracie — Spit Comet",
+      "predicate": {
+        "stream": "trait",
+        "kind": "telegraph",
+        "sourceId": "gracie-spit"
+      },
+      "evidencePolicy": {
+        "captureMode": "snapshot-projectile-lifecycle",
+        "eventEvidenceRole": "launch-discovery-only",
+        "telegraphCardClaimed": false,
+        "burst": null,
+        "releaseEvidence": null,
+        "postBurstReleaseEvidence": null,
+        "projectile": {
+          "source": 7,
+          "role": 0,
+          "sourceLabel": "heroSpit",
+          "ticksPerSecond": 60,
+          "lockTimeoutTicks": 12,
+          "maximumLaunchOriginError": 32,
+          "minimumHeadingDot": 0.25,
+          "requiredLiveSnapshot": "curr"
+        },
+        "impactEvidence": {
+          "phase": "source-correlated-impact-contact",
+          "sourceId": "gracie-spit",
+          "combatKind": "enemyHit",
+          "ticksPerSecond": 60,
+          "maximumWaitTicks": 60,
+          "maximumCaptureDelayTicks": 1,
+          "maximumTrajectoryError": 34,
+          "terminalGraceTicks": 2
+        }
+      },
+      "attempt": 1,
+      "browserMessages": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        }
+      ],
+      "browserMode": "headed-hardware-recordVideo",
+      "boot": {
+        "scriptedStartFallback": false,
+        "state": {
+          "hasApp": true,
+          "introHidden": true,
+          "rendererBanner": "none",
+          "simTick": 16,
+          "webgl2": true
+        }
+      },
+      "captureRoute": "http://127.0.0.1:5202/?autopilot=1&hero=gracie&seed=3",
+      "focusAnchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "captureMode": "snapshot-projectile-lifecycle",
+      "eventEvidenceRole": "launch-discovery-only",
+      "telegraphCardClaimed": false,
+      "finalState": {
+        "hasApp": true,
+        "introHidden": true,
+        "rendererBanner": "none",
+        "simTick": 226,
+        "webgl2": true
+      },
+      "captureContract": "supporting Playwright compositor video plus post-render screenshots whose anatomy proof is an exact live public heroSpit snapshot id; optional impact/contact evidence requires both a gracie-spit enemyHit and position agreement with that locked projectile trajectory, while an absent correlation is reported honestly; the launch telegraph is discovery-only and no telegraph card is claimed",
+      "compositorVideo": "gracie-spit/compositor.webm",
+      "compositorVideoBytes": 773244,
+      "compositorVideoStartNodeEpochMs": 1784044599400,
+      "compositorVideoFrameRate": 25,
+      "compositorVideoDurationSeconds": 6.36,
+      "compositorTimingProbe": "gracie-spit/recording-attempt-1/timing-probe.png",
+      "matchedEvent": {
+        "kind": "telegraph",
+        "sourceId": "gracie-spit",
+        "tag": "gracie-spit",
+        "tick": 127,
+        "amount": 0,
+        "count": 1,
+        "critical": null,
+        "meleeArcResolved": false,
+        "originX": 1102.8202397235966,
+        "originY": 1104.978930016582,
+        "dirX": -0.5188578044730141,
+        "dirY": 0.8548605609907638,
+        "radius": 12,
+        "range": 12,
+        "durationTicks": 12
+      },
+      "matchedEventTick": 127,
+      "matchedEventPageNowMs": 2269.5999999940395,
+      "matchedEventWallEpochMs": 1784044601871.8,
+      "matchedEventRelativeVideoSeconds": 2.471800048828125,
+      "firstPostEventRafSample": {
+        "pageNowMs": 2278.9000000059605,
+        "wallEpochMs": 1784044601881.0999,
+        "simTick": 128
+      },
+      "firstPostEventRelativeVideoSeconds": 2.481099853515625,
+      "requestedPostEventVideoSeconds": 2.481099853515625,
+      "visualLifetimeTicks": 90,
+      "timingJournal": [
+        {
+          "pageNowMs": 2269.5999999940395,
+          "wallEpochMs": 1784044601871.8,
+          "simTick": 127
+        },
+        {
+          "pageNowMs": 2278.9000000059605,
+          "wallEpochMs": 1784044601881.0999,
+          "simTick": 128
+        },
+        {
+          "pageNowMs": 2292.699999988079,
+          "wallEpochMs": 1784044601894.9,
+          "simTick": 128
+        },
+        {
+          "pageNowMs": 2309.7999999821186,
+          "wallEpochMs": 1784044601912,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2328.4000000059605,
+          "wallEpochMs": 1784044601930.5999,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2345,
+          "wallEpochMs": 1784044601947.2,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2359.2999999821186,
+          "wallEpochMs": 1784044601961.5,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2378.4000000059605,
+          "wallEpochMs": 1784044601980.5999,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2392.5,
+          "wallEpochMs": 1784044601994.7,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2411.7999999821186,
+          "wallEpochMs": 1784044602014,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2428.2999999821186,
+          "wallEpochMs": 1784044602030.5,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2444.699999988079,
+          "wallEpochMs": 1784044602046.9,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2542.7999999821186,
+          "wallEpochMs": 1784044602145,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2561.4000000059605,
+          "wallEpochMs": 1784044602163.5999,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2576.4000000059605,
+          "wallEpochMs": 1784044602178.5999,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2595,
+          "wallEpochMs": 1784044602197.2,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2611.199999988079,
+          "wallEpochMs": 1784044602213.4,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2628,
+          "wallEpochMs": 1784044602230.2,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2644.5999999940395,
+          "wallEpochMs": 1784044602246.8,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2661.699999988079,
+          "wallEpochMs": 1784044602263.9,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2678,
+          "wallEpochMs": 1784044602280.2,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2718.199999988079,
+          "wallEpochMs": 1784044602320.4,
+          "simTick": 129
+        },
+        {
+          "pageNowMs": 2719.4000000059605,
+          "wallEpochMs": 1784044602321.5999,
+          "simTick": 130
+        },
+        {
+          "pageNowMs": 2728.699999988079,
+          "wallEpochMs": 1784044602330.9,
+          "simTick": 131
+        },
+        {
+          "pageNowMs": 2743.5999999940395,
+          "wallEpochMs": 1784044602345.8,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 2761.5,
+          "wallEpochMs": 1784044602363.7,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 2776.5,
+          "wallEpochMs": 1784044602378.7,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 2792.5999999940395,
+          "wallEpochMs": 1784044602394.8,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 2811.5999999940395,
+          "wallEpochMs": 1784044602413.8,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 2828.4000000059605,
+          "wallEpochMs": 1784044602430.5999,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 2844.7999999821186,
+          "wallEpochMs": 1784044602447,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 2861.7999999821186,
+          "wallEpochMs": 1784044602464,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 2875.699999988079,
+          "wallEpochMs": 1784044602477.9,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 2976.2999999821186,
+          "wallEpochMs": 1784044602578.5,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 2995,
+          "wallEpochMs": 1784044602597.2,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 3011.2999999821186,
+          "wallEpochMs": 1784044602613.5,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 3025.7999999821186,
+          "wallEpochMs": 1784044602628,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 3045.199999988079,
+          "wallEpochMs": 1784044602647.4,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 3059.0999999940395,
+          "wallEpochMs": 1784044602661.3,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 3078,
+          "wallEpochMs": 1784044602680.2,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 3094.699999988079,
+          "wallEpochMs": 1784044602696.9,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 3111.9000000059605,
+          "wallEpochMs": 1784044602714.0999,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 3125.699999988079,
+          "wallEpochMs": 1784044602727.9,
+          "simTick": 132
+        },
+        {
+          "pageNowMs": 3145.5,
+          "wallEpochMs": 1784044602747.7,
+          "simTick": 134
+        },
+        {
+          "pageNowMs": 3159.2999999821186,
+          "wallEpochMs": 1784044602761.5,
+          "simTick": 134
+        },
+        {
+          "pageNowMs": 3178.699999988079,
+          "wallEpochMs": 1784044602780.9,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3194.5999999940395,
+          "wallEpochMs": 1784044602796.8,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3209.2999999821186,
+          "wallEpochMs": 1784044602811.5,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3226.199999988079,
+          "wallEpochMs": 1784044602828.4,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3245,
+          "wallEpochMs": 1784044602847.2,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3261.5,
+          "wallEpochMs": 1784044602863.7,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3278.0999999940395,
+          "wallEpochMs": 1784044602880.3,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3294.699999988079,
+          "wallEpochMs": 1784044602896.9,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3309.199999988079,
+          "wallEpochMs": 1784044602911.4,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3412.2999999821186,
+          "wallEpochMs": 1784044603014.5,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3428.2999999821186,
+          "wallEpochMs": 1784044603030.5,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3442.5,
+          "wallEpochMs": 1784044603044.7,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3461.4000000059605,
+          "wallEpochMs": 1784044603063.5999,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3475.9000000059605,
+          "wallEpochMs": 1784044603078.0999,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3493,
+          "wallEpochMs": 1784044603095.2,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3511.5999999940395,
+          "wallEpochMs": 1784044603113.8,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3528.699999988079,
+          "wallEpochMs": 1784044603130.9,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3545,
+          "wallEpochMs": 1784044603147.2,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3561.199999988079,
+          "wallEpochMs": 1784044603163.4,
+          "simTick": 136
+        },
+        {
+          "pageNowMs": 3578.9000000059605,
+          "wallEpochMs": 1784044603181.0999,
+          "simTick": 137
+        },
+        {
+          "pageNowMs": 3593.5999999940395,
+          "wallEpochMs": 1784044603195.8,
+          "simTick": 137
+        },
+        {
+          "pageNowMs": 3611.5999999940395,
+          "wallEpochMs": 1784044603213.8,
+          "simTick": 139
+        },
+        {
+          "pageNowMs": 3628.2999999821186,
+          "wallEpochMs": 1784044603230.5,
+          "simTick": 140
+        },
+        {
+          "pageNowMs": 3645.699999988079,
+          "wallEpochMs": 1784044603247.9,
+          "simTick": 141
+        },
+        {
+          "pageNowMs": 3662,
+          "wallEpochMs": 1784044603264.2,
+          "simTick": 142
+        },
+        {
+          "pageNowMs": 3676,
+          "wallEpochMs": 1784044603278.2,
+          "simTick": 142
+        },
+        {
+          "pageNowMs": 3695,
+          "wallEpochMs": 1784044603297.2,
+          "simTick": 144
+        },
+        {
+          "pageNowMs": 3711.5,
+          "wallEpochMs": 1784044603313.7,
+          "simTick": 145
+        },
+        {
+          "pageNowMs": 3726.0999999940395,
+          "wallEpochMs": 1784044603328.3,
+          "simTick": 145
+        },
+        {
+          "pageNowMs": 3744.7999999821186,
+          "wallEpochMs": 1784044603347,
+          "simTick": 147
+        },
+        {
+          "pageNowMs": 3761.699999988079,
+          "wallEpochMs": 1784044603363.9,
+          "simTick": 148
+        },
+        {
+          "pageNowMs": 3778.7999999821186,
+          "wallEpochMs": 1784044603381,
+          "simTick": 149
+        },
+        {
+          "pageNowMs": 3792.9000000059605,
+          "wallEpochMs": 1784044603395.0999,
+          "simTick": 149
+        },
+        {
+          "pageNowMs": 3811.2999999821186,
+          "wallEpochMs": 1784044603413.5,
+          "simTick": 151
+        },
+        {
+          "pageNowMs": 3828.199999988079,
+          "wallEpochMs": 1784044603430.4,
+          "simTick": 152
+        },
+        {
+          "pageNowMs": 3842.5,
+          "wallEpochMs": 1784044603444.7,
+          "simTick": 152
+        },
+        {
+          "pageNowMs": 3861.5,
+          "wallEpochMs": 1784044603463.7,
+          "simTick": 154
+        },
+        {
+          "pageNowMs": 3875.9000000059605,
+          "wallEpochMs": 1784044603478.0999,
+          "simTick": 154
+        },
+        {
+          "pageNowMs": 3892.5999999940395,
+          "wallEpochMs": 1784044603494.8,
+          "simTick": 155
+        },
+        {
+          "pageNowMs": 3911.699999988079,
+          "wallEpochMs": 1784044603513.9,
+          "simTick": 157
+        },
+        {
+          "pageNowMs": 3926.199999988079,
+          "wallEpochMs": 1784044603528.4,
+          "simTick": 157
+        },
+        {
+          "pageNowMs": 3945.199999988079,
+          "wallEpochMs": 1784044603547.4,
+          "simTick": 159
+        },
+        {
+          "pageNowMs": 3961.5,
+          "wallEpochMs": 1784044603563.7,
+          "simTick": 160
+        },
+        {
+          "pageNowMs": 3977,
+          "wallEpochMs": 1784044603579.2,
+          "simTick": 160
+        },
+        {
+          "pageNowMs": 3992.7999999821186,
+          "wallEpochMs": 1784044603595,
+          "simTick": 161
+        },
+        {
+          "pageNowMs": 4011.7999999821186,
+          "wallEpochMs": 1784044603614,
+          "simTick": 163
+        },
+        {
+          "pageNowMs": 4026,
+          "wallEpochMs": 1784044603628.2,
+          "simTick": 163
+        },
+        {
+          "pageNowMs": 4043.2999999821186,
+          "wallEpochMs": 1784044603645.5,
+          "simTick": 164
+        },
+        {
+          "pageNowMs": 4059.199999988079,
+          "wallEpochMs": 1784044603661.4,
+          "simTick": 165
+        },
+        {
+          "pageNowMs": 4078.5,
+          "wallEpochMs": 1784044603680.7,
+          "simTick": 167
+        },
+        {
+          "pageNowMs": 4100.199999988079,
+          "wallEpochMs": 1784044603702.4,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4109.5,
+          "wallEpochMs": 1784044603711.7,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4128.4000000059605,
+          "wallEpochMs": 1784044603730.5999,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4142.799999982119,
+          "wallEpochMs": 1784044603745,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4161.699999988079,
+          "wallEpochMs": 1784044603763.9,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4178.0999999940395,
+          "wallEpochMs": 1784044603780.3,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4194.799999982119,
+          "wallEpochMs": 1784044603797,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4211.199999988079,
+          "wallEpochMs": 1784044603813.4,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4227.9000000059605,
+          "wallEpochMs": 1784044603830.0999,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4328.5999999940395,
+          "wallEpochMs": 1784044603930.8,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4344.9000000059605,
+          "wallEpochMs": 1784044603947.0999,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4361.5999999940395,
+          "wallEpochMs": 1784044603963.8,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4378.5,
+          "wallEpochMs": 1784044603980.7,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4394.5,
+          "wallEpochMs": 1784044603996.7,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4411.299999982119,
+          "wallEpochMs": 1784044604013.5,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4428.4000000059605,
+          "wallEpochMs": 1784044604030.5999,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4442.799999982119,
+          "wallEpochMs": 1784044604045,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4461.799999982119,
+          "wallEpochMs": 1784044604064,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4478.299999982119,
+          "wallEpochMs": 1784044604080.5,
+          "simTick": 168
+        },
+        {
+          "pageNowMs": 4495.699999988079,
+          "wallEpochMs": 1784044604097.9,
+          "simTick": 169
+        },
+        {
+          "pageNowMs": 4511.9000000059605,
+          "wallEpochMs": 1784044604114.0999,
+          "simTick": 170
+        },
+        {
+          "pageNowMs": 4526,
+          "wallEpochMs": 1784044604128.2,
+          "simTick": 170
+        },
+        {
+          "pageNowMs": 4544.799999982119,
+          "wallEpochMs": 1784044604147,
+          "simTick": 172
+        },
+        {
+          "pageNowMs": 4559.299999982119,
+          "wallEpochMs": 1784044604161.5,
+          "simTick": 172
+        },
+        {
+          "pageNowMs": 4578.4000000059605,
+          "wallEpochMs": 1784044604180.5999,
+          "simTick": 174
+        },
+        {
+          "pageNowMs": 4595.4000000059605,
+          "wallEpochMs": 1784044604197.5999,
+          "simTick": 175
+        },
+        {
+          "pageNowMs": 4609.199999988079,
+          "wallEpochMs": 1784044604211.4,
+          "simTick": 175
+        },
+        {
+          "pageNowMs": 4626,
+          "wallEpochMs": 1784044604228.2,
+          "simTick": 176
+        },
+        {
+          "pageNowMs": 4642.5999999940395,
+          "wallEpochMs": 1784044604244.8,
+          "simTick": 177
+        },
+        {
+          "pageNowMs": 4661.5,
+          "wallEpochMs": 1784044604263.7,
+          "simTick": 179
+        },
+        {
+          "pageNowMs": 4675.9000000059605,
+          "wallEpochMs": 1784044604278.0999,
+          "simTick": 179
+        },
+        {
+          "pageNowMs": 4692.699999988079,
+          "wallEpochMs": 1784044604294.9,
+          "simTick": 180
+        },
+        {
+          "pageNowMs": 4709.5999999940395,
+          "wallEpochMs": 1784044604311.8,
+          "simTick": 181
+        },
+        {
+          "pageNowMs": 4728.5999999940395,
+          "wallEpochMs": 1784044604330.8,
+          "simTick": 183
+        },
+        {
+          "pageNowMs": 4745,
+          "wallEpochMs": 1784044604347.2,
+          "simTick": 184
+        },
+        {
+          "pageNowMs": 4759.299999982119,
+          "wallEpochMs": 1784044604361.5,
+          "simTick": 184
+        },
+        {
+          "pageNowMs": 4778.5,
+          "wallEpochMs": 1784044604380.7,
+          "simTick": 186
+        },
+        {
+          "pageNowMs": 4795,
+          "wallEpochMs": 1784044604397.2,
+          "simTick": 187
+        },
+        {
+          "pageNowMs": 4809.299999982119,
+          "wallEpochMs": 1784044604411.5,
+          "simTick": 187
+        },
+        {
+          "pageNowMs": 4826,
+          "wallEpochMs": 1784044604428.2,
+          "simTick": 188
+        },
+        {
+          "pageNowMs": 4845.299999982119,
+          "wallEpochMs": 1784044604447.5,
+          "simTick": 190
+        },
+        {
+          "pageNowMs": 4860.699999988079,
+          "wallEpochMs": 1784044604462.9,
+          "simTick": 190
+        },
+        {
+          "pageNowMs": 4876.199999988079,
+          "wallEpochMs": 1784044604478.4,
+          "simTick": 191
+        },
+        {
+          "pageNowMs": 4896.4000000059605,
+          "wallEpochMs": 1784044604498.5999,
+          "simTick": 193
+        },
+        {
+          "pageNowMs": 4911.699999988079,
+          "wallEpochMs": 1784044604513.9,
+          "simTick": 194
+        },
+        {
+          "pageNowMs": 4926.4000000059605,
+          "wallEpochMs": 1784044604528.5999,
+          "simTick": 194
+        },
+        {
+          "pageNowMs": 4945.0999999940395,
+          "wallEpochMs": 1784044604547.3,
+          "simTick": 196
+        },
+        {
+          "pageNowMs": 4961.9000000059605,
+          "wallEpochMs": 1784044604564.0999,
+          "simTick": 197
+        },
+        {
+          "pageNowMs": 4978.5999999940395,
+          "wallEpochMs": 1784044604580.8,
+          "simTick": 198
+        },
+        {
+          "pageNowMs": 4993.9000000059605,
+          "wallEpochMs": 1784044604596.0999,
+          "simTick": 198
+        },
+        {
+          "pageNowMs": 5011.5,
+          "wallEpochMs": 1784044604613.7,
+          "simTick": 200
+        },
+        {
+          "pageNowMs": 5028.299999982119,
+          "wallEpochMs": 1784044604630.5,
+          "simTick": 201
+        },
+        {
+          "pageNowMs": 5045.199999988079,
+          "wallEpochMs": 1784044604647.4,
+          "simTick": 202
+        },
+        {
+          "pageNowMs": 5062,
+          "wallEpochMs": 1784044604664.2,
+          "simTick": 203
+        },
+        {
+          "pageNowMs": 5078.5999999940395,
+          "wallEpochMs": 1784044604680.8,
+          "simTick": 204
+        },
+        {
+          "pageNowMs": 5092.799999982119,
+          "wallEpochMs": 1784044604695,
+          "simTick": 204
+        },
+        {
+          "pageNowMs": 5109.5999999940395,
+          "wallEpochMs": 1784044604711.8,
+          "simTick": 205
+        },
+        {
+          "pageNowMs": 5128.699999988079,
+          "wallEpochMs": 1784044604730.9,
+          "simTick": 207
+        },
+        {
+          "pageNowMs": 5145.5999999940395,
+          "wallEpochMs": 1784044604747.8,
+          "simTick": 208
+        },
+        {
+          "pageNowMs": 5163.0999999940395,
+          "wallEpochMs": 1784044604765.3,
+          "simTick": 209
+        },
+        {
+          "pageNowMs": 5178.799999982119,
+          "wallEpochMs": 1784044604781,
+          "simTick": 210
+        },
+        {
+          "pageNowMs": 5192.799999982119,
+          "wallEpochMs": 1784044604795,
+          "simTick": 210
+        },
+        {
+          "pageNowMs": 5209.5,
+          "wallEpochMs": 1784044604811.7,
+          "simTick": 211
+        },
+        {
+          "pageNowMs": 5228.5,
+          "wallEpochMs": 1784044604830.7,
+          "simTick": 213
+        },
+        {
+          "pageNowMs": 5245,
+          "wallEpochMs": 1784044604847.2,
+          "simTick": 214
+        },
+        {
+          "pageNowMs": 5260.9000000059605,
+          "wallEpochMs": 1784044604863.0999,
+          "simTick": 214
+        },
+        {
+          "pageNowMs": 5279.0999999940395,
+          "wallEpochMs": 1784044604881.3,
+          "simTick": 216
+        },
+        {
+          "pageNowMs": 5295.5999999940395,
+          "wallEpochMs": 1784044604897.8,
+          "simTick": 217
+        },
+        {
+          "pageNowMs": 5309.5,
+          "wallEpochMs": 1784044604911.7,
+          "simTick": 217
+        },
+        {
+          "pageNowMs": 5326.5,
+          "wallEpochMs": 1784044604928.7,
+          "simTick": 218
+        },
+        {
+          "pageNowMs": 5345,
+          "wallEpochMs": 1784044604947.2,
+          "simTick": 220
+        },
+        {
+          "pageNowMs": 5359.799999982119,
+          "wallEpochMs": 1784044604962,
+          "simTick": 220
+        },
+        {
+          "pageNowMs": 5378.699999988079,
+          "wallEpochMs": 1784044604980.9,
+          "simTick": 222
+        },
+        {
+          "pageNowMs": 5392.9000000059605,
+          "wallEpochMs": 1784044604995.0999,
+          "simTick": 222
+        },
+        {
+          "pageNowMs": 5411.9000000059605,
+          "wallEpochMs": 1784044605014.0999,
+          "simTick": 224
+        },
+        {
+          "pageNowMs": 5426.0999999940395,
+          "wallEpochMs": 1784044605028.3,
+          "simTick": 224
+        },
+        {
+          "pageNowMs": 5443.299999982119,
+          "wallEpochMs": 1784044605045.5,
+          "simTick": 225
+        },
+        {
+          "pageNowMs": 5460.0999999940395,
+          "wallEpochMs": 1784044605062.3,
+          "simTick": 226
+        }
+      ],
+      "matchingSourceEvents": [
+        {
+          "kind": "telegraph",
+          "sourceId": "gracie-spit",
+          "tag": "gracie-spit",
+          "tick": 127,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1102.8202397235966,
+          "originY": 1104.978930016582,
+          "dirX": -0.5188578044730141,
+          "dirY": 0.8548605609907638,
+          "radius": 12,
+          "range": 12,
+          "durationTicks": 12
+        },
+        {
+          "kind": "telegraph",
+          "sourceId": "gracie-spit",
+          "tag": "gracie-spit",
+          "tick": 141,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1096.276446202698,
+          "originY": 1108.2287995694858,
+          "dirX": -0.5097637360492354,
+          "dirY": 0.8603144386845576,
+          "radius": 12,
+          "range": 12,
+          "durationTicks": 12
+        },
+        {
+          "kind": "telegraph",
+          "sourceId": "gracie-spit",
+          "tag": "gracie-spit",
+          "tick": 155,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1083.8106552667793,
+          "originY": 1099.414252540722,
+          "dirX": -0.4729910864213077,
+          "dirY": 0.8810672120593247,
+          "radius": 12,
+          "range": 12,
+          "durationTicks": 12
+        },
+        {
+          "kind": "telegraph",
+          "sourceId": "gracie-spit",
+          "tag": "gracie-spit",
+          "tick": 169,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1067.0788119505178,
+          "originY": 1091.5547743313803,
+          "dirX": -0.6847475614093756,
+          "dirY": 0.7287803353164198,
+          "radius": 12,
+          "range": 12,
+          "durationTicks": 12
+        },
+        {
+          "kind": "telegraph",
+          "sourceId": "gracie-spit",
+          "tag": "gracie-spit",
+          "tick": 183,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1049.815640402885,
+          "originY": 1096.0637938899788,
+          "dirX": -0.663466271204058,
+          "dirY": 0.7482061928202569,
+          "radius": 12,
+          "range": 12,
+          "durationTicks": 12
+        },
+        {
+          "kind": "telegraph",
+          "sourceId": "gracie-spit",
+          "tag": "gracie-spit",
+          "tick": 197,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1038.5474433514632,
+          "originY": 1112.7363203327468,
+          "dirX": -0.6701895189587838,
+          "dirY": 0.7421900084734326,
+          "radius": 12,
+          "range": 12,
+          "durationTicks": 12
+        },
+        {
+          "kind": "telegraph",
+          "sourceId": "gracie-spit",
+          "tag": "gracie-spit",
+          "tick": 211,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1030.1641466804542,
+          "originY": 1135.1034420114672,
+          "dirX": -0.694831116144175,
+          "dirY": 0.7191729416752551,
+          "radius": 12,
+          "range": 12,
+          "durationTicks": 12
+        },
+        {
+          "kind": "telegraph",
+          "sourceId": "gracie-spit",
+          "tag": "gracie-spit",
+          "tick": 225,
+          "amount": 0,
+          "count": 1,
+          "critical": null,
+          "meleeArcResolved": false,
+          "originX": 1026.716743203357,
+          "originY": 1149.1244001749571,
+          "dirX": -0.7166338907565863,
+          "dirY": 0.6974495441385542,
+          "radius": 12,
+          "range": 12,
+          "durationTicks": 12
+        }
+      ],
+      "targetFamilyEvents": [],
+      "releaseEvidence": null,
+      "releaseEvidenceState": null,
+      "projectileLock": {
+        "id": 0,
+        "identityContract": "exact packed EntityId equality; never slot-only matching",
+        "source": 7,
+        "sourceLabel": "heroSpit",
+        "role": 0,
+        "lockedFromSnapshot": "curr",
+        "lockSnapshotTick": 127,
+        "phaseAnchorTick": 127,
+        "lockDriverTick": 127,
+        "x": 1098.6693115234375,
+        "y": 1111.8177490234375,
+        "velocityX": -249.05174255371094,
+        "velocityY": 410.33306884765625,
+        "speed": 479.99999776976597,
+        "backProjectedLaunchX": 1098.6693115234375,
+        "backProjectedLaunchY": 1111.8177490234375,
+        "launchOriginError": 7.999978145683,
+        "headingDot": 1,
+        "selectionScore": 7.999978145683
+      },
+      "projectileLockAttempts": [
+        {
+          "driverTick": 127,
+          "status": "locked",
+          "id": 0,
+          "lockedFromSnapshot": "curr",
+          "x": 1098.6693115234375,
+          "y": 1111.8177490234375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625
+        }
+      ],
+      "projectileTrajectory": [
+        {
+          "snapshotTick": 127,
+          "driverTick": 127,
+          "id": 0,
+          "x": 1098.6693115234375,
+          "y": 1111.8177490234375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 128,
+          "driverTick": 128,
+          "id": 0,
+          "x": 1094.5184326171875,
+          "y": 1118.6566162109375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 129,
+          "driverTick": 129,
+          "id": 0,
+          "x": 1090.3675537109375,
+          "y": 1125.4954833984375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 130,
+          "driverTick": 130,
+          "id": 0,
+          "x": 1086.2166748046875,
+          "y": 1132.3343505859375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 131,
+          "driverTick": 131,
+          "id": 0,
+          "x": 1082.0657958984375,
+          "y": 1139.1732177734375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 132,
+          "driverTick": 132,
+          "id": 0,
+          "x": 1077.9149169921875,
+          "y": 1146.0120849609375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 134,
+          "driverTick": 134,
+          "id": 0,
+          "x": 1069.6131591796875,
+          "y": 1159.6898193359375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 136,
+          "driverTick": 136,
+          "id": 0,
+          "x": 1061.3114013671875,
+          "y": 1173.3675537109375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 137,
+          "driverTick": 137,
+          "id": 0,
+          "x": 1057.1605224609375,
+          "y": 1180.2064208984375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 139,
+          "driverTick": 139,
+          "id": 0,
+          "x": 1048.8587646484375,
+          "y": 1193.8841552734375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 140,
+          "driverTick": 140,
+          "id": 0,
+          "x": 1044.7078857421875,
+          "y": 1200.7230224609375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 141,
+          "driverTick": 141,
+          "id": 0,
+          "x": 1040.5570068359375,
+          "y": 1207.5618896484375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 142,
+          "driverTick": 142,
+          "id": 0,
+          "x": 1036.4061279296875,
+          "y": 1214.4007568359375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 144,
+          "driverTick": 144,
+          "id": 0,
+          "x": 1028.1043701171875,
+          "y": 1228.0784912109375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 145,
+          "driverTick": 145,
+          "id": 0,
+          "x": 1023.9534912109375,
+          "y": 1234.9173583984375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 147,
+          "driverTick": 147,
+          "id": 0,
+          "x": 1015.6517333984375,
+          "y": 1248.5950927734375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 148,
+          "driverTick": 148,
+          "id": 0,
+          "x": 1011.5008544921875,
+          "y": 1255.4339599609375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 149,
+          "driverTick": 149,
+          "id": 0,
+          "x": 1007.3499755859375,
+          "y": 1262.2728271484375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 151,
+          "driverTick": 151,
+          "id": 0,
+          "x": 999.0482177734375,
+          "y": 1275.9505615234375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 152,
+          "driverTick": 152,
+          "id": 0,
+          "x": 994.8973388671875,
+          "y": 1282.7894287109375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 154,
+          "driverTick": 154,
+          "id": 0,
+          "x": 986.5955810546875,
+          "y": 1296.4671630859375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 155,
+          "driverTick": 155,
+          "id": 0,
+          "x": 982.4447021484375,
+          "y": 1303.3060302734375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 157,
+          "driverTick": 157,
+          "id": 0,
+          "x": 974.1429443359375,
+          "y": 1316.9837646484375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 159,
+          "driverTick": 159,
+          "id": 0,
+          "x": 965.8411865234375,
+          "y": 1330.6614990234375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 160,
+          "driverTick": 160,
+          "id": 0,
+          "x": 961.6903076171875,
+          "y": 1337.5003662109375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 161,
+          "driverTick": 161,
+          "id": 0,
+          "x": 957.5394287109375,
+          "y": 1344.3392333984375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 163,
+          "driverTick": 163,
+          "id": 0,
+          "x": 949.2376708984375,
+          "y": 1358.0169677734375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 164,
+          "driverTick": 164,
+          "id": 0,
+          "x": 945.0867919921875,
+          "y": 1364.8558349609375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 165,
+          "driverTick": 165,
+          "id": 0,
+          "x": 940.9359130859375,
+          "y": 1371.6947021484375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        },
+        {
+          "snapshotTick": 167,
+          "driverTick": 167,
+          "id": 0,
+          "x": 932.6341552734375,
+          "y": 1385.3724365234375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        }
+      ],
+      "projectileTerminal": {
+        "observedAtDriverTick": 168,
+        "lockedPackedProjectileId": 0,
+        "lastTrajectorySample": {
+          "snapshotTick": 167,
+          "driverTick": 167,
+          "id": 0,
+          "x": 932.6341552734375,
+          "y": 1385.3724365234375,
+          "velocityX": -249.05174255371094,
+          "velocityY": 410.33306884765625,
+          "speed": 479.99999776976597
+        }
+      },
+      "impactEvidence": {
+        "status": "source-correlated-contact-captured",
+        "sourceId": "gracie-spit",
+        "combatKind": "enemyHit",
+        "maximumTrajectoryError": 34,
+        "candidates": [
+          {
+            "event": {
+              "kind": "enemyHit",
+              "sourceId": "gracie-spit",
+              "tick": 168,
+              "x": 921.6421508789062,
+              "y": 1400.8250732421875,
+              "amount": 8.369999885559082,
+              "critical": false,
+              "targetId": 0,
+              "pickupKind": ""
+            },
+            "correlation": {
+              "lockedPackedProjectileId": 0,
+              "trajectorySnapshot": {
+                "snapshotTick": 167,
+                "driverTick": 167,
+                "id": 0,
+                "x": 932.6341552734375,
+                "y": 1385.3724365234375,
+                "velocityX": -249.05174255371094,
+                "velocityY": 410.33306884765625,
+                "speed": 479.99999776976597
+              },
+              "elapsedTicks": 1,
+              "predictedX": 928.4832928975424,
+              "predictedY": 1392.2113210042319,
+              "impactX": 921.6421508789062,
+              "impactY": 1400.8250732421875,
+              "trajectoryError": 10.999906896698445,
+              "maximumTrajectoryError": 34,
+              "accepted": true
+            },
+            "accepted": true
+          },
+          {
+            "event": {
+              "kind": "enemyHit",
+              "sourceId": "gracie-spit",
+              "tick": 180,
+              "x": 926.1323852539062,
+              "y": 1390.7843017578125,
+              "amount": 8.369999885559082,
+              "critical": false,
+              "targetId": 0,
+              "pickupKind": ""
+            },
+            "correlation": {
+              "lockedPackedProjectileId": 0,
+              "trajectorySnapshot": {
+                "snapshotTick": 167,
+                "driverTick": 167,
+                "id": 0,
+                "x": 932.6341552734375,
+                "y": 1385.3724365234375,
+                "velocityX": -249.05174255371094,
+                "velocityY": 410.33306884765625,
+                "speed": 479.99999776976597
+              },
+              "elapsedTicks": 13,
+              "predictedX": 878.6729443868002,
+              "predictedY": 1474.277934773763,
+              "impactX": 926.1323852539062,
+              "impactY": 1390.7843017578125,
+              "trajectoryError": 96.03949854940187,
+              "maximumTrajectoryError": 34,
+              "accepted": false
+            },
+            "accepted": false
+          },
+          {
+            "event": {
+              "kind": "enemyHit",
+              "sourceId": "gracie-spit",
+              "tick": 193,
+              "x": 930.6878051757812,
+              "y": 1379.773193359375,
+              "amount": 8.369999885559082,
+              "critical": false,
+              "targetId": 0,
+              "pickupKind": ""
+            },
+            "correlation": {
+              "lockedPackedProjectileId": 0,
+              "trajectorySnapshot": {
+                "snapshotTick": 167,
+                "driverTick": 167,
+                "id": 0,
+                "x": 932.6341552734375,
+                "y": 1385.3724365234375,
+                "velocityX": -249.05174255371094,
+                "velocityY": 410.33306884765625,
+                "speed": 479.99999776976597
+              },
+              "elapsedTicks": 26,
+              "predictedX": 824.7117335001627,
+              "predictedY": 1563.1834330240886,
+              "impactX": 930.6878051757812,
+              "impactY": 1379.773193359375,
+              "trajectoryError": 211.82597522887392,
+              "maximumTrajectoryError": 34,
+              "accepted": false
+            },
+            "accepted": false
+          },
+          {
+            "event": {
+              "kind": "enemyHit",
+              "sourceId": "gracie-spit",
+              "tick": 206,
+              "x": 850.7622680664062,
+              "y": 1320.8262939453125,
+              "amount": 8.369999885559082,
+              "critical": false,
+              "targetId": 1,
+              "pickupKind": ""
+            },
+            "correlation": {
+              "lockedPackedProjectileId": 0,
+              "trajectorySnapshot": {
+                "snapshotTick": 167,
+                "driverTick": 167,
+                "id": 0,
+                "x": 932.6341552734375,
+                "y": 1385.3724365234375,
+                "velocityX": -249.05174255371094,
+                "velocityY": 410.33306884765625,
+                "speed": 479.99999776976597
+              },
+              "elapsedTicks": 39,
+              "predictedX": 770.7505226135254,
+              "predictedY": 1652.088931274414,
+              "impactX": 850.7622680664062,
+              "impactY": 1320.8262939453125,
+              "trajectoryError": 340.7885184401735,
+              "maximumTrajectoryError": 34,
+              "accepted": false
+            },
+            "accepted": false
+          },
+          {
+            "event": {
+              "kind": "enemyHit",
+              "sourceId": "gracie-spit",
+              "tick": 217,
+              "x": 857.7867431640625,
+              "y": 1313.5927734375,
+              "amount": 8.369999885559082,
+              "critical": false,
+              "targetId": 1,
+              "pickupKind": ""
+            },
+            "correlation": {
+              "lockedPackedProjectileId": 0,
+              "trajectorySnapshot": {
+                "snapshotTick": 167,
+                "driverTick": 167,
+                "id": 0,
+                "x": 932.6341552734375,
+                "y": 1385.3724365234375,
+                "velocityX": -249.05174255371094,
+                "velocityY": 410.33306884765625,
+                "speed": 479.99999776976597
+              },
+              "elapsedTicks": 50,
+              "predictedX": 725.0910364786783,
+              "predictedY": 1727.3166605631511,
+              "impactX": 857.7867431640625,
+              "impactY": 1313.5927734375,
+              "trajectoryError": 434.4831473729355,
+              "maximumTrajectoryError": 34,
+              "accepted": false
+            },
+            "accepted": false
+          }
+        ],
+        "accepted": {
+          "event": {
+            "kind": "enemyHit",
+            "sourceId": "gracie-spit",
+            "tick": 168,
+            "x": 921.6421508789062,
+            "y": 1400.8250732421875,
+            "amount": 8.369999885559082,
+            "critical": false,
+            "targetId": 0,
+            "pickupKind": ""
+          },
+          "correlation": {
+            "lockedPackedProjectileId": 0,
+            "trajectorySnapshot": {
+              "snapshotTick": 167,
+              "driverTick": 167,
+              "id": 0,
+              "x": 932.6341552734375,
+              "y": 1385.3724365234375,
+              "velocityX": -249.05174255371094,
+              "velocityY": 410.33306884765625,
+              "speed": 479.99999776976597
+            },
+            "elapsedTicks": 1,
+            "predictedX": 928.4832928975424,
+            "predictedY": 1392.2113210042319,
+            "impactX": 921.6421508789062,
+            "impactY": 1400.8250732421875,
+            "trajectoryError": 10.999906896698445,
+            "maximumTrajectoryError": 34,
+            "accepted": true
+          },
+          "accepted": true
+        },
+        "terminal": {
+          "observedAtDriverTick": 168,
+          "lockedPackedProjectileId": 0,
+          "lastTrajectorySample": {
+            "snapshotTick": 167,
+            "driverTick": 167,
+            "id": 0,
+            "x": 932.6341552734375,
+            "y": 1385.3724365234375,
+            "velocityX": -249.05174255371094,
+            "velocityY": 410.33306884765625,
+            "speed": 479.99999776976597
+          }
+        },
+        "reason": null
+      },
+      "projectileAnatomyContract": {
+        "source": 7,
+        "sourceLabel": "heroSpit",
+        "requiredLiveSnapshot": "curr",
+        "identityContract": "selected anatomy frames must use exact packed EntityId equality, never a reusable pool slot",
+        "telegraphCardClaimed": false
+      },
+      "groupedBurstLifecycle": null,
+      "postBurstReleaseEvidencePolicy": null,
+      "supplementaryEvidence": {
+        "status": "captured",
+        "kind": "impact-contact",
+        "phase": "source-correlated-impact-contact",
+        "evidence": {
+          "accepted": {
+            "event": {
+              "kind": "enemyHit",
+              "sourceId": "gracie-spit",
+              "tick": 168,
+              "x": 921.6421508789062,
+              "y": 1400.8250732421875,
+              "amount": 8.369999885559082,
+              "critical": false,
+              "targetId": 0,
+              "pickupKind": ""
+            },
+            "correlation": {
+              "lockedPackedProjectileId": 0,
+              "trajectorySnapshot": {
+                "snapshotTick": 167,
+                "driverTick": 167,
+                "id": 0,
+                "x": 932.6341552734375,
+                "y": 1385.3724365234375,
+                "velocityX": -249.05174255371094,
+                "velocityY": 410.33306884765625,
+                "speed": 479.99999776976597
+              },
+              "elapsedTicks": 1,
+              "predictedX": 928.4832928975424,
+              "predictedY": 1392.2113210042319,
+              "impactX": 921.6421508789062,
+              "impactY": 1400.8250732421875,
+              "trajectoryError": 10.999906896698445,
+              "maximumTrajectoryError": 34,
+              "accepted": true
+            },
+            "accepted": true
+          },
+          "observedAtDriverTick": 168,
+          "lockedPackedProjectileId": 0,
+          "projectileTerminal": {
+            "observedAtDriverTick": 168,
+            "lockedPackedProjectileId": 0,
+            "lastTrajectorySample": {
+              "snapshotTick": 167,
+              "driverTick": 167,
+              "id": 0,
+              "x": 932.6341552734375,
+              "y": 1385.3724365234375,
+              "velocityX": -249.05174255371094,
+              "velocityY": 410.33306884765625,
+              "speed": 479.99999776976597
+            }
+          },
+          "contract": "combat source id, exact locked projectile trajectory, and public hit position must all agree before an impact/contact compositor frame may be claimed"
+        },
+        "reason": null,
+        "capture": {
+          "heldAtDriverTick": 168,
+          "captureContract": "post-render compositor frame held only after public evidence validation; no simulation, event, input, transform, material, or texture state was changed",
+          "kind": "impact-contact",
+          "phase": "source-correlated-impact-contact",
+          "evidence": {
+            "accepted": {
+              "event": {
+                "kind": "enemyHit",
+                "sourceId": "gracie-spit",
+                "tick": 168,
+                "x": 921.6421508789062,
+                "y": 1400.8250732421875,
+                "amount": 8.369999885559082,
+                "critical": false,
+                "targetId": 0,
+                "pickupKind": ""
+              },
+              "correlation": {
+                "lockedPackedProjectileId": 0,
+                "trajectorySnapshot": {
+                  "snapshotTick": 167,
+                  "driverTick": 167,
+                  "id": 0,
+                  "x": 932.6341552734375,
+                  "y": 1385.3724365234375,
+                  "velocityX": -249.05174255371094,
+                  "velocityY": 410.33306884765625,
+                  "speed": 479.99999776976597
+                },
+                "elapsedTicks": 1,
+                "predictedX": 928.4832928975424,
+                "predictedY": 1392.2113210042319,
+                "impactX": 921.6421508789062,
+                "impactY": 1400.8250732421875,
+                "trajectoryError": 10.999906896698445,
+                "maximumTrajectoryError": 34,
+                "accepted": true
+              },
+              "accepted": true
+            },
+            "observedAtDriverTick": 168,
+            "lockedPackedProjectileId": 0,
+            "projectileTerminal": {
+              "observedAtDriverTick": 168,
+              "lockedPackedProjectileId": 0,
+              "lastTrajectorySample": {
+                "snapshotTick": 167,
+                "driverTick": 167,
+                "id": 0,
+                "x": 932.6341552734375,
+                "y": 1385.3724365234375,
+                "velocityX": -249.05174255371094,
+                "velocityY": 410.33306884765625,
+                "speed": 479.99999776976597
+              }
+            },
+            "contract": "combat source id, exact locked projectile trajectory, and public hit position must all agree before an impact/contact compositor frame may be claimed"
+          },
+          "observedAfterScreenshotTick": 168,
+          "callerObservedAfterScreenshotTick": 168
+        },
+        "observedBeforeCaptureTick": 168,
+        "observedAfterCaptureTick": 168,
+        "full": "gracie-spit/rendered-supplementary-source-correlated-impact-contact.png",
+        "focus2x": "gracie-spit/rendered-supplementary-2x-source-correlated-impact-contact.png",
+        "focus2xGray": "gracie-spit/rendered-supplementary-2x-source-correlated-impact-contact-gray.png",
+        "cropBox": {
+          "x": 320,
+          "y": 144,
+          "width": 640,
+          "height": 432
+        },
+        "fileStem": "source-correlated-impact-contact",
+        "strips": {
+          "tick": "gracie-spit/rendered-supplementary-strip-source-correlated-impact-contact.png",
+          "tickGray": "gracie-spit/rendered-supplementary-strip-source-correlated-impact-contact-gray.png",
+          "focus2x": "gracie-spit/rendered-supplementary-2x-strip-source-correlated-impact-contact.png",
+          "focus2xGray": "gracie-spit/rendered-supplementary-2x-strip-source-correlated-impact-contact-gray.png"
+        },
+        "fullBytes": 1074918,
+        "focus2xBytes": 502516,
+        "focus2xGrayBytes": 255213
+      },
+      "supplementaryState": {
+        "status": "captured",
+        "kind": "impact-contact",
+        "phase": "source-correlated-impact-contact",
+        "evidence": {
+          "accepted": {
+            "event": {
+              "kind": "enemyHit",
+              "sourceId": "gracie-spit",
+              "tick": 168,
+              "x": 921.6421508789062,
+              "y": 1400.8250732421875,
+              "amount": 8.369999885559082,
+              "critical": false,
+              "targetId": 0,
+              "pickupKind": ""
+            },
+            "correlation": {
+              "lockedPackedProjectileId": 0,
+              "trajectorySnapshot": {
+                "snapshotTick": 167,
+                "driverTick": 167,
+                "id": 0,
+                "x": 932.6341552734375,
+                "y": 1385.3724365234375,
+                "velocityX": -249.05174255371094,
+                "velocityY": 410.33306884765625,
+                "speed": 479.99999776976597
+              },
+              "elapsedTicks": 1,
+              "predictedX": 928.4832928975424,
+              "predictedY": 1392.2113210042319,
+              "impactX": 921.6421508789062,
+              "impactY": 1400.8250732421875,
+              "trajectoryError": 10.999906896698445,
+              "maximumTrajectoryError": 34,
+              "accepted": true
+            },
+            "accepted": true
+          },
+          "observedAtDriverTick": 168,
+          "lockedPackedProjectileId": 0,
+          "projectileTerminal": {
+            "observedAtDriverTick": 168,
+            "lockedPackedProjectileId": 0,
+            "lastTrajectorySample": {
+              "snapshotTick": 167,
+              "driverTick": 167,
+              "id": 0,
+              "x": 932.6341552734375,
+              "y": 1385.3724365234375,
+              "velocityX": -249.05174255371094,
+              "velocityY": 410.33306884765625,
+              "speed": 479.99999776976597
+            }
+          },
+          "contract": "combat source id, exact locked projectile trajectory, and public hit position must all agree before an impact/contact compositor frame may be claimed"
+        },
+        "reason": null,
+        "captured": {
+          "heldAtDriverTick": 168,
+          "captureContract": "post-render compositor frame held only after public evidence validation; no simulation, event, input, transform, material, or texture state was changed",
+          "kind": "impact-contact",
+          "phase": "source-correlated-impact-contact",
+          "evidence": {
+            "accepted": {
+              "event": {
+                "kind": "enemyHit",
+                "sourceId": "gracie-spit",
+                "tick": 168,
+                "x": 921.6421508789062,
+                "y": 1400.8250732421875,
+                "amount": 8.369999885559082,
+                "critical": false,
+                "targetId": 0,
+                "pickupKind": ""
+              },
+              "correlation": {
+                "lockedPackedProjectileId": 0,
+                "trajectorySnapshot": {
+                  "snapshotTick": 167,
+                  "driverTick": 167,
+                  "id": 0,
+                  "x": 932.6341552734375,
+                  "y": 1385.3724365234375,
+                  "velocityX": -249.05174255371094,
+                  "velocityY": 410.33306884765625,
+                  "speed": 479.99999776976597
+                },
+                "elapsedTicks": 1,
+                "predictedX": 928.4832928975424,
+                "predictedY": 1392.2113210042319,
+                "impactX": 921.6421508789062,
+                "impactY": 1400.8250732421875,
+                "trajectoryError": 10.999906896698445,
+                "maximumTrajectoryError": 34,
+                "accepted": true
+              },
+              "accepted": true
+            },
+            "observedAtDriverTick": 168,
+            "lockedPackedProjectileId": 0,
+            "projectileTerminal": {
+              "observedAtDriverTick": 168,
+              "lockedPackedProjectileId": 0,
+              "lastTrajectorySample": {
+                "snapshotTick": 167,
+                "driverTick": 167,
+                "id": 0,
+                "x": 932.6341552734375,
+                "y": 1385.3724365234375,
+                "velocityX": -249.05174255371094,
+                "velocityY": 410.33306884765625,
+                "speed": 479.99999776976597
+              }
+            },
+            "contract": "combat source id, exact locked projectile trajectory, and public hit position must all agree before an impact/contact compositor frame may be claimed"
+          },
+          "observedAfterScreenshotTick": 168,
+          "callerObservedAfterScreenshotTick": 168
+        },
+        "pendingHold": false
+      },
+      "milestones": {
+        "captureMode": "snapshot-projectile-lifecycle",
+        "eventEvidenceRole": "launch-discovery-only",
+        "telegraphCardClaimed": false,
+        "phaseWindows": [
+          {
+            "phase": "launch",
+            "minimumTickDelta": 1,
+            "maximumTickDelta": 3
+          },
+          {
+            "phase": "travel",
+            "minimumTickDelta": 4,
+            "maximumTickDelta": 6
+          },
+          {
+            "phase": "late-travel",
+            "minimumTickDelta": 7,
+            "maximumTickDelta": 10
+          }
+        ],
+        "burstLifecyclePolicy": null,
+        "releaseEvidencePolicy": null,
+        "postBurstReleaseEvidencePolicy": null,
+        "projectileLifecyclePolicy": {
+          "source": 7,
+          "role": 0,
+          "sourceLabel": "heroSpit",
+          "ticksPerSecond": 60,
+          "lockTimeoutTicks": 12,
+          "maximumLaunchOriginError": 32,
+          "minimumHeadingDot": 0.25,
+          "requiredLiveSnapshot": "curr"
+        },
+        "impactEvidencePolicy": {
+          "phase": "source-correlated-impact-contact",
+          "sourceId": "gracie-spit",
+          "combatKind": "enemyHit",
+          "ticksPerSecond": 60,
+          "maximumWaitTicks": 60,
+          "maximumCaptureDelayTicks": 1,
+          "maximumTrajectoryError": 34,
+          "terminalGraceTicks": 2
+        },
+        "captureContract": "headed Playwright compositor screenshot taken after rAF observed the live driver inside each phase window, then momentarily paused the public presentation control to hold that already-rendered state; before/after driver ticks are recorded with every image.",
+        "scoringContract": "These post-render images are the timing authority for Gracie’s projectile anatomy. Every selected frame must contain the exact locked packed heroSpit id in public driver.curr, with its live x/y/velocity journaled before, during, and after screenshot. A separate impact/contact image is admitted only for a public enemyHit whose source and position correlate to that locked trajectory; absence is reported explicitly rather than inferred from projectile disappearance. The telegraph only discovers the launch; no telegraph card is claimed. Supporting WebM is provenance-only.",
+        "frames": [
+          {
+            "offset": 0,
+            "phase": "launch",
+            "tickDeltaWindow": {
+              "phase": "launch",
+              "minimumTickDelta": 1,
+              "maximumTickDelta": 3
+            },
+            "phaseAnchor": "locked-public-projectile",
+            "phaseAnchorTick": 127,
+            "phaseAnchorProjectileId": 0,
+            "requestedTickDelta": 2,
+            "observedBeforeCaptureTick": 129,
+            "observedBeforeCaptureDelta": 2,
+            "observedBeforeCaptureEventDelta": 2,
+            "observedAfterCaptureTick": 129,
+            "observedAfterCaptureDelta": 2,
+            "observedAfterCaptureEventDelta": 2,
+            "projectileBeforePause": {
+              "snapshot": "curr",
+              "snapshotTick": 129,
+              "index": 0,
+              "id": 0,
+              "source": 7,
+              "role": 0,
+              "x": 1090.3675537109375,
+              "y": 1125.4954833984375,
+              "velocityX": -249.05174255371094,
+              "velocityY": 410.33306884765625,
+              "speed": 479.99999776976597,
+              "exactLockedIdMatch": true,
+              "requiredLiveSnapshot": "curr"
+            },
+            "projectileAtPause": {
+              "snapshot": "curr",
+              "snapshotTick": 129,
+              "index": 0,
+              "id": 0,
+              "source": 7,
+              "role": 0,
+              "x": 1090.3675537109375,
+              "y": 1125.4954833984375,
+              "velocityX": -249.05174255371094,
+              "velocityY": 410.33306884765625,
+              "speed": 479.99999776976597,
+              "exactLockedIdMatch": true,
+              "requiredLiveSnapshot": "curr"
+            },
+            "projectileAfterScreenshot": {
+              "snapshot": "curr",
+              "snapshotTick": 129,
+              "index": 0,
+              "id": 0,
+              "source": 7,
+              "role": 0,
+              "x": 1090.3675537109375,
+              "y": 1125.4954833984375,
+              "velocityX": -249.05174255371094,
+              "velocityY": 410.33306884765625,
+              "speed": 479.99999776976597,
+              "exactLockedIdMatch": true,
+              "requiredLiveSnapshot": "curr"
+            },
+            "zeroEnvelopeBeforePause": null,
+            "zeroEnvelopeAtPause": null,
+            "zeroEnvelopeAfterScreenshot": null,
+            "full": "gracie-spit/rendered-milestone-f0.png",
+            "fullBytes": 1063525,
+            "focus2x": "gracie-spit/rendered-milestone-2x-f0.png",
+            "focus2xBytes": 496346,
+            "focus2xGray": "gracie-spit/rendered-milestone-2x-f0-gray.png",
+            "focus2xGrayBytes": 252183,
+            "cropBox": {
+              "x": 320,
+              "y": 144,
+              "width": 640,
+              "height": 432
+            }
+          },
+          {
+            "offset": 1,
+            "phase": "travel",
+            "tickDeltaWindow": {
+              "phase": "travel",
+              "minimumTickDelta": 4,
+              "maximumTickDelta": 6
+            },
+            "phaseAnchor": "locked-public-projectile",
+            "phaseAnchorTick": 127,
+            "phaseAnchorProjectileId": 0,
+            "requestedTickDelta": 5,
+            "observedBeforeCaptureTick": 132,
+            "observedBeforeCaptureDelta": 5,
+            "observedBeforeCaptureEventDelta": 5,
+            "observedAfterCaptureTick": 132,
+            "observedAfterCaptureDelta": 5,
+            "observedAfterCaptureEventDelta": 5,
+            "projectileBeforePause": {
+              "snapshot": "curr",
+              "snapshotTick": 132,
+              "index": 0,
+              "id": 0,
+              "source": 7,
+              "role": 0,
+              "x": 1077.9149169921875,
+              "y": 1146.0120849609375,
+              "velocityX": -249.05174255371094,
+              "velocityY": 410.33306884765625,
+              "speed": 479.99999776976597,
+              "exactLockedIdMatch": true,
+              "requiredLiveSnapshot": "curr"
+            },
+            "projectileAtPause": {
+              "snapshot": "curr",
+              "snapshotTick": 132,
+              "index": 0,
+              "id": 0,
+              "source": 7,
+              "role": 0,
+              "x": 1077.9149169921875,
+              "y": 1146.0120849609375,
+              "velocityX": -249.05174255371094,
+              "velocityY": 410.33306884765625,
+              "speed": 479.99999776976597,
+              "exactLockedIdMatch": true,
+              "requiredLiveSnapshot": "curr"
+            },
+            "projectileAfterScreenshot": {
+              "snapshot": "curr",
+              "snapshotTick": 132,
+              "index": 0,
+              "id": 0,
+              "source": 7,
+              "role": 0,
+              "x": 1077.9149169921875,
+              "y": 1146.0120849609375,
+              "velocityX": -249.05174255371094,
+              "velocityY": 410.33306884765625,
+              "speed": 479.99999776976597,
+              "exactLockedIdMatch": true,
+              "requiredLiveSnapshot": "curr"
+            },
+            "zeroEnvelopeBeforePause": null,
+            "zeroEnvelopeAtPause": null,
+            "zeroEnvelopeAfterScreenshot": null,
+            "full": "gracie-spit/rendered-milestone-f1.png",
+            "fullBytes": 1062993,
+            "focus2x": "gracie-spit/rendered-milestone-2x-f1.png",
+            "focus2xBytes": 495874,
+            "focus2xGray": "gracie-spit/rendered-milestone-2x-f1-gray.png",
+            "focus2xGrayBytes": 252012,
+            "cropBox": {
+              "x": 320,
+              "y": 144,
+              "width": 640,
+              "height": 432
+            }
+          },
+          {
+            "offset": 2,
+            "phase": "late-travel",
+            "tickDeltaWindow": {
+              "phase": "late-travel",
+              "minimumTickDelta": 7,
+              "maximumTickDelta": 10
+            },
+            "phaseAnchor": "locked-public-projectile",
+            "phaseAnchorTick": 127,
+            "phaseAnchorProjectileId": 0,
+            "requestedTickDelta": 8,
+            "observedBeforeCaptureTick": 136,
+            "observedBeforeCaptureDelta": 9,
+            "observedBeforeCaptureEventDelta": 9,
+            "observedAfterCaptureTick": 136,
+            "observedAfterCaptureDelta": 9,
+            "observedAfterCaptureEventDelta": 9,
+            "projectileBeforePause": {
+              "snapshot": "curr",
+              "snapshotTick": 136,
+              "index": 0,
+              "id": 0,
+              "source": 7,
+              "role": 0,
+              "x": 1061.3114013671875,
+              "y": 1173.3675537109375,
+              "velocityX": -249.05174255371094,
+              "velocityY": 410.33306884765625,
+              "speed": 479.99999776976597,
+              "exactLockedIdMatch": true,
+              "requiredLiveSnapshot": "curr"
+            },
+            "projectileAtPause": {
+              "snapshot": "curr",
+              "snapshotTick": 136,
+              "index": 0,
+              "id": 0,
+              "source": 7,
+              "role": 0,
+              "x": 1061.3114013671875,
+              "y": 1173.3675537109375,
+              "velocityX": -249.05174255371094,
+              "velocityY": 410.33306884765625,
+              "speed": 479.99999776976597,
+              "exactLockedIdMatch": true,
+              "requiredLiveSnapshot": "curr"
+            },
+            "projectileAfterScreenshot": {
+              "snapshot": "curr",
+              "snapshotTick": 136,
+              "index": 0,
+              "id": 0,
+              "source": 7,
+              "role": 0,
+              "x": 1061.3114013671875,
+              "y": 1173.3675537109375,
+              "velocityX": -249.05174255371094,
+              "velocityY": 410.33306884765625,
+              "speed": 479.99999776976597,
+              "exactLockedIdMatch": true,
+              "requiredLiveSnapshot": "curr"
+            },
+            "zeroEnvelopeBeforePause": null,
+            "zeroEnvelopeAtPause": null,
+            "zeroEnvelopeAfterScreenshot": null,
+            "full": "gracie-spit/rendered-milestone-f2.png",
+            "fullBytes": 1060267,
+            "focus2x": "gracie-spit/rendered-milestone-2x-f2.png",
+            "focus2xBytes": 497032,
+            "focus2xGray": "gracie-spit/rendered-milestone-2x-f2-gray.png",
+            "focus2xGrayBytes": 252387,
+            "cropBox": {
+              "x": 320,
+              "y": 144,
+              "width": 640,
+              "height": 432
+            }
+          }
+        ],
+        "strips": {
+          "tick": "gracie-spit/rendered-milestone-strip.png",
+          "tickGray": "gracie-spit/rendered-milestone-strip-gray.png",
+          "focus2x": "gracie-spit/rendered-milestone-2x-strip.png",
+          "focus2xGray": "gracie-spit/rendered-milestone-2x-strip-gray.png"
+        }
+      },
+      "frames": [
+        {
+          "offset": 0,
+          "sourceFrameIndex": 63,
+          "videoPtsSeconds": 2.52,
+          "videoWallEpochMs": 1784044601920,
+          "simTick": 129,
+          "simTickDeltaFromEvent": 2,
+          "nearestRafSample": {
+            "pageNowMs": 2309.7999999821186,
+            "wallEpochMs": 1784044601912,
+            "simTick": 129,
+            "distanceMs": 8
+          },
+          "full": "gracie-spit/full-f0.png",
+          "fullBytes": 1411550,
+          "focus2x": "gracie-spit/focus-2x-f0.png",
+          "focus2xBytes": 465238,
+          "focus2xGray": "gracie-spit/focus-2x-f0-gray.png",
+          "focus2xGrayBytes": 215963,
+          "cropBox": {
+            "x": 320,
+            "y": 144,
+            "width": 640,
+            "height": 432
+          }
+        },
+        {
+          "offset": 1,
+          "sourceFrameIndex": 64,
+          "videoPtsSeconds": 2.56,
+          "videoWallEpochMs": 1784044601960,
+          "simTick": 129,
+          "simTickDeltaFromEvent": 2,
+          "nearestRafSample": {
+            "pageNowMs": 2359.2999999821186,
+            "wallEpochMs": 1784044601961.5,
+            "simTick": 129,
+            "distanceMs": 1.5
+          },
+          "full": "gracie-spit/full-f1.png",
+          "fullBytes": 1414776,
+          "focus2x": "gracie-spit/focus-2x-f1.png",
+          "focus2xBytes": 466951,
+          "focus2xGray": "gracie-spit/focus-2x-f1-gray.png",
+          "focus2xGrayBytes": 216715,
+          "cropBox": {
+            "x": 320,
+            "y": 144,
+            "width": 640,
+            "height": 432
+          }
+        },
+        {
+          "offset": 2,
+          "sourceFrameIndex": 65,
+          "videoPtsSeconds": 2.6,
+          "videoWallEpochMs": 1784044602000,
+          "simTick": 129,
+          "simTickDeltaFromEvent": 2,
+          "nearestRafSample": {
+            "pageNowMs": 2392.5,
+            "wallEpochMs": 1784044601994.7,
+            "simTick": 129,
+            "distanceMs": 5.300048828125
+          },
+          "full": "gracie-spit/full-f2.png",
+          "fullBytes": 1420584,
+          "focus2x": "gracie-spit/focus-2x-f2.png",
+          "focus2xBytes": 469834,
+          "focus2xGray": "gracie-spit/focus-2x-f2-gray.png",
+          "focus2xGrayBytes": 217668,
+          "cropBox": {
+            "x": 320,
+            "y": 144,
+            "width": 640,
+            "height": 432
+          }
+        }
+      ],
+      "serverMode": "production-preview",
+      "strips": {
+        "tick": "gracie-spit/tick-strip.png",
+        "tickGray": "gracie-spit/tick-strip-gray.png",
+        "focus2x": "gracie-spit/focus-2x-strip.png",
+        "focus2xGray": "gracie-spit/focus-2x-strip-gray.png"
+      }
+    }
+  ]
+}

@@ -90,20 +90,28 @@ describe('projectile visual truth attribution', () => {
       .toBe(PLAYER_PROJECTILE_VISUAL_FAMILY.generic);
   });
 
-  it('keeps attribution generation-safe and reserves Gracie Spit for its authoritative source code', () => {
+  it('keeps attribution generation-safe and maps both real Gracie Spit projectile routes', () => {
     const current = projectiles();
     const oldId = appendProjectile(current, 5, 108, 100, 400, 0);
+    const upgradedSpitId = appendProjectile(current, 7, 200, 208, 0, 400);
     const spitId = appendProjectile(
       current, 9, 400, 400, 400, 0, COMBAT_DAMAGE_SOURCE.heroSpit,
     );
     const truth = createProjectileVisualTruth(DEFAULT_CONFIG.projectileCap, DEFAULT_CONFIG.hz);
 
-    truth.update(current, [event()], 21);
+    truth.update(current, [
+      event(),
+      event({
+        sourceId: 'gracie-spit', originX: 200, originY: 200, dirX: 0, dirY: 1,
+      }),
+    ], 21);
 
     expect(truth.familyFor(oldId, COMBAT_DAMAGE_SOURCE.traitProjectile))
       .toBe(PLAYER_PROJECTILE_VISUAL_FAMILY.porcupineQuills);
     expect(truth.familyFor(makeId(5, 1), COMBAT_DAMAGE_SOURCE.traitProjectile))
       .toBe(PLAYER_PROJECTILE_VISUAL_FAMILY.generic);
+    expect(truth.familyFor(upgradedSpitId, COMBAT_DAMAGE_SOURCE.traitProjectile))
+      .toBe(PLAYER_PROJECTILE_VISUAL_FAMILY.gracieSpit);
     expect(truth.familyFor(spitId, COMBAT_DAMAGE_SOURCE.heroSpit))
       .toBe(PLAYER_PROJECTILE_VISUAL_FAMILY.gracieSpit);
   });

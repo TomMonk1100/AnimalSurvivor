@@ -5,6 +5,8 @@ import {
   createLootVisualPresentation,
   LOOT_VISUAL_STYLE,
   lootVisualRecipeForStyle,
+  PERSISTENT_LOOT_BREATH_PERIOD_TICKS,
+  PERSISTENT_LOOT_MAX_BREATH_HZ,
   powerPickupVisualStyleForRole,
   xpVisualStyleForValue,
 } from '../src/render/loot-visual-presentation';
@@ -153,6 +155,42 @@ describe('loot visual presentation', () => {
     expect(xpVisualStyleForValue(9, 4)).toBe(LOOT_VISUAL_STYLE.xpPrism);
     expect(xpVisualStyleForValue(undefined, 6)).toBe(LOOT_VISUAL_STYLE.xpGem);
     expect(powerPickupVisualStyleForRole(99)).toBeNull();
+  });
+
+  it('keeps persistent XP and power pickup breathing at or below 0.5Hz with small motion', () => {
+    const xp = makeId(20, 1);
+    const bomb = makeId(21, 1);
+    const snapshotAt = (tick: number) => renderSnapshot(
+      tick,
+      [{ id: xp, x: 24, y: 30, radius: 4, value: 1 }],
+      [{ id: bomb, x: 70, y: 80, radius: 12, role: POWER_PICKUP_KIND.bomb }],
+    );
+    const presentation = createLootVisualPresentation({ xpCapacity: 1, powerCapacity: 1 });
+
+    const atZero = presentation.update(snapshotAt(0), snapshotAt(0), 0);
+    const xpScaleAtZero = atZero.xp.scale[0]!;
+    const xpHaloAtZero = atZero.xp.haloScale[0]!;
+    const powerScaleAtZero = atZero.power.scale[0]!;
+    const atHalfBreath = presentation.update(snapshotAt(30), snapshotAt(30), 0);
+    const xpScaleAtHalfBreath = atHalfBreath.xp.scale[0]!;
+    const powerScaleAtHalfBreath = atHalfBreath.power.scale[0]!;
+    const atFullBreath = presentation.update(
+      snapshotAt(PERSISTENT_LOOT_BREATH_PERIOD_TICKS),
+      snapshotAt(PERSISTENT_LOOT_BREATH_PERIOD_TICKS),
+      0,
+    );
+
+    expect(PERSISTENT_LOOT_BREATH_PERIOD_TICKS).toBe(120);
+    expect(PERSISTENT_LOOT_MAX_BREATH_HZ).toBeLessThanOrEqual(0.5);
+    expect(atFullBreath.xp.scale[0]).toBeCloseTo(xpScaleAtZero, 6);
+    expect(atFullBreath.xp.haloScale[0]).toBeCloseTo(xpHaloAtZero, 6);
+    expect(atFullBreath.power.scale[0]).toBeCloseTo(powerScaleAtZero, 6);
+    expect(Math.abs(xpScaleAtHalfBreath - xpScaleAtZero) / xpScaleAtZero).toBeLessThan(0.055);
+    expect(Math.abs(powerScaleAtHalfBreath - powerScaleAtZero) / powerScaleAtZero).toBeLessThan(0.1);
+
+    for (const style of Object.values(LOOT_VISUAL_STYLE)) {
+      expect(lootVisualRecipeForStyle(style)?.pulseAmplitude).toBeLessThanOrEqual(0.05);
+    }
   });
 
   it('emits one bounded, deterministic collection choreography per departed token and preserves rare-token priority', () => {

@@ -1,0 +1,49 @@
+{
+  "source": "decoded from videos/clip-30s.webm",
+  "framesDirectory": "frames/clip-30s",
+  "framesRetained": false,
+  "frames": 250,
+  "fps": 25,
+  "grid": {
+    "rows": 8,
+    "columns": 8
+  },
+  "amplitudeThreshold": 0.1,
+  "maxSwingsPerSecond": 3,
+  "worstCell": {
+    "row": 3,
+    "column": 3
+  },
+  "swingsPerSecond": 4,
+  "offendingTimestamps": [
+    3.44,
+    3.56,
+    4.08,
+    4.16
+  ],
+  "failingCells": [
+    {
+      "row": 3,
+      "column": 3,
+      "swingsPerSecond": 4,
+      "timestamps": [
+        3.44,
+        3.56,
+        4.08,
+        4.16
+      ]
+    },
+    {
+      "row": 4,
+      "column": 4,
+      "swingsPerSecond": 4,
+      "timestamps": [
+        3.88,
+        4.04,
+        4.36,
+        4.88
+      ]
+    }
+  ],
+  "pass": false
+}

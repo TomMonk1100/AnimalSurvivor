@@ -35,10 +35,12 @@ describe('persistent zone visual presentation', () => {
     writeZone(snapshot, 0, makeId(0, 0), ZONE_TAG.stinkCloud);
     presentation.update(snapshot, 10, -50, 50, -1);
     expect(presentation.selectedId).toBe(makeId(0, 0));
+    expect(presentation.selectedAgeTicks).toBe(0);
 
     writeZone(snapshot, 1, makeId(1, 0), ZONE_TAG.stinkCloud, 140, 210);
     presentation.update(snapshot, 16, -50, 50, -1);
     expect(presentation.selectedId).toBe(makeId(1, 0));
+    expect(presentation.selectedAgeTicks).toBe(0);
     expect(presentation.transforms.count).toBe(1);
     expect(presentation.transforms.matrices[12]).toBeCloseTo(90);
     expect(presentation.transforms.matrices[14]).toBeCloseTo(-160);
@@ -56,11 +58,13 @@ describe('persistent zone visual presentation', () => {
     presentation.update(snapshot, 10, 0, 0, 1);
     presentation.update(snapshot, 16, 0, 0, 1);
     const primaryOpacity = presentation.opacity;
+    expect(presentation.selectedAgeTicks).toBe(6);
     presentation.update(snapshot, 100, 0, 0, 1);
 
     expect(primaryOpacity).toBeGreaterThan(0.5);
     expect(presentation.opacity).toBeGreaterThan(0);
     expect(presentation.opacity).toBeLessThan(primaryOpacity * 0.35);
+    expect(presentation.selectedAgeTicks).toBe(90);
   });
 
   it('ignores other persistent-zone tags and resets age safely after a run rewind', () => {

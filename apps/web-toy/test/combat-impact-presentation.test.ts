@@ -4,6 +4,7 @@ import {
   COMBAT_IMPACT_STYLE,
   combatImpactRecipeForStyle,
   createCombatImpactPresentation,
+  DEFAULT_NORMAL_IMPACT_LIFETIME_TICKS,
 } from '../src/render/combat-impact-presentation';
 
 function event(overrides: Partial<CombatPresentationEventView> = {}): CombatPresentationEventView {
@@ -40,12 +41,41 @@ describe('combat impact presentation', () => {
     expect(start.impacts.sparkCount[1]).toBeGreaterThan(start.impacts.sparkCount[0]!);
     expect(start.impacts.coreScale[1]).toBeGreaterThan(start.impacts.coreScale[0]!);
 
-    const atNormalExpiry = presentation.update([], 46);
-    expect(atNormalExpiry.impacts.count).toBe(1);
-    expect(atNormalExpiry.impacts.style[0]).toBe(COMBAT_IMPACT_STYLE.criticalEnemyHit);
-    expect(atNormalExpiry.impacts.progress[0]).toBeCloseTo(0.5);
+    // The terminal tick remains in the packed prefix with exact zero opacity;
+    // it is released only after the renderer has seen the no-pop endpoint.
+    const atNormalTerminal = presentation.update([], 46);
+    expect(atNormalTerminal.impacts.count).toBe(2);
+    expect(atNormalTerminal.impacts.progress[0]).toBe(1);
+    expect(atNormalTerminal.impacts.opacity[0]).toBe(0);
+    expect(atNormalTerminal.impacts.style[1]).toBe(COMBAT_IMPACT_STYLE.criticalEnemyHit);
+    expect(atNormalTerminal.impacts.progress[1]).toBeCloseTo(0.5);
 
-    expect(presentation.update([], 52).impacts.count).toBe(0);
+    expect(presentation.update([], 47).impacts.count).toBe(1);
+    const atCriticalTerminal = presentation.update([], 52);
+    expect(atCriticalTerminal.impacts.count).toBe(1);
+    expect(atCriticalTerminal.impacts.opacity[0]).toBe(0);
+    expect(presentation.update([], 53).impacts.count).toBe(0);
+  });
+
+  it('uses a calm ten-tick normal contact with a true-zero terminal sample', () => {
+    const presentation = createCombatImpactPresentation({ capacity: 1 });
+    const hit = event({ tick: 100 });
+    const releaseOpacities: number[] = [];
+
+    expect(DEFAULT_NORMAL_IMPACT_LIFETIME_TICKS).toBe(10);
+    for (let tick = 100; tick <= 110; tick++) {
+      const frame = presentation.update(tick === 100 ? [hit] : [], tick);
+      expect(frame.impacts.count).toBe(1);
+      if (tick >= 106) releaseOpacities.push(frame.impacts.opacity[0]!);
+    }
+
+    // No age-based sine modulation remains: after release starts, opacity
+    // moves only toward the exact terminal zero.
+    for (let index = 1; index < releaseOpacities.length; index++) {
+      expect(releaseOpacities[index]!).toBeLessThanOrEqual(releaseOpacities[index - 1]!);
+    }
+    expect(releaseOpacities.at(-1)).toBe(0);
+    expect(presentation.update([], 111).impacts.count).toBe(0);
   });
 
   it('deduplicates repeated authoritative event arrays and reuses its packed buffer', () => {

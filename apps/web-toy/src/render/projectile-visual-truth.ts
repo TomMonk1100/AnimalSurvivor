@@ -59,6 +59,7 @@ function finitePositiveInteger(value: number, fallback: number): number {
 
 function familyForEvent(event: ProjectileVisualTraitEvent): PlayerProjectileVisualFamily {
   if (event.kind === 'spawnProjectileBurst') {
+    if (event.sourceId === 'gracie-spit') return PLAYER_PROJECTILE_VISUAL_FAMILY.gracieSpit;
     if (event.sourceId === 'porcupine-quills') return PLAYER_PROJECTILE_VISUAL_FAMILY.porcupineQuills;
     if (event.sourceId === 'owl-pinions') return PLAYER_PROJECTILE_VISUAL_FAMILY.owlPinions;
   }

@@ -1,0 +1,64 @@
+{
+  "source": "decoded from videos/clip-180s.webm",
+  "frames": 250,
+  "fps": 25,
+  "grid": {
+    "rows": 8,
+    "columns": 8
+  },
+  "amplitudeThreshold": 0.1,
+  "maxSwingsPerSecond": 3,
+  "worstCell": {
+    "row": 4,
+    "column": 4
+  },
+  "swingsPerSecond": 6,
+  "offendingTimestamps": [
+    7.64,
+    7.72,
+    7.84,
+    7.92,
+    8,
+    8.08
+  ],
+  "failingCells": [
+    {
+      "row": 3,
+      "column": 3,
+      "swingsPerSecond": 4,
+      "timestamps": [
+        2.04,
+        2.12,
+        2.84,
+        2.96
+      ]
+    },
+    {
+      "row": 3,
+      "column": 4,
+      "swingsPerSecond": 4,
+      "timestamps": [
+        4.76,
+        4.92,
+        5.08,
+        5.16
+      ]
+    },
+    {
+      "row": 4,
+      "column": 4,
+      "swingsPerSecond": 6,
+      "timestamps": [
+        7.64,
+        7.72,
+        7.84,
+        7.92,
+        8,
+        8.08
+      ]
+    }
+  ],
+  "pass": false,
+  "framesDirectory": "frames/clip-180s",
+  "framesRetained": false
+}

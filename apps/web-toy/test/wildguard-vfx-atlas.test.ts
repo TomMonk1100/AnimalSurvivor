@@ -9,7 +9,7 @@ import {
 
 describe('Wildguard animated VFX routing', () => {
   it('routes every semantic effect into an authored four-by-four sheet', () => {
-    expect(Object.keys(WILDGUARD_VFX_CLIPS)).toHaveLength(31);
+    expect(Object.keys(WILDGUARD_VFX_CLIPS)).toHaveLength(32);
     for (const definition of Object.values(WILDGUARD_VFX_CLIPS)) {
       expect(definition.sequence.frames.length).toBeGreaterThan(0);
       expect(definition.sequence.ticksPerFrame).toBeGreaterThan(0);
@@ -22,24 +22,45 @@ describe('Wildguard animated VFX routing', () => {
     }
   });
 
-  it('keeps signature moves as multi-frame native-color sequences', () => {
-    expect(wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.foxSwipe).sequence.frames).toHaveLength(4);
-    expect(wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.earthWave).sequence.frames).toHaveLength(4);
-    expect(wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.spitComet).sequence.frames).toHaveLength(4);
+  it('enables deterministic half-frame crossfades for every multi-cell card sequence', () => {
+    for (const definition of Object.values(WILDGUARD_VFX_CLIPS)) {
+      const { sequence } = definition;
+      if (sequence.frames.length < 2) {
+        expect(sequence.crossfadeTicks).toBeUndefined();
+        continue;
+      }
+      expect(sequence.crossfadeTicks).toBe(Math.ceil(sequence.ticksPerFrame / 2));
+    }
+  });
+
+  it('uses one selected body frame for each signature and animates it by transform', () => {
+    expect(wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.foxSwipe).sequence.frames).toHaveLength(1);
+    expect(wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.earthWave).sequence.frames).toHaveLength(1);
+    expect(wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.spitComet).sequence.frames).toHaveLength(1);
     expect(wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.xpOrbit).sequence.loop).toBe(true);
   });
 
+  it('routes P2 hero signatures to dedicated body cells and keeps Saltwind on the old threat glyph', () => {
+    const earth = wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.earthWave);
+    const spit = wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.spitComet);
+    const saltwind = wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.saltwindEarthTelegraph);
+    expect(earth.sheet).toBe(WILDGUARD_VFX_SHEET.signatureBodies);
+    expect(earth.sequence.frames[0]).toMatchObject({ column: 0, row: 0 });
+    expect(spit.sheet).toBe(WILDGUARD_VFX_SHEET.signatureBodies);
+    expect(spit.sequence.frames[0]).toMatchObject({ column: 1, row: 0 });
+    expect(saltwind.sheet).toBe(WILDGUARD_VFX_SHEET.signature);
+    expect(saltwind.sequence.frames[0]).toMatchObject({ column: 1, row: 1 });
+  });
+
   it('loads dedicated transparent hero and world sheets rather than the old accent atlas', () => {
-    expect(WILDGUARD_VFX_SHEET_URLS.signature).toContain('wildguard-signature-frames-v2.png');
+    expect(WILDGUARD_VFX_SHEET_URLS.signature).toContain('wildguard-signature-frames-v3.png');
+    expect(WILDGUARD_VFX_SHEET_URLS.signatureBodies).toContain('wildguard-signature-bodies-v1.png');
     expect(WILDGUARD_VFX_SHEET_URLS.world).toContain('wildguard-world-frames-v2.png');
   });
 
-  it('routes every secondary attack family through one complete four-frame row', () => {
+  it('routes every secondary attack family through its deliberately selected coherent body frame', () => {
     const expectedRows = {
       pufferPulse: [WILDGUARD_VFX_SHEET.fields, 0],
-      geckoPad: [WILDGUARD_VFX_SHEET.fields, 1],
-      skunkCloud: [WILDGUARD_VFX_SHEET.fields, 2],
-      royalStink: [WILDGUARD_VFX_SHEET.fields, 3],
       mantisSweep: [WILDGUARD_VFX_SHEET.melee, 0],
       crabCrush: [WILDGUARD_VFX_SHEET.melee, 1],
       armadilloRoll: [WILDGUARD_VFX_SHEET.melee, 2],
@@ -57,9 +78,29 @@ describe('Wildguard animated VFX routing', () => {
     for (const [clip, [sheet, row]] of Object.entries(expectedRows)) {
       const definition = wildguardVfxClipDefinition(clip as keyof typeof WILDGUARD_VFX_CLIP);
       expect(definition.sheet).toBe(sheet);
-      expect(definition.sequence.frames).toHaveLength(4);
-      expect(definition.sequence.frames.map((frame) => frame.column)).toEqual([0, 1, 2, 3]);
-      expect(definition.sequence.frames.map((frame) => frame.row)).toEqual([row, row, row, row]);
+      expect(definition.sequence.frames).toHaveLength(1);
+      expect(definition.sequence.frames[0]!.row).toBe(row);
+      expect(definition.sequence.crossfadeTicks).toBeUndefined();
+    }
+  });
+
+  it('uses compact coherent erosion sequences for clouds, pads, and the fluffy shield', () => {
+    const expected = {
+      geckoPad: WILDGUARD_VFX_SHEET.geckoDissolve,
+      skunkCloud: WILDGUARD_VFX_SHEET.skunkDissolve,
+      royalStink: WILDGUARD_VFX_SHEET.royalStinkDissolve,
+      fluffyShield: WILDGUARD_VFX_SHEET.fluffyShieldDissolve,
+    } as const;
+
+    for (const [clip, sheet] of Object.entries(expected)) {
+      const definition = wildguardVfxClipDefinition(clip as keyof typeof WILDGUARD_VFX_CLIP);
+      expect(definition.sheet).toBe(sheet);
+      expect(definition.sequence.loop).toBe(false);
+      expect(definition.sequence.frames).toHaveLength(8);
+      expect(definition.sequence.ticksPerFrame).toBe(2);
+      expect(definition.sequence.crossfadeTicks).toBe(1);
+      expect(definition.sequence.frames[0]).toMatchObject({ column: 0, row: 0 });
+      expect(definition.sequence.frames[7]).toMatchObject({ column: 3, row: 1 });
     }
   });
 
@@ -68,5 +109,9 @@ describe('Wildguard animated VFX routing', () => {
     expect(WILDGUARD_VFX_SHEET_URLS.melee).toContain('wildguard-melee-frames-v3.png');
     expect(WILDGUARD_VFX_SHEET_URLS.projectile).toContain('wildguard-projectile-frames-v3.png');
     expect(WILDGUARD_VFX_SHEET_URLS.aura).toContain('wildguard-aura-frames-v3.png');
+    expect(WILDGUARD_VFX_SHEET_URLS.geckoDissolve).toContain('wildguard-gecko-dissolve-frames-v1.png');
+    expect(WILDGUARD_VFX_SHEET_URLS.skunkDissolve).toContain('wildguard-skunk-dissolve-frames-v1.png');
+    expect(WILDGUARD_VFX_SHEET_URLS.royalStinkDissolve).toContain('wildguard-royal-stink-dissolve-frames-v1.png');
+    expect(WILDGUARD_VFX_SHEET_URLS.fluffyShieldDissolve).toContain('wildguard-fluffy-shield-dissolve-frames-v1.png');
   });
 });

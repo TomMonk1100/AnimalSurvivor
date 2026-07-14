@@ -62,6 +62,7 @@
 import * as pc from 'playcanvas';
 import type { BiomeId, SimConfig } from '@sim';
 import {
+  COMBAT_DAMAGE_SOURCE,
   DEFAULT_CONFIG,
   idSlot,
   POWER_PICKUP_KIND,
@@ -95,6 +96,11 @@ import { createContextLossController } from './context-loss-controller';
 import { WILDGUARD_ENEMY_SPRITE_URLS } from './wildguard-enemy-sprites';
 import { clampCameraTarget } from './camera-bounds';
 import { createDamageNumberPresentation } from './damage-number-presentation';
+import {
+  shouldRenderXpPhysicalMarker,
+  shouldRenderXpIllustratedAccent,
+  shouldRenderXpIllustratedHalo,
+} from './xp-visual-density-governor';
 import type { CombatPresentationEventView } from '../presentation/combat-presentation-events';
 import { projectCombatDefensePresentationEvents } from '../presentation/combat-defense-presentation';
 import {
@@ -111,18 +117,38 @@ import {
   COMBAT_IMPACT_STYLE,
   createCombatImpactPresentation,
 } from './combat-impact-presentation';
+import { createImpactVfxCompositePresentation } from './impact-vfx-composite-presentation';
+import {
+  ENEMY_HIT_FLASH_AGE_OPACITY,
+  ENEMY_HIT_FLASH_LIFETIME_TICKS,
+  createEnemyHitFlashPresentation,
+} from './enemy-hit-flash-presentation';
+import { createCameraImpactShakePresentation } from './camera-impact-shake';
 import {
   PERSISTENT_ZONE_PRIMARY_CAPACITY,
   createPersistentZoneVisualPresentation,
 } from './persistent-zone-visual-presentation';
 import {
   createWildguardVfxMaterialBank,
+  WILDGUARD_VFX_CLIP,
+  type WildguardVfxClip,
 } from './wildguard-vfx-atlas';
 import { createIllustratedVfxPresentation } from './illustrated-vfx-presentation';
+import { createSignatureVfxCompositePresentation } from './signature-vfx-composite-presentation';
+import {
+  CRITICAL_IMPACT_GOLD,
+  PROCEDURAL_UNDERPAINT_COLORS,
+  type AttackVfxFamily,
+} from './attack-vfx-palette';
 import {
   createProjectileVisualTruth,
   PLAYER_PROJECTILE_VISUAL_FAMILY,
 } from './projectile-visual-truth';
+import {
+  createHeroSpitProjectileSignaturePresentation,
+  heroSpitBodyForwardScaleForRadius,
+  heroSpitBodyLateralScaleForRadius,
+} from './projectile-signature-vfx-presentation';
 
 /** Backing-store size cap: CSS size * min(devicePixelRatio, RESOLUTION_CAP). */
 const RESOLUTION_CAP = 2;
@@ -139,6 +165,14 @@ const CAMERA_FOLLOW_BACK_OFFSET = 520;
  * glance without introducing a lagging camera or touching simulation space.
  */
 const CAMERA_ORTHO_HEIGHT = 190;
+/**
+ * Player attack cards are transparent, which means tall decorative props can
+ * otherwise depth-occlude a valid hit read. This layer clears only depth after
+ * the world and keeps the compact combat anatomy visible without changing
+ * collision, targeting, or the normal-blend material policy.
+ */
+const COMBAT_VFX_FOREGROUND_LAYER_ID = 71;
+const COMBAT_VFX_FOREGROUND_LAYERS = Object.freeze([COMBAT_VFX_FOREGROUND_LAYER_ID]);
 
 /** Matches the forest floor so a dropped frame still reads as intentional terrain. */
 const CLEAR_COLOR = new pc.Color(0.12, 0.23, 0.12);
@@ -146,8 +180,18 @@ const CLEAR_COLOR = new pc.Color(0.12, 0.23, 0.12);
 const PLAYER_COLOR = new pc.Color(0.2, 0.9, 0.95); // cyan
 // Wildguard combat language: warm = hero power, cold mint/gold = rewards,
 // coral/magenta = danger. These lanes stay readable over either arena floor.
-const PROJECTILE_COLOR = new pc.Color(1, 0.76, 0.18); // heroic gold
-const PICKUP_COLOR = new pc.Color(0.16, 1, 0.66); // cold mint, never grass green
+// Routine hero projectiles use the muted physical lane. Full gold is reserved
+// for the critical-impact core below, so ordinary high-volume shots cannot
+// impersonate a crit or turn a dense run into a yellow wash.
+const PROJECTILE_COLOR = new pc.Color(
+  PROCEDURAL_UNDERPAINT_COLORS.physical.r,
+  PROCEDURAL_UNDERPAINT_COLORS.physical.g,
+  PROCEDURAL_UNDERPAINT_COLORS.physical.b,
+);
+// The physical pickup remains a mint marker, but it intentionally sits below
+// attack cores in value/saturation. Dense rewards are readable as a trail,
+// not a second cyan VFX field.
+const PICKUP_COLOR = new pc.Color(0.08, 0.64, 0.42); // quiet mint; accents carry the reward sparkle
 const BOMB_PICKUP_COLOR = new pc.Color(1, 0.3, 0.1); // urgent ember-orange
 const MAGNET_PICKUP_COLOR = new pc.Color(0.4, 0.62, 1); // map-wide pull blue
 const FOOD_PICKUP_COLOR = new pc.Color(0.44, 1, 0.22); // bright restorative bloom
@@ -160,6 +204,18 @@ const DENIAL_ENEMY_COLOR = new pc.Color(0.55, 0.35, 0.9); // dusk violet
 const FLANKER_ENEMY_COLOR = new pc.Color(1, 0.24, 0.5); // hot pink
 const SUPPORT_ENEMY_COLOR = new pc.Color(0.28, 0.95, 0.42); // healing green
 const MARKED_ENEMY_COLOR = new pc.Color(0.76, 0.3, 1); // Bat Ears weak-point halo
+const WILDGUARD_IMPACT_CORE_URL = new URL(
+  '../../../../assets/ui/vfx/wildguard-impact-core-v1.png',
+  import.meta.url,
+).href;
+const WILDGUARD_SIGNATURE_DEBRIS_URL = new URL(
+  '../../../../assets/ui/vfx/wildguard-signature-debris-v1.png',
+  import.meta.url,
+).href;
+const WILDGUARD_GROUND_CONTACT_URL = new URL(
+  '../../../../assets/ui/vfx/wildguard-ground-contact-v1.png',
+  import.meta.url,
+).href;
 const ELITE_SCALE_MULTIPLIER = 1.35;
 const BOSS_SCALE_MULTIPLIER = 2.2;
 const RANGED_SCALE_MULTIPLIER = 1.62;
@@ -229,6 +285,128 @@ function createCutoutSpriteMaterial(tint: pc.Color): pc.StandardMaterial {
   material.alphaTest = 0.14;
   material.blendType = pc.BLEND_NONE;
   material.depthWrite = true;
+  material.cull = pc.CULLFACE_NONE;
+  material.update();
+  return material;
+}
+
+/**
+ * A white, normal-blend copy of an existing enemy cutout. The four shared
+ * materials are constructed once and receive the same alpha masks as their
+ * creature counterparts; hit events only write instance transforms into the
+ * retained age-bucket pools below.
+ */
+function createEnemyHitFlashMaterial(): pc.StandardMaterial {
+  const material = new pc.StandardMaterial();
+  material.useLighting = false;
+  // This is a whole-silhouette confirmation, not a black translucent copy.
+  // StandardMaterial multiplies the bound sprite RGB by diffuse before adding
+  // emissive; a black diffuse therefore made a valid overlay effectively
+  // invisible against dark swarm art. Keep the shared sprite alpha, but start
+  // from white so the three P5 opacity buckets have a visible contact read.
+  material.diffuse.set(1, 1, 1);
+  material.emissive.set(1, 1, 1);
+  material.opacity = 1;
+  // Keep the source sheet's feathered alpha instead of reintroducing the
+  // hard cutout edge used by the normal swarm material.
+  material.alphaTest = 0;
+  // This is a whole-enemy white/emissive overlay, not a compact glint. Normal
+  // blend keeps it readable without turning a dense swarm into additive haze.
+  material.blendType = pc.BLEND_NORMAL;
+  material.depthWrite = false;
+  material.cull = pc.CULLFACE_NONE;
+  material.update();
+  return material;
+}
+
+/**
+ * The compact textured flash is the one additive layer in an impact stack.
+ * Its authored alpha silhouette carries the hot center; body/debris/ring stay
+ * normal-blend so a busy swarm does not turn into additive white noise.
+ */
+function createImpactCoreMaterial(emissive = new pc.Color(0.82, 0.68, 0.3)): pc.StandardMaterial {
+  const material = new pc.StandardMaterial();
+  material.useLighting = false;
+  material.diffuse.set(1, 1, 1);
+  material.emissive.copy(emissive);
+  material.opacity = 1;
+  material.blendType = pc.BLEND_ADDITIVEALPHA;
+  material.depthWrite = false;
+  material.cull = pc.CULLFACE_NONE;
+  material.update();
+  return material;
+}
+
+/**
+ * Signature debris deliberately uses the muted attack-family underpaint,
+ * rather than a second saturated copy of the painted body card. The material
+ * is normal-blend and fixed per family, so it can never create a white-noise
+ * additive wash under a dense survivor swarm.
+ */
+const SIGNATURE_DEBRIS_ATLAS_COLUMN: Readonly<Record<AttackVfxFamily, number>> = Object.freeze({
+  physical: 0,
+  earth: 1,
+  venom: 2,
+  arcane: 3,
+  storm: 3,
+  fire: 3,
+});
+
+function createSignatureDebrisMaterial(family: AttackVfxFamily, color: pc.Color): pc.StandardMaterial {
+  const material = new pc.StandardMaterial();
+  material.useLighting = false;
+  // Keep the hand-authored chip facets while tinting them into the parent
+  // family. A normal blend and a tiny emissive floor read as physical debris
+  // over the forest rather than another saturated additive core.
+  material.diffuse.copy(color);
+  material.emissive.set(color.r * 0.08, color.g * 0.08, color.b * 0.08);
+  const atlasColumn = SIGNATURE_DEBRIS_ATLAS_COLUMN[family];
+  material.diffuseMapTiling.set(0.25, 1);
+  material.diffuseMapOffset.set(atlasColumn * 0.25, 0);
+  material.opacityMapTiling.set(0.25, 1);
+  material.opacityMapOffset.set(atlasColumn * 0.25, 0);
+  material.opacity = 1;
+  material.blendType = pc.BLEND_NORMAL;
+  material.depthWrite = false;
+  material.cull = pc.CULLFACE_NONE;
+  material.update();
+  return material;
+}
+
+/** A soft normal-blend ellipse anchors each card without making a neon ring. */
+function createImpactGroundRingMaterial(): pc.StandardMaterial {
+  const material = new pc.StandardMaterial();
+  material.useLighting = false;
+  // The authored contact texture is intentionally low-alpha so it can sit
+  // below a dense swarm. A warm value lift lets that alpha-shaped band remain
+  // visible over the dark green floor without increasing the <=0.25 opacity
+  // budget or adding an additive layer.
+  // Preserve the authored alpha / normal-blend ceiling, but give its quiet
+  // ground contact enough value contrast to survive the forest at the legal
+  // 0.25 opacity cap. This is deliberately not a brightness or blend-mode
+  // escalation: the contact remains a restrained warm anchor below the body.
+  material.diffuse.set(1, 1, 0.88);
+  material.emissive.set(0.24, 0.17, 0.06);
+  material.opacity = 1;
+  material.blendType = pc.BLEND_NORMAL;
+  material.depthWrite = false;
+  material.cull = pc.CULLFACE_NONE;
+  material.update();
+  return material;
+}
+
+/** A restrained cool variant for Gracie's real projectile contact oval. */
+function createHeroSpitGroundContactMaterial(): pc.StandardMaterial {
+  const material = new pc.StandardMaterial();
+  material.useLighting = false;
+  // It shares the authored alpha ellipse with impact contact, but the cool
+  // teal-white tint cleanly separates a moving spit from Gracie's warm fur
+  // and the forest floor. This remains normal blend at the same <=0.25 cap.
+  material.diffuse.set(0.5, 0.96, 0.9);
+  material.emissive.set(0.04, 0.15, 0.13);
+  material.opacity = 1;
+  material.blendType = pc.BLEND_NORMAL;
+  material.depthWrite = false;
   material.cull = pc.CULLFACE_NONE;
   material.update();
   return material;
@@ -330,6 +508,53 @@ interface VfxRoutedBatch {
   opacityCount: number;
 }
 
+interface EnemyHitFlashAgeRoute {
+  readonly store: VfxTransformStore;
+  readonly batch: InstancedCategoryBatch;
+}
+
+interface EnemyHitFlashRoute {
+  readonly ageRoutes: readonly EnemyHitFlashAgeRoute[];
+}
+
+/** A fixed-opacity GPU lane used to make descriptor fades visible without per-cast materials. */
+interface VfxOpacityBucket {
+  readonly store: VfxTransformStore;
+  readonly batch: InstancedCategoryBatch;
+  readonly opacity: number;
+}
+
+/** Fixed material/transform lanes for the core + physical debris of one attack family. */
+interface SignatureVfxRoute {
+  readonly coreBuckets: readonly VfxOpacityBucket[];
+  readonly debrisBuckets: readonly VfxOpacityBucket[];
+}
+
+const ENEMY_HIT_FLASH_RENDER_CAPACITY = 48;
+const IMPACT_COMPOSITE_CAPACITY = 48;
+const IMPACT_NORMAL_DEBRIS_CAPACITY = IMPACT_COMPOSITE_CAPACITY * 3;
+const IMPACT_CRITICAL_DEBRIS_CAPACITY = IMPACT_COMPOSITE_CAPACITY * 7;
+/** Matches the rendered-card admission capacity; all signature sublayers are retained pools. */
+const SIGNATURE_VFX_COMPOSITE_CAPACITY = 40;
+const SIGNATURE_VFX_DEBRIS_CAPACITY = SIGNATURE_VFX_COMPOSITE_CAPACITY * 7;
+// Gracie's anatomy is driven by live projectile snapshots, so it owns a small
+// dedicated retained lane rather than competing with event-owned signatures.
+const HERO_SPIT_SIGNATURE_CAPACITY = 16;
+const HERO_SPIT_SIGNATURE_DEBRIS_CAPACITY = HERO_SPIT_SIGNATURE_CAPACITY * 3;
+// Four retained opacity steps are enough to preserve a readable per-fragment
+// fade without custom instance attributes or a material/entity per cast.
+const SIGNATURE_CORE_OPACITY_BUCKETS = Object.freeze([0.18, 0.42, 0.66, 0.82]);
+const SIGNATURE_DEBRIS_OPACITY_BUCKETS = Object.freeze([0.08, 0.22, 0.38, 0.52]);
+// Signature contacts must survive the forest floor at gameplay scale, but the
+// hard production-plan ceiling remains 0.25 normal-blend opacity.
+const SIGNATURE_GROUND_OPACITY_BUCKETS = Object.freeze([0.06, 0.14, 0.21, 0.25]);
+const IMPACT_CORE_OPACITY_BUCKETS = Object.freeze([0.16, 0.4, 0.68, 0.9]);
+const IMPACT_DEBRIS_OPACITY_BUCKETS = Object.freeze([0.08, 0.22, 0.4, 0.6]);
+const IMPACT_GROUND_OPACITY_BUCKETS = Object.freeze([0.04, 0.1, 0.17, 0.24]);
+const DISSOLVE_FRAME_COUNT = 8;
+const DISSOLVE_TICKS_PER_FRAME = 2;
+const PERSISTENT_DISSOLVE_MATURE_FRAME = 4;
+
 /**
  * Descriptor families are routed into a small number of retained instanced
  * draws. The material uniform is batch-scoped, so an opacity average avoids
@@ -361,6 +586,77 @@ function sumBatchViews(
   let total = 0;
   for (const batch of batches) total += batch[field];
   return total;
+}
+
+/**
+ * Persistent primary lanes are one fixed batch, so their age selects one
+ * source-preserving dissolve cell. The concurrent spawn card crossfades the
+ * same sequence; this mature lane simply continues into the quiet footprint.
+ */
+function dissolveFrameIndex(ageTicks: number | null): number {
+  const age = ageTicks === null || !Number.isFinite(ageTicks) ? 0 : Math.max(0, Math.floor(ageTicks));
+  return Math.min(DISSOLVE_FRAME_COUNT - 1, Math.floor(age / DISSOLVE_TICKS_PER_FRAME));
+}
+
+/**
+ * The short-lived spawn card owns the full eight-frame disappearance. A
+ * persistent damage zone instead settles on one coherent mature cell, so it
+ * remains legible for its authoritative lifetime instead of becoming an
+ * invisible terminal dissolve after half a second.
+ */
+function persistentDissolveFrameIndex(ageTicks: number | null): number {
+  return Math.min(PERSISTENT_DISSOLVE_MATURE_FRAME, dissolveFrameIndex(ageTicks));
+}
+
+function attackColorForFamily(family: AttackVfxFamily): pc.Color {
+  const color = PROCEDURAL_UNDERPAINT_COLORS[family];
+  return new pc.Color(color.r, color.g, color.b);
+}
+
+/**
+ * The compact core shares one generated texture but receives the exact attack
+ * family's underpaint tint. The painted body still carries identity; this
+ * only makes the white-hot center land in the same colour language.
+ */
+function signatureVfxFamilyForClip(clip: WildguardVfxClip): AttackVfxFamily {
+  switch (clip) {
+    case WILDGUARD_VFX_CLIP.earthWave:
+    case WILDGUARD_VFX_CLIP.armadilloRoll:
+      return 'earth';
+    case WILDGUARD_VFX_CLIP.spitComet:
+    case WILDGUARD_VFX_CLIP.pufferPulse:
+    case WILDGUARD_VFX_CLIP.geckoPad:
+    case WILDGUARD_VFX_CLIP.skunkCloud:
+    case WILDGUARD_VFX_CLIP.royalStink:
+      return 'venom';
+    case WILDGUARD_VFX_CLIP.thornstorm:
+    case WILDGUARD_VFX_CLIP.batSonar:
+    case WILDGUARD_VFX_CLIP.midnightRadar:
+      return 'arcane';
+    case WILDGUARD_VFX_CLIP.owlPinions:
+    case WILDGUARD_VFX_CLIP.thunderbug:
+    case WILDGUARD_VFX_CLIP.fireflyOrbit:
+      return 'storm';
+    case WILDGUARD_VFX_CLIP.meteorImpact:
+      return 'fire';
+    default:
+      return 'physical';
+  }
+}
+
+/** Chooses the nearest retained alpha lane for one descriptor's authored fade. */
+function opacityBucketIndex(opacity: number, buckets: readonly number[]): number {
+  if (!Number.isFinite(opacity) || opacity <= 0) return -1;
+  let selected = 0;
+  let distance = Math.abs(opacity - buckets[0]!);
+  for (let index = 1; index < buckets.length; index++) {
+    const nextDistance = Math.abs(opacity - buckets[index]!);
+    if (nextDistance < distance) {
+      selected = index;
+      distance = nextDistance;
+    }
+  }
+  return selected;
 }
 
 function clearColorForPalette(biomeId: BiomeId, paletteId: PaletteId): pc.Color {
@@ -452,6 +748,26 @@ export function createRenderer(
   // in one controlled range instead of clipping the generated ground art.
   camera.camera!.gammaCorrection = pc.GAMMA_SRGB;
   camera.camera!.toneMapping = pc.TONEMAP_ACES;
+  // Put short-lived player action anatomy after the forest's opaque/transparent
+  // dressing but before the immediate/UI layers. Clearing depth here prevents a
+  // non-colliding canopy or boulder from erasing a real player hit; all VFX
+  // materials remain normal/additive exactly as authored and still share their
+  // fixed retained pools.
+  const combatVfxForegroundLayer = new pc.Layer({
+    id: COMBAT_VFX_FOREGROUND_LAYER_ID,
+    name: 'combat-vfx-foreground',
+    clearDepthBuffer: true,
+    transparentSortMode: pc.SORTMODE_BACK2FRONT,
+  });
+  const immediateLayer = app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
+  const insertBeforeImmediate = immediateLayer === null
+    ? app.scene.layers.layerList.length
+    : app.scene.layers.getTransparentIndex(immediateLayer);
+  app.scene.layers.insertTransparent(
+    combatVfxForegroundLayer,
+    insertBeforeImmediate < 0 ? app.scene.layers.layerList.length : insertBeforeImmediate,
+  );
+  camera.camera!.layers = [...camera.camera!.layers, COMBAT_VFX_FOREGROUND_LAYER_ID];
   camera.setPosition(0, CAMERA_HEIGHT, CAMERA_FOLLOW_BACK_OFFSET);
   camera.lookAt(0, 0, 0, 0, 0, -1);
   app.root.addChild(camera);
@@ -489,17 +805,76 @@ export function createRenderer(
   const denialEnemyMaterial = createCutoutSpriteMaterial(DENIAL_ENEMY_COLOR);
   const flankerEnemyMaterial = createCutoutSpriteMaterial(FLANKER_ENEMY_COLOR);
   const supportEnemyMaterial = createCutoutSpriteMaterial(SUPPORT_ENEMY_COLOR);
+  // These four materials share the same authored alpha masks as the enemy
+  // families, but render a brief white emissive overlay on exact hit targets.
+  const walkerEnemyHitFlashMaterial = createEnemyHitFlashMaterial();
+  const runnerEnemyHitFlashMaterial = createEnemyHitFlashMaterial();
+  const bruteEnemyHitFlashMaterial = createEnemyHitFlashMaterial();
+  const bossEnemyHitFlashMaterial = createEnemyHitFlashMaterial();
   const markedEnemyMaterial = createFlatMaterial(MARKED_ENEMY_COLOR);
   const hostileProjectileMaterial = createFlatMaterial(HOSTILE_PROJECTILE_COLOR);
   const enemyShadowMaterial = createShadowMaterial();
   const playerMaterial = createCreatureMaterial(PLAYER_COLOR);
+  // Normal impacts stay in the shared muted physical lane. The only
+  // full-saturation gold core is routed by critical impact style below.
+  const impactCoreMaterial = createImpactCoreMaterial(attackColorForFamily('physical'));
+  const criticalImpactCoreMaterial = createImpactCoreMaterial(new pc.Color(
+    CRITICAL_IMPACT_GOLD.r,
+    CRITICAL_IMPACT_GOLD.g,
+    CRITICAL_IMPACT_GOLD.b,
+  ));
+  // Generated core texture, six fixed family tints. They are constructed once
+  // and bound to one decoded texture below; casts only choose an existing
+  // instanced lane.
+  const signatureCoreMaterials: Record<AttackVfxFamily, pc.StandardMaterial> = {
+    physical: createImpactCoreMaterial(attackColorForFamily('physical')),
+    // Benny's ridge body owns the ochre/umber palette. Its compact impact
+    // core is deliberately ivory so it reads as a leading cracked-earth hit,
+    // not as a fourth brown mountain in the lane.
+    earth: createImpactCoreMaterial(new pc.Color(1, 0.97, 0.84)),
+    // Venom's body already owns the teal/magenta family. A near-white core
+    // stays visibly separate at the comet head, then lets the painted tail
+    // carry the venom hue instead of blending the two layers together.
+    venom: createImpactCoreMaterial(new pc.Color(1, 1, 0.88)),
+    arcane: createImpactCoreMaterial(attackColorForFamily('arcane')),
+    storm: createImpactCoreMaterial(attackColorForFamily('storm')),
+    fire: createImpactCoreMaterial(attackColorForFamily('fire')),
+  };
+  const signatureDebrisMaterials: Record<AttackVfxFamily, pc.StandardMaterial> = {
+    physical: createSignatureDebrisMaterial('physical', attackColorForFamily('physical')),
+    earth: createSignatureDebrisMaterial('earth', attackColorForFamily('earth')),
+    venom: createSignatureDebrisMaterial('venom', attackColorForFamily('venom')),
+    arcane: createSignatureDebrisMaterial('arcane', attackColorForFamily('arcane')),
+    storm: createSignatureDebrisMaterial('storm', attackColorForFamily('storm')),
+    fire: createSignatureDebrisMaterial('fire', attackColorForFamily('fire')),
+  };
+  const impactGroundRingMaterial = createImpactGroundRingMaterial();
+  // Gracie's core/contact use two dedicated fixed materials so their cool
+  // muzzle anatomy does not inherit the warm generic impact palette.
+  const heroSpitCoreMaterial = createImpactCoreMaterial(new pc.Color(0.58, 1, 0.96));
+  const heroSpitGroundContactMaterial = createHeroSpitGroundContactMaterial();
 
   // The two authored sheets are the actual combat language. The bank owns a
   // finite material per painted cell and preserves native source colors;
   // semantic lanes select a cell/flipbook frame without per-event allocation.
   const wildguardVfxMaterialBank = createWildguardVfxMaterialBank(app.graphicsDevice);
+  // Some high-volume lanes apply a batch-scoped opacity override every frame.
+  // Keep their two signature-adjacent materials independent from the
+  // illustrated-card pool so a future renderer/backend change cannot let an
+  // idle threat or projectile lane affect a live hero cast. These are two
+  // fixed startup clones sharing the decoded atlas textures—never per-event
+  // materials or allocations.
+  const isolatedVfxMaterials: pc.StandardMaterial[] = [];
+  const isolateVfxMaterial = (source: pc.StandardMaterial): pc.StandardMaterial => {
+    const isolated = source.clone();
+    isolated.update();
+    isolatedVfxMaterials.push(isolated);
+    return isolated;
+  };
   const playerProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('normalImpact');
-  const spitProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('spitComet', 1);
+  const spitProjectileAccentMaterial = isolateVfxMaterial(
+    wildguardVfxMaterialBank.materialForFrame('spitComet', 1),
+  );
   // Trait projectile art is selected only after the renderer has tied a
   // command to a real live projectile identity. Each family remains one
   // shared flipbook material and one bounded instanced draw.
@@ -537,7 +912,7 @@ export function createRenderer(
     charger: wildguardVfxMaterialBank.materialForFrame('hostileThorn', 1),
     elite: wildguardVfxMaterialBank.materialForFrame('hostileThorn', 2),
     boss: wildguardVfxMaterialBank.materialForFrame('hostileThorn', 1),
-    saltwind: wildguardVfxMaterialBank.materialForFrame('earthWave', 1),
+    saltwind: isolateVfxMaterial(wildguardVfxMaterialBank.materialForFrame('saltwindEarthTelegraph')),
     support: wildguardVfxMaterialBank.materialForFrame('fluffyShield', 1),
   };
   const threatRingMaterials: Record<EnemyThreatPaletteId, pc.StandardMaterial> = {
@@ -564,22 +939,45 @@ export function createRenderer(
   const walkerTextureBinding = bindCutoutSpriteTexture(
     app.graphicsDevice,
     WILDGUARD_ENEMY_SPRITE_URLS.walker,
-    [walkerEnemyMaterial, chargerEnemyMaterial, supportEnemyMaterial],
+    [walkerEnemyMaterial, chargerEnemyMaterial, supportEnemyMaterial, walkerEnemyHitFlashMaterial],
   );
   const runnerTextureBinding = bindCutoutSpriteTexture(
     app.graphicsDevice,
     WILDGUARD_ENEMY_SPRITE_URLS.runner,
-    [runnerEnemyMaterial, rangedEnemyMaterial, flankerEnemyMaterial],
+    [runnerEnemyMaterial, rangedEnemyMaterial, flankerEnemyMaterial, runnerEnemyHitFlashMaterial],
   );
   const bruteTextureBinding = bindCutoutSpriteTexture(
     app.graphicsDevice,
     WILDGUARD_ENEMY_SPRITE_URLS.brute,
-    [bruteEnemyMaterial, eliteEnemyMaterial, denialEnemyMaterial],
+    [bruteEnemyMaterial, eliteEnemyMaterial, denialEnemyMaterial, bruteEnemyHitFlashMaterial],
   );
   const bossTextureBinding = bindCutoutSpriteTexture(
     app.graphicsDevice,
     WILDGUARD_ENEMY_SPRITE_URLS.forestBoss,
-    [bossEnemyMaterial],
+    [bossEnemyMaterial, bossEnemyHitFlashMaterial],
+  );
+  // Cores and physical debris deliberately use separate silhouettes. Reusing
+  // the faceted core star made every shard read as an identical spark burst;
+  // this dedicated matte chip keeps debris normal-blend and recognisably solid.
+  const impactCoreTextureBinding = bindCutoutSpriteTexture(
+    app.graphicsDevice,
+    WILDGUARD_IMPACT_CORE_URL,
+    [
+      impactCoreMaterial,
+      criticalImpactCoreMaterial,
+      heroSpitCoreMaterial,
+      ...Object.values(signatureCoreMaterials),
+    ],
+  );
+  const signatureDebrisTextureBinding = bindCutoutSpriteTexture(
+    app.graphicsDevice,
+    WILDGUARD_SIGNATURE_DEBRIS_URL,
+    Object.values(signatureDebrisMaterials),
+  );
+  const impactGroundContactTextureBinding = bindCutoutSpriteTexture(
+    app.graphicsDevice,
+    WILDGUARD_GROUND_CONTACT_URL,
+    [impactGroundRingMaterial, heroSpitGroundContactMaterial],
   );
 
   const playerEntity = new pc.Entity('player');
@@ -686,6 +1084,7 @@ export function createRenderer(
     worldHalfWidth,
     worldHalfHeight,
     wildguardVfxMaterialBank,
+    { layers: COMBAT_VFX_FOREGROUND_LAYERS },
   );
   const walkerEnemyBatch = createInstancedCategoryBatch(
     app.graphicsDevice,
@@ -848,6 +1247,57 @@ export function createRenderer(
     markedEnemyMaterial,
     0.12,
   );
+  function createEnemyHitFlashRoute(
+    name: string,
+    mesh: pc.Mesh,
+    material: pc.Material,
+  ): EnemyHitFlashRoute {
+    const ageRoutes: EnemyHitFlashAgeRoute[] = [];
+    for (let age = 0; age < ENEMY_HIT_FLASH_LIFETIME_TICKS; age++) {
+      const batch = createInstancedCategoryBatch(
+        app.graphicsDevice,
+        entitiesRoot,
+        `${name}-${age}`,
+        ENEMY_HIT_FLASH_RENDER_CAPACITY,
+        mesh,
+        material,
+        0.115,
+      );
+      batch.setOpacity(ENEMY_HIT_FLASH_AGE_OPACITY[age]!);
+      ageRoutes.push({
+        store: new VfxTransformStore(ENEMY_HIT_FLASH_RENDER_CAPACITY),
+        batch,
+      });
+    }
+    return { ageRoutes };
+  }
+
+  // Age-bucketed white overlays approximate an emissive lerp without a
+  // material per enemy or a custom instance-colour shader. The slot lifetime
+  // is three ticks, so each bucket has one deterministic opacity.
+  const enemyHitFlashRoutes = {
+    walker: createEnemyHitFlashRoute(
+      'enemy-hit-flash-walker', walkerEnemyMesh, walkerEnemyHitFlashMaterial,
+    ),
+    runner: createEnemyHitFlashRoute(
+      'enemy-hit-flash-runner', runnerEnemyMesh, runnerEnemyHitFlashMaterial,
+    ),
+    brute: createEnemyHitFlashRoute(
+      'enemy-hit-flash-brute', bruteEnemyMesh, bruteEnemyHitFlashMaterial,
+    ),
+    boss: createEnemyHitFlashRoute(
+      'enemy-hit-flash-boss', bossEnemyMesh, bossEnemyHitFlashMaterial,
+    ),
+  } as const;
+  const enemyHitFlashAgeRoutes: readonly EnemyHitFlashAgeRoute[] = [
+    ...enemyHitFlashRoutes.walker.ageRoutes,
+    ...enemyHitFlashRoutes.runner.ageRoutes,
+    ...enemyHitFlashRoutes.brute.ageRoutes,
+    ...enemyHitFlashRoutes.boss.ageRoutes,
+  ];
+  const enemyHitFlashBatchViews: readonly InstancedCategoryBatch[] = enemyHitFlashAgeRoutes.map(
+    (route) => route.batch,
+  );
   const hostileProjectileBatch = createInstancedCategoryBatch(
     app.graphicsDevice,
     entitiesRoot,
@@ -862,7 +1312,7 @@ export function createRenderer(
   );
   const spitProjectileAccentBatch = createInstancedCategoryBatch(
     app.graphicsDevice, entitiesRoot, 'spit-projectile-accent', config.projectileCap,
-    vfxCardMesh, spitProjectileAccentMaterial, 0.57,
+    vfxCardMesh, spitProjectileAccentMaterial, 0.57, COMBAT_VFX_FOREGROUND_LAYERS,
   );
   const quillProjectileAccentBatch = createInstancedCategoryBatch(
     app.graphicsDevice, entitiesRoot, 'quill-projectile-accent', config.projectileCap,
@@ -991,16 +1441,199 @@ export function createRenderer(
   );
   const normalImpactBatch = createInstancedCategoryBatch(
     app.graphicsDevice, entitiesRoot, 'enemy-hit-sparks', 48,
-    vfxCardMesh, normalImpactMaterial, 0.82,
+    vfxCardMesh, normalImpactMaterial, 0.82, COMBAT_VFX_FOREGROUND_LAYERS,
   );
   const criticalImpactBatch = createInstancedCategoryBatch(
     app.graphicsDevice, entitiesRoot, 'critical-hit-sparks', 48,
-    vfxCardMesh, criticalImpactMaterial, 0.86,
+    vfxCardMesh, criticalImpactMaterial, 0.86, COMBAT_VFX_FOREGROUND_LAYERS,
   );
   const playerImpactBatch = createInstancedCategoryBatch(
     app.graphicsDevice, entitiesRoot, 'player-danger-bursts', 48,
-    vfxCardMesh, playerImpactMaterial, 0.84,
+    vfxCardMesh, playerImpactMaterial, 0.84, COMBAT_VFX_FOREGROUND_LAYERS,
   );
+  function createOpacityBuckets(
+    name: string,
+    capacity: number,
+    material: pc.Material,
+    localY: number,
+    opacities: readonly number[],
+    layers?: readonly number[],
+  ): readonly VfxOpacityBucket[] {
+    return opacities.map((opacity, index) => {
+      const batch = createInstancedCategoryBatch(
+        app.graphicsDevice,
+        entitiesRoot,
+        `${name}-${index}`,
+        capacity,
+        vfxCardMesh,
+        material,
+        localY,
+        layers,
+      );
+      batch.setOpacity(opacity);
+      return Object.freeze({
+        store: new VfxTransformStore(capacity),
+        batch,
+        opacity,
+      });
+    });
+  }
+
+  // One impact is a compact composite: existing normal-blend painted body,
+  // then a four-tick textured core, grounded contact, and physical shards.
+  // Alpha buckets retain each descriptor's independent envelope without a
+  // custom per-instance shader or a material allocation per hit.
+  const impactCoreBuckets = createOpacityBuckets(
+    'impact-normal-textured-cores',
+    IMPACT_COMPOSITE_CAPACITY,
+    impactCoreMaterial,
+    // Transparent World geometry is sorted back-to-front from its batch
+    // origin. Keep the hot anatomy above the 1.56-height illustrated body so
+    // it is composed after it; otherwise a valid core can be hidden behind
+    // the large normal-blend card it is meant to punctuate.
+    2.16,
+    IMPACT_CORE_OPACITY_BUCKETS,
+    COMBAT_VFX_FOREGROUND_LAYERS,
+  );
+  // Criticals alone enter this gold core lane. It shares the same texture,
+  // envelope, fixed capacity, and opacity buckets as routine impacts; colour
+  // is the only deliberate spike, never a second flash system.
+  const criticalImpactCoreBuckets = createOpacityBuckets(
+    'impact-critical-gold-cores',
+    IMPACT_COMPOSITE_CAPACITY,
+    criticalImpactCoreMaterial,
+    2.16,
+    IMPACT_CORE_OPACITY_BUCKETS,
+    COMBAT_VFX_FOREGROUND_LAYERS,
+  );
+  const normalImpactDebrisBuckets = createOpacityBuckets(
+    'impact-normal-debris',
+    IMPACT_NORMAL_DEBRIS_CAPACITY,
+    normalImpactMaterial,
+    1.9,
+    IMPACT_DEBRIS_OPACITY_BUCKETS,
+    COMBAT_VFX_FOREGROUND_LAYERS,
+  );
+  const criticalImpactDebrisBuckets = createOpacityBuckets(
+    'impact-critical-debris',
+    IMPACT_CRITICAL_DEBRIS_CAPACITY,
+    criticalImpactMaterial,
+    1.92,
+    IMPACT_DEBRIS_OPACITY_BUCKETS,
+    COMBAT_VFX_FOREGROUND_LAYERS,
+  );
+  const playerImpactDebrisBuckets = createOpacityBuckets(
+    'impact-player-debris',
+    IMPACT_NORMAL_DEBRIS_CAPACITY,
+    playerImpactMaterial,
+    1.9,
+    IMPACT_DEBRIS_OPACITY_BUCKETS,
+    COMBAT_VFX_FOREGROUND_LAYERS,
+  );
+  const impactGroundContactBuckets = createOpacityBuckets(
+    'impact-ground-contacts',
+    IMPACT_COMPOSITE_CAPACITY,
+    impactGroundRingMaterial,
+    0.04,
+    IMPACT_GROUND_OPACITY_BUCKETS,
+    COMBAT_VFX_FOREGROUND_LAYERS,
+  );
+  const impactCompositeBatchViews: readonly InstancedCategoryBatch[] = [
+    ...impactCoreBuckets.map((bucket) => bucket.batch),
+    ...criticalImpactCoreBuckets.map((bucket) => bucket.batch),
+    ...normalImpactDebrisBuckets.map((bucket) => bucket.batch),
+    ...criticalImpactDebrisBuckets.map((bucket) => bucket.batch),
+    ...playerImpactDebrisBuckets.map((bucket) => bucket.batch),
+    ...impactGroundContactBuckets.map((bucket) => bucket.batch),
+  ];
+
+  function createSignatureVfxRoute(family: AttackVfxFamily): SignatureVfxRoute {
+    return Object.freeze({
+      coreBuckets: createOpacityBuckets(
+        `signature-${family}-cores`,
+        SIGNATURE_VFX_COMPOSITE_CAPACITY,
+        signatureCoreMaterials[family],
+        // The painted body is intentionally the dominant normal-blend layer,
+        // but its short hot core must sort in front of it rather than being
+        // structurally present yet occluded by the body card.
+        2.16,
+        SIGNATURE_CORE_OPACITY_BUCKETS,
+        COMBAT_VFX_FOREGROUND_LAYERS,
+      ),
+      debrisBuckets: createOpacityBuckets(
+        `signature-${family}-debris`,
+        SIGNATURE_VFX_DEBRIS_CAPACITY,
+        signatureDebrisMaterials[family],
+        1.9,
+        SIGNATURE_DEBRIS_OPACITY_BUCKETS,
+        COMBAT_VFX_FOREGROUND_LAYERS,
+      ),
+    });
+  }
+
+  // Six explicit palette lanes keep the generated impact core tied to each
+  // attack family without per-cast materials. Their fixed pools are only
+  // populated by admitted player signature descriptors below.
+  const signatureVfxRoutes: Record<AttackVfxFamily, SignatureVfxRoute> = {
+    physical: createSignatureVfxRoute('physical'),
+    earth: createSignatureVfxRoute('earth'),
+    venom: createSignatureVfxRoute('venom'),
+    arcane: createSignatureVfxRoute('arcane'),
+    storm: createSignatureVfxRoute('storm'),
+    fire: createSignatureVfxRoute('fire'),
+  };
+  const signatureVfxRouteList: readonly SignatureVfxRoute[] = Object.values(signatureVfxRoutes);
+  const signatureGroundContactBuckets = createOpacityBuckets(
+    'signature-ground-contacts',
+    SIGNATURE_VFX_COMPOSITE_CAPACITY,
+    impactGroundRingMaterial,
+    // Separate this normal-blend contact from the floor enough to avoid
+    // depth fighting; it remains beneath body cards and hot cores.
+    0.06,
+    SIGNATURE_GROUND_OPACITY_BUCKETS,
+    COMBAT_VFX_FOREGROUND_LAYERS,
+  );
+  const signatureCompositeBatchViews: readonly InstancedCategoryBatch[] = [
+    ...signatureVfxRouteList.flatMap((route) => [
+      ...route.coreBuckets.map((bucket) => bucket.batch),
+      ...route.debrisBuckets.map((bucket) => bucket.batch),
+    ]),
+    ...signatureGroundContactBuckets.map((bucket) => bucket.batch),
+  ];
+
+  // Gracie’s Spit Comet has no event-owned body card: its painted body stays
+  // on the real projectile snapshot. These retained lanes add only its short
+  // hot core, seeded normal-blend tail, and quiet source/impact ground read.
+  // The core material is additive; debris and contact retain normal blend.
+  const heroSpitSignatureCoreBuckets = createOpacityBuckets(
+    'hero-spit-projectile-cores',
+    HERO_SPIT_SIGNATURE_CAPACITY,
+    heroSpitCoreMaterial,
+    2.16,
+    SIGNATURE_CORE_OPACITY_BUCKETS,
+    COMBAT_VFX_FOREGROUND_LAYERS,
+  );
+  const heroSpitSignatureDebrisBuckets = createOpacityBuckets(
+    'hero-spit-projectile-debris',
+    HERO_SPIT_SIGNATURE_DEBRIS_CAPACITY,
+    signatureDebrisMaterials.venom,
+    1.9,
+    SIGNATURE_DEBRIS_OPACITY_BUCKETS,
+    COMBAT_VFX_FOREGROUND_LAYERS,
+  );
+  const heroSpitSignatureGroundContactBuckets = createOpacityBuckets(
+    'hero-spit-projectile-ground-contacts',
+    HERO_SPIT_SIGNATURE_CAPACITY * 2,
+    heroSpitGroundContactMaterial,
+    0.06,
+    SIGNATURE_GROUND_OPACITY_BUCKETS,
+    COMBAT_VFX_FOREGROUND_LAYERS,
+  );
+  const heroSpitSignatureBatchViews: readonly InstancedCategoryBatch[] = [
+    ...heroSpitSignatureCoreBuckets.map((bucket) => bucket.batch),
+    ...heroSpitSignatureDebrisBuckets.map((bucket) => bucket.batch),
+    ...heroSpitSignatureGroundContactBuckets.map((bucket) => bucket.batch),
+  ];
 
   /**
    * High-volume world lanes share a deterministic flipbook frame per semantic
@@ -1011,8 +1644,13 @@ export function createRenderer(
   function refreshAnimatedWorldArt(tick: number): void {
     playerProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('normalImpact', tick));
     playerProjectileAccentBatch.setOpacity(0.46);
-    spitProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('spitComet', tick));
-    spitProjectileAccentBatch.setOpacity(0.6);
+    // Spit Comet intentionally uses the stable one-frame P1 body fallback;
+    // the isolated material selected at pool creation must not be swapped
+    // back onto the shared hero-card material here.
+    // This is a single normal-blend card on a real projectile, never a
+    // screen wash. Its opacity gives the pale head enough forest contrast
+    // while retaining the darker teal contour and all enemy readability.
+    spitProjectileAccentBatch.setOpacity(0.78);
     quillProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('quillVolley', tick));
     quillProjectileAccentBatch.setOpacity(0.78);
     owlProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('owlPinions', tick));
@@ -1022,24 +1660,24 @@ export function createRenderer(
     criticalProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('criticalImpact', tick));
     criticalProjectileAccentBatch.setOpacity(0.68);
     xpAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('xpOrbit', tick));
-    xpAccentBatch.setOpacity(0.98);
-    xpHaloBatch.setMaterial(wildguardVfxMaterialBank.materialFor('xpOrbit', tick + 6));
-    xpHaloBatch.setOpacity(0.44);
+    // A full painted accent plus halo on every late-run mote was the dominant
+    // cyan noise in the capture sheet. The physical pickup remains visible;
+    // the optional decorative layers are deliberately quiet and density-gated
+    // below using stable pickup ids.
+    xpAccentBatch.setOpacity(0.34);
+    xpHaloBatch.setMaterial(wildguardVfxMaterialBank.materialFor('xpCollect', tick));
+    xpHaloBatch.setOpacity(0.08);
     bombAccentBatch.setOpacity(0.92);
     magnetAccentBatch.setOpacity(0.94);
     foodAccentBatch.setOpacity(0.92);
-    // Every persistent combat field advances through native-alpha painted
-    // frames. The slight phase offsets distinguish the movement trail, its
-    // upgraded scythe field, and the two stink variants while retaining one
-    // material switch per bounded instanced lane.
-    const geckoLivingFrame = 1 + Math.floor(tick / 5) % 2;
-    const razorstepLivingFrame = 1 + Math.floor((tick + 3) / 5) % 2;
-    zoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame('geckoPad', geckoLivingFrame));
+    // The instanced Gecko/Razorstep footprint is deliberately a stable mature
+    // dissolve cell. Per-zone spawn cards crossfade the actual coherent
+    // erosion; this shared low-opacity batch must never make all pads blink
+    // in unison.
+    zoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame('geckoPad', PERSISTENT_DISSOLVE_MATURE_FRAME));
     zoneBatch.setOpacity(0.7);
-    razorstepZoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame('geckoPad', razorstepLivingFrame));
+    razorstepZoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame('geckoPad', PERSISTENT_DISSOLVE_MATURE_FRAME));
     razorstepZoneBatch.setOpacity(0.76);
-    stinkCloudZoneBatch.setMaterial(wildguardVfxMaterialBank.materialFor('skunkCloud', tick + 2));
-    royalStinkZoneBatch.setMaterial(wildguardVfxMaterialBank.materialFor('royalStink', tick + 4));
     hostileProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('hostileThorn', tick));
     hostileTrailAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('hostileThorn', tick + 3));
   }
@@ -1156,7 +1794,22 @@ export function createRenderer(
     vfxTransforms.normalImpacts,
     vfxTransforms.criticalImpacts,
     vfxTransforms.playerImpacts,
+    ...impactCoreBuckets.map((bucket) => bucket.store),
+    ...criticalImpactCoreBuckets.map((bucket) => bucket.store),
+    ...normalImpactDebrisBuckets.map((bucket) => bucket.store),
+    ...criticalImpactDebrisBuckets.map((bucket) => bucket.store),
+    ...playerImpactDebrisBuckets.map((bucket) => bucket.store),
+    ...impactGroundContactBuckets.map((bucket) => bucket.store),
+    ...signatureVfxRouteList.flatMap((route) => [
+      ...route.coreBuckets.map((bucket) => bucket.store),
+      ...route.debrisBuckets.map((bucket) => bucket.store),
+    ]),
+    ...signatureGroundContactBuckets.map((bucket) => bucket.store),
+    ...heroSpitSignatureCoreBuckets.map((bucket) => bucket.store),
+    ...heroSpitSignatureDebrisBuckets.map((bucket) => bucket.store),
+    ...heroSpitSignatureGroundContactBuckets.map((bucket) => bucket.store),
     ...routedVfxBatches.map((route) => route.store),
+    ...enemyHitFlashAgeRoutes.map((route) => route.store),
   ];
   const lootVisuals = createLootVisualPresentation({
     xpCapacity: config.pickupCap,
@@ -1170,6 +1823,23 @@ export function createRenderer(
     maxEliteBossAuras: 6,
   });
   const combatImpactVisuals = createCombatImpactPresentation({ capacity: 48 });
+  const impactVfxComposite = createImpactVfxCompositePresentation({
+    capacity: IMPACT_COMPOSITE_CAPACITY,
+    debrisCapacity: IMPACT_CRITICAL_DEBRIS_CAPACITY,
+  });
+  const signatureVfxComposite = createSignatureVfxCompositePresentation({
+    capacity: SIGNATURE_VFX_COMPOSITE_CAPACITY,
+    debrisCapacity: SIGNATURE_VFX_DEBRIS_CAPACITY,
+  });
+  const heroSpitProjectileSignatureVfx = createHeroSpitProjectileSignaturePresentation({
+    projectileCapacity: config.projectileCap,
+    capacity: HERO_SPIT_SIGNATURE_CAPACITY,
+    debrisCapacity: HERO_SPIT_SIGNATURE_DEBRIS_CAPACITY,
+  });
+  const enemyHitFlashVisuals = createEnemyHitFlashPresentation({
+    capacity: ENEMY_HIT_FLASH_RENDER_CAPACITY,
+  });
+  const cameraImpactShake = createCameraImpactShakePresentation();
   // This one mutable object is intentionally reused on every frame. Its clock
   // is derived from prev/curr snapshot ticks below, never from wall time, and
   // it is passed only to alpha-cutout enemy planes (not projectiles or zones).
@@ -1223,6 +1893,41 @@ export function createRenderer(
       case LOOT_VISUAL_STYLE.magnet: return magnetCollectionRoute;
       case LOOT_VISUAL_STYLE.food: return foodCollectionRoute;
       default: return null;
+    }
+  }
+
+  function enemyHitFlashRouteFor(archetype: number, role: number): EnemyHitFlashRoute | null {
+    if (role === RUN_ENEMY_ROLE.boss) return enemyHitFlashRoutes.boss;
+    if (role === RUN_ENEMY_ROLE.ranged || role === RUN_ENEMY_ROLE.flanker) {
+      return enemyHitFlashRoutes.runner;
+    }
+    if (role === RUN_ENEMY_ROLE.charger || role === RUN_ENEMY_ROLE.support) {
+      return enemyHitFlashRoutes.walker;
+    }
+    if (role === RUN_ENEMY_ROLE.elite || role === RUN_ENEMY_ROLE.denial) {
+      return enemyHitFlashRoutes.brute;
+    }
+    if (role !== RUN_ENEMY_ROLE.regular) return null;
+    if (archetype === walkerArchetype) return enemyHitFlashRoutes.walker;
+    if (archetype === runnerArchetype) return enemyHitFlashRoutes.runner;
+    if (archetype === bruteArchetype) return enemyHitFlashRoutes.brute;
+    return null;
+  }
+
+  function enemyHitFlashScaleMultiplierFor(archetype: number, role: number): number {
+    switch (role) {
+      case RUN_ENEMY_ROLE.elite: return ELITE_SCALE_MULTIPLIER;
+      case RUN_ENEMY_ROLE.boss: return BOSS_SCALE_MULTIPLIER;
+      case RUN_ENEMY_ROLE.ranged: return RANGED_SCALE_MULTIPLIER;
+      case RUN_ENEMY_ROLE.charger: return CHARGER_SCALE_MULTIPLIER;
+      case RUN_ENEMY_ROLE.denial: return DENIAL_SCALE_MULTIPLIER;
+      case RUN_ENEMY_ROLE.flanker: return FLANKER_SCALE_MULTIPLIER;
+      case RUN_ENEMY_ROLE.support: return SUPPORT_SCALE_MULTIPLIER;
+      case RUN_ENEMY_ROLE.regular:
+        if (archetype === walkerArchetype) return 1.65;
+        if (archetype === runnerArchetype) return 1.75;
+        return 1;
+      default: return 1;
     }
   }
 
@@ -1307,6 +2012,11 @@ export function createRenderer(
       lootVisuals.reset();
       enemyThreatVisuals.reset();
       combatImpactVisuals.reset();
+      impactVfxComposite.reset();
+      signatureVfxComposite.reset();
+      heroSpitProjectileSignatureVfx.reset();
+      enemyHitFlashVisuals.reset();
+      cameraImpactShake.reset();
       projectileVisualTruth.reset();
     }
     lastVisualTick = curr.tick;
@@ -1356,7 +2066,11 @@ export function createRenderer(
       const yaw = Math.atan2(velocityX, -velocityY);
       const coreScale = baseScale * (isCritical ? 1.22 : 1);
       const family = projectileVisualTruth.familyFor(id, source);
-      const store = family === PLAYER_PROJECTILE_VISUAL_FAMILY.gracieSpit
+      // The compact source code is the direct proof that this is Gracie’s
+      // projectile. Do not wait for (or replay) a trait telegraph before
+      // giving the real snapshot its body; a reused event must never own it.
+      const isGracieSpit = source === COMBAT_DAMAGE_SOURCE.heroSpit;
+      const store = isGracieSpit
         ? vfxTransforms.spitProjectileAccent
         : family === PLAYER_PROJECTILE_VISUAL_FAMILY.porcupineQuills
           ? vfxTransforms.quillProjectileAccent
@@ -1365,7 +2079,18 @@ export function createRenderer(
             : family === PLAYER_PROJECTILE_VISUAL_FAMILY.thornstorm
               ? vfxTransforms.thornProjectileAccent
               : vfxTransforms.playerProjectileAccent;
-      store.push(sceneX(worldX), sceneZ(worldY), coreScale, 1, coreScale, 0.2, yaw);
+      // Gracie's long head-tail card is tied to the live projectile position
+      // and velocity, not an origin telegraph. The old 19x25 accent was too
+      // small to survive the survivor camera; this 42x56 minimum makes the
+      // real painted anatomy legible without becoming a screen-crossing beam.
+      const accentScaleX = isGracieSpit
+        ? heroSpitBodyLateralScaleForRadius(curr.projectiles.radius[index]!)
+        : coreScale;
+      const accentScaleZ = isGracieSpit
+        ? heroSpitBodyForwardScaleForRadius(curr.projectiles.radius[index]!)
+        : coreScale;
+      const accentLift = isGracieSpit ? 0.24 : 0.2;
+      store.push(sceneX(worldX), sceneZ(worldY), accentScaleX, 1, accentScaleZ, accentLift, yaw);
       if (isCritical) {
         const starScale = coreScale * 1.28;
         vfxTransforms.criticalProjectileAccent.push(
@@ -1374,18 +2099,76 @@ export function createRenderer(
       }
     }
 
+    // This projector consumes only the copied previous/current `heroSpit`
+    // snapshots above. It emits no body card and no cast path, so the long
+    // comet cannot double its telegraph or invent travel outside the actual
+    // projectile pool. Its impact contact is admitted solely from resolved
+    // `gracie-spit` hit evidence copied by the combat presentation bridge.
+    const heroSpitSignatures = heroSpitProjectileSignatureVfx.update(
+      prev.projectiles,
+      curr.projectiles,
+      safeAlpha,
+      curr.tick,
+      pendingCombatImpactEvents,
+    );
+    for (let index = 0; index < heroSpitSignatures.cores.count; index++) {
+      const opacity = heroSpitSignatures.cores.opacity[index]!;
+      const bucketIndex = opacityBucketIndex(opacity, SIGNATURE_CORE_OPACITY_BUCKETS);
+      if (bucketIndex < 0) continue;
+      if (!heroSpitSignatureCoreBuckets[bucketIndex]!.store.push(
+        sceneX(heroSpitSignatures.cores.x[index]!),
+        sceneZ(heroSpitSignatures.cores.y[index]!),
+        heroSpitSignatures.cores.scale[index]!,
+        1,
+        heroSpitSignatures.cores.scale[index]!,
+        2.16,
+        Math.PI * 0.5 + heroSpitSignatures.cores.yawRadians[index]!,
+      )) continue;
+    }
+    for (let index = 0; index < heroSpitSignatures.debris.count; index++) {
+      const opacity = heroSpitSignatures.debris.opacity[index]!;
+      const bucketIndex = opacityBucketIndex(opacity, SIGNATURE_DEBRIS_OPACITY_BUCKETS);
+      if (bucketIndex < 0) continue;
+      if (!heroSpitSignatureDebrisBuckets[bucketIndex]!.store.push(
+        sceneX(heroSpitSignatures.debris.x[index]!),
+        sceneZ(heroSpitSignatures.debris.y[index]!),
+        heroSpitSignatures.debris.scale[index]!,
+        1,
+        heroSpitSignatures.debris.scale[index]!,
+        heroSpitSignatures.debris.lift[index]!,
+        Math.PI * 0.5 + heroSpitSignatures.debris.yawRadians[index]!,
+      )) continue;
+    }
+    for (let index = 0; index < heroSpitSignatures.groundContacts.count; index++) {
+      const opacity = heroSpitSignatures.groundContacts.opacity[index]!;
+      const bucketIndex = opacityBucketIndex(opacity, SIGNATURE_GROUND_OPACITY_BUCKETS);
+      if (bucketIndex < 0) continue;
+      if (!heroSpitSignatureGroundContactBuckets[bucketIndex]!.store.push(
+        sceneX(heroSpitSignatures.groundContacts.x[index]!),
+        sceneZ(heroSpitSignatures.groundContacts.y[index]!),
+        heroSpitSignatures.groundContacts.scale[index]!,
+        1,
+        heroSpitSignatures.groundContacts.scale[index]!,
+        0,
+        Math.PI * 0.5 + heroSpitSignatures.groundContacts.yawRadians[index]!,
+      )) continue;
+    }
+
     const loot = lootVisuals.update(prev, curr, safeAlpha);
     for (let index = 0; index < loot.xp.count; index++) {
       const x = sceneX(loot.xp.x[index]!);
       const z = sceneZ(loot.xp.y[index]!);
       // Runtime pickup radii are deliberately generous for collection; the
       // card scale is therefore art-directed rather than a raw collision read.
-      const coreScale = loot.xp.scale[index]! * 3.35;
-      const haloScale = loot.xp.haloScale[index]! * (qualityTier === 'standard' ? 3.35 : 0);
+      const pickupId = loot.xp.id[index]!;
+      const coreScale = loot.xp.scale[index]! * 2.45;
+      const haloScale = loot.xp.haloScale[index]! * (qualityTier === 'standard' ? 2.35 : 0);
       const lift = loot.xp.lift[index]! + 0.06;
       const spin = loot.xp.spinRadians[index]!;
-      vfxTransforms.xpAccent.push(x, z, coreScale, 1, coreScale, lift + 0.18, spin);
-      if (qualityTier === 'standard') {
+      if (shouldRenderXpIllustratedAccent(pickupId, loot.xp.count)) {
+        vfxTransforms.xpAccent.push(x, z, coreScale, 1, coreScale, lift + 0.18, spin);
+      }
+      if (qualityTier === 'standard' && shouldRenderXpIllustratedHalo(pickupId, loot.xp.count)) {
         vfxTransforms.xpHalo.push(x, z, haloScale, 1, haloScale, lift, -spin * 0.6);
       }
     }
@@ -1544,6 +2327,146 @@ export function createRenderer(
     playerImpactBatch.setOpacity(
       playerImpactOpacityCount > 0 ? 0.88 * playerImpactOpacityTotal / playerImpactOpacityCount : 0,
     );
+
+    // A successful hit gets a short white silhouette flash on the actual
+    // still-live enemy. It is a renderer-only overlay matched by generation
+    // id, grouped into three preallocated age buckets, and rate-limited by the
+    // policy module before any instanced transform is written.
+    const enemyHitFlashes = enemyHitFlashVisuals.update(
+      pendingCombatImpactEvents,
+      curr.enemies,
+      curr.tick,
+    );
+    for (let index = 0; index < enemyHitFlashes.flashes.count; index++) {
+      const age = enemyHitFlashes.flashes.ageTicks[index]!;
+      if (age >= ENEMY_HIT_FLASH_LIFETIME_TICKS) continue;
+      const archetype = enemyHitFlashes.flashes.archetype[index]!;
+      const role = enemyHitFlashes.flashes.role[index]!;
+      const route = enemyHitFlashRouteFor(archetype, role);
+      if (route === null) continue;
+      const ageRoute = route.ageRoutes[age]!;
+      const scale = Math.max(0.8, enemyHitFlashes.flashes.radius[index]! * 2
+        * enemyHitFlashScaleMultiplierFor(archetype, role) * 1.06);
+      ageRoute.store.push(
+        sceneX(enemyHitFlashes.flashes.x[index]!),
+        sceneZ(enemyHitFlashes.flashes.y[index]!),
+        scale,
+        1,
+        scale,
+        0.13,
+      );
+    }
+
+    // P2 composite anatomy sits around the existing normal-blend impact cards:
+    // a <=4-tick textured core, deterministic physical shards, and a quiet
+    // contact ring. The pure projector selects crits before routine hits when
+    // its fixed pools are pressured; this wiring only writes its packed data.
+    const composite = impactVfxComposite.update(impacts);
+    for (let index = 0; index < composite.cores.count; index++) {
+      const opacity = composite.cores.opacity[index]!;
+      const bucketIndex = opacityBucketIndex(opacity, IMPACT_CORE_OPACITY_BUCKETS);
+      if (bucketIndex < 0) continue;
+      const buckets = composite.cores.style[index] === COMBAT_IMPACT_STYLE.criticalEnemyHit
+        ? criticalImpactCoreBuckets
+        : impactCoreBuckets;
+      if (buckets[bucketIndex]!.store.push(
+        sceneX(composite.cores.x[index]!),
+        sceneZ(composite.cores.y[index]!),
+        composite.cores.scale[index]!,
+        1,
+        composite.cores.scale[index]!,
+        0.02,
+        composite.cores.spinRadians[index]!,
+      )) continue;
+    }
+    for (let index = 0; index < composite.debris.count; index++) {
+      const style = composite.debris.style[index]!;
+      const opacity = composite.debris.opacity[index]!;
+      const bucketIndex = opacityBucketIndex(opacity, IMPACT_DEBRIS_OPACITY_BUCKETS);
+      if (bucketIndex < 0) continue;
+      const buckets = style === COMBAT_IMPACT_STYLE.criticalEnemyHit
+        ? criticalImpactDebrisBuckets
+        : style === COMBAT_IMPACT_STYLE.playerHit
+          ? playerImpactDebrisBuckets
+          : normalImpactDebrisBuckets;
+      if (!buckets[bucketIndex]!.store.push(
+        sceneX(composite.debris.x[index]!),
+        sceneZ(composite.debris.y[index]!),
+        composite.debris.scale[index]!,
+        1,
+        composite.debris.scale[index]!,
+        composite.debris.lift[index]!,
+        composite.debris.yawRadians[index]!,
+      )) continue;
+    }
+    for (let index = 0; index < composite.rings.count; index++) {
+      const opacity = composite.rings.opacity[index]!;
+      const bucketIndex = opacityBucketIndex(opacity, IMPACT_GROUND_OPACITY_BUCKETS);
+      if (bucketIndex < 0) continue;
+      if (impactGroundContactBuckets[bucketIndex]!.store.push(
+        sceneX(composite.rings.x[index]!),
+        sceneZ(composite.rings.y[index]!),
+        composite.rings.scale[index]!,
+        1,
+        composite.rings.scale[index]!,
+        0,
+        composite.rings.yawRadians[index]!,
+      )) continue;
+    }
+
+    // Player signature cards receive the same compact anatomy as a contact:
+    // the authored card is the body, this retained projector supplies the
+    // white-to-family core, physical debris, and a quiet textured ground
+    // anchor. Nothing here owns a simulation command, target, or lifetime.
+    const signatures = signatureVfxComposite.update(
+      curr.tick,
+      presentationEvents,
+      pendingCombatImpactEvents,
+    );
+    for (let index = 0; index < signatures.cores.count; index++) {
+      const opacity = signatures.cores.opacity[index]!;
+      const bucketIndex = opacityBucketIndex(opacity, SIGNATURE_CORE_OPACITY_BUCKETS);
+      if (bucketIndex < 0) continue;
+      const route = signatureVfxRoutes[signatureVfxFamilyForClip(signatures.cores.clip[index]!)];
+      if (!route.coreBuckets[bucketIndex]!.store.push(
+        sceneX(signatures.cores.x[index]!),
+        sceneZ(signatures.cores.y[index]!),
+        signatures.cores.scale[index]!,
+        1,
+        signatures.cores.scale[index]!,
+        signatures.cores.lift[index]!,
+        Math.PI * 0.5 + signatures.cores.yawRadians[index]!,
+      )) continue;
+    }
+    for (let index = 0; index < signatures.debris.count; index++) {
+      const opacity = signatures.debris.opacity[index]!;
+      const bucketIndex = opacityBucketIndex(opacity, SIGNATURE_DEBRIS_OPACITY_BUCKETS);
+      if (bucketIndex < 0) continue;
+      const route = signatureVfxRoutes[signatureVfxFamilyForClip(signatures.debris.clip[index]!)];
+      if (!route.debrisBuckets[bucketIndex]!.store.push(
+        sceneX(signatures.debris.x[index]!),
+        sceneZ(signatures.debris.y[index]!),
+        signatures.debris.scale[index]!,
+        1,
+        signatures.debris.scale[index]!,
+        signatures.debris.lift[index]!,
+        Math.PI * 0.5 + signatures.debris.yawRadians[index]!,
+      )) continue;
+    }
+    for (let index = 0; index < signatures.groundContacts.count; index++) {
+      const opacity = signatures.groundContacts.opacity[index]!;
+      const bucketIndex = opacityBucketIndex(opacity, SIGNATURE_GROUND_OPACITY_BUCKETS);
+      if (bucketIndex < 0) continue;
+      if (!signatureGroundContactBuckets[bucketIndex]!.store.push(
+        sceneX(signatures.groundContacts.x[index]!),
+        sceneZ(signatures.groundContacts.y[index]!),
+        signatures.groundContacts.scale[index]!,
+        1,
+        signatures.groundContacts.scale[index]!,
+        0,
+        Math.PI * 0.5 + signatures.groundContacts.yawRadians[index]!,
+      )) continue;
+    }
   }
 
   function render(
@@ -1599,6 +2522,7 @@ export function createRenderer(
     );
     damageNumberPresentation.update(curr.tick, cameraTarget.x, cameraTarget.y, cameraAspect);
     writeCombatVisualOverhaul(prev, curr, alpha, presentationEvents);
+    const cameraShake = cameraImpactShake.update(pendingCombatImpactEvents, curr.tick);
     // The cyan sphere is a resilient loading/error fallback. Greg takes over
     // asynchronously once the audited glTF has loaded and initialized.
     playerEntity.enabled = curr.playerAlive && !heroPresentation.ready;
@@ -1608,8 +2532,15 @@ export function createRenderer(
       playerEntity.setLocalScale(playerScale, playerScale, playerScale);
     }
 
-    camera.setPosition(cameraSceneX, CAMERA_HEIGHT, cameraSceneZ + CAMERA_FOLLOW_BACK_OFFSET);
-    camera.lookAt(cameraSceneX, 0, cameraSceneZ, 0, 0, -1);
+    // Shake is applied after the normal bounded follow calculation, and moves
+    // position plus look target together. It therefore cannot change camera
+    // clamp semantics or simulation-space aiming—only the rendered framing.
+    camera.setPosition(
+      cameraSceneX + cameraShake.x,
+      CAMERA_HEIGHT,
+      cameraSceneZ + cameraShake.y + CAMERA_FOLLOW_BACK_OFFSET,
+    );
+    camera.lookAt(cameraSceneX + cameraShake.x, 0, cameraSceneZ + cameraShake.y, 0, 0, -1);
 
     const presentationTimeSeconds = lerp(prev.tick, curr.tick, alpha) / config.hz;
     enemySpriteMotion.timeSeconds = presentationTimeSeconds;
@@ -1791,10 +2722,11 @@ export function createRenderer(
       worldHalfHeight,
       -1,
       undefined,
-      1,
+      0.82,
       undefined,
       undefined,
       lootSpriteMotion,
+      shouldRenderXpPhysicalMarker,
     );
     // Collision radii are intentionally generous for rare pickups, so keep
     // their visual scale readable rather than rendering a 12-unit collection
@@ -1863,6 +2795,9 @@ export function createRenderer(
       worldHalfHeight,
       -1,
     );
+    stinkCloudZoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame(
+      'skunkCloud', persistentDissolveFrameIndex(stinkCloudZoneVisuals.selectedAgeTicks),
+    ));
     stinkCloudZoneBatch.setOpacity(stinkCloudZoneVisuals.opacity);
     royalStinkZoneVisuals.update(
       curr.zones,
@@ -1871,6 +2806,9 @@ export function createRenderer(
       worldHalfHeight,
       -1,
     );
+    royalStinkZoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame(
+      'royalStink', persistentDissolveFrameIndex(royalStinkZoneVisuals.selectedAgeTicks),
+    ));
     royalStinkZoneBatch.setOpacity(royalStinkZoneVisuals.opacity);
     walkerEnemyBatch.sync(walkerEnemyTransforms);
     runnerEnemyBatch.sync(runnerEnemyTransforms);
@@ -1884,6 +2822,7 @@ export function createRenderer(
     flankerEnemyBatch.sync(flankerEnemyTransforms);
     supportEnemyBatch.sync(supportEnemyTransforms);
     markedEnemyBatch.sync(markedEnemyTransforms);
+    for (const route of enemyHitFlashAgeRoutes) route.batch.sync(route.store);
     projectileBatch.sync(transformStores.projectile);
     hostileProjectileBatch.sync(hostileProjectileTransforms);
     playerProjectileAccentBatch.sync(vfxTransforms.playerProjectileAccent);
@@ -1907,6 +2846,20 @@ export function createRenderer(
     normalImpactBatch.sync(vfxTransforms.normalImpacts);
     criticalImpactBatch.sync(vfxTransforms.criticalImpacts);
     playerImpactBatch.sync(vfxTransforms.playerImpacts);
+    for (const bucket of impactCoreBuckets) bucket.batch.sync(bucket.store);
+    for (const bucket of criticalImpactCoreBuckets) bucket.batch.sync(bucket.store);
+    for (const bucket of normalImpactDebrisBuckets) bucket.batch.sync(bucket.store);
+    for (const bucket of criticalImpactDebrisBuckets) bucket.batch.sync(bucket.store);
+    for (const bucket of playerImpactDebrisBuckets) bucket.batch.sync(bucket.store);
+    for (const bucket of impactGroundContactBuckets) bucket.batch.sync(bucket.store);
+    for (const route of signatureVfxRouteList) {
+      for (const bucket of route.coreBuckets) bucket.batch.sync(bucket.store);
+      for (const bucket of route.debrisBuckets) bucket.batch.sync(bucket.store);
+    }
+    for (const bucket of signatureGroundContactBuckets) bucket.batch.sync(bucket.store);
+    for (const bucket of heroSpitSignatureCoreBuckets) bucket.batch.sync(bucket.store);
+    for (const bucket of heroSpitSignatureDebrisBuckets) bucket.batch.sync(bucket.store);
+    for (const bucket of heroSpitSignatureGroundContactBuckets) bucket.batch.sync(bucket.store);
     zoneBatch.sync(transformStores.zone);
     razorstepZoneBatch.sync(razorstepZoneTransforms);
     stinkCloudZoneBatch.sync(stinkCloudZoneVisuals.transforms);
@@ -1939,6 +2892,7 @@ export function createRenderer(
         flankerEnemyBatch.liveViews +
         supportEnemyBatch.liveViews +
         markedEnemyBatch.liveViews +
+        sumBatchViews(enemyHitFlashBatchViews, 'liveViews') +
         projectileBatch.liveViews +
         hostileProjectileBatch.liveViews +
         playerProjectileAccentBatch.liveViews +
@@ -1962,6 +2916,9 @@ export function createRenderer(
         normalImpactBatch.liveViews +
         criticalImpactBatch.liveViews +
         playerImpactBatch.liveViews +
+        sumBatchViews(impactCompositeBatchViews, 'liveViews') +
+        sumBatchViews(signatureCompositeBatchViews, 'liveViews') +
+        sumBatchViews(heroSpitSignatureBatchViews, 'liveViews') +
         illustratedVfxPresentation.liveSlots +
         zoneBatch.liveViews +
         razorstepZoneBatch.liveViews +
@@ -1980,6 +2937,7 @@ export function createRenderer(
         flankerEnemyBatch.highWaterViews +
         supportEnemyBatch.highWaterViews +
         markedEnemyBatch.highWaterViews +
+        sumBatchViews(enemyHitFlashBatchViews, 'highWaterViews') +
         projectileBatch.highWaterViews +
         hostileProjectileBatch.highWaterViews +
         playerProjectileAccentBatch.highWaterViews +
@@ -2003,6 +2961,9 @@ export function createRenderer(
         normalImpactBatch.highWaterViews +
         criticalImpactBatch.highWaterViews +
         playerImpactBatch.highWaterViews +
+        sumBatchViews(impactCompositeBatchViews, 'highWaterViews') +
+        sumBatchViews(signatureCompositeBatchViews, 'highWaterViews') +
+        sumBatchViews(heroSpitSignatureBatchViews, 'highWaterViews') +
         illustratedVfxPresentation.highWaterSlots +
         zoneBatch.highWaterViews +
         razorstepZoneBatch.highWaterViews +
@@ -2047,6 +3008,7 @@ export function createRenderer(
     flankerEnemyBatch.dispose();
     supportEnemyBatch.dispose();
     markedEnemyBatch.dispose();
+    for (const route of enemyHitFlashAgeRoutes) route.batch.dispose();
     projectileBatch.dispose();
     hostileProjectileBatch.dispose();
     playerProjectileAccentBatch.dispose();
@@ -2070,6 +3032,9 @@ export function createRenderer(
     normalImpactBatch.dispose();
     criticalImpactBatch.dispose();
     playerImpactBatch.dispose();
+    for (const batch of impactCompositeBatchViews) batch.dispose();
+    for (const batch of signatureCompositeBatchViews) batch.dispose();
+    for (const batch of heroSpitSignatureBatchViews) batch.dispose();
     illustratedVfxPresentation.dispose();
     zoneBatch.dispose();
     razorstepZoneBatch.dispose();
@@ -2092,6 +3057,9 @@ export function createRenderer(
     runnerTextureBinding.dispose();
     bruteTextureBinding.dispose();
     bossTextureBinding.dispose();
+    impactCoreTextureBinding.dispose();
+    signatureDebrisTextureBinding.dispose();
+    impactGroundContactTextureBinding.dispose();
     walkerEnemyMaterial.destroy();
     runnerEnemyMaterial.destroy();
     bruteEnemyMaterial.destroy();
@@ -2102,6 +3070,10 @@ export function createRenderer(
     denialEnemyMaterial.destroy();
     flankerEnemyMaterial.destroy();
     supportEnemyMaterial.destroy();
+    walkerEnemyHitFlashMaterial.destroy();
+    runnerEnemyHitFlashMaterial.destroy();
+    bruteEnemyHitFlashMaterial.destroy();
+    bossEnemyHitFlashMaterial.destroy();
     markedEnemyMaterial.destroy();
     enemyShadowMaterial.destroy();
     projectileMaterial.destroy();
@@ -2111,7 +3083,16 @@ export function createRenderer(
     magnetPickupMaterial.destroy();
     foodPickupMaterial.destroy();
     playerMaterial.destroy();
+    impactCoreMaterial.destroy();
+    criticalImpactCoreMaterial.destroy();
+    heroSpitCoreMaterial.destroy();
+    for (const material of Object.values(signatureCoreMaterials)) material.destroy();
+      for (const material of Object.values(signatureDebrisMaterials)) material.destroy();
+      app.scene.layers.removeTransparent(combatVfxForegroundLayer);
+    impactGroundRingMaterial.destroy();
+    heroSpitGroundContactMaterial.destroy();
     for (const material of proceduralThreatMaterials) material.destroy();
+    for (const material of isolatedVfxMaterials) material.destroy();
     wildguardVfxMaterialBank.dispose();
     damageNumberPresentation.dispose();
     traitCommandPresentation.dispose();

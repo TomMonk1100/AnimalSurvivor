@@ -10,12 +10,29 @@ import * as pc from 'playcanvas';
 import type { TraitPresentationEventView, TraitVisualAttachmentView } from '@sim';
 import type { CombatPresentationEventView } from '../presentation/combat-presentation-events';
 import {
+  createAnimatedVfxAtlasSample,
+  writeAnimatedVfxAtlasSample,
+  type AnimatedVfxAtlasSample,
+} from './animated-vfx-atlas';
+import {
   DEFAULT_ILLUSTRATED_VFX_RANK_PROFILE,
   illustratedVfxRankProfileForSource,
   type IllustratedVfxRankProfile,
 } from './illustrated-vfx-rank-profile';
 import {
+  createIllustratedVfxMotionSample,
+  writeIllustratedVfxMotion,
+  type IllustratedVfxMotionSample,
+} from './illustrated-vfx-motion';
+import {
+  ILLUSTRATED_VFX_FULL_INTENSITY_PROFILE,
+  illustratedVfxIntensityForNewCast,
+  type IllustratedVfxIntensityProfile,
+} from './illustrated-vfx-intensity-governor';
+import { envelope } from './vfx-easing';
+import {
   WILDGUARD_VFX_CLIP,
+  wildguardVfxClipDefinition,
   type WildguardVfxClip,
   type WildguardVfxMaterialBank,
 } from './wildguard-vfx-atlas';
@@ -55,13 +72,10 @@ export function illustratedVfxClipForTraitEvent(event: IllustratedTraitVfxEvent)
     event.kind === 'telegraph'
     && (is('benny-trample-wave') || event.sourceId === 'benny-trample')
   ) return WILDGUARD_VFX_CLIP.earthWave;
-  // The built-in Gracie basic attack uses a telegraph, while authored trait
-  // projectile bursts use the structural burst command. Both are one visible
-  // spit cast, so they share the exact same illustrated comet sequence.
-  if (
-    (event.kind === 'telegraph' || event.kind === 'spawnProjectileBurst')
-    && is('gracie-spit')
-  ) return WILDGUARD_VFX_CLIP.spitComet;
+  // Gracie's painted comet lives only on the real snapshot-driven projectile
+  // route. Her telegraph remains a quiet cast cue; turning that hero-origin
+  // cue into a second invented travelling card produced a hero-hugging beam
+  // that could disagree with the actual projectile path.
   if (
     (event.kind === 'grantShield' || event.kind === 'playTraitCue')
     && is('fluffy-shield')
@@ -185,6 +199,8 @@ export function illustratedVfxClipForCombatEvent(event: IllustratedCombatVfxEven
 export interface IllustratedVfxPresentationOptions {
   /** Bounded visual slots. Low-priority hit flashes yield to hero signatures. */
   readonly capacity?: number;
+  /** Optional presentation-only layer for foreground combat anatomy. */
+  readonly layers?: readonly number[];
 }
 
 export interface IllustratedVfxPresentation {
@@ -206,6 +222,12 @@ export interface IllustratedVfxPresentation {
 interface IllustratedVfxSlot {
   readonly entity: pc.Entity;
   readonly meshInstance: pc.MeshInstance;
+  /** Preallocated next-frame layer used only while an atlas blend is active. */
+  readonly nextFrameMeshInstance: pc.MeshInstance;
+  /** Slot-owned sample storage keeps atlas reads allocation-free in combat. */
+  readonly atlasSample: AnimatedVfxAtlasSample;
+  /** Slot-owned transform result keeps archetype motion allocation-free. */
+  readonly motion: IllustratedVfxMotionSample;
   active: boolean;
   clip: WildguardVfxClip;
   priority: number;
@@ -220,6 +242,8 @@ interface IllustratedVfxSlot {
   seed: number;
   /** Snapshot-derived presentation only; never feeds a combat command back. */
   rankProfile: IllustratedVfxRankProfile;
+  /** Start-of-life heat budget; lower priorities always retain full intensity. */
+  intensityProfile: IllustratedVfxIntensityProfile;
 }
 
 const MIN_CAPACITY = 1;
@@ -227,6 +251,15 @@ const MAX_CAPACITY = 96;
 const HEIGHT = 1.56;
 /** One Master flourish per source every 0.75 seconds keeps dense fights clean. */
 const MASTER_ACCENT_MIN_INTERVAL_TICKS = 45;
+const VFX_ENVELOPE_ATTACK = 0.12;
+const VFX_ENVELOPE_RELEASE = 0.55;
+/**
+ * Signature cards now spend at least half their life in release. This keeps
+ * the high-value hero reads from remaining fully hot until their final tick,
+ * while the short opening still leaves enough room for core/body/debris to
+ * establish their shared silhouette.
+ */
+export const SIGNATURE_VFX_ENVELOPE_RELEASE = 0.5;
 
 function finite(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
@@ -252,15 +285,21 @@ function normalizedCapacity(value: number | undefined): number {
   );
 }
 
-function lifetimeForClip(clip: WildguardVfxClip): number {
+/** Base lifetime before the bounded rank profile is applied. */
+export function illustratedVfxLifetimeForClip(clip: WildguardVfxClip): number {
   switch (clip) {
     case WILDGUARD_VFX_CLIP.foxSwipe: return 12;
     case WILDGUARD_VFX_CLIP.earthWave: return 20;
     case WILDGUARD_VFX_CLIP.spitComet: return 12;
-    case WILDGUARD_VFX_CLIP.fluffyShield: return 18;
-    case WILDGUARD_VFX_CLIP.normalImpact: return 7;
+    // Static material-only threat route; it has no event projector today but
+    // retains a finite fallback lifetime to keep the clip union exhaustive.
+    case WILDGUARD_VFX_CLIP.saltwindEarthTelegraph: return 12;
+    // Sixteen two-tick erosion frames need enough room for a readable
+    // arrival and the shared true-zero release envelope.
+    case WILDGUARD_VFX_CLIP.fluffyShield: return 40;
+    case WILDGUARD_VFX_CLIP.normalImpact: return 10;
     case WILDGUARD_VFX_CLIP.criticalImpact: return 12;
-    case WILDGUARD_VFX_CLIP.playerImpact: return 9;
+    case WILDGUARD_VFX_CLIP.playerImpact: return 10;
     case WILDGUARD_VFX_CLIP.shieldRecharge: return 12;
     case WILDGUARD_VFX_CLIP.bomb: return 12;
     case WILDGUARD_VFX_CLIP.magnet: return 12;
@@ -268,18 +307,18 @@ function lifetimeForClip(clip: WildguardVfxClip): number {
     // These cards are currently used by the world renderer's persistent lanes,
     // but retain finite fallback lives if a future event route needs them.
     case WILDGUARD_VFX_CLIP.xpOrbit: return 12;
-    case WILDGUARD_VFX_CLIP.xpCollect: return 8;
+    case WILDGUARD_VFX_CLIP.xpCollect: return 10;
     case WILDGUARD_VFX_CLIP.hostileThorn: return 12;
     case WILDGUARD_VFX_CLIP.masterXp: return 12;
     case WILDGUARD_VFX_CLIP.pufferPulse: return 18;
-    case WILDGUARD_VFX_CLIP.geckoPad: return 18;
-    case WILDGUARD_VFX_CLIP.skunkCloud: return 28;
-    case WILDGUARD_VFX_CLIP.royalStink: return 34;
-    case WILDGUARD_VFX_CLIP.mantisSweep: return 9;
+    case WILDGUARD_VFX_CLIP.geckoPad: return 40;
+    case WILDGUARD_VFX_CLIP.skunkCloud: return 48;
+    case WILDGUARD_VFX_CLIP.royalStink: return 48;
+    case WILDGUARD_VFX_CLIP.mantisSweep: return 10;
     case WILDGUARD_VFX_CLIP.crabCrush: return 13;
     case WILDGUARD_VFX_CLIP.armadilloRoll: return 16;
     case WILDGUARD_VFX_CLIP.meteorImpact: return 18;
-    case WILDGUARD_VFX_CLIP.quillVolley: return 8;
+    case WILDGUARD_VFX_CLIP.quillVolley: return 10;
     case WILDGUARD_VFX_CLIP.owlPinions: return 14;
     case WILDGUARD_VFX_CLIP.thornstorm: return 24;
     case WILDGUARD_VFX_CLIP.thunderbug: return 20;
@@ -321,15 +360,33 @@ function priorityForClip(clip: WildguardVfxClip): number {
   }
 }
 
-function radiusForTrait(event: TraitPresentationEventView, clip: WildguardVfxClip): number {
+/**
+ * Maps an authoritative trait radius to the readable body scale of its
+ * renderer-only card. P2 signatures intentionally use a presentation scale
+ * larger than their exact damage radius: this is a camera/readability choice,
+ * never a change to collision, targeting, or projectile travel.
+ */
+export function illustratedVfxRadiusForTraitEvent(
+  event: Pick<TraitPresentationEventView, 'range' | 'radius' | 'strength'>,
+  clip: WildguardVfxClip,
+): number {
   const authoredRadius = positive(event.range, positive(event.radius, 0));
   switch (clip) {
     case WILDGUARD_VFX_CLIP.foxSwipe:
       return clamp(positive(authoredRadius, 46), 24, 96);
     case WILDGUARD_VFX_CLIP.earthWave:
-      return clamp(positive(authoredRadius, 28), 18, 62);
+      // Benny's first real trample wave is already placed ahead of him by
+      // simulation. Expand the painted front, rather than its damage query,
+      // so the individual wave reads as a broad advancing ridge at gameplay
+      // camera distance. This wider visual footprint remains renderer-only;
+      // it never changes the compact simulation damage query.
+      return clamp(Math.max(64, positive(authoredRadius, 34) * 1.95), 64, 104);
     case WILDGUARD_VFX_CLIP.spitComet:
-      return clamp(positive(authoredRadius, 20), 16, 42);
+      // The actual spit cast exposes a compact projectile hit radius (often
+      // 12 world units). A card at that literal radius vanished into Gracie's
+      // silhouette, so retain a bounded 56-unit body before its long tail is
+      // applied by the motion projector.
+      return clamp(Math.max(56, positive(authoredRadius, 16) * 3.75), 56, 86);
     case WILDGUARD_VFX_CLIP.fluffyShield:
       return clamp(16 + Math.sqrt(Math.max(0, finite(event.strength, 1))) * 3.6, 20, 38);
     case WILDGUARD_VFX_CLIP.shieldRecharge:
@@ -396,13 +453,26 @@ function yawFromDirection(dirX: number, dirY: number, fallbackFacing = 0): numbe
   return finite(fallbackFacing, 0) * 180 / Math.PI;
 }
 
-function seededAngleDegrees(seed: number): number {
-  const folded = Math.abs(Math.imul(Math.floor(seed), 0x45d9f3b)) % 360;
-  return folded;
+/**
+ * A hero signature needs enough held body time for its short core, physical
+ * debris, and grounded contact to read as one motion in real compositor
+ * frames. It still reaches the shared exact-zero terminal endpoint; only the
+ * release start is later than a compact impact/utility card.
+ */
+export function illustratedVfxEnvelopeReleaseForClip(clip: WildguardVfxClip): number {
+  switch (clip) {
+    case WILDGUARD_VFX_CLIP.foxSwipe:
+    case WILDGUARD_VFX_CLIP.earthWave:
+    case WILDGUARD_VFX_CLIP.spitComet:
+      return SIGNATURE_VFX_ENVELOPE_RELEASE;
+    default:
+      return VFX_ENVELOPE_RELEASE;
+  }
 }
 
 function resetSlot(slot: IllustratedVfxSlot): void {
   slot.active = false;
+  slot.nextFrameMeshInstance.visible = false;
   slot.entity.enabled = false;
 }
 
@@ -449,17 +519,30 @@ export function createIllustratedVfxPresentation(
   for (let index = 0; index < capacity; index++) {
     const entity = new pc.Entity(`illustrated-vfx-${index}`);
     const meshInstance = new pc.MeshInstance(cardMesh, materialBank.materialForFrame(WILDGUARD_VFX_CLIP.normalImpact));
+    const nextFrameMeshInstance = new pc.MeshInstance(
+      cardMesh,
+      materialBank.materialForFrame(WILDGUARD_VFX_CLIP.normalImpact),
+    );
     // Individual cards can travel beyond the source command's initial point;
     // culling them against an old aggregate bound causes distracting pop-in.
     meshInstance.cull = false;
+    nextFrameMeshInstance.cull = false;
+    // The next-frame quad remains in the finite pool but draws only during a
+    // deterministic atlas blend. Its fixed ordering keeps alpha composition
+    // stable without allocating a card, entity, or material mid-fight.
+    nextFrameMeshInstance.visible = false;
     entity.addComponent('render', {
-      meshInstances: [meshInstance], castShadows: false, receiveShadows: false,
+      meshInstances: [meshInstance, nextFrameMeshInstance], castShadows: false, receiveShadows: false,
+      ...(options.layers === undefined ? {} : { layers: options.layers }),
     });
     entity.enabled = false;
     parent.addChild(entity);
     slots.push({
       entity,
       meshInstance,
+      nextFrameMeshInstance,
+      atlasSample: createAnimatedVfxAtlasSample(),
+      motion: createIllustratedVfxMotionSample(),
       active: false,
       clip: WILDGUARD_VFX_CLIP.normalImpact,
       priority: 0,
@@ -473,6 +556,7 @@ export function createIllustratedVfxPresentation(
       yawDegrees: 0,
       seed: index,
       rankProfile: DEFAULT_ILLUSTRATED_VFX_RANK_PROFILE,
+      intensityProfile: ILLUSTRATED_VFX_FULL_INTENSITY_PROFILE,
     });
   }
 
@@ -513,13 +597,19 @@ export function createIllustratedVfxPresentation(
   ): void {
     const tick = normalizedTick(eventTick);
     const lifetime = Math.max(
-      1,
-      Math.round(lifetimeForClip(clip) * rankProfile.lifetimeMultiplier),
+      10,
+      Math.round(illustratedVfxLifetimeForClip(clip) * rankProfile.lifetimeMultiplier),
     );
-    if (tick + lifetime <= currentTick) return;
+    // Retain the terminal tick so the shared envelope can actually present
+    // its exact-zero endpoint before this pooled card is released.
+    if (tick + lifetime < currentTick) return;
     const priority = priorityForClip(clip);
     const slot = selectSlot(priority);
     if (slot === null) return;
+    // Count only the other live hot slots. When a saturated pool replaces an
+    // old card, excluding that exact slot prevents its soon-to-be-evicted heat
+    // from incorrectly dimming the incoming one.
+    const intensityProfile = illustratedVfxIntensityForNewCast(priority, currentTick, slots, slot);
     slot.active = true;
     slot.clip = clip;
     slot.priority = priority;
@@ -536,6 +626,7 @@ export function createIllustratedVfxPresentation(
     slot.yawDegrees = yawFromDirection(slot.dirX, slot.dirY, fallbackFacing);
     slot.seed = Math.floor(finite(seed, tick));
     slot.rankProfile = rankProfile;
+    slot.intensityProfile = intensityProfile;
   }
 
   function startTraitEvents(
@@ -548,7 +639,7 @@ export function createIllustratedVfxPresentation(
       const clip = illustratedVfxClipForTraitEvent(event);
       if (clip === null) continue;
       const rankProfile = illustratedVfxRankProfileForSource(traitVisualState, event.sourceId);
-      const radius = radiusForTrait(event, clip);
+      const radius = illustratedVfxRadiusForTraitEvent(event, clip);
       // A chain card is a resolved contact marker, not a decorative bolt
       // travelling from the command's origin. The routing guard above proves
       // the first endpoint exists, so use that exact copied victim position.
@@ -618,233 +709,32 @@ export function createIllustratedVfxPresentation(
 
   function updateSlot(slot: IllustratedVfxSlot, currentTick: number): boolean {
     if (!slot.active) return false;
-    if (currentTick >= slot.expiresAtTick) {
+    if (currentTick > slot.expiresAtTick) {
       resetSlot(slot);
       return false;
     }
     const duration = Math.max(1, slot.expiresAtTick - slot.tick);
     const progress = clamp((currentTick - slot.tick) / duration, 0, 1);
-    const pulse = Math.sin(progress * Math.PI);
-    let x = slot.x;
-    let y = slot.y;
-    let scaleX = slot.radius;
-    let scaleZ = slot.radius;
-    let yaw = slot.yawDegrees;
-    let height = HEIGHT;
-    let opacity = 0.96 * (1 - progress * 0.74);
-
-    switch (slot.clip) {
-      case WILDGUARD_VFX_CLIP.foxSwipe: {
-        const travel = slot.radius * (0.12 + progress * 0.25);
-        x += slot.dirX * travel;
-        y += slot.dirY * travel;
-        scaleX = slot.radius * (0.8 + pulse * 0.24);
-        scaleZ = slot.radius * (0.8 + pulse * 0.24);
-        height += 0.18;
-        break;
-      }
-      case WILDGUARD_VFX_CLIP.earthWave: {
-        const travel = slot.radius * progress * 0.52;
-        x += slot.dirX * travel;
-        y += slot.dirY * travel;
-        scaleX = slot.radius * (1.55 + pulse * 0.4);
-        scaleZ = slot.radius * (0.9 + pulse * 0.18);
-        height += 0.12;
-        break;
-      }
-      case WILDGUARD_VFX_CLIP.spitComet: {
-        const travel = slot.radius * (0.16 + progress * 1.05);
-        x += slot.dirX * travel;
-        y += slot.dirY * travel;
-        scaleX = slot.radius * (1.15 + progress * 0.3);
-        scaleZ = slot.radius * (0.72 + pulse * 0.16);
-        height += 0.16;
-        break;
-      }
-      case WILDGUARD_VFX_CLIP.fluffyShield:
-        scaleX = slot.radius * (0.9 + pulse * 0.16);
-        scaleZ = slot.radius * (0.9 + pulse * 0.16);
-        height += 0.24;
-        opacity = 0.9 * (1 - progress * 0.44);
-        break;
-      case WILDGUARD_VFX_CLIP.shieldRecharge:
-        scaleX = slot.radius * (0.76 + pulse * 0.42);
-        scaleZ = scaleX;
-        height += 0.28 + progress * 0.12;
-        opacity = 0.92 * (1 - progress * 0.54);
-        break;
-      case WILDGUARD_VFX_CLIP.criticalImpact:
-        scaleX = slot.radius * (0.62 + pulse * 0.56);
-        scaleZ = scaleX;
-        yaw += seededAngleDegrees(slot.seed) + progress * 42;
-        height += 0.18;
-        break;
-      case WILDGUARD_VFX_CLIP.playerImpact:
-        scaleX = slot.radius * (0.72 + pulse * 0.42);
-        scaleZ = scaleX;
-        yaw += seededAngleDegrees(slot.seed) - progress * 32;
-        height += 0.26;
-        break;
-      case WILDGUARD_VFX_CLIP.normalImpact:
-        scaleX = slot.radius * (0.6 + pulse * 0.42);
-        scaleZ = scaleX;
-        yaw += seededAngleDegrees(slot.seed) + progress * 26;
-        height += 0.12;
-        break;
-      case WILDGUARD_VFX_CLIP.bomb:
-        scaleX = slot.radius * (0.62 + pulse * 0.48);
-        scaleZ = scaleX;
-        yaw += progress * 32;
-        height += 0.24;
-        break;
-      case WILDGUARD_VFX_CLIP.magnet:
-        scaleX = slot.radius * (0.76 + pulse * 0.24);
-        scaleZ = scaleX;
-        yaw -= progress * 70;
-        height += 0.22;
-        break;
-      case WILDGUARD_VFX_CLIP.food:
-        scaleX = slot.radius * (0.68 + pulse * 0.32);
-        scaleZ = scaleX;
-        height += 0.3 + progress * 0.18;
-        opacity = 0.92 * (1 - progress * 0.46);
-        break;
-      case WILDGUARD_VFX_CLIP.pufferPulse:
-        scaleX = slot.radius * (0.34 + progress * 0.86);
-        scaleZ = scaleX;
-        yaw += progress * 24;
-        height = 0.38;
-        opacity = 0.84 * (1 - progress * 0.38);
-        break;
-      case WILDGUARD_VFX_CLIP.geckoPad:
-        scaleX = slot.radius * (0.68 + pulse * 0.24);
-        scaleZ = scaleX;
-        yaw += progress * 18;
-        height = 0.32;
-        opacity = 0.82 * (1 - progress * 0.44);
-        break;
-      case WILDGUARD_VFX_CLIP.skunkCloud:
-        scaleX = slot.radius * (0.48 + progress * 0.5);
-        scaleZ = scaleX;
-        yaw -= progress * 26;
-        height = 0.44 + progress * 0.08;
-        opacity = 0.72 * (1 - progress * 0.3);
-        break;
-      case WILDGUARD_VFX_CLIP.royalStink:
-        scaleX = slot.radius * (0.42 + progress * 0.64);
-        scaleZ = scaleX;
-        yaw += progress * 34;
-        height = 0.5 + progress * 0.1;
-        opacity = 0.88 * (1 - progress * 0.24);
-        break;
-      case WILDGUARD_VFX_CLIP.mantisSweep: {
-        const travel = slot.radius * (0.1 + progress * 0.34);
-        x += slot.dirX * travel;
-        y += slot.dirY * travel;
-        scaleX = slot.radius * (0.74 + pulse * 0.28);
-        scaleZ = scaleX;
-        height += 0.2;
-        break;
-      }
-      case WILDGUARD_VFX_CLIP.crabCrush:
-        scaleX = slot.radius * (0.36 + pulse * 0.72);
-        scaleZ = scaleX;
-        yaw += seededAngleDegrees(slot.seed) + progress * 20;
-        height += 0.16;
-        opacity = 0.94 * (1 - progress * 0.64);
-        break;
-      case WILDGUARD_VFX_CLIP.armadilloRoll: {
-        const travel = slot.radius * (0.08 + progress * 0.38);
-        x += slot.dirX * travel;
-        y += slot.dirY * travel;
-        scaleX = slot.radius * (0.78 + pulse * 0.24);
-        scaleZ = slot.radius * (0.56 + pulse * 0.18);
-        yaw += progress * 72;
-        height += 0.14;
-        break;
-      }
-      case WILDGUARD_VFX_CLIP.meteorImpact:
-        scaleX = slot.radius * (0.24 + pulse * 0.88);
-        scaleZ = scaleX;
-        yaw += seededAngleDegrees(slot.seed) - progress * 28;
-        height += 0.3;
-        opacity = 1 - progress * 0.7;
-        break;
-      case WILDGUARD_VFX_CLIP.quillVolley: {
-        const travel = slot.radius * (0.18 + progress * 0.92);
-        x += slot.dirX * travel;
-        y += slot.dirY * travel;
-        scaleX = slot.radius * (0.72 + pulse * 0.16);
-        scaleZ = slot.radius * (1.16 + progress * 0.24);
-        height += 0.16;
-        break;
-      }
-      case WILDGUARD_VFX_CLIP.owlPinions: {
-        const travel = slot.radius * (0.12 + progress * 0.72);
-        x += slot.dirX * travel;
-        y += slot.dirY * travel;
-        scaleX = slot.radius * (1.18 + pulse * 0.28);
-        scaleZ = slot.radius * (0.72 + pulse * 0.16);
-        height += 0.2;
-        break;
-      }
-      case WILDGUARD_VFX_CLIP.thornstorm:
-        scaleX = slot.radius * (0.3 + pulse * 0.84);
-        scaleZ = scaleX;
-        yaw += progress * 58;
-        height += 0.18;
-        opacity = 0.96 * (1 - progress * 0.48);
-        break;
-      case WILDGUARD_VFX_CLIP.thunderbug:
-        scaleX = slot.radius * (0.34 + pulse * 0.7);
-        scaleZ = scaleX;
-        yaw += seededAngleDegrees(slot.seed) - progress * 46;
-        height += 0.26;
-        opacity = 0.98 * (1 - progress * 0.48);
-        break;
-      case WILDGUARD_VFX_CLIP.fireflyOrbit: {
-        const angle = seededAngleDegrees(slot.seed) * Math.PI / 180 + progress * Math.PI * 2;
-        const orbitRadius = slot.radius * 0.34;
-        x += Math.cos(angle) * orbitRadius;
-        y += Math.sin(angle) * orbitRadius;
-        scaleX = slot.radius * 0.42;
-        scaleZ = scaleX;
-        yaw += progress * 48;
-        height += 0.24;
-        opacity = 0.84 * (1 - progress * 0.34);
-        break;
-      }
-      case WILDGUARD_VFX_CLIP.monarchOrbit: {
-        const angle = seededAngleDegrees(slot.seed) * Math.PI / 180 - progress * Math.PI * 1.5;
-        const orbitRadius = slot.radius * 0.3;
-        x += Math.cos(angle) * orbitRadius;
-        y += Math.sin(angle) * orbitRadius;
-        scaleX = slot.radius * 0.48;
-        scaleZ = scaleX;
-        yaw -= progress * 36;
-        height += 0.28;
-        opacity = 0.9 * (1 - progress * 0.3);
-        break;
-      }
-      case WILDGUARD_VFX_CLIP.batSonar:
-        scaleX = slot.radius * (0.12 + progress * 0.94);
-        scaleZ = scaleX;
-        yaw -= progress * 14;
-        height = 0.44;
-        opacity = 0.76 * (1 - progress * 0.62);
-        break;
-      case WILDGUARD_VFX_CLIP.midnightRadar:
-        scaleX = slot.radius * (0.1 + progress * 0.96);
-        scaleZ = scaleX;
-        yaw += progress * 20;
-        height = 0.48;
-        opacity = 0.88 * (1 - progress * 0.58);
-        break;
-      default:
-        scaleX = slot.radius * (0.74 + pulse * 0.28);
-        scaleZ = scaleX;
-        break;
-    }
+    const ageTicks = Math.max(0, currentTick - slot.tick);
+    writeIllustratedVfxMotion(
+      slot.clip,
+      progress,
+      ageTicks,
+      slot.radius,
+      slot.dirX,
+      slot.dirY,
+      slot.seed,
+      slot.motion,
+    );
+    const x = slot.x + slot.motion.offsetX;
+    const y = slot.y + slot.motion.offsetY;
+    let scaleX = slot.motion.scaleX;
+    let scaleZ = slot.motion.scaleZ;
+    const yaw = slot.yawDegrees + slot.motion.yawOffsetDegrees;
+    const height = HEIGHT + slot.motion.heightOffset;
+    // A shared attack/hold/release curve makes every card arrive with intent,
+    // remain readable, and reach exact zero before the pooled slot is reused.
+    let opacity = 0.96 * envelope(progress, VFX_ENVELOPE_ATTACK, illustratedVfxEnvelopeReleaseForClip(slot.clip));
 
     // This is the only rank treatment applied to a live card. Duration already
     // drives the motion curve above, so R1–R5 read as a deliberately paced,
@@ -852,8 +742,31 @@ export function createIllustratedVfxPresentation(
     scaleX *= slot.rankProfile.scaleMultiplier;
     scaleZ *= slot.rankProfile.scaleMultiplier;
     opacity *= slot.rankProfile.opacityMultiplier;
-    slot.meshInstance.material = materialBank.materialFor(slot.clip, Math.max(0, currentTick - slot.tick));
-    slot.meshInstance.setParameter('material_opacity', clamp(opacity, 0, 1));
+    scaleX *= slot.intensityProfile.scaleMultiplier;
+    scaleZ *= slot.intensityProfile.scaleMultiplier;
+    opacity *= slot.intensityProfile.opacityMultiplier;
+    const atlasSample = slot.atlasSample;
+    const definition = wildguardVfxClipDefinition(slot.clip);
+    if (!writeAnimatedVfxAtlasSample(definition.sequence, ageTicks, atlasSample)) {
+      resetSlot(slot);
+      return false;
+    }
+    const safeOpacity = clamp(opacity, 0, 1);
+    const frameBlend = atlasSample.crossfade;
+    slot.meshInstance.material = materialBank.materialForFrame(slot.clip, atlasSample.frameIndex);
+    slot.meshInstance.setParameter('material_opacity', safeOpacity * (1 - frameBlend));
+    // A static clip has no second source frame. Do not write a zero-opacity
+    // override through another MeshInstance that shares this material: some
+    // PlayCanvas material paths resolve that final shared uniform for both
+    // instances, which makes the actual authored body disappear. The second
+    // finite card is only configured on a real crossfade.
+    if (frameBlend > 0) {
+      slot.nextFrameMeshInstance.material = materialBank.materialForFrame(slot.clip, atlasSample.nextFrameIndex);
+      slot.nextFrameMeshInstance.setParameter('material_opacity', safeOpacity * frameBlend);
+      slot.nextFrameMeshInstance.visible = true;
+    } else {
+      slot.nextFrameMeshInstance.visible = false;
+    }
     slot.entity.setLocalPosition(x - worldHalfWidth, height, worldHalfHeight - y);
     slot.entity.setLocalEulerAngles(0, yaw, 0);
     slot.entity.setLocalScale(scaleX, 1, scaleZ);

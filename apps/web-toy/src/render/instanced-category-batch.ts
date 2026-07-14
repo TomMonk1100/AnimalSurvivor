@@ -45,6 +45,7 @@ export function createInstancedCategoryBatch(
   mesh: pc.Mesh,
   material: pc.Material,
   localY = 0,
+  layers?: readonly number[],
 ): InstancedCategoryBatch {
   if (!Number.isInteger(capacity) || capacity <= 0) {
     throw new RangeError(`${name} instance capacity must be a positive integer`);
@@ -70,6 +71,10 @@ export function createInstancedCategoryBatch(
     meshInstances: [meshInstance],
     castShadows: false,
     receiveShadows: false,
+    // A small number of player-feedback lanes deliberately render after
+    // cosmetic world props. Keep the default world layer for every ordinary
+    // batch, and opt in only when the caller has created that foreground lane.
+    ...(layers === undefined ? {} : { layers }),
   });
   entity.setLocalPosition(0, localY, 0);
   parent.addChild(entity);

@@ -1,0 +1,212 @@
+{
+  "sourceObject": "HEAD:assets/ui/vfx/wildguard-signature-frames-v2.png",
+  "sourceHash": "e8f557b3ba24cd0238846a530c88e3582b783f55",
+  "output": "/Users/adammuncie/GameDev/AnimalSurvivor/assets/ui/vfx/wildguard-signature-frames-v3.png",
+  "outputBytes": 580910,
+  "outputSha256": "bbc5240ee1ca7ba6ef421fd8f83f66195de18a78c5dbdc5fc42168dcefd6fcd8",
+  "grid": 4,
+  "cellPixels": 192,
+  "gutterPixels": 4,
+  "insetPixels": 184,
+  "bledPixels": 410174,
+  "alphaPolicy": "resample once into the inset cell; then preserve every alpha byte while bleeding RGB only below alpha zero",
+  "validation": {
+    "cells": [
+      {
+        "column": 0,
+        "row": 0,
+        "visiblePixels": 9779,
+        "visibleBounds": {
+          "minX": 34,
+          "minY": 43,
+          "maxX": 166,
+          "maxY": 187
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 1,
+        "row": 0,
+        "visiblePixels": 13893,
+        "visibleBounds": {
+          "minX": 16,
+          "minY": 38,
+          "maxX": 182,
+          "maxY": 187
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 2,
+        "row": 0,
+        "visiblePixels": 11327,
+        "visibleBounds": {
+          "minX": 25,
+          "minY": 45,
+          "maxX": 168,
+          "maxY": 184
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 3,
+        "row": 0,
+        "visiblePixels": 7348,
+        "visibleBounds": {
+          "minX": 15,
+          "minY": 38,
+          "maxX": 162,
+          "maxY": 187
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 0,
+        "row": 1,
+        "visiblePixels": 10926,
+        "visibleBounds": {
+          "minX": 23,
+          "minY": 46,
+          "maxX": 187,
+          "maxY": 165
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 1,
+        "row": 1,
+        "visiblePixels": 13983,
+        "visibleBounds": {
+          "minX": 4,
+          "minY": 4,
+          "maxX": 186,
+          "maxY": 176
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 2,
+        "row": 1,
+        "visiblePixels": 12678,
+        "visibleBounds": {
+          "minX": 28,
+          "minY": 16,
+          "maxX": 167,
+          "maxY": 175
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 3,
+        "row": 1,
+        "visiblePixels": 14764,
+        "visibleBounds": {
+          "minX": 15,
+          "minY": 4,
+          "maxX": 176,
+          "maxY": 175
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 0,
+        "row": 2,
+        "visiblePixels": 7547,
+        "visibleBounds": {
+          "minX": 42,
+          "minY": 29,
+          "maxX": 155,
+          "maxY": 145
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 1,
+        "row": 2,
+        "visiblePixels": 10828,
+        "visibleBounds": {
+          "minX": 16,
+          "minY": 18,
+          "maxX": 184,
+          "maxY": 187
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 2,
+        "row": 2,
+        "visiblePixels": 9730,
+        "visibleBounds": {
+          "minX": 18,
+          "minY": 8,
+          "maxX": 178,
+          "maxY": 187
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 3,
+        "row": 2,
+        "visiblePixels": 2409,
+        "visibleBounds": {
+          "minX": 28,
+          "minY": 44,
+          "maxX": 148,
+          "maxY": 138
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 0,
+        "row": 3,
+        "visiblePixels": 10214,
+        "visibleBounds": {
+          "minX": 32,
+          "minY": 5,
+          "maxX": 165,
+          "maxY": 149
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 1,
+        "row": 3,
+        "visiblePixels": 15243,
+        "visibleBounds": {
+          "minX": 6,
+          "minY": 4,
+          "maxX": 184,
+          "maxY": 163
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 2,
+        "row": 3,
+        "visiblePixels": 13641,
+        "visibleBounds": {
+          "minX": 20,
+          "minY": 4,
+          "maxX": 167,
+          "maxY": 157
+        },
+        "gutterViolations": 0
+      },
+      {
+        "column": 3,
+        "row": 3,
+        "visiblePixels": 15340,
+        "visibleBounds": {
+          "minX": 11,
+          "minY": 4,
+          "maxX": 161,
+          "maxY": 151
+        },
+        "gutterViolations": 0
+      }
+    ],
+    "totalGutterViolations": 0,
+    "totalBlackMattePixels": 0
+  },
+  "forestInspection": "/Users/adammuncie/GameDev/AnimalSurvivor/docs/vfx/captures/p3-signature-v3/signature-v3-forest-inspection.png"
+}

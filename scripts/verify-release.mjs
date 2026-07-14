@@ -43,10 +43,12 @@ const checks = [
       ['npm', ['run', 'typecheck']],
       ['npm', ['run', 'lint']],
       ['npm', ['run', 'verify:assets']],
+      ['npm', ['run', 'verify:vfx-textures']],
       ['npm', ['run', 'verify:content']],
       ['npm', ['run', 'build']],
       ['npm', ['run', 'verify:artifact']],
       ['npm', ['run', 'verify:served']],
+      ['npm', ['run', 'verify:vfx-flash']],
     ],
   },
 ];

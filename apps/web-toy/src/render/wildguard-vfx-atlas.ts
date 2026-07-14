@@ -7,28 +7,34 @@
  */
 import * as pc from 'playcanvas';
 import {
-  createAnimatedVfxAtlasSample,
-  writeAnimatedVfxAtlasSample,
   writeAnimatedVfxAtlasUv,
   type AnimatedVfxAtlasFrame,
-  type AnimatedVfxAtlasSample,
   type AnimatedVfxAtlasSequence,
 } from './animated-vfx-atlas';
 
 export const WILDGUARD_VFX_SHEET = Object.freeze({
   signature: 'signature',
+  signatureBodies: 'signatureBodies',
   world: 'world',
   fields: 'fields',
   melee: 'melee',
   projectile: 'projectile',
   aura: 'aura',
+  geckoDissolve: 'geckoDissolve',
+  skunkDissolve: 'skunkDissolve',
+  royalStinkDissolve: 'royalStinkDissolve',
+  fluffyShieldDissolve: 'fluffyShieldDissolve',
 } as const);
 
 export type WildguardVfxSheet = (typeof WILDGUARD_VFX_SHEET)[keyof typeof WILDGUARD_VFX_SHEET];
 
 export const WILDGUARD_VFX_SHEET_URLS: Readonly<Record<WildguardVfxSheet, string>> = Object.freeze({
   signature: new URL(
-    '../../../../assets/ui/vfx/wildguard-signature-frames-v2.png',
+    '../../../../assets/ui/vfx/wildguard-signature-frames-v3.png',
+    import.meta.url,
+  ).href,
+  signatureBodies: new URL(
+    '../../../../assets/ui/vfx/wildguard-signature-bodies-v1.png',
     import.meta.url,
   ).href,
   world: new URL(
@@ -51,12 +57,31 @@ export const WILDGUARD_VFX_SHEET_URLS: Readonly<Record<WildguardVfxSheet, string
     '../../../../assets/ui/vfx/wildguard-aura-frames-v3.png',
     import.meta.url,
   ).href,
+  geckoDissolve: new URL(
+    '../../../../assets/ui/vfx/wildguard-gecko-dissolve-frames-v1.png',
+    import.meta.url,
+  ).href,
+  skunkDissolve: new URL(
+    '../../../../assets/ui/vfx/wildguard-skunk-dissolve-frames-v1.png',
+    import.meta.url,
+  ).href,
+  royalStinkDissolve: new URL(
+    '../../../../assets/ui/vfx/wildguard-royal-stink-dissolve-frames-v1.png',
+    import.meta.url,
+  ).href,
+  fluffyShieldDissolve: new URL(
+    '../../../../assets/ui/vfx/wildguard-fluffy-shield-dissolve-frames-v1.png',
+    import.meta.url,
+  ).href,
 });
 
 export const WILDGUARD_VFX_CLIP = Object.freeze({
   foxSwipe: 'foxSwipe',
   earthWave: 'earthWave',
   spitComet: 'spitComet',
+  // Hostile Saltwind warnings retain their approved legacy earth glyph rather
+  // than borrowing Benny's player-only ridge silhouette from signatureBodies.
+  saltwindEarthTelegraph: 'saltwindEarthTelegraph',
   normalImpact: 'normalImpact',
   criticalImpact: 'criticalImpact',
   playerImpact: 'playerImpact',
@@ -109,19 +134,20 @@ function sequence(
     frames: Object.freeze(frames),
     ticksPerFrame,
     loop,
+    // Author-authored grids use related illustrations rather than a true
+    // frame-by-frame source. Blending over half of each frame prevents the
+    // hard cell swap from becoming a luminance strobe in the card pool.
+    crossfadeTicks: frames.length > 1 ? Math.ceil(ticksPerFrame / 2) : undefined,
   });
 }
 
 const SIGNATURE_FOX = Object.freeze([frame(0, 0), frame(1, 0), frame(2, 0), frame(3, 0)]);
 const SIGNATURE_EARTH = Object.freeze([frame(0, 1), frame(1, 1), frame(2, 1), frame(3, 1)]);
-const SIGNATURE_SPIT = Object.freeze([frame(0, 2), frame(1, 2), frame(2, 2), frame(3, 2)]);
+const SIGNATURE_BODY_EARTH = frame(0, 0);
+const SIGNATURE_BODY_SPIT = frame(1, 0);
 const WORLD_XP = Object.freeze([frame(0, 0), frame(1, 0), frame(2, 0), frame(3, 0)]);
 const WORLD_HOSTILE = Object.freeze([frame(0, 1), frame(1, 1), frame(2, 1), frame(3, 1)]);
-const WORLD_SHIELD = Object.freeze([frame(0, 2), frame(1, 2), frame(2, 2), frame(3, 2)]);
 const FIELDS_PUFFER = Object.freeze([frame(0, 0), frame(1, 0), frame(2, 0), frame(3, 0)]);
-const FIELDS_GECKO = Object.freeze([frame(0, 1), frame(1, 1), frame(2, 1), frame(3, 1)]);
-const FIELDS_SKUNK = Object.freeze([frame(0, 2), frame(1, 2), frame(2, 2), frame(3, 2)]);
-const FIELDS_ROYAL_STINK = Object.freeze([frame(0, 3), frame(1, 3), frame(2, 3), frame(3, 3)]);
 const MELEE_MANTIS = Object.freeze([frame(0, 0), frame(1, 0), frame(2, 0), frame(3, 0)]);
 const MELEE_CRAB = Object.freeze([frame(0, 1), frame(1, 1), frame(2, 1), frame(3, 1)]);
 const MELEE_ARMADILLO = Object.freeze([frame(0, 2), frame(1, 2), frame(2, 2), frame(3, 2)]);
@@ -136,42 +162,88 @@ const AURA_BAT = Object.freeze([frame(0, 2), frame(1, 2), frame(2, 2), frame(3, 
 const AURA_MIDNIGHT = Object.freeze([frame(0, 3), frame(1, 3), frame(2, 3), frame(3, 3)]);
 
 /**
+ * The generator gave us a cohesive visual language, but not coherent
+ * frame-by-frame animation. A stable authored body frame plus P1's transform
+ * vocabulary is clearer than pretending unrelated illustrations are a
+ * flipbook. These one-frame sequences deliberately have no crossfade: their
+ * movement is the deterministic card motion, not a hard texture swap.
+ */
+function bestFrameSequence(
+  name: WildguardVfxClip,
+  cell: AnimatedVfxAtlasFrame,
+  ticksPerFrame: number,
+  loop = false,
+): AnimatedVfxAtlasSequence {
+  return sequence(name, [cell], ticksPerFrame, loop);
+}
+
+/**
+ * These are the plan's compact eight-frame fallback: one approved body
+ * illustration erodes through one fixed noise field. Unlike the original AI
+ * board rows, every live cell is a moment in the same dissolve and can safely
+ * crossfade. The source atlas remains a 4×4 grid for the shared UV contract;
+ * its unused terminal copies are intentionally never sampled.
+ */
+const DISSOLVE_SEQUENCE_FRAMES: readonly AnimatedVfxAtlasFrame[] = Object.freeze(
+  Array.from({ length: 8 }, (_, index) => frame(index % 4, Math.floor(index / 4))),
+);
+
+/**
  * The frame order follows the authored sheets left-to-right. One-frame clips
  * intentionally still use the same sequence contract, which keeps impact and
  * pickup routing as explicit as animated hero signatures.
  */
 export const WILDGUARD_VFX_CLIPS: Readonly<Record<WildguardVfxClip, WildguardVfxClipDefinition>> = Object.freeze({
-  foxSwipe: Object.freeze({ sheet: 'signature', sequence: sequence('foxSwipe', SIGNATURE_FOX, 3) }),
-  earthWave: Object.freeze({ sheet: 'signature', sequence: sequence('earthWave', SIGNATURE_EARTH, 5) }),
-  spitComet: Object.freeze({ sheet: 'signature', sequence: sequence('spitComet', SIGNATURE_SPIT, 3) }),
+  foxSwipe: Object.freeze({ sheet: 'signature', sequence: bestFrameSequence('foxSwipe', SIGNATURE_FOX[1]!, 3) }),
+  // These two player signatures use P2's dedicated single-body sheet. The
+  // stable transform animation prevents unrelated generated frames from
+  // strobing while preserving unmistakable rock-ridge and spit-head/tail reads.
+  earthWave: Object.freeze({ sheet: 'signatureBodies', sequence: bestFrameSequence('earthWave', SIGNATURE_BODY_EARTH, 5) }),
+  spitComet: Object.freeze({ sheet: 'signatureBodies', sequence: bestFrameSequence('spitComet', SIGNATURE_BODY_SPIT, 3) }),
+  saltwindEarthTelegraph: Object.freeze({
+    sheet: 'signature',
+    sequence: bestFrameSequence('saltwindEarthTelegraph', SIGNATURE_EARTH[1]!, 5),
+  }),
   normalImpact: Object.freeze({ sheet: 'signature', sequence: sequence('normalImpact', [frame(0, 3)], 8) }),
   criticalImpact: Object.freeze({ sheet: 'signature', sequence: sequence('criticalImpact', [frame(1, 3)], 12) }),
   playerImpact: Object.freeze({ sheet: 'signature', sequence: sequence('playerImpact', [frame(2, 3)], 9) }),
   shieldRecharge: Object.freeze({ sheet: 'signature', sequence: sequence('shieldRecharge', [frame(3, 3)], 12) }),
-  xpOrbit: Object.freeze({ sheet: 'world', sequence: sequence('xpOrbit', WORLD_XP.slice(0, 2), 6, true) }),
-  xpCollect: Object.freeze({ sheet: 'world', sequence: sequence('xpCollect', WORLD_XP.slice(2), 4) }),
-  hostileThorn: Object.freeze({ sheet: 'world', sequence: sequence('hostileThorn', WORLD_HOSTILE, 3) }),
-  fluffyShield: Object.freeze({ sheet: 'world', sequence: sequence('fluffyShield', WORLD_SHIELD, 6) }),
+  xpOrbit: Object.freeze({ sheet: 'world', sequence: bestFrameSequence('xpOrbit', WORLD_XP[1]!, 6, true) }),
+  xpCollect: Object.freeze({ sheet: 'world', sequence: bestFrameSequence('xpCollect', WORLD_XP[2]!, 4) }),
+  hostileThorn: Object.freeze({ sheet: 'world', sequence: bestFrameSequence('hostileThorn', WORLD_HOSTILE[1]!, 3) }),
+  fluffyShield: Object.freeze({
+    sheet: 'fluffyShieldDissolve',
+    sequence: sequence('fluffyShield', DISSOLVE_SEQUENCE_FRAMES, 2),
+  }),
   bomb: Object.freeze({ sheet: 'world', sequence: sequence('bomb', [frame(0, 3)], 10) }),
   magnet: Object.freeze({ sheet: 'world', sequence: sequence('magnet', [frame(1, 3)], 10) }),
   food: Object.freeze({ sheet: 'world', sequence: sequence('food', [frame(2, 3)], 10) }),
   masterXp: Object.freeze({ sheet: 'world', sequence: sequence('masterXp', [frame(3, 3)], 10) }),
-  pufferPulse: Object.freeze({ sheet: 'fields', sequence: sequence('pufferPulse', FIELDS_PUFFER, 5, true) }),
-  geckoPad: Object.freeze({ sheet: 'fields', sequence: sequence('geckoPad', FIELDS_GECKO, 5) }),
-  skunkCloud: Object.freeze({ sheet: 'fields', sequence: sequence('skunkCloud', FIELDS_SKUNK, 6, true) }),
-  royalStink: Object.freeze({ sheet: 'fields', sequence: sequence('royalStink', FIELDS_ROYAL_STINK, 6, true) }),
-  mantisSweep: Object.freeze({ sheet: 'melee', sequence: sequence('mantisSweep', MELEE_MANTIS, 3) }),
-  crabCrush: Object.freeze({ sheet: 'melee', sequence: sequence('crabCrush', MELEE_CRAB, 4) }),
-  armadilloRoll: Object.freeze({ sheet: 'melee', sequence: sequence('armadilloRoll', MELEE_ARMADILLO, 3) }),
-  meteorImpact: Object.freeze({ sheet: 'melee', sequence: sequence('meteorImpact', MELEE_METEOR, 5) }),
-  quillVolley: Object.freeze({ sheet: 'projectile', sequence: sequence('quillVolley', PROJECTILE_QUILL, 3) }),
-  owlPinions: Object.freeze({ sheet: 'projectile', sequence: sequence('owlPinions', PROJECTILE_OWL, 4) }),
-  thornstorm: Object.freeze({ sheet: 'projectile', sequence: sequence('thornstorm', PROJECTILE_THORNSTORM, 3) }),
-  thunderbug: Object.freeze({ sheet: 'projectile', sequence: sequence('thunderbug', PROJECTILE_THUNDERBUG, 4) }),
-  fireflyOrbit: Object.freeze({ sheet: 'aura', sequence: sequence('fireflyOrbit', AURA_FIREFLY, 5, true) }),
-  monarchOrbit: Object.freeze({ sheet: 'aura', sequence: sequence('monarchOrbit', AURA_MONARCH, 5, true) }),
-  batSonar: Object.freeze({ sheet: 'aura', sequence: sequence('batSonar', AURA_BAT, 6, true) }),
-  midnightRadar: Object.freeze({ sheet: 'aura', sequence: sequence('midnightRadar', AURA_MIDNIGHT, 6, true) }),
+  pufferPulse: Object.freeze({ sheet: 'fields', sequence: bestFrameSequence('pufferPulse', FIELDS_PUFFER[1]!, 5, true) }),
+  geckoPad: Object.freeze({
+    sheet: 'geckoDissolve',
+    sequence: sequence('geckoPad', DISSOLVE_SEQUENCE_FRAMES, 2),
+  }),
+  skunkCloud: Object.freeze({
+    sheet: 'skunkDissolve',
+    sequence: sequence('skunkCloud', DISSOLVE_SEQUENCE_FRAMES, 2),
+  }),
+  royalStink: Object.freeze({
+    sheet: 'royalStinkDissolve',
+    sequence: sequence('royalStink', DISSOLVE_SEQUENCE_FRAMES, 2),
+  }),
+  mantisSweep: Object.freeze({ sheet: 'melee', sequence: bestFrameSequence('mantisSweep', MELEE_MANTIS[0]!, 3) }),
+  crabCrush: Object.freeze({ sheet: 'melee', sequence: bestFrameSequence('crabCrush', MELEE_CRAB[1]!, 4) }),
+  armadilloRoll: Object.freeze({ sheet: 'melee', sequence: bestFrameSequence('armadilloRoll', MELEE_ARMADILLO[1]!, 3) }),
+  meteorImpact: Object.freeze({ sheet: 'melee', sequence: bestFrameSequence('meteorImpact', MELEE_METEOR[2]!, 5) }),
+  quillVolley: Object.freeze({ sheet: 'projectile', sequence: bestFrameSequence('quillVolley', PROJECTILE_QUILL[1]!, 3) }),
+  owlPinions: Object.freeze({ sheet: 'projectile', sequence: bestFrameSequence('owlPinions', PROJECTILE_OWL[1]!, 4) }),
+  thornstorm: Object.freeze({ sheet: 'projectile', sequence: bestFrameSequence('thornstorm', PROJECTILE_THORNSTORM[1]!, 3) }),
+  thunderbug: Object.freeze({ sheet: 'projectile', sequence: bestFrameSequence('thunderbug', PROJECTILE_THUNDERBUG[1]!, 4) }),
+  fireflyOrbit: Object.freeze({ sheet: 'aura', sequence: bestFrameSequence('fireflyOrbit', AURA_FIREFLY[1]!, 5, true) }),
+  monarchOrbit: Object.freeze({ sheet: 'aura', sequence: bestFrameSequence('monarchOrbit', AURA_MONARCH[1]!, 5, true) }),
+  batSonar: Object.freeze({ sheet: 'aura', sequence: bestFrameSequence('batSonar', AURA_BAT[1]!, 6, true) }),
+  midnightRadar: Object.freeze({ sheet: 'aura', sequence: bestFrameSequence('midnightRadar', AURA_MIDNIGHT[1]!, 6, true) }),
 });
 
 export function wildguardVfxClipDefinition(clip: WildguardVfxClip): WildguardVfxClipDefinition {
@@ -180,7 +252,12 @@ export function wildguardVfxClipDefinition(clip: WildguardVfxClip): WildguardVfx
 
 /** A finite material bank shared by pooled hero art and instanced world art. */
 export interface WildguardVfxMaterialBank {
-  /** Samples a clip at deterministic age ticks without making a material per event. */
+  /**
+   * Returns a stable representative frame for high-volume instanced lanes.
+   * Per-slot illustrated cards use `materialForFrame` plus atlas crossfades;
+   * one shared instanced material cannot crossfade without doubling every
+   * dense projectile/pickup draw, so it intentionally never hard-flips.
+   */
   materialFor(clip: WildguardVfxClip, ageTicks: number): pc.StandardMaterial;
   /** Retrieves a particular authored frame, useful for a static semantic lane. */
   materialForFrame(clip: WildguardVfxClip, frameIndex?: number): pc.StandardMaterial;
@@ -193,6 +270,16 @@ interface TextureBinding {
 
 function cellKey(sheet: WildguardVfxSheet, cell: AnimatedVfxAtlasFrame): string {
   return `${sheet}:${cell.column}:${cell.row}`;
+}
+
+/**
+ * The second authored cell is the stable in-flight/body read for the compact
+ * four-cell strips. This is deliberately a single-frame fallback for shared
+ * instanced lanes: temporal coherence is more valuable than an unsynchronised
+ * hard flip across every on-screen projectile.
+ */
+function stableFrameIndex(frames: readonly AnimatedVfxAtlasFrame[]): number {
+  return frames.length > 1 ? 1 : 0;
 }
 
 function createNativeArtMaterial(cell: AnimatedVfxAtlasFrame): pc.StandardMaterial {
@@ -264,18 +351,21 @@ export function createWildguardVfxMaterialBank(device: pc.GraphicsDevice): Wildg
   const materialByCell = new Map<string, pc.StandardMaterial>();
   const materialsBySheet: Record<WildguardVfxSheet, pc.StandardMaterial[]> = {
     signature: [],
+    signatureBodies: [],
     world: [],
     fields: [],
     melee: [],
     projectile: [],
     aura: [],
+    geckoDissolve: [],
+    skunkDissolve: [],
+    royalStinkDissolve: [],
+    fluffyShieldDissolve: [],
   };
-  const sampleByClip = new Map<WildguardVfxClip, AnimatedVfxAtlasSample>();
   const allMaterials: pc.StandardMaterial[] = [];
 
   for (const clip of Object.values(WILDGUARD_VFX_CLIP)) {
     const definition = WILDGUARD_VFX_CLIPS[clip];
-    sampleByClip.set(clip, createAnimatedVfxAtlasSample());
     for (const cell of definition.sequence.frames) {
       const key = cellKey(definition.sheet, cell);
       if (materialByCell.has(key)) continue;
@@ -302,11 +392,12 @@ export function createWildguardVfxMaterialBank(device: pc.GraphicsDevice): Wildg
   }
 
   return {
-    materialFor(clip, ageTicks): pc.StandardMaterial {
+    materialFor(clip, _ageTicks): pc.StandardMaterial {
       const definition = WILDGUARD_VFX_CLIPS[clip];
-      const sample = sampleByClip.get(clip)!;
-      writeAnimatedVfxAtlasSample(definition.sequence, ageTicks, sample);
-      return materialForFrame(clip, sample.frameIndex);
+      // The high-volume batch route has a single material for many instances,
+      // so a real blend there would double each lane's draw count; freeze a
+      // representative body frame instead.
+      return materialForFrame(clip, stableFrameIndex(definition.sequence.frames));
     },
     materialForFrame,
     dispose(): void {

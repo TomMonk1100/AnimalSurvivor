@@ -3,6 +3,7 @@ import { DEFAULT_CONFIG, RUN_ENEMY_ROLE } from '@sim';
 import type { RunDirectorEventView, TraitPresentationEventView } from '@sim';
 import type { CategorySnapshot, RenderSnapshot } from '../src/contracts';
 import {
+  ENEMY_THREAT_BREATH_PERIOD_TICKS,
   createEnemyThreatPresentation,
   HOSTILE_PROJECTILE_ROLE,
   isHostileProjectileSnapshot,
@@ -102,6 +103,10 @@ function directorEvent(kind: string, tick: number, seq = 1): RunDirectorEventVie
 }
 
 describe('enemy threat presentation', () => {
+  it('keeps every persistent threat breathe loop at or below the flash-safe half-hertz cap', () => {
+    expect(ENEMY_THREAT_BREATH_PERIOD_TICKS).toBeGreaterThanOrEqual(120);
+  });
+
   it('projects only hostile projectile heads/tails and accepts optional source, crit, and velocity metadata', () => {
     const { previous, current } = snapshots(40);
     projectile(previous.projectiles, 0, 17, 0, 0);

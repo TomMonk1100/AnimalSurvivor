@@ -30,12 +30,24 @@ const enemySprites = [
   { relativePath: 'ui/enemies/hollowhart-warden-v1.png', width: 1254, height: 1254, maxBytes: 1_500_000 },
 ];
 const vfxAtlases = [
-  { relativePath: 'ui/vfx/wildguard-signature-frames-v2.png', width: 768, height: 768, maxBytes: 600_000 },
-  { relativePath: 'ui/vfx/wildguard-world-frames-v2.png', width: 768, height: 768, maxBytes: 550_000 },
-  { relativePath: 'ui/vfx/wildguard-fields-frames-v3.png', width: 768, height: 768, maxBytes: 450_000 },
-  { relativePath: 'ui/vfx/wildguard-melee-frames-v3.png', width: 768, height: 768, maxBytes: 450_000 },
-  { relativePath: 'ui/vfx/wildguard-projectile-frames-v3.png', width: 768, height: 768, maxBytes: 400_000 },
-  { relativePath: 'ui/vfx/wildguard-aura-frames-v3.png', width: 768, height: 768, maxBytes: 250_000 },
+  // Literal unpremultiplied RGB is intentionally retained below alpha=0 to
+  // prevent black mip fringes. These conservative per-sheet caps reflect that
+  // required matte data while the authoritative complete-runtime cap below
+  // remains the production plan's strict 19 MB.
+  { relativePath: 'ui/vfx/wildguard-signature-frames-v3.png', width: 768, height: 768, maxBytes: 850_000 },
+  { relativePath: 'ui/vfx/wildguard-signature-bodies-v1.png', width: 512, height: 512, maxBytes: 300_000 },
+  { relativePath: 'ui/vfx/wildguard-world-frames-v2.png', width: 768, height: 768, maxBytes: 750_000 },
+  { relativePath: 'ui/vfx/wildguard-fields-frames-v3.png', width: 768, height: 768, maxBytes: 500_000 },
+  { relativePath: 'ui/vfx/wildguard-melee-frames-v3.png', width: 768, height: 768, maxBytes: 500_000 },
+  { relativePath: 'ui/vfx/wildguard-projectile-frames-v3.png', width: 768, height: 768, maxBytes: 500_000 },
+  { relativePath: 'ui/vfx/wildguard-aura-frames-v3.png', width: 768, height: 768, maxBytes: 300_000 },
+  { relativePath: 'ui/vfx/wildguard-gecko-dissolve-frames-v1.png', width: 512, height: 512, maxBytes: 250_000 },
+  { relativePath: 'ui/vfx/wildguard-skunk-dissolve-frames-v1.png', width: 512, height: 512, maxBytes: 250_000 },
+  { relativePath: 'ui/vfx/wildguard-royal-stink-dissolve-frames-v1.png', width: 512, height: 512, maxBytes: 250_000 },
+  { relativePath: 'ui/vfx/wildguard-fluffy-shield-dissolve-frames-v1.png', width: 512, height: 512, maxBytes: 250_000 },
+  { relativePath: 'ui/vfx/wildguard-impact-core-v1.png', width: 384, height: 384, maxBytes: 100_000 },
+  { relativePath: 'ui/vfx/wildguard-signature-debris-v1.png', width: 512, height: 128, maxBytes: 50_000 },
+  { relativePath: 'ui/vfx/wildguard-ground-contact-v1.png', width: 256, height: 128, maxBytes: 25_000 },
 ];
 const foxPath = 'vendor/quaternius/ultimate_animated_animals/Fox.gltf';
 const gladeFiles = [
@@ -86,9 +98,9 @@ const MAX_KEY_ART_BYTES = 600_000;
 const MAX_TERRAIN_BYTES = 800_000;
 const MAX_FOX_BYTES = 4_000_000;
 const MAX_GLADE_BYTES = 1_250_000;
-// The completed VFX pass adds four compact 768px alpha atlases to replace
-// procedural placeholder geometry across every player attack family. The
-// full authored runtime payload remains bounded below 19 MB.
+// The completed VFX pass adds compact alpha atlases for player effects,
+// source-preserving eight-frame dissolves, and one small contact mask. The
+// full authored runtime payload remains bounded below the plan's 19 MB cap.
 const MAX_RUNTIME_ASSET_BYTES = 19_000_000;
 
 function fail(message) {
@@ -406,7 +418,7 @@ function main() {
     fail(`runtime asset payload exceeds ${MAX_RUNTIME_ASSET_BYTES} bytes (${totalBytes})`);
   }
 
-  console.log(`[verify-assets] ${portraitFiles.length} hero portraits + ${bossPortraitFiles.length} boss portraits + key art + terrain + ${playableHeroSprites.length} playable hero sprites + ${enemySprites.length} enemy sprites + ${vfxAtlases.length} animated VFX sheets + Fox glTF + ${gladeFiles.length} curated glade files validated; ${totalBytes} source bytes within budget`);
+  console.log(`[verify-assets] ${portraitFiles.length} hero portraits + ${bossPortraitFiles.length} boss portraits + key art + terrain + ${playableHeroSprites.length} playable hero sprites + ${enemySprites.length} enemy sprites + ${vfxAtlases.length} VFX textures + Fox glTF + ${gladeFiles.length} curated glade files validated; ${totalBytes} source bytes within budget`);
 }
 
 try {
