@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   DEFAULT_CONFIG,
+  RUN_START_LOADOUT_VERSION,
   UNIVERSAL_UPGRADE_CATALOG,
   createSimulation,
   getUniversalUpgradeCatalogForHero,
@@ -103,7 +104,7 @@ function startUniversalRun(
   const sim = createSimulation(QUIET_UPGRADE_CONFIG, 71, {
     universalUpgradeCatalog: UNIVERSAL_UPGRADE_CATALOG,
     traitOfferCount: offerCount,
-    runStartLoadout: { version: 4, heroId, maxHpBonus: 0 },
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId, maxHpBonus: 0 },
   });
   sim.step({ moveX: 0, moveY: 0, paused: false });
   assert.equal(sim.upgradeSelectionPending, true);
@@ -197,7 +198,7 @@ test('universal cards change authoritative player stats and Mote Draw physically
 });
 
 test('sharpened instinct changes real Spit Volley damage and universal selections replay exactly', () => {
-  const gracieLoadout = { version: 4 as const, heroId: 'gracie' as const, maxHpBonus: 0 };
+  const gracieLoadout = { version: RUN_START_LOADOUT_VERSION, heroId: 'gracie' as const, maxHpBonus: 0 };
   const sim = startUniversalRun(4, 'gracie');
   assert.ok(sim.pendingUpgradeOffers.some((offer) => offer.id === 'universal:sharpened-instinct'));
   sim.selectUpgrade('universal:sharpened-instinct');
@@ -251,7 +252,7 @@ test('Rapid Instinct and Growth change real attack cadence and collected XP', ()
 });
 
 test('permanent starting vitality is applied at startup and replay rejects a mismatched loadout', () => {
-  const loadout = { version: 4 as const, heroId: 'greg' as const, maxHpBonus: 20 };
+  const loadout = { version: RUN_START_LOADOUT_VERSION, heroId: 'greg' as const, maxHpBonus: 20 };
   const sim = createSimulation({ ...DEFAULT_CONFIG, waves: [] }, 55, { runStartLoadout: loadout });
   assert.equal(sim.player.maxHp, DEFAULT_CONFIG.player.maxHp + 20);
   assert.equal(sim.player.hp, DEFAULT_CONFIG.player.maxHp + 20);
@@ -265,13 +266,13 @@ test('permanent starting vitality is applied at startup and replay rejects a mis
 
 test('hero selection is deterministic and changes the authoritative starting profile', () => {
   const greg = createSimulation({ ...DEFAULT_CONFIG, waves: [] }, 56, {
-    runStartLoadout: { version: 4, heroId: 'greg', maxHpBonus: 0 },
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'greg', maxHpBonus: 0 },
   });
   const benny = createSimulation({ ...DEFAULT_CONFIG, waves: [] }, 56, {
-    runStartLoadout: { version: 4, heroId: 'benny', maxHpBonus: 0 },
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'benny', maxHpBonus: 0 },
   });
   const gracie = createSimulation({ ...DEFAULT_CONFIG, waves: [] }, 56, {
-    runStartLoadout: { version: 4, heroId: 'gracie', maxHpBonus: 0 },
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'gracie', maxHpBonus: 0 },
   });
 
   assert.equal(greg.player.critChance, 0.05);
@@ -293,7 +294,7 @@ test('hero selection is deterministic and changes the authoritative starting pro
 test('hero starter attacks resolve as a Fox Swipe, earth-wave Trample, and Spit Volley', () => {
   const quietConfig = { ...DEFAULT_CONFIG, waves: [] };
   const greg = createSimulation(quietConfig, 58, {
-    runStartLoadout: { version: 4, heroId: 'greg', maxHpBonus: 0 },
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'greg', maxHpBonus: 0 },
   });
   const gregEnemy = addStationaryEnemy(greg, 60);
   const gregEvents = greg.step({ moveX: 0, moveY: 0, paused: false });
@@ -303,7 +304,7 @@ test('hero starter attacks resolve as a Fox Swipe, earth-wave Trample, and Spit 
   assert.ok(greg.traitPresentationEvents.some((event) => event.kind === 'meleeArc' && event.arc > 0));
 
   const benny = createSimulation(quietConfig, 58, {
-    runStartLoadout: { version: 4, heroId: 'benny', maxHpBonus: 0 },
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'benny', maxHpBonus: 0 },
   });
   const bennyEnemy = addStationaryEnemy(benny, 38);
   for (let tick = 0; tick < 10; tick++) benny.step({ moveX: 0, moveY: 0, paused: false });
@@ -311,7 +312,7 @@ test('hero starter attacks resolve as a Fox Swipe, earth-wave Trample, and Spit 
   assert.ok(benny.enemies.data.hp[bennyEnemy]! < 100, 'Trample damages along its forward wave line');
 
   const gracie = createSimulation(quietConfig, 58, {
-    runStartLoadout: { version: 4, heroId: 'gracie', maxHpBonus: 0 },
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'gracie', maxHpBonus: 0 },
   });
   addStationaryEnemy(gracie, 100);
   const gracieEvents = gracie.step({ moveX: 0, moveY: 0, paused: false });
@@ -328,7 +329,7 @@ test('rank-five Mastery stays capped and gives Greg the authored Master double-s
     xpThresholds: [0, 1, 2, 3, 4],
     weapon: { ...DEFAULT_CONFIG.weapon, cooldownTicks: 1 },
   }, 59, {
-    runStartLoadout: { version: 4, heroId, maxHpBonus: 0 },
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId, maxHpBonus: 0 },
     universalUpgradeCatalog: getUniversalUpgradeCatalogForHero(heroId),
     traitOfferCount: 9,
   });
@@ -357,7 +358,7 @@ test('rank-five Mastery stays capped and gives Greg the authored Master double-s
 test('hero defensive cards alter the authoritative combat state', () => {
   const startHero = (heroId: 'greg' | 'benny' | 'gracie') => {
     const sim = createSimulation(QUIET_UPGRADE_CONFIG, 60, {
-      runStartLoadout: { version: 4, heroId, maxHpBonus: 0 },
+      runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId, maxHpBonus: 0 },
       universalUpgradeCatalog: getUniversalUpgradeCatalogForHero(heroId),
       traitOfferCount: 9,
     });
@@ -382,7 +383,7 @@ test('hero defensive cards alter the authoritative combat state', () => {
 
 test('every founding hero preserves exact replay parity across a moving run', () => {
   for (const heroId of ['greg', 'benny', 'gracie'] as const) {
-    const loadout = { version: 4 as const, heroId, maxHpBonus: 0 };
+    const loadout = { version: RUN_START_LOADOUT_VERSION, heroId, maxHpBonus: 0 };
     const sim = createSimulation({ ...DEFAULT_CONFIG, waves: [] }, 57, {
       runStartLoadout: loadout,
     });

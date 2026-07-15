@@ -304,6 +304,58 @@ test('full-pool safety: enemy count never exceeds a tiny cap; spawnRejections fi
   assert.ok(sim.waveDirector.spawnRejections > 0, 'expected the director to hit the enemy pool cap and reject spawns');
 });
 
+test('a permanent damage multiplier bonus deals strictly more real Fox Swipe damage than an identical run without it', () => {
+  const config: SimConfig = { ...DEFAULT_CONFIG, waves: [] };
+  const withoutBonus = createSimulation(config, 4242, {
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'greg', maxHpBonus: 0 },
+  });
+  const withBonus = createSimulation(config, 4242, {
+    runStartLoadout: {
+      version: RUN_START_LOADOUT_VERSION, heroId: 'greg', maxHpBonus: 0, damageMultiplierBonus: 0.5,
+    },
+  });
+
+  const enemyWithout = spawnStationaryEnemy(withoutBonus, withoutBonus.player.x + 60, withoutBonus.player.y, 500);
+  const enemyWith = spawnStationaryEnemy(withBonus, withBonus.player.x + 60, withBonus.player.y, 500);
+
+  withoutBonus.step({ moveX: 0, moveY: 0, paused: false });
+  withBonus.step({ moveX: 0, moveY: 0, paused: false });
+
+  const hpWithout = withoutBonus.enemies.data.hp[enemyWithout]!;
+  const hpWith = withBonus.enemies.data.hp[enemyWith]!;
+  assert.ok(
+    hpWithout < 500 && hpWith < 500,
+    'expected Fox Swipe to land on the stationary target in both runs',
+  );
+  assert.ok(hpWith < hpWithout, 'a 50% permanent damage bonus should deal strictly more Fox Swipe damage');
+  assert.notEqual(
+    withoutBonus.runStartLoadoutFingerprint,
+    withBonus.runStartLoadoutFingerprint,
+    'differing permanent bonuses must fingerprint differently for replay safety',
+  );
+});
+
+test('permanent flat bonuses (armor, dodge, pickup radius) change the authoritative starting player state', () => {
+  const config: SimConfig = { ...DEFAULT_CONFIG, waves: [] };
+  const baseline = createSimulation(config, 5150, {
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'greg', maxHpBonus: 0 },
+  });
+  const boosted = createSimulation(config, 5150, {
+    runStartLoadout: {
+      version: RUN_START_LOADOUT_VERSION,
+      heroId: 'greg',
+      maxHpBonus: 0,
+      armorBonus: 5,
+      dodgeChanceBonus: 0.1,
+      pickupRadiusBonus: 40,
+    },
+  });
+
+  assert.equal(boosted.player.armor, (baseline.player.armor ?? 0) + 5);
+  assert.ok(Math.abs((boosted.player.dodgeChance ?? 0) - ((baseline.player.dodgeChance ?? 0) + 0.1)) < 1e-9);
+  assert.equal(boosted.player.pickupRadius, baseline.player.pickupRadius + 40);
+});
+
 test('player death: hp reaches 0 and stays there; sim keeps stepping without throwing', () => {
   const archetypes: readonly EnemyArchetype[] = [
     { name: 'killer', hp: 20, speed: 300, radius: 6, touchDamage: 9999, xpDrop: 1 },

@@ -24,12 +24,16 @@ const PROPOSE_GOLDENS = process.env.ANIMAL_SURVIVOR_GOLDEN_MODE === 'propose';
 const GOLDEN_HASHES: Readonly<Record<string, string>> = Object.freeze({
   // Rebaselined after deterministic V1.1 hero kits, five-rank Mastery,
   // explicit free fusions, combat defenses, and world-pickup state landed.
-  'greg/forest': 'ce9a4a5d7e67028c',
-  'benny/forest': 'a49368988e1788ae',
-  'gracie/forest': '11b4365401145417',
-  'greg/saltwind': 'da0c0c04e8aed24e',
-  'benny/saltwind': '74693bc52ba77d37',
-  'gracie/saltwind': 'd895ad90fb112e22',
+  // Rebaselined again for RUN_START_LOADOUT_VERSION 5: the permanent
+  // meta-progression stat block (Might, Swiftness, Armor, Haste, etc.) is now
+  // part of the run-start fingerprint. Gameplay is identical at the neutral
+  // defaults these goldens use; only the loadout fingerprint changed.
+  'greg/forest': 'ca9ee1e9a4fe8402',
+  'benny/forest': 'cef32f15ca469e4b',
+  'gracie/forest': '542e0e317d2578c7',
+  'greg/saltwind': '7754277decd78cd0',
+  'benny/saltwind': 'dc36f31cdf790ac7',
+  'gracie/saltwind': '44104dcc4c563d68',
 });
 
 const traitRuntimeFactory: TraitRuntimeFactory = ({ seed, initialTick }) =>

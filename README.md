@@ -121,11 +121,13 @@ upgrade remains, **Essence Cache** is the repeatable fallback.
 ## Between runs
 
 At victory or defeat, the outcome settles earned **Essence** once and returns
-to the prep screen. Spend Essence there on **Starting Vitality**; it affects the
-next fresh run only and does not clutter the active HUD. The **Field Guide**
-archives terminal builds with their seed, hero, forms, run stats, and ecology
-note, and the prep screen supports save export, import, reset, and corrupt-save
-recovery.
+to the prep screen. Spend it in the capped **permanent upgrade shop**: Vitality
+(+10 starting HP per rank), Might, Swiftness, Magnetism, Growth, Armor, Haste,
+Precision, Ferocity, Evasion, and Fortune. All combat upgrades apply to the
+next fresh run only; Fortune increases the next terminal Essence award. The
+**Field Guide** archives terminal builds with their seed, hero, forms, run
+stats, and ecology note, and the prep screen supports save export, import,
+reset, migration, and corrupt-save recovery.
 
 ## Hosted playtest
 

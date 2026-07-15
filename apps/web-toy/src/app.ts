@@ -59,11 +59,12 @@ import { pauseForHiddenPage, resumeFromVisiblePage, type VisibilityPauseState } 
 import { createAudioCueRouter } from './audio/audio-cue-router';
 import { createProceduralAudio, type MusicState } from './audio/procedural-audio';
 import {
-  STARTING_VITALITY_COSTS,
-  STARTING_VITALITY_MAX_RANK,
+  PERMANENT_UPGRADE_CATALOG,
   createProfileStore,
+  getPermanentUpgradeDefinition,
   type ProfileStorage,
 } from './profile/profile-store';
+import { presentPermanentShopCards, renderPermanentShopCards } from './profile/permanent-shop';
 import {
   createFieldGuideEntry,
   getHeroPortraitAsset,
@@ -88,6 +89,12 @@ function seedFromString(s: string): number {
 
 function signedInteger(value: number): string {
   return value >= 0 ? `+${value}` : String(value);
+}
+
+/** Clamps an Essence award (after the Fortune multiplier) to a safe, non-negative integer. */
+function safeNonNegativeInteger(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.min(Math.floor(value), Number.MAX_SAFE_INTEGER);
 }
 
 interface Controls {
@@ -844,10 +851,11 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     if (terminalRewardDetail !== null) return terminalRewardDetail;
     try {
       const reward = calculateTerminalEssenceReward(outcome, driver.totalKills, driver.runEssenceEarned);
+      const essenceAward = safeNonNegativeInteger(reward.total * profileStore.essenceMultiplier());
       const settlement = profileStore.settleTerminalRun({
         runId: currentRunId,
         outcome,
-        essenceAward: reward.total,
+        essenceAward,
       });
       profileStore.recordFieldGuideEntry(createFieldGuideEntry({
         runId: currentRunId,
@@ -857,7 +865,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
         outcome,
         durationTicks: driver.tick,
         kills: driver.totalKills,
-        essenceEarned: reward.total,
+        essenceEarned: essenceAward,
         visuals: driver.traitVisualState(),
         universalUpgradeRanks: driver.universalUpgradeRanks,
       }));
@@ -1038,8 +1046,9 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   profileRoot.className = 'profile-summary';
   const profileText = document.createElement('strong');
   const profileDetail = document.createElement('span');
-  const vitalityButton = document.createElement('button');
-  vitalityButton.type = 'button';
+  const shopRoot = document.createElement('div');
+  shopRoot.className = 'permanent-shop';
+  shopRoot.setAttribute('aria-label', 'Permanent upgrades shop');
   const accessibilityRoot = document.createElement('section');
   accessibilityRoot.className = 'accessibility-settings';
   accessibilityRoot.setAttribute('aria-label', 'Accessibility settings');
@@ -1057,7 +1066,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const fieldGuidePanel = document.createElement('div');
   fieldGuidePanel.className = 'field-guide-panel';
   fieldGuideRoot.append(fieldGuideToggle, fieldGuidePanel);
-  profileRoot.append(profileText, profileDetail, vitalityButton, accessibilityRoot, paletteRoot, creditsRoot, fieldGuideRoot);
+  profileRoot.append(profileText, profileDetail, shopRoot, accessibilityRoot, paletteRoot, creditsRoot, fieldGuideRoot);
   introProfileRoot.appendChild(profileRoot);
   let profileMessage = '';
   let fieldGuideOpen = false;
@@ -1575,35 +1584,35 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     if (message !== undefined) profileMessage = message;
     const profile = profileStore.profile();
     const loadout = profileStore.startLoadout();
-    const rank = profile.startingVitalityRank;
-    const nextCost = rank < STARTING_VITALITY_MAX_RANK ? STARTING_VITALITY_COSTS[rank]! : null;
+    const vitalityRank = profile.startingVitalityRank;
+    const vitalityMaxRank = getPermanentUpgradeDefinition('vitality').maxRank;
     const hero = getHeroDefinition(selectedHeroId);
-    profileText.textContent = `Essence ${profile.essence} · ${hero.displayName} · Vitality ${rank}/${STARTING_VITALITY_MAX_RANK}`;
+    profileText.textContent = `Essence ${profile.essence} · ${hero.displayName} · Vitality ${vitalityRank}/${vitalityMaxRank}`;
     const biomeProgress = profile.unlockedBiomeIds.includes('saltwind')
       ? 'Saltwind Ruins unlocked.'
       : 'Complete a Forest victory to unlock Saltwind Ruins.';
     profileDetail.textContent = profileMessage
       || `Starting HP: hero ${signedInteger(hero.maxHpBonus)} · Vitality ${signedInteger(loadout.maxHpBonus)} · ${biomeProgress}`;
-    vitalityButton.disabled = nextCost === null || profile.essence < nextCost;
-    vitalityButton.textContent = nextCost === null
-      ? 'Starting Vitality: MAX'
-      : `Buy +10 starting HP (${nextCost} Essence)`;
+    const shopCards = presentPermanentShopCards(PERMANENT_UPGRADE_CATALOG, profile.permanentUpgradeRanks, profile.essence);
+    renderPermanentShopCards(shopRoot, shopCards, (id) => {
+      try {
+        const purchase = profileStore.purchasePermanentUpgrade(id);
+        const title = getPermanentUpgradeDefinition(id).title;
+        renderProfile(purchase.purchased
+          ? `${title} purchased. It applies on your next run.`
+          : purchase.reason === 'insufficient-essence'
+            ? `Need ${purchase.cost ?? 0} Essence for the next rank.`
+            : purchase.reason === 'max-rank'
+              ? `${title} is already maxed.`
+              : 'That upgrade is unavailable.');
+      } catch {
+        renderProfile('Upgrade could not be saved in this browser.');
+      }
+    });
     renderPaletteSelection();
     renderFieldGuide();
   }
 
-  vitalityButton.addEventListener('click', () => {
-    try {
-      const purchase = profileStore.purchaseStartingVitality();
-      renderProfile(purchase.purchased
-        ? 'Starting Vitality purchased. It applies on your next run.'
-        : purchase.reason === 'insufficient-essence'
-          ? `Need ${purchase.cost ?? 0} Essence for the next rank.`
-          : 'Starting Vitality is already maxed.');
-    } catch {
-      renderProfile('Vitality could not be saved in this browser.');
-    }
-  });
   renderProfile();
   applyAccessibilitySettings();
   applyPalette();

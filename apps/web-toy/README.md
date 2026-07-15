@@ -91,7 +91,7 @@ variants and each has a distinct deterministic starter attack plus mastery path.
 The live HUD focuses on health, level, XP, time, phase, and the immediate goal.
 It intentionally does not repeat a description every time an attack fires.
 Pause to inspect the current attack and passive build. The prep screen, not
-combat, shows Essence and Starting Vitality.
+combat, shows Essence and the permanent upgrade shop.
 
 ## Forest Arsenal gameplay
 
@@ -179,8 +179,10 @@ attack and **Rapid Instinct** reduces cooldown for every attack. If no finite
 upgrade remains, the chooser offers repeatable **Essence Cache**.
 
 Terminal Essence is settled once per run. **Continue to upgrades** returns to
-the prep surface, where saved Essence can buy capped Starting Vitality for the
-next fresh run only. The Field Guide archives each terminal build and provides
+the prep surface, where saved Essence can buy capped permanent upgrades for the
+next fresh run: Vitality, Might, Swiftness, Magnetism, Growth, Armor, Haste,
+Precision, Ferocity, Evasion, and Fortune. Fortune increases the next terminal
+Essence award only. The Field Guide archives each terminal build and provides
 versioned save export, import, reset, migration, and corrupt-save recovery.
 
 ## Local URL controls

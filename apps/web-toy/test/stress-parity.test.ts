@@ -23,8 +23,11 @@ const PROPOSE_GOLDENS = process.env.ANIMAL_SURVIVOR_GOLDEN_MODE === 'propose';
 const FIVE_MINUTE_PARITY_TIMEOUT_MS = 45_000;
 // Rebaselined for V1.1 after the authored hero kits, Mastery/Fusion state, and
 // world-pickup state became part of the deterministic simulation contract.
+// Rebaselined again for RUN_START_LOADOUT_VERSION 5, which folds the permanent
+// meta-progression stat block into the run-start fingerprint (gameplay is
+// unchanged at neutral defaults; only the loadout fingerprint shifted).
 // The headless control, fixed-tick driver, and repeated seeded run agree.
-const EXPECTED_FIVE_MINUTE_HASH = 'd8e7284a69f074be';
+const EXPECTED_FIVE_MINUTE_HASH = '14d4a69d3d2cc8b0';
 
 /** Headless control: step a bare simulation with autopilot inputs keyed on pre-step tick. */
 function headlessControl(seed: number, ticks: number): string {

@@ -8,10 +8,30 @@ import { DEFAULT_RUSH_RAKE_CONFIG, GREG_RUSH_RAKE_CONTENT_VERSION } from './inst
 import { BENNY_BRACE_CONTENT_VERSION, DEFAULT_BENNY_BRACE_CONFIG } from './instincts/benny-brace.js';
 import { DEFAULT_GRACIE_SCOUT_CONFIG, GRACIE_SCOUT_CONTENT_VERSION } from './instincts/gracie-scout.js';
 
-// Version 4 makes the V1.1 hero combat identity (melee arcs, earth waves,
-// projectile spit, and defensive baselines) part of the run contract. Old
-// records must reject rather than silently replay with a different kit.
-export const RUN_START_LOADOUT_VERSION = 4 as const;
+// Version 5 adds the permanent meta-progression stat block (Might, Swiftness,
+// Magnet, Growth, Armor, Haste, Precision, Ferocity, Evasion) alongside the
+// existing Vitality bonus. Old records must reject rather than silently replay
+// with a different permanent loadout.
+export const RUN_START_LOADOUT_VERSION = 5 as const;
+
+/**
+ * Ceilings for each permanent bonus. These bound the resolved values a browser
+ * profile may inject so a corrupt or hostile save cannot smuggle an absurd
+ * stat past the deterministic boundary. They are generous relative to the
+ * authored shop (which resolves well within these limits) but finite.
+ */
+export const RUN_START_BONUS_LIMITS = Object.freeze({
+  maxHpBonus: 4096,
+  damageMultiplierBonus: 8,
+  speedMultiplierBonus: 4,
+  pickupRadiusBonus: 4096,
+  xpMultiplierBonus: 8,
+  cooldownReductionBonus: 0.8,
+  armorBonus: 4096,
+  critChanceBonus: 0.9,
+  critMultiplierBonus: 8,
+  dodgeChanceBonus: 0.9,
+} as const);
 
 export const HERO_IDS = Object.freeze(['greg', 'benny', 'gracie'] as const);
 export type HeroId = (typeof HERO_IDS)[number];
@@ -219,13 +239,63 @@ export interface RunStartLoadout {
   readonly biomeId?: BiomeId;
   /** Permanent bonus maximum health applied before any per-run cards. */
   readonly maxHpBonus: number;
+  /** Permanent weapon-damage bonus, added to the base 1x multiplier (Might). */
+  readonly damageMultiplierBonus?: number;
+  /** Permanent movement bonus, added to the base 1x multiplier (Swiftness). */
+  readonly speedMultiplierBonus?: number;
+  /** Permanent flat pickup-radius bonus (Magnet). */
+  readonly pickupRadiusBonus?: number;
+  /** Permanent XP-gain bonus, added to the base 1x multiplier (Growth). */
+  readonly xpMultiplierBonus?: number;
+  /** Permanent cooldown reduction, subtracted from the base 1x multiplier (Haste). */
+  readonly cooldownReductionBonus?: number;
+  /** Permanent flat armor bonus (Armor). */
+  readonly armorBonus?: number;
+  /** Permanent flat critical-chance bonus (Precision). */
+  readonly critChanceBonus?: number;
+  /** Permanent flat critical-damage multiplier bonus (Ferocity). */
+  readonly critMultiplierBonus?: number;
+  /** Permanent flat dodge-chance bonus (Evasion). */
+  readonly dodgeChanceBonus?: number;
 }
 
-export const DEFAULT_RUN_START_LOADOUT: RunStartLoadout = Object.freeze({
+/**
+ * The permanent stat block after normalization: every field is present and
+ * numeric so the simulation never branches on optionality when applying it.
+ */
+export interface NormalizedRunStartBonuses {
+  readonly maxHpBonus: number;
+  readonly damageMultiplierBonus: number;
+  readonly speedMultiplierBonus: number;
+  readonly pickupRadiusBonus: number;
+  readonly xpMultiplierBonus: number;
+  readonly cooldownReductionBonus: number;
+  readonly armorBonus: number;
+  readonly critChanceBonus: number;
+  readonly critMultiplierBonus: number;
+  readonly dodgeChanceBonus: number;
+}
+
+export interface NormalizedRunStartLoadout extends NormalizedRunStartBonuses {
+  readonly version: typeof RUN_START_LOADOUT_VERSION;
+  readonly heroId: HeroId;
+  readonly biomeId: BiomeId;
+}
+
+export const DEFAULT_RUN_START_LOADOUT: NormalizedRunStartLoadout = Object.freeze({
   version: RUN_START_LOADOUT_VERSION,
   heroId: 'greg',
   biomeId: 'forest',
   maxHpBonus: 0,
+  damageMultiplierBonus: 0,
+  speedMultiplierBonus: 0,
+  pickupRadiusBonus: 0,
+  xpMultiplierBonus: 0,
+  cooldownReductionBonus: 0,
+  armorBonus: 0,
+  critChanceBonus: 0,
+  critMultiplierBonus: 0,
+  dodgeChanceBonus: 0,
 });
 
 export function getHeroDefinition(heroId: HeroId): HeroDefinition {
@@ -248,8 +318,26 @@ function isBiomeId(value: unknown): value is BiomeId {
   return typeof value === 'string' && (BIOME_IDS as readonly string[]).includes(value);
 }
 
+/** Validate a non-negative integer bonus with an explicit upper bound. */
+function normalizeIntegerBonus(value: unknown, limit: number, field: string): number {
+  if (value === undefined) return 0;
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > limit) {
+    throw new RangeError(`run start loadout ${field} must be an integer in [0, ${limit}]`);
+  }
+  return value;
+}
+
+/** Validate a non-negative fractional bonus with an explicit upper bound. */
+function normalizeFractionBonus(value: unknown, limit: number, field: string): number {
+  if (value === undefined) return 0;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > limit) {
+    throw new RangeError(`run start loadout ${field} must be a finite number in [0, ${limit}]`);
+  }
+  return value;
+}
+
 /** Validate and detach caller-owned data before it becomes deterministic state. */
-export function normalizeRunStartLoadout(loadout: RunStartLoadout | undefined): RunStartLoadout {
+export function normalizeRunStartLoadout(loadout: RunStartLoadout | undefined): NormalizedRunStartLoadout {
   if (loadout === undefined) return DEFAULT_RUN_START_LOADOUT;
   if (typeof loadout !== 'object' || loadout === null) {
     throw new TypeError('run start loadout must be an object');
@@ -261,10 +349,29 @@ export function normalizeRunStartLoadout(loadout: RunStartLoadout | undefined): 
   if (!isHeroId(heroId)) throw new RangeError(`run start loadout heroId is unknown: ${String(heroId)}`);
   const biomeId = loadout.biomeId === undefined ? 'forest' : loadout.biomeId;
   if (!isBiomeId(biomeId)) throw new RangeError(`run start loadout biomeId is unknown: ${String(biomeId)}`);
-  if (!Number.isSafeInteger(loadout.maxHpBonus) || loadout.maxHpBonus < 0) {
-    throw new RangeError('run start loadout maxHpBonus must be a non-negative safe integer');
-  }
-  return Object.freeze({ version: RUN_START_LOADOUT_VERSION, heroId, biomeId, maxHpBonus: loadout.maxHpBonus });
+  return Object.freeze({
+    version: RUN_START_LOADOUT_VERSION,
+    heroId,
+    biomeId,
+    maxHpBonus: normalizeIntegerBonus(loadout.maxHpBonus, RUN_START_BONUS_LIMITS.maxHpBonus, 'maxHpBonus'),
+    damageMultiplierBonus: normalizeFractionBonus(
+      loadout.damageMultiplierBonus, RUN_START_BONUS_LIMITS.damageMultiplierBonus, 'damageMultiplierBonus'),
+    speedMultiplierBonus: normalizeFractionBonus(
+      loadout.speedMultiplierBonus, RUN_START_BONUS_LIMITS.speedMultiplierBonus, 'speedMultiplierBonus'),
+    pickupRadiusBonus: normalizeIntegerBonus(
+      loadout.pickupRadiusBonus, RUN_START_BONUS_LIMITS.pickupRadiusBonus, 'pickupRadiusBonus'),
+    xpMultiplierBonus: normalizeFractionBonus(
+      loadout.xpMultiplierBonus, RUN_START_BONUS_LIMITS.xpMultiplierBonus, 'xpMultiplierBonus'),
+    cooldownReductionBonus: normalizeFractionBonus(
+      loadout.cooldownReductionBonus, RUN_START_BONUS_LIMITS.cooldownReductionBonus, 'cooldownReductionBonus'),
+    armorBonus: normalizeIntegerBonus(loadout.armorBonus, RUN_START_BONUS_LIMITS.armorBonus, 'armorBonus'),
+    critChanceBonus: normalizeFractionBonus(
+      loadout.critChanceBonus, RUN_START_BONUS_LIMITS.critChanceBonus, 'critChanceBonus'),
+    critMultiplierBonus: normalizeFractionBonus(
+      loadout.critMultiplierBonus, RUN_START_BONUS_LIMITS.critMultiplierBonus, 'critMultiplierBonus'),
+    dodgeChanceBonus: normalizeFractionBonus(
+      loadout.dodgeChanceBonus, RUN_START_BONUS_LIMITS.dodgeChanceBonus, 'dodgeChanceBonus'),
+  });
 }
 
 /** Stable replay identity for exactly the permanent effects a run receives. */
@@ -279,6 +386,15 @@ export function fingerprintRunStartLoadout(loadout: RunStartLoadout | undefined)
   writer.str(heroId);
   writer.str(biomeId);
   writer.f64(normalized.maxHpBonus);
+  writer.f64(normalized.damageMultiplierBonus);
+  writer.f64(normalized.speedMultiplierBonus);
+  writer.f64(normalized.pickupRadiusBonus);
+  writer.f64(normalized.xpMultiplierBonus);
+  writer.f64(normalized.cooldownReductionBonus);
+  writer.f64(normalized.armorBonus);
+  writer.f64(normalized.critChanceBonus);
+  writer.f64(normalized.critMultiplierBonus);
+  writer.f64(normalized.dodgeChanceBonus);
   writer.str(basicAttack.id);
   writer.str(basicAttack.pattern);
   writer.str(basicAttack.targeting);

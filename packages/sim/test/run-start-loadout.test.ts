@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import {
   DEFAULT_RUN_START_LOADOUT,
   HERO_CATALOG,
+  RUN_START_BONUS_LIMITS,
+  RUN_START_LOADOUT_VERSION,
   fingerprintRunStartLoadout,
   getHeroBasicAttackDefinition,
   normalizeRunStartLoadout,
@@ -45,20 +47,34 @@ test('each founding hero owns a distinct V1.1 starter attack and defensive basel
 });
 
 test('normalizes immutable permanent loadouts and fingerprints their actual effects', () => {
-  const loadout = normalizeRunStartLoadout({ version: 4, heroId: 'benny', maxHpBonus: 20 });
-  assert.deepEqual(loadout, { version: 4, heroId: 'benny', biomeId: 'forest', maxHpBonus: 20 });
+  const loadout = normalizeRunStartLoadout({ version: RUN_START_LOADOUT_VERSION, heroId: 'benny', maxHpBonus: 20 });
+  assert.deepEqual(loadout, {
+    version: RUN_START_LOADOUT_VERSION,
+    heroId: 'benny',
+    biomeId: 'forest',
+    maxHpBonus: 20,
+    damageMultiplierBonus: 0,
+    speedMultiplierBonus: 0,
+    pickupRadiusBonus: 0,
+    xpMultiplierBonus: 0,
+    cooldownReductionBonus: 0,
+    armorBonus: 0,
+    critChanceBonus: 0,
+    critMultiplierBonus: 0,
+    dodgeChanceBonus: 0,
+  });
   assert.ok(Object.isFrozen(loadout));
   assert.notEqual(fingerprintRunStartLoadout(loadout), fingerprintRunStartLoadout(DEFAULT_RUN_START_LOADOUT));
   assert.notEqual(
-    fingerprintRunStartLoadout(normalizeRunStartLoadout({ version: 4, heroId: 'gracie', maxHpBonus: 20 })),
+    fingerprintRunStartLoadout(normalizeRunStartLoadout({ version: RUN_START_LOADOUT_VERSION, heroId: 'gracie', maxHpBonus: 20 })),
     fingerprintRunStartLoadout(loadout),
   );
   assert.notEqual(
-    fingerprintRunStartLoadout(normalizeRunStartLoadout({ version: 4, heroId: 'benny', biomeId: 'saltwind', maxHpBonus: 20 })),
+    fingerprintRunStartLoadout(normalizeRunStartLoadout({ version: RUN_START_LOADOUT_VERSION, heroId: 'benny', biomeId: 'saltwind', maxHpBonus: 20 })),
     fingerprintRunStartLoadout(loadout),
   );
   assert.notEqual(
-    fingerprintRunStartLoadout(normalizeRunStartLoadout({ version: 4, heroId: 'benny', maxHpBonus: 21 })),
+    fingerprintRunStartLoadout(normalizeRunStartLoadout({ version: RUN_START_LOADOUT_VERSION, heroId: 'benny', maxHpBonus: 21 })),
     fingerprintRunStartLoadout(loadout),
   );
 });
@@ -66,16 +82,154 @@ test('normalizes immutable permanent loadouts and fingerprints their actual effe
 test('rejects malformed permanent loadouts at the simulation boundary', () => {
   assert.throws(() => normalizeRunStartLoadout({ version: 2, maxHpBonus: 0 } as never), /version/);
   assert.throws(() => normalizeRunStartLoadout({ version: 3, maxHpBonus: 0 } as never), /version/);
-  assert.throws(() => normalizeRunStartLoadout({ version: 4, heroId: 'otter', maxHpBonus: 0 } as never), /heroId/);
-  assert.throws(() => normalizeRunStartLoadout({ version: 4, heroId: 'greg', maxHpBonus: -1 } as never), /maxHpBonus/);
-  assert.throws(() => normalizeRunStartLoadout({ version: 4, heroId: 'greg', maxHpBonus: 0.5 } as never), /maxHpBonus/);
+  assert.throws(() => normalizeRunStartLoadout({ version: 4, maxHpBonus: 0 } as never), /version/);
+  assert.throws(() => normalizeRunStartLoadout({ version: RUN_START_LOADOUT_VERSION, heroId: 'otter', maxHpBonus: 0 } as never), /heroId/);
+  assert.throws(() => normalizeRunStartLoadout({ version: RUN_START_LOADOUT_VERSION, heroId: 'greg', maxHpBonus: -1 } as never), /maxHpBonus/);
+  assert.throws(() => normalizeRunStartLoadout({ version: RUN_START_LOADOUT_VERSION, heroId: 'greg', maxHpBonus: 0.5 } as never), /maxHpBonus/);
 });
 
-test('version-four loadouts without a hero retain Greg as the deterministic default', () => {
-  assert.deepEqual(normalizeRunStartLoadout({ version: 4, maxHpBonus: 5 }), {
-    version: 4,
+test('version-five loadouts without a hero retain Greg as the deterministic default', () => {
+  assert.deepEqual(normalizeRunStartLoadout({ version: RUN_START_LOADOUT_VERSION, maxHpBonus: 5 }), {
+    version: RUN_START_LOADOUT_VERSION,
     heroId: 'greg',
     biomeId: 'forest',
     maxHpBonus: 5,
+    damageMultiplierBonus: 0,
+    speedMultiplierBonus: 0,
+    pickupRadiusBonus: 0,
+    xpMultiplierBonus: 0,
+    cooldownReductionBonus: 0,
+    armorBonus: 0,
+    critChanceBonus: 0,
+    critMultiplierBonus: 0,
+    dodgeChanceBonus: 0,
   });
+});
+
+test('normalizeRunStartLoadout fills every omitted permanent bonus field with zero', () => {
+  const loadout = normalizeRunStartLoadout({ version: RUN_START_LOADOUT_VERSION, heroId: 'greg', maxHpBonus: 0 });
+  assert.equal(loadout.damageMultiplierBonus, 0);
+  assert.equal(loadout.speedMultiplierBonus, 0);
+  assert.equal(loadout.pickupRadiusBonus, 0);
+  assert.equal(loadout.xpMultiplierBonus, 0);
+  assert.equal(loadout.cooldownReductionBonus, 0);
+  assert.equal(loadout.armorBonus, 0);
+  assert.equal(loadout.critChanceBonus, 0);
+  assert.equal(loadout.critMultiplierBonus, 0);
+  assert.equal(loadout.dodgeChanceBonus, 0);
+});
+
+test('normalizeRunStartLoadout accepts valid fractional and flat integer bonuses', () => {
+  const loadout = normalizeRunStartLoadout({
+    version: RUN_START_LOADOUT_VERSION,
+    heroId: 'greg',
+    maxHpBonus: 0,
+    damageMultiplierBonus: 0.3,
+    speedMultiplierBonus: 0.15,
+    xpMultiplierBonus: 1.5,
+    cooldownReductionBonus: 0.2,
+    critChanceBonus: 0.1,
+    critMultiplierBonus: 0.5,
+    dodgeChanceBonus: 0.05,
+    armorBonus: 5,
+    pickupRadiusBonus: 40,
+  });
+  assert.equal(loadout.damageMultiplierBonus, 0.3);
+  assert.equal(loadout.speedMultiplierBonus, 0.15);
+  assert.equal(loadout.xpMultiplierBonus, 1.5);
+  assert.equal(loadout.cooldownReductionBonus, 0.2);
+  assert.equal(loadout.critChanceBonus, 0.1);
+  assert.equal(loadout.critMultiplierBonus, 0.5);
+  assert.equal(loadout.dodgeChanceBonus, 0.05);
+  assert.equal(loadout.armorBonus, 5);
+  assert.equal(loadout.pickupRadiusBonus, 40);
+});
+
+test('normalizeRunStartLoadout throws for negative, non-finite, and out-of-limit bonuses', () => {
+  const base = { version: RUN_START_LOADOUT_VERSION, heroId: 'greg' as const, maxHpBonus: 0 };
+  assert.throws(
+    () => normalizeRunStartLoadout({ ...base, damageMultiplierBonus: -0.1 } as never),
+    /damageMultiplierBonus/,
+  );
+  assert.throws(
+    () => normalizeRunStartLoadout({ ...base, speedMultiplierBonus: Number.NaN } as never),
+    /speedMultiplierBonus/,
+  );
+  assert.throws(
+    () => normalizeRunStartLoadout({ ...base, xpMultiplierBonus: Number.POSITIVE_INFINITY } as never),
+    /xpMultiplierBonus/,
+  );
+  assert.throws(
+    () => normalizeRunStartLoadout({
+      ...base, damageMultiplierBonus: RUN_START_BONUS_LIMITS.damageMultiplierBonus + 0.001,
+    } as never),
+    /damageMultiplierBonus/,
+  );
+  assert.throws(
+    () => normalizeRunStartLoadout({
+      ...base, cooldownReductionBonus: RUN_START_BONUS_LIMITS.cooldownReductionBonus + 0.001,
+    } as never),
+    /cooldownReductionBonus/,
+  );
+  assert.throws(
+    () => normalizeRunStartLoadout({
+      ...base, critChanceBonus: RUN_START_BONUS_LIMITS.critChanceBonus + 0.001,
+    } as never),
+    /critChanceBonus/,
+  );
+  assert.throws(
+    () => normalizeRunStartLoadout({ ...base, armorBonus: -1 } as never),
+    /armorBonus/,
+  );
+  assert.throws(
+    () => normalizeRunStartLoadout({ ...base, armorBonus: RUN_START_BONUS_LIMITS.armorBonus + 1 } as never),
+    /armorBonus/,
+  );
+  assert.throws(
+    () => normalizeRunStartLoadout({ ...base, pickupRadiusBonus: 0.5 } as never),
+    /pickupRadiusBonus/,
+  );
+});
+
+test('fingerprintRunStartLoadout distinguishes each new bonus field but ignores omitted-vs-explicit-zero', () => {
+  const base = { version: RUN_START_LOADOUT_VERSION, heroId: 'greg' as const, maxHpBonus: 0 };
+  const baseFingerprint = fingerprintRunStartLoadout(base);
+
+  const bonusFields: Array<[keyof typeof RUN_START_BONUS_LIMITS, number]> = [
+    ['damageMultiplierBonus', 0.3],
+    ['speedMultiplierBonus', 0.2],
+    ['pickupRadiusBonus', 10],
+    ['xpMultiplierBonus', 0.4],
+    ['cooldownReductionBonus', 0.1],
+    ['armorBonus', 3],
+    ['critChanceBonus', 0.1],
+    ['critMultiplierBonus', 0.2],
+    ['dodgeChanceBonus', 0.05],
+  ];
+
+  for (const [field, value] of bonusFields) {
+    const fingerprint = fingerprintRunStartLoadout({ ...base, [field]: value } as never);
+    assert.notEqual(fingerprint, baseFingerprint, `${field} must change the fingerprint`);
+  }
+
+  // Every field differing from every other single-field variant too.
+  const fingerprints = bonusFields.map(([field, value]) =>
+    fingerprintRunStartLoadout({ ...base, [field]: value } as never));
+  const uniqueFingerprints = new Set(fingerprints);
+  assert.equal(uniqueFingerprints.size, fingerprints.length, 'each distinct bonus field must yield a distinct fingerprint');
+
+  // Omitted field and explicit zero must fingerprint identically.
+  const explicitZero = {
+    ...base,
+    damageMultiplierBonus: 0,
+    speedMultiplierBonus: 0,
+    pickupRadiusBonus: 0,
+    xpMultiplierBonus: 0,
+    cooldownReductionBonus: 0,
+    armorBonus: 0,
+    critChanceBonus: 0,
+    critMultiplierBonus: 0,
+    dodgeChanceBonus: 0,
+  };
+  assert.equal(fingerprintRunStartLoadout(explicitZero), baseFingerprint);
 });

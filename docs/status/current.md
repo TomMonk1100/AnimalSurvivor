@@ -248,11 +248,12 @@ The founding roster has a deterministic browser survival loop with:
   passives, and **Essence Cache** as the repeatable finite-upgrade fallback;
 - pause-only build details, so active play is not covered by repeated move
   descriptions;
-- terminal Essence settlement and a prep-only Starting Vitality purchase for a
-  future run.
+- terminal Essence settlement and an eleven-card prep-only permanent shop for a
+  future run: Vitality (+10 HP per rank), Might, Swiftness, Magnetism, Growth,
+  Armor, Haste, Precision, Ferocity, Evasion, and reward-only Fortune.
 - terminal runs are archived in a bounded local Field Guide with generated build
   names, seed, hero, outcome, run stats, active forms, and ecology notes; the
-  version-five save supports migration, corrupt-save recovery, export, import,
+  version-six save supports migration, corrupt-save recovery, export, import,
   reset, a complete six-recipe Mythic compendium with ingredient pairs and
   locked/discovered states, persistent discovered-Mythic recipe titles, the
   first horizontal biome unlock, and Mythic-earned presentation palettes that

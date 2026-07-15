@@ -1,0 +1,7 @@
+[build]
+  base = "apps/web-toy"
+  command = "npm ci && npm run build && npm run verify:artifact"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "24.18.0"

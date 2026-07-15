@@ -439,14 +439,23 @@ export function createSimulation(
 
   const hero = getHeroDefinition(runStartLoadout.heroId ?? 'greg');
   const basicAttack = getHeroBasicAttackDefinition(hero.basicAttackId);
+  // Permanent meta-progression bonuses fold into the run's base stats so that
+  // per-run cards multiply/add on top of them rather than replacing them.
+  const permanentCooldownMultiplier = 1 - runStartLoadout.cooldownReductionBonus;
+  const permanentDamageMultiplier = 1 + runStartLoadout.damageMultiplierBonus;
+  const basePermanentXpMultiplier = 1 + runStartLoadout.xpMultiplierBonus;
   const basePlayerMaxHp = config.player.maxHp + runStartLoadout.maxHpBonus + hero.maxHpBonus;
-  const basePlayerSpeed = config.player.speed * hero.speedMultiplier;
-  const basePlayerPickupRadius = config.player.pickupRadius + hero.pickupRadiusBonus;
-  const baseWeaponDamage = config.weapon.damage * hero.weaponDamageMultiplier;
+  const basePlayerSpeed = config.player.speed * hero.speedMultiplier * (1 + runStartLoadout.speedMultiplierBonus);
+  const basePlayerPickupRadius = config.player.pickupRadius + hero.pickupRadiusBonus + runStartLoadout.pickupRadiusBonus;
+  const baseWeaponDamage = config.weapon.damage * hero.weaponDamageMultiplier * (1 + runStartLoadout.damageMultiplierBonus);
   const baseWeaponCooldownTicks = Math.max(
     1,
-    Math.round(config.weapon.cooldownTicks * hero.weaponCooldownMultiplier),
+    Math.round(config.weapon.cooldownTicks * hero.weaponCooldownMultiplier * permanentCooldownMultiplier),
   );
+  const baseCritChance = hero.critChance + runStartLoadout.critChanceBonus;
+  const baseCritMultiplier = hero.critMultiplier + runStartLoadout.critMultiplierBonus;
+  const baseDodgeChance = hero.dodgeChance + runStartLoadout.dodgeChanceBonus;
+  const baseArmor = hero.armor + runStartLoadout.armorBonus;
   const player: PlayerState = {
     x: config.player.startX,
     y: config.player.startY,
@@ -459,10 +468,10 @@ export function createSimulation(
     level: 1,
     invulnTicks: 0,
     alive: true,
-    critChance: hero.critChance,
-    critMultiplier: hero.critMultiplier,
-    dodgeChance: hero.dodgeChance,
-    armor: hero.armor,
+    critChance: clamp(baseCritChance, 0, 0.5),
+    critMultiplier: baseCritMultiplier,
+    dodgeChance: clamp(baseDodgeChance, 0, 0.35),
+    armor: Math.max(0, baseArmor),
     shield: hero.shieldMax,
     shieldMax: hero.shieldMax,
     shieldRechargeDelayTicks: hero.shieldRechargeDelayTicks,
@@ -486,7 +495,12 @@ export function createSimulation(
   basicWeapon.damage = baseWeaponDamage * basicAttack.damageMultiplier;
   basicWeapon.cooldownTicks = Math.max(
     1,
-    Math.round(config.weapon.cooldownTicks * hero.weaponCooldownMultiplier * basicAttack.cooldownMultiplier),
+    Math.round(
+      config.weapon.cooldownTicks
+      * hero.weaponCooldownMultiplier
+      * basicAttack.cooldownMultiplier
+      * permanentCooldownMultiplier,
+    ),
   );
   basicWeapon.projectileSpeed = config.weapon.projectileSpeed * basicAttack.projectileSpeedMultiplier;
   basicWeapon.range = config.weapon.range * basicAttack.rangeMultiplier;
@@ -1177,9 +1191,9 @@ export function createSimulation(
   const worldHeight = config.worldHeight;
   let pickupAttractionRadius = 0;
   let pickupAttractionSpeed = 0;
-  let xpGainMultiplier = 1;
-  let traitDamageMultiplier = hero.weaponDamageMultiplier;
-  let traitCooldownMultiplier = hero.weaponCooldownMultiplier;
+  let xpGainMultiplier = basePermanentXpMultiplier;
+  let traitDamageMultiplier = hero.weaponDamageMultiplier * permanentDamageMultiplier;
+  let traitCooldownMultiplier = hero.weaponCooldownMultiplier * permanentCooldownMultiplier;
   const zoneStepper = createZoneStepper();
 
   /** Synchronize concrete authoritative stats after a universal card selection. */
@@ -1202,6 +1216,7 @@ export function createSimulation(
       Math.round(
         config.weapon.cooldownTicks
         * hero.weaponCooldownMultiplier
+        * permanentCooldownMultiplier
         * basicAttack.cooldownMultiplier
         * stats.weaponCooldownMultiplier
         * stats.basicAttackCooldownMultiplier,
@@ -1212,16 +1227,16 @@ export function createSimulation(
     basicWeapon.pierce = basicAttack.pierce + stats.basicAttackPierceBonus;
     basicProjectileCount = basicAttack.projectileCount + stats.basicAttackProjectileCountBonus;
     basicAttackMasteryRank = stats.basicAttackMasteryRank;
-    traitDamageMultiplier = hero.weaponDamageMultiplier * stats.weaponDamageMultiplier;
-    traitCooldownMultiplier = hero.weaponCooldownMultiplier * stats.weaponCooldownMultiplier;
-    xpGainMultiplier = stats.xpMultiplier;
+    traitDamageMultiplier = hero.weaponDamageMultiplier * permanentDamageMultiplier * stats.weaponDamageMultiplier;
+    traitCooldownMultiplier = hero.weaponCooldownMultiplier * permanentCooldownMultiplier * stats.weaponCooldownMultiplier;
+    xpGainMultiplier = basePermanentXpMultiplier * stats.xpMultiplier;
 
-    // Defensive/crit cards modify the selected hero's base identity rather
-    // than overwriting it. Dodge has a hard cap so Fox cannot become immune.
-    player.critChance = clamp(hero.critChance + stats.critChanceBonus, 0, 0.5);
-    player.critMultiplier = hero.critMultiplier;
-    player.dodgeChance = clamp(hero.dodgeChance + stats.dodgeChanceBonus, 0, 0.35);
-    player.armor = Math.max(0, hero.armor + stats.armorBonus);
+    // Defensive/crit cards stack on top of the hero identity AND the permanent
+    // meta bonuses. Dodge/crit keep their hard caps so no build becomes immune.
+    player.critChance = clamp(baseCritChance + stats.critChanceBonus, 0, 0.5);
+    player.critMultiplier = baseCritMultiplier;
+    player.dodgeChance = clamp(baseDodgeChance + stats.dodgeChanceBonus, 0, 0.35);
+    player.armor = Math.max(0, baseArmor + stats.armorBonus);
     const nextShieldMax = Math.max(0, hero.shieldMax + stats.shieldMaxBonus);
     if (nextShieldMax > (player.shieldMax ?? 0)) {
       player.shield = Math.fround((player.shield ?? 0) + nextShieldMax - (player.shieldMax ?? 0));

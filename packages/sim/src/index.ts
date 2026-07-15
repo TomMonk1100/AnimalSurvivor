@@ -138,6 +138,7 @@ export {
   HERO_BASIC_ATTACK_CATALOG,
   HERO_IDS,
   RUN_START_LOADOUT_VERSION,
+  RUN_START_BONUS_LIMITS,
   fingerprintRunStartLoadout,
   getHeroBasicAttackDefinition,
   getHeroDefinition,
@@ -149,6 +150,8 @@ export {
   type HeroId,
   type BiomeId,
   type RunStartLoadout,
+  type NormalizedRunStartLoadout,
+  type NormalizedRunStartBonuses,
 } from './run-start-loadout.js';
 export {
   SHARPENED_INSTINCT,

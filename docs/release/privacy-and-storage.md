@@ -2,10 +2,10 @@
 
 AnimalSurvivor's current web toy stores its save profile and presentation
 preferences in the browser's local storage. The profile contains Essence,
-selected hero and palette, starting vitality, settled run identifiers, Field
-Guide entries, discovered recipes, and unlocked biomes. Accessibility settings
-and keyboard movement bindings are stored separately. Exported save files are created only when the player
-chooses **Export save**.
+permanent-upgrade ranks (including Vitality), selected hero and palette, settled
+run identifiers, Field Guide entries, discovered recipes, and unlocked biomes.
+Accessibility settings and keyboard movement bindings are stored separately.
+Exported save files are created only when the player chooses **Export save**.
 
 The current build does not include telemetry, analytics, advertising, account
 creation, cloud saves, cookies, or a network gameplay service. The **Copy issue

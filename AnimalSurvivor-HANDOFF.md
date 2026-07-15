@@ -74,8 +74,8 @@ Path: `packages/sim/`
   and Essence fallback choices. The six universal cards are each rank-capped:
   Swift Paws, XP Magnet, Sturdy Hide, Sharpened Instinct, Rapid Instinct, and
   Growth.
-- A normalized run-start loadout carries permanent Starting Vitality into a run
-  without letting browser storage enter deterministic gameplay.
+- A normalized run-start loadout carries permanent shop combat bonuses into a
+  run without letting browser storage enter deterministic gameplay.
 - Structural injection ports keep the package free of runtime dependencies on
   the trait and run-director packages.
 - Config/replay compatibility is version 10. Typed upgrade selections, the
@@ -212,10 +212,12 @@ Path: `apps/web-toy/`
   earned Essence exactly once per app-owned run id, and uses **Continue to
   upgrades** to return to the next-run prep screen instead of restarting
   immediately.
-- A versioned local browser profile holds Essence and the first capped permanent
-  purchase, **Starting Vitality** (three +10 maximum-health ranks). Its
-  normalized result applies only when the next deterministic run is created;
-  the profile appears on the prep card, not in active combat.
+- A version-six local browser profile holds Essence and an eleven-card capped
+  permanent shop: Vitality (+10 maximum-health per rank), Might, Swiftness,
+  Magnetism, Growth, Armor, Haste, Precision, Ferocity, Evasion, and Fortune.
+  Combat bonuses normalize only when the next deterministic run is created;
+  Fortune applies only to terminal Essence rewards, and the profile appears on
+  the prep card rather than in active combat.
 - The normal web-toy HUD and controls are compact and player-facing;
   `?debug=1` restores diagnostics and engineering controls for local checks.
 - A live desktop run supports **Esc** as a repeat-safe pause/resume toggle; it
@@ -313,7 +315,7 @@ All package gates below completed successfully on 2026-07-12 from
   device, viewport, quality tier, and accessibility flags without persisting
   those environment fields.
 - Mythic discoveries unlock persistent presentation palettes in profile schema
-  v5; palette selection tints prep and arena presentation but never enters the
+  v6; palette selection tints prep and arena presentation but never enters the
   deterministic run-start payload.
 - The Field Guide now presents the complete six-recipe Mythic catalog with
   ingredient pairs and deterministic locked/discovered states; this is a
@@ -373,8 +375,8 @@ human playtesting.
   are authoritative; **Luck**, more animal
   traits, player-selectable difficulties, and Hardcore Endless are explicitly
   deferred, not hidden or partially shipped.
-- Essence and Starting Vitality are a local-browser first pass, not cloud saves,
-  cross-device progression, a full menu, or a finished meta economy.
+- Essence and the permanent shop are a local-browser first pass, not cloud
+  saves, cross-device progression, a full menu, or a finished meta economy.
 - An independently supplied Opus swarm packet was audited and all four of its
   standalone suites pass locally. It is retained as design reference only;
   [`docs/progression-roadmap.md`](docs/progression-roadmap.md) records the

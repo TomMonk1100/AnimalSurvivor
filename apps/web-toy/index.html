@@ -210,6 +210,58 @@
         cursor: not-allowed;
         opacity: 0.56;
       }
+      #run-intro .permanent-shop {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        margin-top: 4px;
+      }
+      #run-intro .permanent-shop .shop-card {
+        display: grid;
+        gap: 3px;
+        padding: 6px 7px;
+        background: rgba(12, 26, 39, 0.55);
+        border: 1px solid rgba(107, 168, 201, 0.36);
+        border-radius: 4px;
+      }
+      #run-intro .permanent-shop .shop-card-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      #run-intro .permanent-shop .shop-card-head strong { font-size: 11px; }
+      #run-intro .permanent-shop .shop-card-rank {
+        flex-shrink: 0;
+        font-size: 10px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      #run-intro .permanent-shop .shop-card-desc {
+        display: block;
+        font-size: 10px;
+      }
+      #run-intro .permanent-shop .shop-card-effect {
+        display: block;
+        color: #8bd8bb;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      #run-intro .permanent-shop .shop-card-buy {
+        width: 100%;
+        min-height: 30px;
+        margin-top: 2px;
+        padding: 4px 6px;
+        color: #e9f7ff;
+        background: #254967;
+        border: 1px solid #3b6079;
+        border-radius: 4px;
+        font-size: 10px;
+      }
+      #run-intro .permanent-shop .shop-card-buy:disabled {
+        cursor: not-allowed;
+        opacity: 0.56;
+      }
       #run-intro .accessibility-settings {
         margin-top: 2px;
       }
@@ -628,7 +680,8 @@
       }
       html[data-high-contrast="true"] #run-intro .profile-summary,
       html[data-high-contrast="true"] #run-intro .field-guide-entry,
-      html[data-high-contrast="true"] #run-intro .accessibility-setting {
+      html[data-high-contrast="true"] #run-intro .accessibility-setting,
+      html[data-high-contrast="true"] #run-intro .shop-card {
         border-color: #e8f7ff;
       }
       html[data-high-contrast="true"] #run-intro .profile-summary span,
@@ -1728,8 +1781,7 @@
         order: 7;
         flex-shrink: 0;
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        column-gap: 12px;
+        grid-template-columns: 1fr;
         row-gap: 4px;
         width: 100%;
         margin: 18px 0 0;
@@ -1753,27 +1805,24 @@
         color: #687150;
         font-size: 10px;
       }
-      #run-intro .profile-summary > button {
-        grid-column: 2;
-        grid-row: 1 / span 2;
-        align-self: center;
-        min-height: 32px;
-        margin: 0;
-        padding: 6px 8px;
+      #run-intro .profile-summary .permanent-shop {
+        grid-template-columns: 1fr;
+      }
+      #run-intro .profile-summary .shop-card-buy {
         color: #fff3cf;
         background: #3a6d43;
         border: 1px solid #846128;
         border-radius: 1px;
         box-shadow: 0 2px 0 #28482d;
-        font-size: 10px;
         line-height: 1.15;
       }
-      #run-intro .profile-summary > button:disabled {
+      #run-intro .profile-summary .shop-card-buy:disabled {
         color: #7a765d;
         background: rgba(122, 113, 77, 0.25);
         border-color: rgba(122, 95, 48, 0.3);
         box-shadow: none;
       }
+      #run-intro .profile-summary > .permanent-shop,
       #run-intro .profile-summary > .accessibility-settings,
       #run-intro .profile-summary > .palette-settings,
       #run-intro .profile-summary > .credits-notices,
@@ -1821,7 +1870,8 @@
       #run-intro .profile-summary .field-guide-challenges,
       #run-intro .profile-summary .field-guide-recipes,
       #run-intro .profile-summary .field-guide-habitats,
-      #run-intro .profile-summary .field-guide-enemies {
+      #run-intro .profile-summary .field-guide-enemies,
+      #run-intro .profile-summary .shop-card {
         color: #35523a;
         background: rgba(255, 248, 218, 0.48);
         border-color: rgba(115, 80, 34, 0.3);
@@ -2260,11 +2310,7 @@
         #run-intro .hero-selection-choices button strong { font-size: 11px; }
         #run-intro .hero-selection-choices button span { font-size: 9px; }
         #run-intro .profile-summary { grid-template-columns: 1fr; }
-        #run-intro .profile-summary > button {
-          grid-column: 1;
-          grid-row: auto;
-          width: 100%;
-        }
+        #run-intro .permanent-shop { grid-template-columns: 1fr; }
         #run-intro #run-intro-start { min-height: 54px; font-size: 13px; }
         #pause-notice, #run-outcome { width: min(390px, calc(100vw - 28px)); padding: 22px 19px; }
       }
