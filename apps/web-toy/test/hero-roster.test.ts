@@ -19,17 +19,37 @@ describe('founding hero roster', () => {
     expect(() => getHeroVisualProfile('otter' as never)).toThrow(/Unknown hero id/);
   });
 
-  it('derives identity copy from the simulation catalog instead of duplicating it', () => {
-    expect(HERO_VISUAL_PROFILES.map(({ id, displayName, species, epithet, description }) => ({
-      id, displayName, species, epithet, description,
-    }))).toEqual(HERO_CATALOG.map(({ id, displayName, species, epithet, description }) => ({
-      id, displayName, species, epithet, description,
-    })));
+  it('keeps simulation roster ids stable while allowing Scout’s presentation alias', () => {
+    expect(HERO_VISUAL_PROFILES.map(({ id }) => id)).toEqual(HERO_CATALOG.map(({ id }) => id));
+    expect(getHeroVisualProfile('greg')).toMatchObject({
+      id: 'greg',
+      displayName: 'Scout',
+      species: 'Dog',
+      epithet: 'The Pouncer',
+      description: expect.stringMatching(/Scout Swipe/i),
+      silhouette: 'floppy ears · wagging tail',
+    });
+
+    for (const heroId of ['benny', 'gracie'] as const) {
+      const simulationHero = HERO_CATALOG.find((hero) => hero.id === heroId)!;
+      const visualHero = getHeroVisualProfile(heroId);
+      expect({
+        displayName: visualHero.displayName,
+        species: visualHero.species,
+        epithet: visualHero.epithet,
+        description: visualHero.description,
+      }).toEqual({
+        displayName: simulationHero.displayName,
+        species: simulationHero.species,
+        epithet: simulationHero.epithet,
+        description: simulationHero.description,
+      });
+    }
   });
 
-  it('gives each stable roster name its V1.1 combat identity', () => {
+  it('gives each stable roster id its player-facing combat identity', () => {
     expect(getHeroVisualProfile('greg')).toMatchObject({
-      displayName: 'Greg', species: 'Fox', characterLine: expect.stringMatching(/Fox Swipe/i), statLine: expect.stringMatching(/Melee Affinity/i),
+      displayName: 'Scout', species: 'Dog', characterLine: expect.stringMatching(/Scout Swipe/i), statLine: expect.stringMatching(/Melee Affinity/i),
     });
     expect(getHeroVisualProfile('benny')).toMatchObject({
       displayName: 'Benny', species: 'Bull', characterLine: expect.stringMatching(/Trample/i), statLine: expect.stringMatching(/Thick Skin/i),

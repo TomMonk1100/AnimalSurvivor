@@ -142,7 +142,19 @@ export function stepEnemies(
           }
         } else if (kind === ENEMY_BEHAVIOR_KIND.bossApex) {
           const patternTick = behavior.state.bossPatternTick[slot]!;
-          const chargeEnd = config.bossChargeWindupTicks + config.bossChargeDurationTicks;
+          const bossPreferredRange = behavior.state.bossPreferredRange[slot]!;
+          const bossRangeBand = behavior.state.bossRangeBand[slot]!;
+          const bossCycleTicks = behavior.state.bossCycleTicks[slot]!;
+          const bossChargeWindupTicks = behavior.state.bossChargeWindupTicks[slot]!;
+          const bossChargeDurationTicks = behavior.state.bossChargeDurationTicks[slot]!;
+          const bossChargeSpeedMultiplier = behavior.state.bossChargeSpeedMultiplier[slot]!;
+          const bossVolleyTick = behavior.state.bossVolleyTick[slot]!;
+          const bossVolleyCount = behavior.state.bossVolleyCount[slot]!;
+          const bossProjectileSpeed = behavior.state.bossProjectileSpeed[slot]!;
+          const bossProjectileDamage = behavior.state.bossProjectileDamage[slot]!;
+          const bossProjectileLifetimeTicks = behavior.state.bossProjectileLifetimeTicks[slot]!;
+          const bossProjectileHitRadius = behavior.state.bossProjectileHitRadius[slot]!;
+          const chargeEnd = bossChargeWindupTicks + bossChargeDurationTicks;
           const saltwind = behavior.bossVariant === 'saltwind';
           if (patternTick === 0) {
             behavior.onBossCue?.(
@@ -152,19 +164,19 @@ export function stepEnemies(
               y,
               dirX,
               dirY,
-              config.bossPreferredRange,
-              config.bossChargeWindupTicks,
+              bossPreferredRange,
+              bossChargeWindupTicks,
             );
           }
-          if (patternTick < config.bossChargeWindupTicks) {
+          if (patternTick < bossChargeWindupTicks) {
             // The stationary wind-up is the boss's readable response interval.
             moveDirX = 0;
             moveDirY = 0;
           } else if (patternTick < chargeEnd) {
             moveDirX = dirX;
             moveDirY = dirY;
-            moveSpeedMultiplier = config.bossChargeSpeedMultiplier;
-          } else if (patternTick === config.bossVolleyTick) {
+            moveSpeedMultiplier = bossChargeSpeedMultiplier;
+          } else if (patternTick === bossVolleyTick) {
             behavior.onBossCue?.(
               saltwind ? 'saltwind-sandstorm' : 'boss-volley',
               behavior.tick,
@@ -172,10 +184,10 @@ export function stepEnemies(
               y,
               dirX,
               dirY,
-              config.bossPreferredRange + config.bossRangeBand,
+              bossPreferredRange + bossRangeBand,
               24,
             );
-            const volleyCount = saltwind ? Math.max(4, config.bossVolleyCount - 2) : config.bossVolleyCount;
+            const volleyCount = saltwind ? Math.max(4, bossVolleyCount - 2) : bossVolleyCount;
             const angleOffset = saltwind ? Math.PI / volleyCount : 0;
             for (let projectileIndex = 0; projectileIndex < volleyCount; projectileIndex++) {
               const angle = (Math.PI * 2 * projectileIndex) / volleyCount + angleOffset;
@@ -185,10 +197,10 @@ export function stepEnemies(
                 y,
                 Math.cos(angle),
                 Math.sin(angle),
-                config.bossProjectileSpeed,
-                config.bossProjectileDamage,
-                config.bossProjectileLifetimeTicks,
-                config.bossProjectileHitRadius,
+                bossProjectileSpeed,
+                bossProjectileDamage,
+                bossProjectileLifetimeTicks,
+                bossProjectileHitRadius,
                 0,
                 1,
               )) {
@@ -200,8 +212,8 @@ export function stepEnemies(
             moveDirX = 0;
             moveDirY = 0;
           } else {
-            const innerRange = Math.max(0, config.bossPreferredRange - config.bossRangeBand);
-            const outerRange = config.bossPreferredRange + config.bossRangeBand;
+            const innerRange = Math.max(0, bossPreferredRange - bossRangeBand);
+            const outerRange = bossPreferredRange + bossRangeBand;
             const bossSign = (enemies.idOf(slot) & 1) === 0 ? -1 : 1;
             if (dist < innerRange) {
               moveDirX = -dirX;
@@ -211,7 +223,7 @@ export function stepEnemies(
               moveDirY = dirX * bossSign * config.eliteOrbitStrength;
             }
           }
-          behavior.state.bossPatternTick[slot] = (patternTick + 1) % config.bossCycleTicks;
+          behavior.state.bossPatternTick[slot] = (patternTick + 1) % bossCycleTicks;
         } else if (kind === ENEMY_BEHAVIOR_KIND.flankerOrbit) {
           const flankSign = (enemies.idOf(slot) & 1) === 0 ? -1 : 1;
           if (dist > config.flankerPreferredRange) {

@@ -1,6 +1,6 @@
 /**
  * Saltwind Ruins is the second V1 biome foundation. It keeps the frozen
- * eight-minute objective contract but changes the encounter grammar: flankers
+ * six-minute objective contract but changes the encounter grammar: flankers
  * arrive earlier, support threats enter before the boss, and the boss phase
  * favors denial/support pressure instead of a fodder-heavy swarm.
  *

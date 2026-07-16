@@ -1,18 +1,40 @@
 import {
+  describeUniversalUpgradeImpact,
   getUniversalUpgrade,
   type RunUpgradeOfferView,
   type TraitUpgradeOfferView,
   type TraitVisualAttachmentView,
   type UniversalUpgradeCatalog,
 } from '@sim';
+import { describeTraitUpgradeImpact } from '@traits';
 import { presentMasteryRank } from './mastery-fusions';
 
-export interface UpgradePresentation {
+export type UpgradeImpactCategory =
+  | 'Direct damage'
+  | 'Crowd control'
+  | 'Targeting'
+  | 'Defense'
+  | 'Economy / utility';
+
+interface UpgradePresentationBase {
   readonly title: string;
   readonly badge: string;
   readonly socket: string;
   readonly description: string;
   readonly pairingHint: string | null;
+}
+
+export interface UpgradePresentation extends UpgradePresentationBase {
+  /** Truthful authored lane; never inferred from browser combat visuals. */
+  readonly impactCategory: UpgradeImpactCategory;
+  /** Exact offered rank transition and its real change, when data is available. */
+  readonly impact: string;
+}
+
+export interface UpgradeConfirmationPresentation {
+  readonly title: string;
+  readonly category: UpgradeImpactCategory;
+  readonly detail: string;
 }
 
 function hasAdapted(state: readonly TraitVisualAttachmentView[], traitId: string): boolean {
@@ -73,12 +95,12 @@ function fusionReadyDescription(offer: TraitUpgradeOfferView, legacyDescription:
     : legacyDescription;
 }
 
-/** Plain-language, renderer-independent card content for the launch catalog. */
-export function presentUpgrade(
+/** Plain-language, renderer-independent trait card content for the launch catalog. */
+function presentTraitUpgradeBase(
   offer: TraitUpgradeOfferView,
   visualState: readonly TraitVisualAttachmentView[],
   heroName = 'Greg',
-): UpgradePresentation {
+): UpgradePresentationBase {
   const mythicReady = pairReady(offer, visualState, 'porcupine-quills', 'puffer-pouch');
 
   if (offer.traitId === 'porcupine-quills') {
@@ -244,6 +266,61 @@ export function presentUpgrade(
   };
 }
 
+function legacyTraitImpactCategory(traitId: string): UpgradeImpactCategory {
+  if (traitId === 'puffer-pouch' || traitId === 'armadillo-greaves') return 'Crowd control';
+  if (traitId === 'bat-ears') return 'Targeting';
+  return 'Direct damage';
+}
+
+/** Keeps a stable content definition from leaking retired hero copy into UI. */
+function playerFacingUniversalDescription(upgradeId: string, description: string): string {
+  return upgradeId === 'basic-attack:greg-precision'
+    ? description.replaceAll('Fox Swipe', 'Scout Swipe')
+    : description;
+}
+
+/**
+ * Presentation wrapper around the immutable trait-runtime rank content. The
+ * browser receives a precomputed offer rank and only displays this explanation;
+ * it never turns the text back into combat or selection state.
+ */
+export function presentUpgrade(
+  offer: TraitUpgradeOfferView,
+  visualState: readonly TraitVisualAttachmentView[],
+  heroName = 'Greg',
+): UpgradePresentation {
+  const base = presentTraitUpgradeBase(offer, visualState, heroName);
+  const impact = typeof offer.resultRank === 'number'
+    ? describeTraitUpgradeImpact(offer.traitId, offer.resultRank)
+    : undefined;
+  if (impact !== undefined) {
+    return {
+      ...base,
+      impactCategory: impact.category,
+      impact: `${impact.rankTransition} · ${impact.delta}`,
+    };
+  }
+  const category = legacyTraitImpactCategory(offer.traitId);
+  return {
+    ...base,
+    impactCategory: category,
+    impact: category === 'Direct damage'
+      ? 'Legacy offer: direct-damage outcome is determined by the simulation.'
+      : `Legacy offer: ${category}; no direct damage is claimed.`,
+  };
+}
+
+/** A short post-pick confirmation that reuses the exact offered presentation. */
+export function presentUpgradeConfirmation(
+  presentation: UpgradePresentation,
+): UpgradeConfirmationPresentation {
+  return Object.freeze({
+    title: `${presentation.title} applied`,
+    category: presentation.impactCategory,
+    detail: presentation.impact,
+  });
+}
+
 /**
  * Plain-language card content for the unified run-level chooser. Animal body
  * adaptations retain their specific visual/socket copy; neutral cards state
@@ -263,17 +340,29 @@ export function presentRunUpgrade(
       socket: 'Permanent progression',
       description: 'All finite run upgrades are complete. Bank Essence to buy permanent upgrades after the run.',
       pairingHint: null,
+      impactCategory: 'Economy / utility',
+      impact: `Economy / utility · no direct damage · +${offer.amount} Essence after the run.`,
     };
   }
 
   const definition = getUniversalUpgrade(offer.upgradeId, catalog);
   const title = definition?.title ?? offer.upgradeId.split('-').map((part) => part[0]?.toUpperCase() + part.slice(1)).join(' ');
   const starterMastery = definition?.effect.kind === 'basicAttack';
+  const impact = definition === undefined
+    ? null
+    : describeUniversalUpgradeImpact(definition, offer.currentRank, offer.nextRank);
   return {
     title,
     badge: `RANK ${offer.nextRank}/${offer.maxRank}`,
     socket: starterMastery ? 'Starter mastery' : 'Neutral run upgrade',
-    description: definition?.description ?? 'Strengthens a universal stat for this run.',
+    description: playerFacingUniversalDescription(
+      offer.upgradeId,
+      definition?.description ?? 'Strengthens a universal stat for this run.',
+    ),
     pairingHint: null,
+    impactCategory: impact?.category ?? 'Economy / utility',
+    impact: impact === null
+      ? `Rank ${offer.currentRank} → ${offer.nextRank} · authored impact unavailable; no direct-damage claim.`
+      : `${impact.rankTransition} · ${impact.delta}`,
   };
 }

@@ -21,6 +21,18 @@ export interface VisibilityResumeDecision {
   readonly resumeNow: boolean;
 }
 
+/**
+ * Audio may resume only once the page is actually visible and any pause owned
+ * by the visibility policy has been released. Manual pause never sets that
+ * ownership flag, so its existing audio behavior remains independent.
+ */
+export function shouldResumeVisibilityAudio(
+  pageVisibility: DocumentVisibilityState,
+  state: VisibilityPauseState,
+): boolean {
+  return pageVisibility === 'visible' && !state.pausedByVisibility;
+}
+
 /** Pauses only an actively running, player-controlled run. */
 export function pauseForHiddenPage(
   _state: VisibilityPauseState,

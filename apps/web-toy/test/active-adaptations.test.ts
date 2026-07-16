@@ -30,7 +30,10 @@ describe('active adaptation presentation', () => {
     ]);
     expect(cards[0]?.effect).toMatch(/pierce/i);
     expect(cards[1]?.effect).toMatch(/Pushes nearby enemies away/i);
-    expect(Object.keys(cards[0] ?? {})).toEqual(['id', 'title', 'stageLabel', 'effect', 'cadence']);
+    expect(Object.keys(cards[0] ?? {})).toEqual(['id', 'title', 'stageLabel', 'effect', 'cadence', 'impactCategory', 'impact']);
+    expect(cards[0]).toMatchObject({ impactCategory: 'Direct damage' });
+    expect(cards[1]).toMatchObject({ impactCategory: 'Crowd control' });
+    expect(cards[1]?.impact).toMatch(/no direct damage/i);
   });
 
   it('uses canonical order, ignores disabled or malformed visuals, and keeps only the highest active stage', () => {

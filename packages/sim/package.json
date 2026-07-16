@@ -10,7 +10,10 @@
     "test": "tsc -p tsconfig.json --skipLibCheck && node --test \"dist/test/**/*.test.js\"",
     "lint": "node scripts/lint.mjs",
     "bench": "tsc -p tsconfig.json --skipLibCheck && node dist/bench/bench.js",
-    "bench:projectiles": "tsc -p tsconfig.json --skipLibCheck && node dist/bench/projectile-bench.js"
+    "bench:projectiles": "tsc -p tsconfig.json --skipLibCheck && node dist/bench/projectile-bench.js",
+    "check:master-dps": "node scripts/generate-master-dps.mjs",
+    "generate:master-dps": "node scripts/generate-master-dps.mjs --write",
+    "report:tempo-boss": "npm --prefix ../run-director run build && npm run build && node scripts/tempo-boss-report.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -12,6 +12,7 @@ import {
   type RunPhaseView,
   type SimConfig,
 } from '@sim';
+import { GREG_FIRST_RUN } from '@director';
 import { captureSnapshot, createSnapshot } from '../src/sim/snapshot-producer';
 
 const ROLE_TEST_FINGERPRINT = '87654321';
@@ -51,6 +52,7 @@ class RoleDirector implements RunDirectorPort {
         intent: {
           archetypeId: 'enemy:boss', count: 1, formation: 'ring',
           minDistance: 5, maxDistance: 5, elite: false, boss: true,
+          bossProfile: GREG_FIRST_RUN.boss.profile,
         },
       },
     ];
@@ -90,13 +92,13 @@ describe('snapshot producer enemy presentation roles', () => {
       bruteHp,
       spitterHp,
       bruteHp * 5,
-      bruteHp * 18,
+      bruteHp * GREG_FIRST_RUN.boss.profile.hpMultiplier,
     ]);
     expect(Array.from(snapshot.enemies.maxHp.slice(0, snapshot.enemies.count))).toEqual([
       bruteHp,
       spitterHp,
       bruteHp * 5,
-      bruteHp * 18,
+      bruteHp * GREG_FIRST_RUN.boss.profile.hpMultiplier,
     ]);
     expect(sim.hash()).toBe(hashBeforeCapture);
     const bossIndex = Array.from(snapshot.enemies.role.slice(0, snapshot.enemies.count))
@@ -104,7 +106,7 @@ describe('snapshot producer enemy presentation roles', () => {
     const bossSlot = sim.enemies.slotOf(snapshot.enemies.id[bossIndex]!);
     expect(bossSlot).toBeGreaterThanOrEqual(0);
     sim.enemies.data.hp[bossSlot] = 1;
-    expect(snapshot.enemies.hp[bossIndex]).toBe(bruteHp * 18);
+    expect(snapshot.enemies.hp[bossIndex]).toBe(bruteHp * GREG_FIRST_RUN.boss.profile.hpMultiplier);
   });
 
   it('keeps health fields zero for non-enemy categories and copies projectile, XP, power-pickup, and zone roles for rendering', () => {

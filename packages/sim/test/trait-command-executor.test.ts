@@ -321,6 +321,66 @@ test('applies area damage once per in-range enemy and uses simulation-owned kill
   assert.equal(grid.nearest(5, 0, 0.1), -1);
 });
 
+test('places Residue and Miasma zones at the triggering payload target, not Greg', () => {
+  const { context, grid } = setup();
+  const byGreg = spawnEnemy(context, grid, 5, 0);
+  const payloadTarget = spawnEnemy(context, grid, 80, 0);
+  context.enemies.data.hp[payloadTarget] = 100;
+  const resolvedOrigins: Array<readonly [number, number, number]> = [];
+
+  const stats = createTraitCommandExecutor().execute(source(
+    command({
+      kind: 'spawnProjectileBurst', targeting: 'highestHealth', count: 1, damage: 0, speed: 1, range: 100,
+    }),
+    command({
+      kind: 'spawnZone', anchor: 'triggerTarget', targeting: 'none', radius: 12,
+      amount: 2, durationTicks: 30, intervalTicks: 10, tag: 'sticky-trail',
+    }),
+    command({
+      kind: 'spawnZone', anchor: 'triggerTarget', targeting: 'none', radius: 14,
+      amount: 2, durationTicks: 30, intervalTicks: 10, tag: 'stink-cloud',
+    }),
+  ), {
+    ...context,
+    onCommandOriginResolved(commandIndex, originX, originY): void {
+      resolvedOrigins.push([commandIndex, originX, originY]);
+    },
+  });
+
+  assert.equal(stats.zonesSpawned, 2);
+  assert.equal(context.zones.data.count, 2);
+  for (let index = 0; index < 2; index++) {
+    assert.equal(context.zones.data.posX[index], 80);
+    assert.equal(context.zones.data.posY[index], 0);
+  }
+  assert.equal(context.enemies.data.hp[byGreg], 10, 'the source-side enemy was not used as the graft anchor');
+  assert.deepEqual(resolvedOrigins, [[0, 0, 0], [1, 80, 0], [2, 80, 0]]);
+});
+
+test('places Crab Impact and Eel Arc on the triggering payload target deterministically', () => {
+  const { context, grid } = setup();
+  const byGreg = spawnEnemy(context, grid, 5, 0);
+  const payloadTarget = spawnEnemy(context, grid, 80, 0);
+  context.enemies.data.hp[payloadTarget] = 100;
+
+  const stats = createTraitCommandExecutor().execute(source(
+    command({
+      kind: 'spawnProjectileBurst', targeting: 'highestHealth', count: 1, damage: 0, speed: 1, range: 100,
+    }),
+    command({
+      kind: 'applyAreaDamage', anchor: 'triggerTarget', targeting: 'nearest', radius: 12, damage: 7,
+    }),
+    command({
+      kind: 'chainDamage', anchor: 'triggerTarget', targeting: 'nearest', damage: 9, jumps: 0, range: 20,
+    }),
+  ), context);
+
+  assert.equal(stats.areaDamageHits, 1);
+  assert.equal(stats.chainDamageHits, 1);
+  assert.equal(context.enemies.data.hp[payloadTarget], 84, 'Impact and Arc both resolve from the payload target');
+  assert.equal(context.enemies.data.hp[byGreg], 10, 'neither dependent command fell back to Greg');
+});
+
 test('resolves an auto-aimed melee arc as a real front-sector cleave with deterministic target direction', () => {
   const { context, grid } = setup();
   const anchor = spawnEnemy(context, grid, 20, 0);
@@ -642,6 +702,18 @@ test('validates the whole batch before mutating any pool', () => {
     /command\.count must be an integer/,
   );
   assert.equal(context.projectiles.data.count, 0, 'the valid first command must not run');
+});
+
+test('rejects an unknown command anchor before mutating combat state', () => {
+  const { context } = setup();
+  assert.throws(
+    () => createTraitCommandExecutor().execute(source(command({
+      kind: 'spawnProjectileBurst', count: 1, damage: 1, speed: 1,
+      anchor: 'not-an-anchor' as never,
+    })), context),
+    /unsupported command anchor/,
+  );
+  assert.equal(context.projectiles.data.count, 0);
 });
 
 test('validates every spawnZone before mutating the zone pool', () => {

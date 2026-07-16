@@ -9,6 +9,27 @@ permissions:
   contents: read
 
 jobs:
+  agent-harness:
+    name: Agent harness
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.18.0
+
+      # These scripts use only Node's standard library. They protect the
+      # routing and architectural checks that make parallel agent work safe;
+      # package-specific behavior remains covered by the matrix below.
+      - name: Test change-gate routing
+        run: node scripts/test-agent-harness.mjs
+
+      - name: Verify agent contracts
+        run: npm run verify:agent-contracts
+
   verify:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest

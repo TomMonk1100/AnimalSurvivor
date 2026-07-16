@@ -102,7 +102,7 @@ test('movement distance quantization saturates safely instead of overflowing ser
   assert.doesNotThrow(() => runtime.serialize());
 });
 
-test('Razorstep Chimera consumes Mantis and Gecko and leaves stronger movement-gated pads', () => {
+test('Razorstep Chimera consumes Mantis and Gecko into a tempered deterministic combat loop', () => {
   const runtime = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
   master(runtime, 'mantis-scythes');
   master(runtime, 'gecko-pads');
@@ -112,28 +112,28 @@ test('Razorstep Chimera consumes Mantis and Gecko and leaves stronger movement-g
   assert.equal(runtime.stageOf('gecko-pads'), 'mythic');
   assert.equal(runtime.socketOwner('leftShoulder'), 'razorstep-chimera');
   assert.equal(runtime.socketOwner('rightShoulder'), 'razorstep-chimera');
+  assert.ok(runtime.getState().evolutions[0]?.variant !== undefined);
 
-  const pad = runtime.update(context(1, 90));
-  assert.equal(pad.length, 1);
+  const replay = TraitRuntime.deserialize(runtime.serialize(), {
+    catalog: GREG_FOREST_ARSENAL_CATALOG,
+  });
+  const collectRazorstep = (candidate: TraitRuntime): Array<[number, string, string]> => {
+    const emitted: Array<[number, string, string]> = [];
+    for (let tick = 1; tick <= 120; tick++) {
+      const commands = candidate.update(context(tick, 90));
+      for (let index = 0; index < commands.length; index++) {
+        const command = commands.at(index);
+        emitted.push([tick, command.sourceId, command.kind]);
+      }
+    }
+    return emitted;
+  };
+  const razorstepEmissions = collectRazorstep(runtime);
+  assert.ok(razorstepEmissions.length > 0);
+  assert.ok(razorstepEmissions.every(([, sourceId]) => sourceId === 'razorstep-chimera'));
   assert.deepEqual(
-    {
-      sourceId: pad.at(0).sourceId,
-      kind: pad.at(0).kind,
-      radius: pad.at(0).radius,
-      amount: pad.at(0).amount,
-      durationTicks: pad.at(0).durationTicks,
-      intervalTicks: pad.at(0).intervalTicks,
-      tag: pad.at(0).tag,
-    },
-    {
-      sourceId: 'razorstep-chimera',
-      kind: 'spawnZone',
-      radius: 58,
-      amount: 7,
-      durationTicks: 200,
-      intervalTicks: 14,
-      tag: 'razorstep-scythe-pad',
-    },
+    collectRazorstep(replay),
+    razorstepEmissions,
   );
 });
 

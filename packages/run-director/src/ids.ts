@@ -93,14 +93,14 @@ export type EventKind =
 export const STATE_VERSION = 1 as const;
 
 /**
- * Frozen content-schema version, independent of runtime state version. Included
- * in the content fingerprint.
+ * Content-schema version, independent of runtime state version. Version 3
+ * adds the authored, fingerprinted boss combat profile to BossDefinition.
  */
-export const CONTENT_VERSION = 2 as const;
+export const CONTENT_VERSION = 3 as const;
 
 /** Frozen run timing constants. Tests lock these exactly. */
 export const TICKS_PER_SECOND = 60 as const;
-/** 8 minutes @ 60Hz. Authored run duration boundary. */
-export const RUN_DURATION_TICKS = 28_800 as const;
-/** 6:30 @ 60Hz. Gives normal mode a focused 90-second boss-fight runway. */
-export const BOSS_ENTRANCE_TICK = 23_400 as const;
+/** 6 minutes @ 60Hz. Authored normal-run duration boundary. */
+export const RUN_DURATION_TICKS = 21_600 as const;
+/** 4:45 @ 60Hz. Leaves a focused 75-second boss-fight runway. */
+export const BOSS_ENTRANCE_TICK = 17_100 as const;

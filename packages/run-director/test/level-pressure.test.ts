@@ -43,38 +43,38 @@ test('level pressure raises capacity gradually and stops at its authored cap', (
   const phase = openingPhase();
 
   assert.deepEqual(resolveLiveEnemyCaps(phase, rule, 1), {
-    softCap: 10,
-    hardCap: 18,
+    softCap: 12,
+    hardCap: 20,
     levelSteps: 0,
   });
   assert.deepEqual(resolveLiveEnemyCaps(phase, rule, 4), {
-    softCap: 11,
-    hardCap: 20,
+    softCap: 13,
+    hardCap: 22,
     levelSteps: 1,
   });
   assert.deepEqual(resolveLiveEnemyCaps(phase, rule, 6), {
-    softCap: 12,
-    hardCap: 22,
+    softCap: 14,
+    hardCap: 24,
     levelSteps: 2,
   });
   assert.deepEqual(resolveLiveEnemyCaps(phase, rule, 8), {
-    softCap: 13,
-    hardCap: 24,
+    softCap: 15,
+    hardCap: 26,
     levelSteps: 3,
   });
   assert.deepEqual(resolveLiveEnemyCaps(phase, rule, 99), {
-    softCap: 13,
-    hardCap: 24,
+    softCap: 15,
+    hardCap: 26,
     levelSteps: 3,
   });
 
   const openingInterval = def.waves.phaseIntervalTicks?.opening;
-  assert.equal(openingInterval, 75);
-  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 1), 75);
-  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 4), 71);
-  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 6), 67);
-  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 8), 63);
-  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 99), 63);
+  assert.equal(openingInterval, 60);
+  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 1), 60);
+  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 4), 56);
+  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 6), 52);
+  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 8), 48);
+  assert.equal(resolveDiscretionaryWaveInterval(openingInterval!, rule, 99), 48);
 });
 
 test('higher level unlocks modest extra density capacity without a spawn burst', () => {
@@ -84,11 +84,11 @@ test('higher level unlocks modest extra density capacity without a spawn burst',
   state.threat.budget = 100;
   state.threat.ticksSinceSpawn = def.waves.phaseIntervalTicks?.opening ?? def.waves.intervalTicks;
 
-  // At level 1, ten alive enemies meet the opening soft cap and block a wave.
-  assert.deepEqual(serviceSpawns(state, def, phase, metrics(1, 10), 120), []);
+  // At level 1, twelve alive enemies meet the opening soft cap and block a wave.
+  assert.deepEqual(serviceSpawns(state, def, phase, metrics(1, 12), 120), []);
 
   // At level 4, the first +1 soft-cap step admits exactly one ordinary wave.
-  const decisions = serviceSpawns(state, def, phase, metrics(4, 10), 120);
+  const decisions = serviceSpawns(state, def, phase, metrics(4, 12), 120);
   assert.equal(decisions.length, 1);
   assert.equal(decisions[0]?.delayed, false);
   assert.equal(state.threat.ticksSinceSpawn, 0);
@@ -101,7 +101,7 @@ test('authored phase cadence accelerates ordinary waves independently of level p
 
   const pressure = phase('pressure');
   const pressureInterval = def.waves.phaseIntervalTicks?.pressure;
-  assert.equal(pressureInterval, 60);
+  assert.equal(pressureInterval, 42);
   state.threat.ticksSinceSpawn = pressureInterval! - 1;
   assert.deepEqual(serviceSpawns(state, def, pressure, metrics(1, 0, 60), 60), []);
 
@@ -142,8 +142,8 @@ test('level pressure cadence emits more ordinary below-cap waves without same-ti
   const level7 = runBelowCapStream(7);
   const level7Replay = runBelowCapStream(7);
 
-  assert.equal(level1.ordinaryWaves, 6);
-  assert.equal(level7.ordinaryWaves, 7);
+  assert.equal(level1.ordinaryWaves, 8);
+  assert.equal(level7.ordinaryWaves, 9);
   assert.ok(level7.ordinaryWaves > level1.ordinaryWaves);
   assert.equal(level1.maxDecisionsPerTick, 1);
   assert.equal(level7.maxDecisionsPerTick, 1);

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { pauseForHiddenPage, resumeFromVisiblePage } from '../src/presentation/visibility-pause';
+import {
+  pauseForHiddenPage,
+  resumeFromVisiblePage,
+  shouldResumeVisibilityAudio,
+} from '../src/presentation/visibility-pause';
 
 const activeRun = {
   runStarted: true,
@@ -36,5 +40,21 @@ describe('page visibility pause policy', () => {
     expect(visible.state.pausedByVisibility).toBe(false);
     expect(visible.resumeNow).toBe(true);
     expect(resumeFromVisiblePage(visible.state).resumeNow).toBe(false);
+  });
+
+  it('allows opted-in audio to resume only after a visibility-owned pause is released', () => {
+    const hidden = pauseForHiddenPage({ pausedByVisibility: false }, activeRun);
+    expect(shouldResumeVisibilityAudio('hidden', hidden.state)).toBe(false);
+    expect(shouldResumeVisibilityAudio('visible', hidden.state)).toBe(false);
+
+    const visible = resumeFromVisiblePage(hidden.state);
+    expect(visible.resumeNow).toBe(true);
+    expect(shouldResumeVisibilityAudio('visible', visible.state)).toBe(true);
+  });
+
+  it('keeps manual-pause audio eligibility independent from visibility ownership', () => {
+    const manualPause = pauseForHiddenPage({ pausedByVisibility: false }, { ...activeRun, paused: true });
+    expect(manualPause.pauseNow).toBe(false);
+    expect(shouldResumeVisibilityAudio('visible', manualPause.state)).toBe(true);
   });
 });

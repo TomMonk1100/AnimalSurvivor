@@ -166,6 +166,23 @@ function canonicalDefinitionString(def: RunDefinition): string {
     def.boss.formation,
     def.boss.minDistance,
     def.boss.maxDistance,
+    def.boss.profile.id,
+    def.boss.profile.hpMultiplier,
+    def.boss.profile.xpMultiplier,
+    def.boss.profile.speedMultiplier,
+    def.boss.profile.touchDamageMultiplier,
+    def.boss.profile.preferredRange,
+    def.boss.profile.rangeBand,
+    def.boss.profile.cycleTicks,
+    def.boss.profile.chargeWindupTicks,
+    def.boss.profile.chargeDurationTicks,
+    def.boss.profile.chargeSpeedMultiplier,
+    def.boss.profile.volleyTick,
+    def.boss.profile.volleyCount,
+    def.boss.profile.projectileSpeed,
+    def.boss.profile.projectileDamage,
+    def.boss.profile.projectileLifetimeTicks,
+    def.boss.profile.projectileHitRadius,
   ].join(FIELD_SEP);
 
   const threatStr = [def.threat.initialBudget, def.threat.maxBudget].join(FIELD_SEP);

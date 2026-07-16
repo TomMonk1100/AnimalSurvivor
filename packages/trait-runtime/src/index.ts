@@ -30,17 +30,24 @@ import {
   stageOf,
   visualState,
 } from './build-state.js';
-import { availableFusions, fuseEvolution as fuseEvolutionState } from './evolution-resolver.js';
+import {
+  availableFusions,
+  fuseEvolution as fuseEvolutionState,
+  refreshFusionPreviews,
+} from './evolution-resolver.js';
 import { ensureTimers, stepBehaviors } from './behavior-runtime.js';
 import { createCommandBuffer } from './command-buffer.js';
 import { generateOffers } from './offer-director.js';
 import { restoreRng } from './rng.js';
 import {
   deserializeState,
+  LEGACY_CHIMERA_FINGERPRINT,
   serializeState,
   validateStateAgainstCatalog,
 } from './serialization.js';
-import { fingerprintCatalog, hashState } from './state-hash.js';
+import { fingerprintCatalog, fingerprintRuntimeContent, hashState } from './state-hash.js';
+import { rebuildSocketProjection } from './socket-projection.js';
+import { resolveEvolution } from './chimera/resolved-evolution.js';
 
 export interface TraitRuntimeOptions {
   seed?: number;
@@ -89,6 +96,39 @@ function validateRuntimeContext(ctx: RuntimeContext, expectedTick: number): void
   }
 }
 
+/**
+ * Narrow save-safety fallback for a content-versioned synthesized evolution.
+ * A valid old dynamic pair never bricks a run: restore its two consumed Master
+ * parents, remove only its unresolved loop/pending emissions, then let normal
+ * strict validation reject every other malformed state shape.
+ */
+function recoverUnresolvableSynthesizedEvolutions(catalog: Catalog, state: RuntimeState): void {
+  const retained = [];
+  const recoveredIds = new Set<string>();
+  for (const resolved of state.evolutions) {
+    if (resolveEvolution(catalog, resolved) !== undefined) {
+      retained.push(resolved);
+      continue;
+    }
+    const parents = resolved.ingredients.map((ingredient) => state.owned.find((owned) => owned.id === ingredient));
+    const recoverable = resolved.variant !== undefined
+      && parents.length === 2
+      && parents.every((parent) => parent !== undefined && parent.disabled && parent.rank === 5);
+    if (!recoverable) {
+      retained.push(resolved);
+      continue;
+    }
+    for (const parent of parents) parent!.disabled = false;
+    recoveredIds.add(resolved.id);
+  }
+  if (recoveredIds.size === 0) return;
+  state.evolutions = retained;
+  state.timers = state.timers.filter((timer) => !recoveredIds.has(timer.ownerId));
+  state.pendingEmissions = state.pendingEmissions.filter((pending) => !recoveredIds.has(pending.ownerId));
+  rebuildSocketProjection(catalog, state);
+  ensureTimers(catalog, state);
+}
+
 export class TraitRuntime {
   private readonly catalog: Catalog;
   private state: RuntimeState;
@@ -103,7 +143,12 @@ export class TraitRuntime {
       throw new RangeError('initialTick must be a safe integer >= -1');
     }
     const fingerprint = fingerprintCatalog(this.catalog);
-    this.state = createInitialState(options.seed ?? 0, fingerprint, initialTick);
+    this.state = createInitialState(
+      options.seed ?? 0,
+      fingerprint,
+      initialTick,
+      fingerprintRuntimeContent(this.catalog),
+    );
     this.buffer = createCommandBuffer(options.commandCapacity ?? DEFAULT_CAPACITY);
   }
 
@@ -188,7 +233,7 @@ export class TraitRuntime {
 
   /** Content fingerprint of the active catalog. */
   fingerprint(): string {
-    return fingerprintCatalog(this.catalog);
+    return fingerprintRuntimeContent(this.catalog);
   }
 
   /** Serialize runtime state to versioned JSON. */
@@ -200,6 +245,11 @@ export class TraitRuntime {
   static deserialize(json: string, options: TraitRuntimeOptions = {}): TraitRuntime {
     const runtime = new TraitRuntime(options);
     const restored = deserializeState(json);
+    if (restored.chimeraFingerprint === LEGACY_CHIMERA_FINGERPRINT) {
+      restored.chimeraFingerprint = fingerprintRuntimeContent(runtime.catalog);
+    }
+    recoverUnresolvableSynthesizedEvolutions(runtime.catalog, restored);
+    refreshFusionPreviews(runtime.catalog, restored);
     validateStateAgainstCatalog(restored, runtime.catalog);
     runtime.state = restored;
     return runtime;
@@ -224,6 +274,8 @@ export type {
   FuseOutcome,
   FuseResult,
   FusionOffer,
+  FusionPreview,
+  FusionVariant,
   OwnedTrait,
   ResolvedEvolution,
   RuntimeContext,
@@ -254,7 +306,7 @@ export {
   STATE_VERSION,
   SerializationError,
 } from './serialization.js';
-export { fingerprintCatalog, hashState } from './state-hash.js';
+export { fingerprintCatalog, fingerprintRuntimeContent, hashState } from './state-hash.js';
 export { generateOffers } from './offer-director.js';
 export {
   visualState,
@@ -266,13 +318,28 @@ export {
   fuseEvolution,
   createInitialState,
 } from './build-state.js';
-export { availableFusions } from './evolution-resolver.js';
+export { availableFusions, refreshFusionPreviews } from './evolution-resolver.js';
+export {
+  canonicalChimeraPair,
+  chimeraPairId,
+  enumerateChimeraPairs,
+  parseChimeraPairId,
+} from './chimera/chimera-ids.js';
+export { rollVariant, splitmix32 } from './chimera/variant-roll.js';
+export { synthesizeChimera } from './chimera/synthesize.js';
+export { estimateBehaviorDps, chimeraTargetDps, clampChimeraBehavior } from './chimera/budget.js';
+export { CHIMERA_CONTENT_VERSION, resolveEvolution } from './chimera/resolved-evolution.js';
 export {
   rankStageFor,
   rankStagesFor,
   legacyStageForRank,
   isMasterRank,
 } from './rank-progression.js';
+export {
+  describeTraitUpgradeImpact,
+  type TraitUpgradeImpact,
+  type TraitUpgradeImpactCategory,
+} from './upgrade-impact.js';
 export { ensureTimers, stepBehaviors } from './behavior-runtime.js';
 export { createCommandBuffer } from './command-buffer.js';
 export {

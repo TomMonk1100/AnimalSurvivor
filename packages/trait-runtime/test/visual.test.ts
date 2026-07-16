@@ -26,24 +26,45 @@ test('visual state progresses through required slice keys', () => {
 
   master(rt, 'puffer-pouch');
   assert.equal(rt.fuseEvolution('thornstorm-mantle').outcome.ok, true);
-  assert.deepEqual(keys(rt), ['thornstorm-mantle:mythic']);
+  assert.deepEqual(keys(rt), [
+    'thornstorm-mantle:mythic',
+    'porcupine-quills:adapted',
+    'puffer-pouch:adapted',
+  ]);
 });
 
-test('mythic visual entry uses both recipe sockets and hides consumed traits', () => {
+test('mythic visual entry retains renderer-only Master parent attachments', () => {
   const rt = new TraitRuntime({ seed: 0 });
   master(rt, 'porcupine-quills');
   master(rt, 'puffer-pouch');
   rt.fuseEvolution('thornstorm-mantle');
 
   const vs = rt.visualState();
-  assert.equal(vs.length, 1);
-  const mythic = vs[0]!;
+  assert.equal(vs.length, 3);
+  const mythic = vs.find((attachment) => !attachment.visualOnly);
+  assert.ok(mythic !== undefined);
   assert.equal(mythic.sourceId, 'thornstorm-mantle');
   assert.equal(mythic.stage, 'mythic');
   assert.equal(mythic.rank, null);
   assert.equal(mythic.logicalSlotCost, 1);
   assert.equal(mythic.enabled, true);
   assert.deepEqual([...mythic.sockets].sort(), ['back', 'head']);
+
+  const parents = vs.filter((attachment) => attachment.visualOnly);
+  assert.equal(parents.length, 2);
+  assert.deepEqual(parents.map((attachment) => attachment.sourceId), [
+    'porcupine-quills',
+    'puffer-pouch',
+  ]);
+  for (const parent of parents) {
+    assert.equal(parent.stage, 'adapted');
+    assert.equal(parent.rank, 5);
+    assert.equal(parent.isMaster, true);
+    assert.equal(parent.enabled, true);
+    assert.equal(parent.visualOnly, true);
+    assert.deepEqual(parent.chimeraParents, ['porcupine-quills', 'puffer-pouch']);
+  }
+  assert.equal(rt.activeAttackSlots(), 1);
 });
 
 test('each required first-slice visual key is observable in a valid state', () => {

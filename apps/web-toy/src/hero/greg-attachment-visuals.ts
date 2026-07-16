@@ -37,6 +37,7 @@ export const GREG_ATTACHMENT_VISUAL_KEYS = Object.freeze([
   'monarch-brood:bud',
   'monarch-brood:adapted',
   'royal-stinkcloud:mythic',
+  'chimera-seam:mythic',
 ] as const);
 
 export type GregAttachmentVisualKey = (typeof GREG_ATTACHMENT_VISUAL_KEYS)[number];
@@ -59,7 +60,8 @@ export type GregAttachmentFamily =
   | 'meteor-mauler'
   | 'skunk-brush'
   | 'monarch-brood'
-  | 'royal-stinkcloud';
+  | 'royal-stinkcloud'
+  | 'chimera-seam';
 export type GregPrimitiveShape = 'sphere' | 'cone' | 'cylinder';
 export type GregMaterialRole =
   | 'quillPrimary'
@@ -396,6 +398,21 @@ const RAW_RECIPES: readonly GregAttachmentVisualRecipe[] = [
       part('royal-wing-left', 'sphere', 'monarchPrimary', [-0.48, 0.36, 0.06], [0, 0, 0], [0.22, 0.14, 0.34]),
       part('royal-wing-right', 'sphere', 'monarchPrimary', [0.48, 0.36, 0.06], [0, 0, 0], [0.22, 0.14, 0.34]),
       part('royal-glow', 'sphere', 'launchMythicGlow', [0, 0.48, 0.2], [0, 0, 0], [0.15, 0.15, 0.15]),
+    ],
+  },
+  {
+    // One reusable, renderer-only braid for every generated pair. Parent
+    // attachments carry their own authored silhouettes; this makes the splice
+    // itself legible without expanding the atlas to sixty-six mesh variants.
+    key: 'chimera-seam:mythic', family: 'chimera-seam', stage: 'mythic', parts: [
+      part('braid-primary', 'cylinder', 'mythicGlow', [-0.42, 0.18, 0], [0, 0, 62], [0.055, 0.56, 0.055]),
+      part('braid-accent', 'cylinder', 'launchMythicGlow', [0.42, 0.18, 0], [0, 0, -62], [0.04, 0.5, 0.04]),
+      part('splice-knot', 'sphere', 'mythicGlow', [0, 0.26, 0], [0, 0, 0], [0.14, 0.14, 0.14]),
+      // These parts are scale-gated by the renderer-only temperament motion:
+      // Echo/Apex use the ghost braid; only Gilded exposes its muted flecks.
+      part('braid-echo', 'cylinder', 'launchMythicGlow', [0, 0.25, -0.08], [0, 0, 90], [0.025, 0.42, 0.025]),
+      part('gilded-fleck-left', 'sphere', 'launchMythicGlow', [-0.18, 0.38, 0.04], [0, 0, 0], [0.045, 0.045, 0.045]),
+      part('gilded-fleck-right', 'sphere', 'launchMythicGlow', [0.18, 0.38, 0.04], [0, 0, 0], [0.045, 0.045, 0.045]),
     ],
   },
 ];

@@ -20,6 +20,15 @@ import {
   type MonarchBroodAttachmentMotion,
   type MonarchBroodMotionNode,
 } from './monarch-brood-presentation-motion';
+import {
+  createChimeraSeamAttachmentMotion,
+  type ChimeraSeamAttachmentMotion,
+  type ChimeraSeamMotionNode,
+} from './chimera-seam-presentation';
+import {
+  createChimeraSeamMaterialBinding,
+  type ChimeraSeamMaterialBinding,
+} from './chimera-seam-playcanvas';
 import { createGregTraitVisualProjector } from './greg-trait-visual-projector';
 import { getHeroVisualProfile, type HeroId } from './hero-roster';
 
@@ -31,6 +40,10 @@ const BENNY_BASTION_ART_URL = new URL(
 ).href;
 const GRACIE_SURVEYOR_ART_URL = new URL(
   '../../../../assets/ui/heroes/gracie-surveyor-v1.png',
+  import.meta.url,
+).href;
+const SCOUT_POUNCER_ART_URL = new URL(
+  '../../../../assets/ui/heroes/scout-pouncer-v1.png',
   import.meta.url,
 ).href;
 
@@ -183,6 +196,7 @@ export function projectProceduralAnimalGait(
 
 export type ProceduralAnimalActionKind =
   | 'none'
+  | 'scout-swipe'
   | 'trample'
   | 'brace'
   | 'spit'
@@ -205,11 +219,17 @@ export interface ProceduralAnimalActionReaction {
 
 /** Classifies only the active companion's signature events, never every trait cue. */
 export function classifyProceduralAnimalAction(
-  heroId: Exclude<HeroId, 'greg'>,
+  heroId: HeroId,
   event: Pick<TraitPresentationEventView, 'sourceId' | 'tag'>,
 ): ProceduralAnimalActionKind {
   const tag = event.tag ?? '';
   const matches = (identity: string): boolean => event.sourceId === identity || tag === identity;
+  if (heroId === 'greg') {
+    // Scout is a presentation swap only. The stable simulation identity and
+    // its authoritative event ids stay `greg-*` for replay compatibility.
+    if (matches('greg-fox-swipe') || matches('greg-rush-rake')) return 'scout-swipe';
+    return 'none';
+  }
   if (heroId === 'benny') {
     if (matches('benny-trample-wave') || event.sourceId === 'benny-trample') return 'trample';
     if (matches('benny-brace')) return 'brace';
@@ -238,12 +258,18 @@ export function projectProceduralAnimalActionReaction(
     rollDegrees: 0, widthScale: 0, heightScale: 0, lengthScale: 0, footfallKick: 0,
   };
   if (kind === 'none' || !Number.isFinite(actionTick)) return zero;
-  const lifetime = kind === 'trample' ? 12 : kind === 'fluffy-shield' ? 18 : 10;
+  const lifetime = kind === 'trample' ? 12 : kind === 'fluffy-shield' ? 18 : kind === 'scout-swipe' ? 11 : 10;
   const age = Math.max(0, finite(currentTick) + clampedAlpha(alpha) - actionTick);
   if (age >= lifetime) return zero;
   const envelope = 1 - age / lifetime;
   const strength = envelope * (0.68 + Math.sin(Math.min(1, age * 0.62) * Math.PI) * 0.32);
   switch (kind) {
+    case 'scout-swipe': return {
+      kind, strength, bodyLift: 0.14 * strength, forwardKick: 0.44 * strength,
+      pitchDegrees: -10.5 * strength, rollDegrees: Math.sin(age * 2.5) * 2.6 * strength,
+      widthScale: 0.04 * strength, heightScale: -0.03 * strength,
+      lengthScale: 0.16 * strength, footfallKick: 0.74 * strength,
+    };
     case 'trample': return {
       kind, strength, bodyLift: 0.18 * strength, forwardKick: 0.42 * strength,
       pitchDegrees: -10 * strength, rollDegrees: Math.sin(age * 1.5) * 1.8 * strength,
@@ -321,7 +347,11 @@ function bone(root: pc.Entity, name: string, position: readonly [number, number,
 function createAttachmentFactory(
   materials: Readonly<Record<GregMaterialRole, pc.StandardMaterial>>,
   monarchBroodMotion?: MonarchBroodAttachmentMotion,
+  chimeraSeamMotion?: ChimeraSeamAttachmentMotion,
 ): GregAttachmentFactory<AttachmentNode, pc.Entity> {
+  const chimeraSeamBindings = new Map<pc.Entity, ChimeraSeamMaterialBinding>();
+  const chimeraSeamPresentations = new Map<pc.Entity, NonNullable<AttachmentRequest['chimeraSeam']>>();
+
   return {
     create(request: AttachmentRequest): pc.Entity {
       const root = new pc.Entity(request.visualKey);
@@ -339,6 +369,12 @@ function createAttachmentFactory(
           );
           view.enabled = true;
         }
+        if (request.visualKey === 'chimera-seam:mythic' && request.chimeraSeam !== undefined) {
+          const binding = createChimeraSeamMaterialBinding(request.chimeraSeam);
+          binding.apply(root);
+          chimeraSeamBindings.set(root, binding);
+          chimeraSeamPresentations.set(root, request.chimeraSeam);
+        }
       }
       return root;
     },
@@ -348,12 +384,20 @@ function createAttachmentFactory(
       view.setLocalEulerAngles(...transform.euler);
       view.setLocalScale(...transform.scale);
       monarchBroodMotion?.track(view as unknown as MonarchBroodMotionNode, view.name);
+      const chimeraSeam = chimeraSeamPresentations.get(view);
+      if (chimeraSeam !== undefined) {
+        chimeraSeamMotion?.track(view as unknown as ChimeraSeamMotionNode, chimeraSeam);
+      }
     },
     unmount(view): void {
       view.parent?.removeChild(view);
     },
     destroy(view): void {
       monarchBroodMotion?.untrack(view as unknown as MonarchBroodMotionNode);
+      chimeraSeamMotion?.untrack(view as unknown as ChimeraSeamMotionNode);
+      chimeraSeamPresentations.delete(view);
+      chimeraSeamBindings.get(view)?.destroy();
+      chimeraSeamBindings.delete(view);
       view.destroy();
     },
   };
@@ -475,11 +519,11 @@ function createFootfallMaterial(): pc.StandardMaterial {
  * without falsifying their art as a hidden skeletal model. They are built once
  * and only receive deterministic renderer-local transforms during a run.
  */
-function createFootfallRig(root: pc.Entity, heroId: Exclude<HeroId, 'greg'>): FootfallRig {
+function createFootfallRig(root: pc.Entity, heroId: HeroId): FootfallRig {
   const value = createFootfallMaterial();
-  const spread = heroId === 'benny' ? 2.92 : 2.48;
-  const front = heroId === 'benny' ? 2.5 : 2.34;
-  const rear = heroId === 'benny' ? -2.56 : -2.38;
+  const spread = heroId === 'benny' ? 2.92 : heroId === 'greg' ? 2.68 : 2.48;
+  const front = heroId === 'benny' ? 2.5 : heroId === 'greg' ? 2.44 : 2.34;
+  const rear = heroId === 'benny' ? -2.56 : heroId === 'greg' ? -2.5 : -2.38;
   const markers: FootfallMarker[] = [];
   const entries: readonly [string, number, number, 0 | 1 | 2 | 3][] = [
     ['front-left', -spread, front, 0],
@@ -610,6 +654,30 @@ function createHeroCutout(
  * bodies to painted art. Trait projection therefore remains a read-only view
  * over the same stable sockets for every hero.
  */
+function createScout(root: pc.Entity, device: pc.GraphicsDevice | undefined): ProceduralParts {
+  const artRig = bone(root, 'Scout art rig', [0, 0, 0]);
+  // The Scout cutout lunges toward its lower-left corner, matching the other
+  // companion source art. Rotate that direction into local +Z once here.
+  artRig.setLocalEulerAngles(0, 135, 0);
+  const bodyBone = bone(artRig, 'Body', [0, 0, 0]);
+  bone(artRig, 'Head', [0, 0.52, 4.7]);
+  bone(artRig, 'Back', [0, 0.24, -0.5]);
+  bone(artRig, 'FrontShoulder.L', [-3.32, 0.2, 1.82]);
+  bone(artRig, 'FrontShoulder.R', [3.32, 0.2, 1.82]);
+  bone(artRig, 'Tail4', [0, 0.24, -5.58]);
+  const cutout = createHeroCutout(device, bodyBone, 'scout-pouncer-cutout', SCOUT_POUNCER_ART_URL, 7.18);
+  const footfalls = createFootfallRig(root, 'greg');
+  return {
+    body: cutout.body,
+    movingParts: Object.freeze([]),
+    footfalls: footfalls.markers,
+    dispose(): void {
+      cutout.dispose();
+      footfalls.dispose();
+    },
+  };
+}
+
 function createBenny(root: pc.Entity, device: pc.GraphicsDevice | undefined): ProceduralParts {
   const artRig = bone(root, 'Benny art rig', [0, 0, 0]);
   // Both source illustrations travel toward their lower-left corner. Rotate
@@ -657,7 +725,7 @@ function createGracie(root: pc.Entity, device: pc.GraphicsDevice | undefined): P
 }
 
 export function createProceduralAnimalPresentation(
-  heroId: Exclude<HeroId, 'greg'>,
+  heroId: HeroId,
   parent: pc.Entity,
   worldHalfWidth: number,
   worldHalfHeight: number,
@@ -670,9 +738,11 @@ export function createProceduralAnimalPresentation(
   root.setLocalScale(2.45, 2.45, 2.45);
   const materials = createMaterials();
   const graphicsDevice = pc.AppBase.getApplication()?.graphicsDevice;
-  const visual = heroId === 'benny'
-    ? createBenny(root, graphicsDevice)
-    : createGracie(root, graphicsDevice);
+  const visual = heroId === 'greg'
+    ? createScout(root, graphicsDevice)
+    : heroId === 'benny'
+      ? createBenny(root, graphicsDevice)
+      : createGracie(root, graphicsDevice);
   // Companion sockets use a larger local coordinate space than Greg's glTF,
   // so maintain their proportionate trait spread while leaving authoritative
   // state untouched.
@@ -680,9 +750,10 @@ export function createProceduralAnimalPresentation(
     orbitRadiusMultiplier: 10,
     wingScaleMultiplier: 4,
   });
+  const chimeraSeamMotion = createChimeraSeamAttachmentMotion();
   const sockets = createGregAttachmentSockets(
     root as unknown as AttachmentNode,
-    createAttachmentFactory(materials.values, monarchBroodMotion),
+    createAttachmentFactory(materials.values, monarchBroodMotion, chimeraSeamMotion),
   );
   const projector = createGregTraitVisualProjector(sockets);
   const baseBodyScale = visual.body.getLocalScale().clone();
@@ -705,6 +776,7 @@ export function createProceduralAnimalPresentation(
       if (disposed) return;
       projector.sync(traitVisualState);
       monarchBroodMotion.update(current.tick + alpha);
+      chimeraSeamMotion.update(current.tick + alpha);
       if (!visible) return;
       for (const event of traitPresentationEvents) {
         const action = classifyProceduralAnimalAction(heroId, event);
@@ -770,6 +842,7 @@ export function createProceduralAnimalPresentation(
       projector.clear();
       sockets.clear();
       monarchBroodMotion.clear();
+      chimeraSeamMotion.clear();
       visual.dispose();
       root.destroy();
       materials.dispose();

@@ -39,6 +39,7 @@ describe('Greg attachment visual recipes', () => {
       'monarch-brood:bud',
       'monarch-brood:adapted',
       'royal-stinkcloud:mythic',
+      'chimera-seam:mythic',
     ]);
     for (const key of GREG_ATTACHMENT_VISUAL_KEYS) {
       const recipe = getGregAttachmentVisualRecipe(key);
@@ -81,6 +82,18 @@ describe('Greg attachment visual recipes', () => {
       .toEqual(expect.arrayContaining(['geckoPrimary', 'geckoAccent']));
     expect(getGregAttachmentVisualRecipe('razorstep-chimera:mythic').parts.map((part) => part.materialRole))
       .toEqual(expect.arrayContaining(['razorstepPrimary', 'razorstepAccent']));
+  });
+
+  it('keeps one finite seam recipe with the temperament-gated braid parts', () => {
+    expect(getGregAttachmentVisualRecipe('chimera-seam:mythic').parts.map((part) => part.id))
+      .toEqual([
+        'braid-primary',
+        'braid-accent',
+        'splice-knot',
+        'braid-echo',
+        'gilded-fleck-left',
+        'gilded-fleck-right',
+      ]);
   });
 
   it('returns deeply immutable recipes and stable recipe identities', () => {

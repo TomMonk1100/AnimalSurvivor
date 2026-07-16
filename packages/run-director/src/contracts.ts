@@ -98,6 +98,38 @@ export interface EliteBeatDefinition {
   readonly maxDistance: number;
 }
 
+/**
+ * Authored combat profile for the single apex encounter. This belongs to the
+ * run definition rather than an integration default: it is fingerprinted,
+ * emitted with the boss request, and consumed by the deterministic simulation.
+ * Every number is fixed-tick or world-space gameplay content, never a
+ * presentation preference.
+ */
+export interface BossCombatProfile {
+  /** Stable authored identity for diagnostics and content review. */
+  readonly id: string;
+  /** Multipliers applied to the mapped simulation archetype at boss spawn. */
+  readonly hpMultiplier: number;
+  readonly xpMultiplier: number;
+  readonly speedMultiplier: number;
+  readonly touchDamageMultiplier: number;
+  /** Spacing behavior outside charge and volley beats. */
+  readonly preferredRange: number;
+  readonly rangeBand: number;
+  /** Full fixed-tick charge-to-volley cycle. */
+  readonly cycleTicks: number;
+  readonly chargeWindupTicks: number;
+  readonly chargeDurationTicks: number;
+  readonly chargeSpeedMultiplier: number;
+  /** Radial hostile-volley behavior within the cycle. */
+  readonly volleyTick: number;
+  readonly volleyCount: number;
+  readonly projectileSpeed: number;
+  readonly projectileDamage: number;
+  readonly projectileLifetimeTicks: number;
+  readonly projectileHitRadius: number;
+}
+
 /** The single authored boss schedule. Boss requested exactly once. */
 export interface BossDefinition {
   readonly warningTick: number;
@@ -107,6 +139,8 @@ export interface BossDefinition {
   readonly formation: Formation;
   readonly minDistance: number;
   readonly maxDistance: number;
+  /** Versioned combat contract for this boss, not an adapter fallback. */
+  readonly profile: BossCombatProfile;
 }
 
 /** Integer-only threat accrual config (numerator/denominator, no floats). */
@@ -227,6 +261,8 @@ export interface SpawnIntent {
   readonly maxDistance: number;
   readonly elite: boolean;
   readonly boss: boolean;
+  /** Present exactly for an authored boss request. */
+  readonly bossProfile?: BossCombatProfile;
 }
 
 /** Fields present on every emitted event. */

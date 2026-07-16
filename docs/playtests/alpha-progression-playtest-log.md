@@ -14,9 +14,9 @@ than trying to answer every question.
 - Sound: off / on
 - Input: keyboard / touch / controller emulation
 - Run ended at:
-- Outcome: victory / death / 8:00 time expiry
+- Outcome: victory / death / 6:00 time expiry
 
-## First five minutes
+## Pre-boss arc
 
 - Was it immediately clear how to move, collect XP, and choose an upgrade?
 - Did movement feel responsive and smooth?
@@ -50,7 +50,7 @@ Check specifically:
 - Did the level 8 pressure increase feel noticeable?
 - Could you stand still safely for too long? If yes, when?
 - Did the overall density rise enough from opening through mutation, especially
-  after six to seven minutes?
+  after three to four minutes?
 - Did runners' distant zig-zag movement feel interesting and readable, or
   random/confusing?
 - Did cobalt Spitters hold range and fire slow orange shots that were visible
@@ -59,7 +59,7 @@ Check specifically:
   move? Were the 8-damage shots fair, too quiet, or hard to see?
 - Did an elite's larger **24-XP** pickup feel meaningful and easy to notice?
 - Did enemies feel unfair, boring, or readable?
-- Did the 6:30 boss entrance feel too early, too late, or right?
+- Did the 4:45 boss entrance feel too early, too late, or right?
 - Did the boss health bar communicate progress?
 - If time expired, did the outcome explain that the boss was still alive?
 

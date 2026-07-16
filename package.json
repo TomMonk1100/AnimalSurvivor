@@ -5,6 +5,9 @@
   "type": "module",
   "description": "Local release verification commands for AnimalSurvivor.",
   "scripts": {
+    "test:agent-harness": "node scripts/test-agent-harness.mjs",
+    "verify:agent-contracts": "node scripts/verify-agent-contracts.mjs",
+    "verify:changed": "node scripts/verify-changed.mjs",
     "verify:supply-chain": "node scripts/verify-supply-chain.mjs",
     "verify:release": "node scripts/verify-release.mjs"
   }

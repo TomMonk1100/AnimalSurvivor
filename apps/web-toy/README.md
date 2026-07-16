@@ -65,9 +65,11 @@ behavior. It does not replace hosted-browser or human evidence.
   voices and phase bed are procedural release scaffolding, not final authored
   audio; source-aware launch trait, instinct, boss-telegraph, and support-warning
   identities are covered by the same rate-safe presentation router.
-- The Field Guide exposes the complete six-recipe Mythic catalog, including
-  ingredient pairs and deterministic locked/discovered states; discovery remains
-  profile-owned and never changes a run hash.
+- The Field Guide retains a six-card **Perfect Pair** reference, including
+  ingredient pairs and deterministic locked/discovered states. It is not a
+  fusion restriction: in a run, any two enabled Master attacks can receive a
+  Wild Splice offer unless it would exceed the one-Support-Chimera cap. Profile
+  discovery remains presentation-owned and never changes a run hash.
 - The Field Guide also exposes a six-card Habitat Atlas. Forest is the known
   starting habitat; victories with each hero and in Saltwind, plus archived
   Mythic forms, reveal the remaining postcards without adding currency or run
@@ -99,30 +101,30 @@ The arena is a forest clearing with presentation-only landmarks and terrain
 treatment for movement readability. It is not part of the deterministic world
 state or replay hash.
 
-### Eight-minute normal mode
+### Six-minute normal mode
 
-Normal mode ends at **8:00**. Kill **The Final Threat** after it enters at
-**6:30** and before 8:00 to win; a living boss at the boundary is a defeat.
+Normal mode ends at **6:00**. Kill **The Final Threat** after it enters at
+**4:45** and before 6:00 to win; a living boss at the boundary is a defeat.
 There is no hidden overtime.
 
 | Time | Phase |
 | --- | --- |
-| 0:00–1:00 | Opening |
-| 1:00–3:00 | Pressure |
-| 3:00–5:00 | Adaptation |
-| 5:00–6:30 | Mutation |
-| 6:30–8:00 | Boss |
+| 0:00–0:45 | Opening |
+| 0:45–2:15 | Pressure |
+| 2:15–3:45 | Adaptation |
+| 3:45–4:45 | Mutation |
+| 4:45–6:00 | Boss |
 
-The elite requests are at **2:00**, **3:40**, **4:30**, **5:15**, **5:45**, and
-**6:05**, each with a five-second warning. The boss warning is at **6:10**.
+The elite requests are at **1:10**, **2:25**, **3:15**, **3:55**, **4:15**, and
+**4:35**, each with a five-second warning. The boss warning is at **4:25**.
 Normal waves approach from outside the camera. Runners weave, Spitters and
 elites add ranged pressure, and elites give larger XP rewards.
 
 ### Attacks and evolutions
 
 The selected animal’s starter attack occupies one active-attack slot. A normal
-run can choose up to three of twelve acquired trait families, for four active
-attack slots total:
+run can choose up to four of twelve acquired trait families, for five active
+attack cards total:
 
 | Starter | Pattern | Mastery |
 | --- | --- | --- |
@@ -145,24 +147,25 @@ attack slots total:
 | **Skunk Brush** | Damaging stink cloud | Larger, stronger stink cloud |
 | **Monarch Brood** | Two orbiting butterflies sting nearby enemies on contact | Three wider-orbit butterflies sting nearby enemies more often |
 
-Every attack has Bud and Adapted forms. Three paired evolutions are available:
+Every attack has Bud, Adapted, and **Master** (rank-five) forms. Any two enabled
+Masters can be explicitly fused through **Wild Splice**: all 66 unordered pairs
+are available. The six former named recipes remain signature **Perfect Pairs**:
 
-- **Thornstorm Mantle** combines Adapted Quills and Adapted Pouch: telegraph,
-  gather, then radial quill storm.
-- **Thunderbug Dynamo** combines Adapted Coil and Adapted Colony: telegraph,
-  then release a larger chain discharge across nearby enemies.
-- **Razorstep Chimera** combines Adapted Mantis Scythes and Adapted Gecko Pads:
-  moving leaves stronger scythe pads every 90 units.
-- **Midnight Radar** combines Adapted Bat Ears and Adapted Owl Pinions: marks a
-  wide threat cluster for priority targeting.
-- **Meteor Mauler** combines Adapted Crab Pincers and Adapted Armadillo Greaves:
-  a heavy close-range impact crushes the nearest crowd.
-- **Royal Stinkcloud** combines Adapted Skunk Brush and Adapted Monarch Brood:
-  creates a larger monarch-crowned hazard cloud.
+- **Thornstorm Mantle** — Quills + Pouch.
+- **Thunderbug Dynamo** — Coil + Colony.
+- **Razorstep Chimera** — Mantis Scythes + Gecko Pads.
+- **Midnight Radar** — Bat Ears + Owl Pinions.
+- **Meteor Mauler** — Crab Pincers + Armadillo Greaves.
+- **Royal Stinkcloud** — Skunk Brush + Monarch Brood.
 
-Each Mythic retains its two ingredient slots. Evolving is a power conversion,
-not a way to open a fifth active-attack slot. Base starter fire does not pierce;
-Quills and the selected starter mastery own piercing explicitly.
+The six all-utility pairs become **Support Chimeras**: their control effects
+remain meaningful and they receive a damage rider, but a run may own only one.
+Every Wild Splice is free and voluntary. It turns two logical acquired attacks
+into one terminal Chimera, freeing an acquired slot while retaining both parent
+attachment footprints; the Chimera cannot rank further or re-fuse. The pause
+panel shows its braid and both parent names. This economy permits up to three
+terminal Chimeras in one run. Base starter fire does not pierce; Quills and the
+selected starter mastery own piercing explicitly.
 Greg's movement and near-misses charge a replay-safe three-wave Rush Rake burst;
 its cyan directional cue is rendered through the same read-only presentation path.
 
@@ -195,7 +198,7 @@ versioned save export, import, reset, migration, and corrupt-save recovery.
 | `?debug=1` | Shows diagnostics and engineering controls; the default view remains player-facing. |
 | `?autopilot=1` | Boots into deterministic autopilot and skips the Start run gate. |
 | `?autopilot=1&stress=1` | Advances up to five simulation ticks per frame, auto-selects the first pending upgrade, and stops at five simulated minutes. |
-| `?autopilot=1&stress=1&fullrun=1` | Keeps the same deterministic stress path until terminal, no later than the 28,800-tick (8:00) normal boundary. This is an engineering flow check, not a balance playtest. |
+| `?autopilot=1&stress=1&fullrun=1` | Keeps the same deterministic stress path until terminal, no later than the 21,600-tick (6:00) normal boundary. This is an engineering flow check, not a balance playtest. |
 | `?autopilot=1&stress=1&renderstress=1` | Adds a renderer-only stress fixture without changing simulation state or hash. |
 
 `window.__webToy` exposes the local app handle for engineering checks, including

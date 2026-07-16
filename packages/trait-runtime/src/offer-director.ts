@@ -13,7 +13,7 @@
 
 import type { Catalog, RuntimeState, SeededRng, UpgradeOffer } from './contracts.js';
 import { MASTER_RANK, type TraitRank } from './ids.js';
-import { activeAttackSlots, rankOf, socketOwner, stageOf } from './build-state.js';
+import { activeAttackSlots, rankOf, stageOf } from './build-state.js';
 import { legacyStageForRank } from './rank-progression.js';
 
 function offer(traitId: string, resultRank: TraitRank): UpgradeOffer {
@@ -26,13 +26,12 @@ function offer(traitId: string, resultRank: TraitRank): UpgradeOffer {
 }
 
 function completesMasterPartner(catalog: Catalog, state: RuntimeState, traitId: string): boolean {
-  for (const evolution of catalog.evolutions) {
-    const [a, b] = evolution.ingredients;
-    const partner = a === traitId ? b : b === traitId ? a : undefined;
-    if (partner === undefined) continue;
-    if (rankOf(state, partner) === MASTER_RANK) return true;
-  }
-  return false;
+  // Every other active Master is now a legal Wild Splice partner. This keeps
+  // the existing priority intent (finish a fusion-ready build) without
+  // privileging only the six authored recipes.
+  return state.owned.some((owned) => (
+    owned.id !== traitId && !owned.disabled && owned.rank === MASTER_RANK
+  ));
 }
 
 function eligibleBuckets(catalog: Catalog, state: RuntimeState): readonly UpgradeOffer[][] {
@@ -57,8 +56,7 @@ function eligibleBuckets(catalog: Catalog, state: RuntimeState): readonly Upgrad
     }
 
     if (stageOf(state, trait.id) !== 'locked') continue;
-    const allFree = trait.sockets.every((socket) => socketOwner(state, socket) === undefined);
-    if (mayAcquireTrait && allFree) acquisitions.push(offer(trait.id, 1));
+    if (mayAcquireTrait) acquisitions.push(offer(trait.id, 1));
   }
 
   return [masterPartnerRanks, ownedRanks, acquisitions];

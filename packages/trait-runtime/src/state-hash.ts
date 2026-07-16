@@ -12,10 +12,13 @@
  * Two runs with identical inputs must produce byte-identical hashes.
  */
 
-import type { Catalog, RuntimeState } from './contracts.js';
+import type { Catalog, CommandTemplate, RuntimeState } from './contracts.js';
 import type { SocketId } from './ids.js';
 import { SOCKETS, TRAIT_RANKS } from './ids.js';
 import { rankStagesFor } from './rank-progression.js';
+import { CHIMERA_CONTENT_VERSION } from './chimera/resolved-evolution.js';
+import { CHIMERA_LAB_CALIBRATION_FINGERPRINT_INPUT } from './chimera/lab-calibration.js';
+import { MASTER_DPS_FINGERPRINT_INPUT } from './chimera/master-dps.generated.js';
 
 /**
  * Stable 64-bit hash (two 32-bit FNV-1a lanes) rendered as 16 lowercase hex
@@ -69,6 +72,13 @@ export function fingerprintCatalog(catalog: Catalog): string {
   return hash64(canonicalCatalog(catalog));
 }
 
+/** Runtime/replay identity includes generated behavior semantics without mutating the authored catalog fingerprint. */
+export function fingerprintRuntimeContent(catalog: Catalog): string {
+  return hash64(
+    `${fingerprintCatalog(catalog)}|${CHIMERA_CONTENT_VERSION}|${MASTER_DPS_FINGERPRINT_INPUT}|${CHIMERA_LAB_CALIBRATION_FINGERPRINT_INPUT}`,
+  );
+}
+
 /** Canonical string form of runtime state (hash input). */
 function canonicalState(state: RuntimeState): string {
   const owned = [...state.owned]
@@ -80,25 +90,50 @@ function canonicalState(state: RuntimeState): string {
 
   const evolutions = [...state.evolutions]
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map((e) => `${e.id}[${[...e.ingredients].sort().join('+')}]`)
+    .map((e) => `${e.id}[${[...e.ingredients].sort().join('+')}]${e.variant === undefined
+      ? ''
+      : `{${e.variant.seed >>> 0}:${e.variant.temperamentId}:${e.variant.leanId}}`}`)
+    .join(',');
+
+  const fusionPreviews = [...state.fusionPreviews]
+    .sort((a, b) => (a.pairId < b.pairId ? -1 : a.pairId > b.pairId ? 1 : a.ordinal - b.ordinal))
+    .map((preview) => (
+      `${preview.pairId}:${preview.ordinal}:${preview.variant.seed >>> 0}:${preview.variant.temperamentId}:${preview.variant.leanId}:${preview.flavorIndex}`
+    ))
     .join(',');
 
   const timers = [...state.timers]
     .sort((a, b) => (a.ownerId < b.ownerId ? -1 : a.ownerId > b.ownerId ? 1 : 0))
     .map(
       (t) =>
-        `${t.ownerId}:${t.active ? 1 : 0}:${t.phase}:${t.phaseTicks}:${t.cooldown}:${t.charges}`,
+        `${t.ownerId}:${t.active ? 1 : 0}:${t.phase}:${t.phaseTicks}:${t.cooldown}:${t.charges}:${t.cycles}`,
     )
+    .join(',');
+
+  const templateFields: readonly (keyof CommandTemplate)[] = [
+    'kind', 'targeting', 'anchor', 'originX', 'originY', 'dirX', 'dirY', 'count', 'damage', 'speed', 'radius',
+    'strength', 'durationTicks', 'arc', 'facing', 'spread', 'jumps', 'pierce', 'range', 'amount',
+    'intervalTicks', 'tag',
+  ];
+  const pending = state.pendingEmissions
+    .map((pendingEmission, index) => `${pendingEmission.dueTick}:${pendingEmission.ownerId}:${index}:${templateFields
+      .map((field) => `${field}=${pendingEmission.emit[field] ?? ''}`)
+      .join(';')}`)
     .join(',');
 
   return [
     `v=${state.version}`,
     `catalog=${state.catalogFingerprint}`,
+    `chimera=${state.chimeraFingerprint}`,
     `tick=${state.tick}`,
+    `runSeed=${state.runSeed >>> 0}`,
+    `fusionReady=${state.fusionReadyCount}`,
+    `fusionPreviews=${fusionPreviews}`,
     `owned=${owned}`,
     `sockets=${sockets}`,
     `evo=${evolutions}`,
     `timers=${timers}`,
+    `pending=${pending}`,
     `rng=${state.offerRngState >>> 0}`,
   ].join('\n');
 }

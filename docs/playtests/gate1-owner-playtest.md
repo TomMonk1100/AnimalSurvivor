@@ -50,19 +50,19 @@ not expect a persistent panel or repeated text at the top of the screen.
 
 ## What the run should do
 
-Normal mode is an **8:00** run with no overtime:
+Normal mode is a **6:00** run with no overtime:
 
 | Time | Phase |
 | --- | --- |
-| 0:00–1:00 | Opening |
-| 1:00–3:00 | Pressure |
-| 3:00–5:00 | Adaptation |
-| 5:00–6:30 | Mutation |
-| 6:30–8:00 | Boss |
+| 0:00–0:45 | Opening |
+| 0:45–2:15 | Pressure |
+| 2:15–3:45 | Adaptation |
+| 3:45–4:45 | Mutation |
+| 4:45–6:00 | Boss |
 
-The boss warning starts at **6:10** and **The Final Threat** arrives at **6:30**.
-Elite requests are at **2:00**, **3:40**, **4:30**, **5:15**, **5:45**, and
-**6:05**, each after a five-second warning.
+The boss warning starts at **4:25** and **The Final Threat** arrives at **4:45**.
+Elite requests are at **1:10**, **2:25**, **3:15**, **3:55**, **4:15**, and
+**4:35**, each after a five-second warning.
 
 Every founding animal begins with a distinct starter attack and can choose up
 to three of six additional attack families:
@@ -96,7 +96,7 @@ read as upgrades to every attack.
    opening with two different heroes, ideally the slower Benny and wider-pickup
    Gracie, and record whether the differences are felt rather than merely read.
 2. **First glance.** Before starting, can you explain the loop: move, survive,
-   collect XP, choose upgrades, beat the boss before 8:00? Is the
+   collect XP, choose upgrades, beat the boss before 6:00? Is the
    Essence/Starting Vitality section clearly a next-run decision?
 3. **Movement and space.** Move and reverse in every direction. Does screen-up
    match Up? Does the forest clearing make your position and escape routes
@@ -124,7 +124,7 @@ read as upgrades to every attack.
 9. **Enemy behavior.** Do runners’ weave, Spitters’ shots, and elite projectile
    patterns create movement decisions rather than invisible or unavoidable
    damage? Do elite warnings and large XP drops feel meaningful?
-10. **Boss/end flow.** If you reach 6:10–8:00, does the warning, entrance, boss
+10. **Boss/end flow.** If you reach 4:25–6:00, does the warning, entrance, boss
    health bar, and deadline make the win condition clear? At terminal, does
    **Continue to upgrades** return to the correct prep screen?
 11. **Sound, if enabled.** Which moments need clearer feedback? Please call out
@@ -140,7 +140,7 @@ Open the local URL with:
 ```
 
 This deterministically picks the first available upgrade and runs until a
-terminal outcome no later than the **8:00** boundary. It is useful for checking
+terminal outcome no later than the **6:00** boundary. It is useful for checking
 the boss bar and terminal-to-prep flow, but it does not validate normal
 difficulty or replace a hands-on run.
 

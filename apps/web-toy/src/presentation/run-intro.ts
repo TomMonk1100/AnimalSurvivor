@@ -26,9 +26,9 @@ const MASTERY_OBJECTIVE = 'Attacks rank from 1 to 5; at MASTER, fuse two compati
 
 const PLAYER_COPY = {
   greg: {
-    title: 'Greg is ready.',
+    title: 'Scout is ready.',
     objective: `Stay light on your paws, collect green XP motes, and build a close-range adaptation kit. ${MASTERY_OBJECTIVE}`,
-    controls: `${MOVEMENT_CONTROLS} Greg’s Fox Swipe cleaves nearby threats. His baseline dodge and Melee Affinity reward bold close-range builds. Press Esc to pause.`,
+    controls: `${MOVEMENT_CONTROLS} Scout’s Scout Swipe cleaves nearby threats. Scout’s baseline dodge and Melee Affinity reward bold close-range builds. Press Esc to pause.`,
   },
   benny: {
     title: 'Benny is ready.',

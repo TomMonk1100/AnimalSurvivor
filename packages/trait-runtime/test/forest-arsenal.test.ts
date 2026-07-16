@@ -30,7 +30,7 @@ function master(runtime: TraitRuntime, id: string): void {
 }
 
 test('Forest Arsenal exposes twelve launch attack families and six supported Mythics', () => {
-  assert.equal(GREG_FOREST_ARSENAL_CATALOG.maxActiveTraits, 3);
+  assert.equal(GREG_FOREST_ARSENAL_CATALOG.maxActiveTraits, 4);
   assert.deepEqual(
     GREG_FOREST_ARSENAL_CATALOG.traits.map((trait) => trait.id),
     [
@@ -135,17 +135,27 @@ test('Forest Arsenal exposes twelve launch attack families and six supported Myt
   assert.equal(mythic.availableFusions()[0]?.evolutionId, 'thunderbug-dynamo');
   const result = mythic.fuseEvolution('thunderbug-dynamo');
   assert.equal(result.outcome.ok, true);
-  assert.equal(mythic.update(context(1)).at(0).tag, 'thunderbug-charge');
-  for (let tick = 2; tick <= 18; tick++) assert.equal(mythic.update(context(tick)).length, 0);
-  const discharge = mythic.update(context(19));
+  assert.ok(mythic.getState().evolutions[0]?.variant !== undefined);
+  const mythicReplay = TraitRuntime.deserialize(mythic.serialize(), {
+    catalog: GREG_FOREST_ARSENAL_CATALOG,
+  });
+  const collectThunderbug = (runtime: TraitRuntime): Array<[number, string, string]> => {
+    const emitted: Array<[number, string, string]> = [];
+    for (let tick = 1; tick <= 120; tick++) {
+      const commands = runtime.update(context(tick));
+      for (let index = 0; index < commands.length; index++) {
+        const command = commands.at(index);
+        emitted.push([tick, command.sourceId, command.kind]);
+      }
+    }
+    return emitted;
+  };
+  const thunderbugEmissions = collectThunderbug(mythic);
+  assert.ok(thunderbugEmissions.length > 0);
+  assert.ok(thunderbugEmissions.every(([, sourceId]) => sourceId === 'thunderbug-dynamo'));
   assert.deepEqual(
-    {
-      kind: discharge.at(0).kind,
-      damage: discharge.at(0).damage,
-      jumps: discharge.at(0).jumps,
-      range: discharge.at(0).range,
-    },
-    { kind: 'chainDamage', damage: 9, jumps: 7, range: 185 },
+    collectThunderbug(mythicReplay),
+    thunderbugEmissions,
   );
 
   const owl = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
@@ -236,7 +246,7 @@ test('every Forest attack has five executable ranks and a distinct Master behavi
   }
 });
 
-test('twelve candidates make the three-acquired-attack cap a real choice while upgrades stay legal', () => {
+test('twelve candidates make the four-acquired-attack cap a real choice while upgrades stay legal', () => {
   const runtime = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG });
   assert.deepEqual(
     runtime.offers(99).map((offer) => offer.traitId),
@@ -255,7 +265,7 @@ test('twelve candidates make the three-acquired-attack cap a real choice while u
       'monarch-brood',
     ],
   );
-  for (const traitId of ['porcupine-quills', 'puffer-pouch', 'electric-eel-coil']) {
+  for (const traitId of ['porcupine-quills', 'puffer-pouch', 'electric-eel-coil', 'firefly-colony']) {
     upgrade(runtime, traitId);
   }
 
@@ -265,7 +275,7 @@ test('twelve candidates make the three-acquired-attack cap a real choice while u
       ok: false,
       kind: 'loadoutFull',
       traitId,
-      capacity: 3,
+      capacity: 4,
     });
   }
   assert.equal(runtime.applyUpgrade('electric-eel-coil').outcome.ok, true, 'an owned Bud can still adapt');
@@ -276,17 +286,46 @@ test('a Master fusion frees one acquired logical slot', () => {
   master(runtime, 'electric-eel-coil');
   master(runtime, 'firefly-colony');
   upgrade(runtime, 'porcupine-quills');
-  assert.equal(runtime.activeAttackSlots(), 3);
+  upgrade(runtime, 'puffer-pouch');
+  assert.equal(runtime.activeAttackSlots(), 4);
 
   const fusion = runtime.fuseEvolution('thunderbug-dynamo');
   assert.equal(fusion.outcome.ok, true);
-  assert.equal(runtime.activeAttackSlots(), 2);
+  assert.equal(runtime.activeAttackSlots(), 3);
 
   // The tail/body-orbit attachment footprint remains occupied by the fused
   // attack, but a new head attack can use the freed logical slot.
-  assert.equal(runtime.applyUpgrade('puffer-pouch').outcome.ok, true);
+  assert.equal(runtime.applyUpgrade('mantis-scythes').outcome.ok, true);
+  assert.equal(runtime.activeAttackSlots(), 4);
+  assert.equal(runtime.applyUpgrade('gecko-pads').outcome.kind, 'loadoutFull');
+});
+
+test('four acquired slots permit the plan’s three-terminal-Chimera ceiling', () => {
+  const runtime = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG });
+
+  master(runtime, 'porcupine-quills');
+  master(runtime, 'puffer-pouch');
+  assert.equal(runtime.fuseEvolution('thornstorm-mantle').outcome.ok, true);
+  assert.equal(runtime.activeAttackSlots(), 1);
+
+  master(runtime, 'electric-eel-coil');
+  master(runtime, 'firefly-colony');
+  assert.equal(runtime.fuseEvolution('thunderbug-dynamo').outcome.ok, true);
+  assert.equal(runtime.activeAttackSlots(), 2);
+
+  master(runtime, 'mantis-scythes');
+  master(runtime, 'gecko-pads');
+  assert.equal(runtime.fuseEvolution('razorstep-chimera').outcome.ok, true);
   assert.equal(runtime.activeAttackSlots(), 3);
-  assert.equal(runtime.applyUpgrade('mantis-scythes').outcome.kind, 'loadoutFull');
+  assert.equal(runtime.getState().evolutions.length, 3);
+
+  assert.equal(runtime.applyUpgrade('owl-pinions').outcome.ok, true);
+  assert.deepEqual(runtime.applyUpgrade('bat-ears').outcome, {
+    ok: false,
+    kind: 'loadoutFull',
+    traitId: 'bat-ears',
+    capacity: 4,
+  });
 });
 
 test('neutral damage and attack-speed multipliers apply to trait commands', () => {

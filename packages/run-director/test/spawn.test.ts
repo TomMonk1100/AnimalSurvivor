@@ -198,11 +198,31 @@ const EMPTY_PHASE_ARCHETYPES: Record<RunPhaseId, readonly []> = {
   overtime: [],
 };
 
+const BOSS_PROFILE = {
+  id: 'test-apex-v1',
+  hpMultiplier: 2,
+  xpMultiplier: 1,
+  speedMultiplier: 1,
+  touchDamageMultiplier: 1,
+  preferredRange: 200,
+  rangeBand: 20,
+  cycleTicks: 120,
+  chargeWindupTicks: 12,
+  chargeDurationTicks: 18,
+  chargeSpeedMultiplier: 2,
+  volleyTick: 60,
+  volleyCount: 4,
+  projectileSpeed: 160,
+  projectileDamage: 5,
+  projectileLifetimeTicks: 90,
+  projectileHitRadius: 4,
+} as const;
+
 function makeDef(intervalTicks: number): RunDefinition {
   return {
     contentVersion: 1,
     mode: 'normal',
-    durationTicks: 28_800,
+    durationTicks: 21_600,
     phases: [makePhase()],
     archetypes: [FODDER, RUNNER],
     eliteBeats: [],
@@ -213,6 +233,7 @@ function makeDef(intervalTicks: number): RunDefinition {
       formation: 'ring',
       minDistance: 10,
       maxDistance: 20,
+      profile: BOSS_PROFILE,
     },
     threat: { initialBudget: 0, maxBudget: 1_000_000 },
     waves: {

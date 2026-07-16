@@ -10,6 +10,7 @@ import {
   hasExplicitTraitSourcePaletteLane,
   isPlayerAttackPaletteLane,
   paletteLaneForEffectMaterial,
+  paletteLaneForChimeraSource,
   paletteLaneForTraitSource,
   proceduralAccentOpacity,
   proceduralUnderlayOpacity,
@@ -53,12 +54,25 @@ describe('attack VFX palette law', () => {
     expect(paletteLaneForTraitSource('not-yet-authored')).toBe('physical');
   });
 
+  it('derives a bounded chassis-and-donor duotone for generated and Perfect Chimeras', () => {
+    // Quills outrank Eel as the chassis, while the donor keeps the storm accent.
+    expect(paletteLaneForChimeraSource('chimera:porcupine-quills+electric-eel-coil'))
+      .toEqual({ primary: 'physical', accent: 'storm' });
+    // Mantis is the Razorstep chassis, Gecko remains the venom accent.
+    expect(paletteLaneForChimeraSource('razorstep-chimera'))
+      .toEqual({ primary: 'physical', accent: 'venom' });
+    expect(paletteLaneForTraitSource('chimera:porcupine-quills+electric-eel-coil')).toBe('physical');
+    expect(paletteLaneForChimeraSource('chimera:not-a-trait+electric-eel-coil')).toBeNull();
+  });
+
   it('maps canonical emitted source ids instead of stale command-tag aliases', () => {
     const canonicalSources = {
       'electric-eel-coil': 'storm',
       'gecko-pads': 'venom',
       'thunderbug-dynamo': 'storm',
-      'razorstep-chimera': 'venom',
+      // Perfect Pairs now use the same chassis-first duotone rule as a
+      // generated Wild Splice: Mantis owns the physical core, Gecko the rim.
+      'razorstep-chimera': 'physical',
     } as const;
 
     for (const [sourceId, expectedLane] of Object.entries(canonicalSources)) {

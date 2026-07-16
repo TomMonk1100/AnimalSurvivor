@@ -10,6 +10,7 @@ type OscillatorShape = 'sine' | 'square' | 'sawtooth' | 'triangle';
 export interface AudioParamLike {
   setValueAtTime(value: number, startTime: number): unknown;
   linearRampToValueAtTime(value: number, endTime: number): unknown;
+  cancelScheduledValues?(startTime: number): unknown;
 }
 
 export interface ProceduralGainNode {
@@ -66,6 +67,8 @@ export interface ProceduralAudioOptions {
   readonly createContext?: () => ProceduralAudioContext | null;
   /** Used only for a player-facing nonfatal "try again" status message. */
   readonly onEnableFailure?: () => void;
+  /** Lets deterministic test contexts exercise the recurring music scheduler. */
+  readonly loopMusic?: boolean;
 }
 
 export interface ProceduralAudio extends AudioCueSink {
@@ -264,6 +267,58 @@ interface MusicProfile {
 }
 
 const REST = 0;
+const MUSIC_STEPS_PER_BAR = 8;
+const MUSIC_BARS_PER_PHRASE = 2;
+const MUSIC_STEPS_PER_PHRASE = MUSIC_STEPS_PER_BAR * MUSIC_BARS_PER_PHRASE;
+const MUSIC_TRANSITION_FADE_SECONDS = 0.18;
+const MUSIC_SCHEDULE_AHEAD_SECONDS = 0.12;
+
+type MusicPhraseOrder = readonly [number, number, number, number];
+
+interface MusicPhraseVariation {
+  readonly id: string;
+  /** Reorders the four harmonic cells without changing a state's tonal palette. */
+  readonly chordOrder: MusicPhraseOrder;
+  /** Rephrases each cell into a distinct melodic contour. */
+  readonly motifOrder: MusicPhraseOrder;
+  readonly motifTransposeSemitones: number;
+  readonly accentStep: number;
+}
+
+function musicVariation(
+  id: string,
+  chordOrder: MusicPhraseOrder,
+  motifOrder: MusicPhraseOrder,
+  motifTransposeSemitones: number,
+  accentStep: number,
+): MusicPhraseVariation {
+  return Object.freeze({ id, chordOrder, motifOrder, motifTransposeSemitones, accentStep });
+}
+
+/**
+ * A program is shared structurally by every score state, while each state owns
+ * its own bass, harmony, and source motif. Twelve genuinely different phrase
+ * contours keep even the fastest boss state from repeating its exact program
+ * for more than 45 seconds.
+ */
+const MUSIC_PROGRAM_VARIATIONS: readonly MusicPhraseVariation[] = Object.freeze([
+  musicVariation('trailhead', [0, 1, 2, 3], [0, 1, 2, 3], 0, 0),
+  musicVariation('answering-call', [0, 1, 2, 3], [0, 2, 1, 3], 0, 2),
+  musicVariation('canopy-turn', [1, 2, 3, 0], [0, 1, 3, 2], -5, 1),
+  musicVariation('meadow-arc', [2, 3, 0, 1], [1, 0, 2, 3], 0, 3),
+  musicVariation('lantern-lift', [3, 0, 1, 2], [0, 2, 3, 1], 7, 2),
+  musicVariation('rill-step', [0, 2, 1, 3], [1, 2, 0, 3], 0, 1),
+  musicVariation('pathfinder', [1, 3, 2, 0], [2, 0, 1, 3], -5, 0),
+  musicVariation('glow-return', [2, 0, 3, 1], [0, 3, 1, 2], 0, 3),
+  musicVariation('gallop', [3, 1, 0, 2], [3, 1, 2, 0], 7, 1),
+  musicVariation('homeward', [0, 3, 1, 2], [2, 1, 3, 0], 0, 2),
+  musicVariation('fable', [1, 0, 2, 3], [3, 0, 2, 1], -5, 3),
+  musicVariation('resolve', [2, 1, 3, 0], [1, 3, 0, 2], 0, 0),
+]);
+
+export const MUSIC_PROGRAM_VARIATION_COUNT = MUSIC_PROGRAM_VARIATIONS.length;
+export const MIN_MUSIC_PROGRAM_REPEAT_SECONDS = 45;
+
 const MUSIC_PROFILES: Readonly<Record<MusicState, MusicProfile>> = Object.freeze({
   // These are finite, plucked phrases rather than an always-on oscillator:
   // D major / B minor colours make the Wildguard glade warm and adventurous.
@@ -317,6 +372,63 @@ const MUSIC_PROFILES: Readonly<Record<MusicState, MusicProfile>> = Object.freeze
   }),
 });
 
+export interface MusicProgramInfo {
+  readonly state: MusicState;
+  readonly phraseSeconds: number;
+  readonly barSeconds: number;
+  readonly variationCount: number;
+  readonly repeatAfterSeconds: number;
+  readonly variationIds: readonly string[];
+}
+
+interface ScheduledMusicPhrase {
+  readonly state: MusicState;
+  readonly programIndex: number;
+  readonly startAt: number;
+  readonly phraseSeconds: number;
+  readonly barSeconds: number;
+  readonly endAt: number;
+  readonly gain: ProceduralGainNode;
+}
+
+function musicProfileFor(state: MusicState): MusicProfile {
+  const profile = MUSIC_PROFILES[state];
+  if (profile === undefined) throw new RangeError(`unknown music state: ${String(state)}`);
+  return profile;
+}
+
+function phraseSecondsFor(profile: MusicProfile): number {
+  return profile.stepSeconds * MUSIC_STEPS_PER_PHRASE;
+}
+
+function barSecondsFor(profile: MusicProfile): number {
+  return profile.stepSeconds * MUSIC_STEPS_PER_BAR;
+}
+
+function variationFor(programIndex: number): MusicPhraseVariation {
+  const count = MUSIC_PROGRAM_VARIATIONS.length;
+  const normalizedIndex = ((programIndex % count) + count) % count;
+  return MUSIC_PROGRAM_VARIATIONS[normalizedIndex]!;
+}
+
+function transposeFrequency(frequency: number, semitones: number): number {
+  return frequency <= REST ? REST : frequency * 2 ** (semitones / 12);
+}
+
+/** Returns deterministic score-program metadata without constructing audio. */
+export function getMusicProgramInfo(state: MusicState): MusicProgramInfo {
+  const profile = musicProfileFor(state);
+  const phraseSeconds = phraseSecondsFor(profile);
+  return Object.freeze({
+    state,
+    phraseSeconds,
+    barSeconds: barSecondsFor(profile),
+    variationCount: MUSIC_PROGRAM_VARIATIONS.length,
+    repeatAfterSeconds: phraseSeconds * MUSIC_PROGRAM_VARIATIONS.length,
+    variationIds: Object.freeze(MUSIC_PROGRAM_VARIATIONS.map((variation) => variation.id)),
+  });
+}
+
 type BrowserAudioContextConstructor = new () => ProceduralAudioContext;
 
 function browserAudioContextConstructor(): BrowserAudioContextConstructor | null {
@@ -360,8 +472,9 @@ export function createProceduralAudio(options: ProceduralAudioOptions = {}): Pro
   let masterGain: ProceduralGainNode | null = null;
   let sfxGain: ProceduralGainNode | null = null;
   let musicGain: ProceduralGainNode | null = null;
-  let musicPhraseGain: ProceduralGainNode | null = null;
-  let musicTimer: number | null = null;
+  let scheduledMusicPhrases: ScheduledMusicPhrase[] = [];
+  let activeMusicPhrase: ScheduledMusicPhrase | null = null;
+  let musicTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   let musicGeneration = 0;
 
   function volume(value: number, field: string): number {
@@ -386,8 +499,8 @@ export function createProceduralAudio(options: ProceduralAudioOptions = {}): Pro
   }
 
   function clearMusicTimer(): void {
-    if (musicTimer === null || typeof window === 'undefined') return;
-    window.clearTimeout(musicTimer);
+    if (musicTimer === null) return;
+    globalThis.clearTimeout(musicTimer);
     musicTimer = null;
   }
 
@@ -474,29 +587,94 @@ export function createProceduralAudio(options: ProceduralAudioOptions = {}): Pro
     }
   }
 
-  /**
-   * Schedules a short, finite two-bar phrase. Every note has its own release,
-   * which is the key difference from the old continuous low-frequency hum.
-   */
-  function scheduleMusicPhrase(startAt: number, fadePrevious: boolean): number {
-    if (context === null || musicGain === null) return 0;
-    const profile = MUSIC_PROFILES[musicState];
-    const now = graphTime();
-    if (fadePrevious && musicPhraseGain !== null) {
-      musicPhraseGain.gain.setValueAtTime(profile.gain, now);
-      musicPhraseGain.gain.linearRampToValueAtTime(0.0001, now + 0.14);
+  function pruneMusicPhrases(now: number): void {
+    scheduledMusicPhrases = scheduledMusicPhrases.filter((phrase) => phrase.endAt > now);
+    if (activeMusicPhrase !== null && !scheduledMusicPhrases.includes(activeMusicPhrase)) {
+      activeMusicPhrase = scheduledMusicPhrases.at(-1) ?? null;
     }
+  }
+
+  function playingMusicPhraseAt(time: number): ScheduledMusicPhrase | null {
+    for (let index = scheduledMusicPhrases.length - 1; index >= 0; index -= 1) {
+      const phrase = scheduledMusicPhrases[index];
+      if (phrase !== undefined && phrase.startAt <= time && phrase.endAt > time) return phrase;
+    }
+    return null;
+  }
+
+  function earliestFutureMusicPhrase(time: number): ScheduledMusicPhrase | null {
+    for (const phrase of scheduledMusicPhrases) {
+      if (phrase.startAt > time) return phrase;
+    }
+    return null;
+  }
+
+  function nextMusicBarBoundary(now: number): number {
+    const reference = playingMusicPhraseAt(now) ?? earliestFutureMusicPhrase(now) ?? activeMusicPhrase;
+    if (reference === null) return now + 0.04;
+    if (now < reference.startAt) return reference.startAt + reference.barSeconds;
+    const elapsedBars = Math.floor((now - reference.startAt) / reference.barSeconds) + 1;
+    return Math.min(
+      reference.startAt + elapsedBars * reference.barSeconds,
+      reference.startAt + reference.phraseSeconds,
+    );
+  }
+
+  function silenceScheduledPhrase(phrase: ScheduledMusicPhrase, now: number): void {
+    phrase.gain.gain.cancelScheduledValues?.(now);
+    phrase.gain.gain.setValueAtTime(0.0001, now);
+  }
+
+  function fadeMusicForTransition(transitionAt: number, now: number): void {
+    const continuingPhrases: ScheduledMusicPhrase[] = [];
+    for (const phrase of scheduledMusicPhrases) {
+      if (phrase.startAt >= transitionAt) {
+        // A look-ahead phrase from the old state must not wake up after a
+        // transition selected at the current bar boundary.
+        silenceScheduledPhrase(phrase, now);
+        continue;
+      }
+      if (phrase.endAt > transitionAt) {
+        const previousGain = musicProfileFor(phrase.state).gain;
+        phrase.gain.gain.setValueAtTime(previousGain, transitionAt);
+        phrase.gain.gain.linearRampToValueAtTime(0.0001, transitionAt + MUSIC_TRANSITION_FADE_SECONDS);
+      }
+      continuingPhrases.push(phrase);
+    }
+    scheduledMusicPhrases = continuingPhrases;
+  }
+
+  /**
+   * Schedules one finite two-bar variation from the deterministic program.
+   * The state transition path starts only on a bar boundary and crossfades the
+   * old phrase there, rather than restarting a motif mid-phrase.
+   */
+  function scheduleMusicPhrase(
+    state: MusicState,
+    startAt: number,
+    programIndex: number,
+    transitionFromPrevious: boolean,
+  ): ScheduledMusicPhrase | null {
+    if (context === null || musicGain === null) return null;
+    const profile = musicProfileFor(state);
+    const variation = variationFor(programIndex);
+    const phraseSeconds = phraseSecondsFor(profile);
+    const barSeconds = barSecondsFor(profile);
+    const now = graphTime();
+    pruneMusicPhrases(now);
+    if (transitionFromPrevious) fadeMusicForTransition(startAt, now);
+
     const phraseGain = context.createGain();
     phraseGain.gain.setValueAtTime(0.0001, startAt);
     phraseGain.gain.linearRampToValueAtTime(profile.gain, startAt + 0.08);
     phraseGain.connect(musicGain);
-    musicPhraseGain = phraseGain;
 
     const step = profile.stepSeconds;
     for (let chord = 0; chord < 4; chord += 1) {
       const chordStart = startAt + chord * step * 4;
-      const bass = profile.bass[chord];
-      const harmony = profile.harmony[chord];
+      const sourceChord = variation.chordOrder[chord]!;
+      const bass = profile.bass[sourceChord];
+      const harmony = profile.harmony[sourceChord];
       if (bass !== undefined && bass > REST) {
         scheduleTone(phraseGain, {
           shape: 'triangle', frequency: bass, frequencyEnd: bass * 0.992,
@@ -510,54 +688,86 @@ export function createProceduralAudio(options: ProceduralAudioOptions = {}): Pro
         }, chordStart + step * 0.5);
       }
       for (let noteIndex = 0; noteIndex < 4; noteIndex += 1) {
-        const motif = profile.motif[chord * 4 + noteIndex];
+        const motifStep = variation.motifOrder[noteIndex]!;
+        const motif = profile.motif[sourceChord * 4 + motifStep];
         if (motif === undefined || motif <= REST) continue;
+        const frequency = transposeFrequency(motif, variation.motifTransposeSemitones);
+        const baseGain = noteIndex === 0 ? 0.115 : 0.09;
         scheduleTone(phraseGain, {
-          shape: noteIndex === 0 ? 'triangle' : 'sine', frequency: motif,
-          peakGain: noteIndex === 0 ? 0.115 : 0.09,
+          shape: noteIndex === 0 ? 'triangle' : 'sine', frequency,
+          peakGain: noteIndex === variation.accentStep ? baseGain + 0.014 : baseGain,
           durationSeconds: step * (noteIndex === 3 ? 1.65 : 1.18), attackSeconds: 0.008,
         }, chordStart + noteIndex * step);
       }
     }
     scheduleRhythm(phraseGain, profile, startAt);
-    return step * 16;
+    const phrase: ScheduledMusicPhrase = {
+      state,
+      programIndex: ((programIndex % MUSIC_PROGRAM_VARIATIONS.length) + MUSIC_PROGRAM_VARIATIONS.length)
+        % MUSIC_PROGRAM_VARIATIONS.length,
+      startAt,
+      phraseSeconds,
+      barSeconds,
+      endAt: startAt + phraseSeconds,
+      gain: phraseGain,
+    };
+    scheduledMusicPhrases.push(phrase);
+    activeMusicPhrase = phrase;
+    return phrase;
   }
 
   function shouldLoopMusic(): boolean {
-    // Injected test contexts deliberately receive one phrase, avoiding timers
-    // in test runners while production browsers continue the score indefinitely.
-    return options.createContext === undefined && typeof window !== 'undefined';
+    if (typeof window === 'undefined') return false;
+    // Injected test contexts receive one phrase by default, but can opt into
+    // the same recurring program scheduler as production browsers.
+    return options.loopMusic ?? options.createContext === undefined;
   }
 
-  function armMusicLoop(phraseSeconds: number, generation: number): void {
-    if (!shouldLoopMusic() || phraseSeconds <= 0) return;
+  function armMusicLoop(generation: number): void {
+    const phrase = activeMusicPhrase;
+    if (!shouldLoopMusic() || phrase === null) return;
     clearMusicTimer();
-    musicTimer = window.setTimeout(() => {
+    const nextStart = phrase.startAt + phrase.phraseSeconds;
+    const delaySeconds = Math.max(0.25, nextStart - graphTime() - MUSIC_SCHEDULE_AHEAD_SECONDS);
+    musicTimer = globalThis.setTimeout(() => {
       musicTimer = null;
       if (disposed || !enabled || generation !== musicGeneration || mix.musicVolume <= 0) return;
-      const nextPhraseSeconds = scheduleMusicPhrase(graphTime() + 0.045, false);
-      armMusicLoop(nextPhraseSeconds, generation);
-    }, Math.max(800, Math.round((phraseSeconds - 0.25) * 1000)));
+      const previousPhrase = activeMusicPhrase;
+      if (previousPhrase === null) return;
+      const scheduledStart = Math.max(
+        previousPhrase.startAt + previousPhrase.phraseSeconds,
+        graphTime() + 0.04,
+      );
+      scheduleMusicPhrase(musicState, scheduledStart, previousPhrase.programIndex + 1, false);
+      armMusicLoop(generation);
+    }, Math.round(delaySeconds * 1000));
   }
 
   function silenceMusic(now: number): void {
     clearMusicTimer();
     musicGeneration += 1;
-    if (musicPhraseGain !== null) {
-      musicPhraseGain.gain.setValueAtTime(0.0001, now);
-      musicPhraseGain.gain.linearRampToValueAtTime(0.0001, now + 0.01);
-      musicPhraseGain = null;
-    }
+    for (const phrase of scheduledMusicPhrases) silenceScheduledPhrase(phrase, now);
+    scheduledMusicPhrases = [];
+    activeMusicPhrase = null;
   }
 
   function restartMusic(): void {
     if (context === null || musicGain === null || mix.musicVolume <= 0 || !enabled) return;
     const now = graphTime();
+    silenceMusic(now);
+    const generation = musicGeneration;
+    scheduleMusicPhrase(musicState, now + 0.04, 0, false);
+    armMusicLoop(generation);
+  }
+
+  function transitionMusicState(): void {
+    if (context === null || musicGain === null || mix.musicVolume <= 0 || !enabled) return;
+    const now = graphTime();
     clearMusicTimer();
     musicGeneration += 1;
     const generation = musicGeneration;
-    const phraseSeconds = scheduleMusicPhrase(now + 0.04, true);
-    armMusicLoop(phraseSeconds, generation);
+    scheduleMusicPhrase(musicState, nextMusicBarBoundary(now), 0, true);
+    armMusicLoop(generation);
   }
 
   function ensureMusic(): void {
@@ -569,7 +779,7 @@ export function createProceduralAudio(options: ProceduralAudioOptions = {}): Pro
       musicGain.gain.setValueAtTime(mix.musicVolume, graphTime());
       musicGain.connect(masterGain);
     }
-    if (musicPhraseGain === null && enabled) restartMusic();
+    if (activeMusicPhrase === null && enabled) restartMusic();
   }
 
   function notifyEnableFailure(): void {
@@ -645,11 +855,12 @@ export function createProceduralAudio(options: ProceduralAudioOptions = {}): Pro
     }
     const changed = musicState !== nextState;
     musicState = nextState;
-    if (enabled && (changed || musicPhraseGain === null)) {
-      const hadPhrase = musicPhraseGain !== null;
+    if (!enabled) return;
+    if (!changed || activeMusicPhrase === null) {
       ensureMusic();
-      if (changed && hadPhrase) restartMusic();
+      return;
     }
+    transitionMusicState();
   }
 
   function resumeIfEnabled(): void {
@@ -698,7 +909,6 @@ export function createProceduralAudio(options: ProceduralAudioOptions = {}): Pro
     masterGain = null;
     sfxGain = null;
     musicGain = null;
-    musicPhraseGain = null;
     context = null;
   }
 

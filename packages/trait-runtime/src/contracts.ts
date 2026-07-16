@@ -85,6 +85,22 @@ export type TargetingPolicy =
   | 'rearThreat';
 
 /**
+ * Where an emitted command begins its authoritative simulation work.
+ *
+ * `triggerTarget` is intentionally a same-trigger handoff: the simulation
+ * executor resolves the stable target selected by the preceding command from
+ * the same source, then uses that coordinate for the dependent command. It
+ * lets grafts leave residue or continue an arc at their payload's target
+ * without making the renderer or a wall-clock callback authoritative.
+ */
+export type CommandAnchor = 'player' | 'triggerTarget';
+
+export const COMMAND_ANCHORS: readonly CommandAnchor[] = [
+  'player',
+  'triggerTarget',
+] as const;
+
+/**
  * A single emitted command.
  *
  * This is a deliberately WIDE, flat struct (not a per-kind object) so the
@@ -101,6 +117,13 @@ export interface Command {
   sourceId: TraitId | EvolutionId;
   tick: number;
   targeting: TargetingPolicy;
+  /**
+   * Authoritative origin handoff for synthesized dependent commands.
+   *
+   * Omitted remains player-origin for compatibility with older consumers;
+   * BehaviorRuntime always writes the explicit default for newly emitted work.
+   */
+  anchor?: CommandAnchor;
 
   originX: number;
   originY: number;
@@ -135,6 +158,7 @@ export const BLANK_COMMAND: Readonly<Command> = {
   sourceId: '',
   tick: 0,
   targeting: 'none',
+  anchor: 'player',
   originX: 0,
   originY: 0,
   dirX: 0,
@@ -198,6 +222,8 @@ export type BehaviorKind =
 export interface CommandTemplate {
   kind: CommandKind;
   targeting?: TargetingPolicy;
+  /** Omitted retains the normal player-origin behavior. */
+  anchor?: CommandAnchor;
   originX?: number;
   originY?: number;
   dirX?: number;
@@ -221,12 +247,29 @@ export interface CommandTemplate {
   tag?: string;
 }
 
+/**
+ * An additional existing-vocabulary command emitted by a synthesized behavior.
+ *
+ * A delay of zero keeps the command in the same authoritative trigger. A
+ * positive delay is scheduled in deterministic runtime state, never by a
+ * renderer timer. `everyCycles` counts the behavior's own trigger cycles and
+ * lets a temperament express patterns such as "every fourth cast" without
+ * adding a combat command kind.
+ */
+export interface BehaviorFollowUp {
+  emit: CommandTemplate;
+  delayTicks?: number;
+  everyCycles?: number;
+}
+
 /** One phase of a multi-phase behavior (e.g. Thornstorm). */
 export interface BehaviorPhase {
   /** Ticks this phase occupies before advancing to the next. Must be >= 1. */
   durationTicks: number;
   /** Command emitted once, at the tick the phase begins. */
   emit: CommandTemplate;
+  /** Additional existing-vocabulary emissions associated with this phase. */
+  followUps?: readonly BehaviorFollowUp[];
 }
 
 /**
@@ -249,6 +292,14 @@ export interface BehaviorDefinition {
   distanceMilliunits?: number;
   /** Single emit for periodic/generic/movementTrail kinds. */
   emit?: CommandTemplate;
+  /**
+   * Existing-vocabulary commands emitted immediately before the payload on
+   * the same authoritative trigger. Synthesized undertow/lock-on grafts use
+   * this when a movement trail cannot be converted into a multi-phase loop.
+   */
+  preludes?: readonly BehaviorFollowUp[];
+  /** Additional existing-vocabulary emissions associated with `emit`. */
+  followUps?: readonly BehaviorFollowUp[];
   /** Ordered phases for multiPhase kind. */
   phases?: readonly BehaviorPhase[];
 }
@@ -335,6 +386,33 @@ export interface OwnedTrait {
 export interface ResolvedEvolution {
   id: EvolutionId;
   ingredients: readonly [TraitId, TraitId];
+  /**
+   * Optional persisted identity for a v4 Wild Splice or newly fused Perfect
+   * Pair. Undefined preserves the byte-identical legacy authored behavior in
+   * migrated v3 saves.
+   */
+  variant?: FusionVariant;
+}
+
+/** Stable, replay-bound identity of one synthesized fusion variant. */
+export interface FusionVariant {
+  seed: number;
+  temperamentId: string;
+  leanId: string;
+}
+
+/**
+ * A first-ready Wild Splice roll. This is persisted separately from a resolved
+ * evolution so inspecting or deferring an offer never changes its preview.
+ */
+export interface FusionPreview {
+  /** Canonical `chimera:<first>+<second>` identity for the unordered pair. */
+  pairId: string;
+  /** Monotonic first-ready ordinal supplied to the pure variant roll. */
+  ordinal: number;
+  variant: FusionVariant;
+  /** Deterministic Announcer flavor selected by the same pure roll. */
+  flavorIndex: number;
 }
 
 /** A deterministic, player-selectable Master-pair fusion opportunity. */
@@ -343,6 +421,16 @@ export interface FusionOffer {
   ingredients: readonly [TraitId, TraitId];
   /** Fusing two attacks replaces their two logical slots with one. */
   freesLogicalSlot: true;
+  /** Additive player-facing preview metadata. Older consumers may omit it. */
+  displayName?: string;
+  rarity?: string;
+  temperamentId?: string;
+  leanId?: string;
+  pairKind?: 'perfect' | 'wild' | 'support';
+  /** Stable flavor selection captured by presentation before resolving. */
+  flavorIndex?: number;
+  /** Stable roll seed for renderer-only temperament accents. */
+  variantSeed?: number;
 }
 
 /**
@@ -362,6 +450,15 @@ export interface BehaviorTimer {
   cooldown: number;
   /** Accumulated charges (reserved for future charge-based behaviors). */
   charges: number;
+  /** Completed behavior trigger cycles, used by deterministic temperament cadence. */
+  cycles: number;
+}
+
+/** A delayed existing-vocabulary command awaiting one deterministic future tick. */
+export interface PendingBehaviorEmission {
+  ownerId: string;
+  dueTick: number;
+  emit: CommandTemplate;
 }
 
 /** Full mutable runtime state. This is the canonical serializable object. */
@@ -370,13 +467,23 @@ export interface RuntimeState {
   version: number;
   /** Fingerprint of the catalog this state was created against. */
   catalogFingerprint: string;
+  /** Versioned synthesis identity; keeps dynamic Chimera replay/save semantics explicit. */
+  chimeraFingerprint: string;
   /** Last processed simulation tick. Fresh state is -1. */
   tick: number;
+  /** Immutable seed used by pure Wild Splice previews; never consumes offer RNG. */
+  runSeed: number;
+  /** Next first-ready ordinal for a pure Wild Splice variant roll. */
+  fusionReadyCount: number;
+  /** Persisted first-ready previews, so later upgrades/fusions cannot reroll a deferred pair. */
+  fusionPreviews: FusionPreview[];
   owned: OwnedTrait[];
   /** socket -> owning trait id or evolution id. Absent key = free socket. */
   sockets: Partial<Record<SocketId, string>>;
   evolutions: ResolvedEvolution[];
   timers: BehaviorTimer[];
+  /** Bounded deterministic delayed emissions (for example Echo temperament). */
+  pendingEmissions: PendingBehaviorEmission[];
   /** Serialized RNG state for the offer director. */
   offerRngState: number;
 }
@@ -474,4 +581,16 @@ export interface VisualAttachmentState {
   sockets: readonly SocketId[];
   visualKey: string;
   enabled: boolean;
+  /** True when this is a renderer-only retained parent/seam, never an attack slot. */
+  visualOnly?: boolean;
+  /** Ingredient pair retained by a synthesized Chimera presentation record. */
+  chimeraParents?: readonly [TraitId, TraitId];
+  /** Additive renderer-facing Chimera metadata. */
+  displayName?: string;
+  rarity?: string;
+  temperamentId?: string;
+  leanId?: string;
+  pairKind?: 'perfect' | 'wild' | 'support';
+  flavorIndex?: number;
+  variantSeed?: number;
 }

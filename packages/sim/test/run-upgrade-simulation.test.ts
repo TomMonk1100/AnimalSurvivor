@@ -97,6 +97,95 @@ class FusionReadyRuntime implements TraitRuntimePort {
   fingerprint(): string { return 'f0f0f0f0f0f0f0f0'; }
 }
 
+const CHIMERA_REPLAY_ID = 'chimera:porcupine-quills+electric-eel-coil';
+const CHIMERA_REPLAY_PARENTS = ['porcupine-quills', 'electric-eel-coil'] as const;
+
+/** Structural port fixture for a synthesized Chimera; it imports no trait runtime. */
+class ChimeraReplayRuntime implements TraitRuntimePort {
+  private fused = false;
+
+  update(_context: TraitRuntimeUpdateContext) {
+    return {
+      length: 0,
+      at(_index: number): never {
+        throw new RangeError('ChimeraReplayRuntime emits no combat commands');
+      },
+    };
+  }
+
+  offers(_count: number) { return []; }
+
+  applyUpgrade(traitId: string) {
+    return {
+      outcome: { ok: false as const, kind: 'unknownTrait' as const, traitId },
+      evolved: null,
+    };
+  }
+
+  availableFusions() {
+    return this.fused
+      ? []
+      : [{
+        evolutionId: CHIMERA_REPLAY_ID,
+        ingredients: CHIMERA_REPLAY_PARENTS,
+        freesLogicalSlot: true as const,
+        displayName: 'Static Spines',
+        rarity: 'wild',
+        temperamentId: 'stormy',
+        leanId: 'volley',
+        pairKind: 'wild' as const,
+        flavorIndex: 2,
+        variantSeed: 0x1a2b3c4d,
+      }];
+  }
+
+  fuseEvolution(evolutionId: string) {
+    if (evolutionId !== CHIMERA_REPLAY_ID || this.fused) {
+      return { outcome: { ok: false as const, kind: 'unknownEvolution' as const, evolutionId } };
+    }
+    this.fused = true;
+    return {
+      outcome: {
+        ok: true as const,
+        kind: 'fused' as const,
+        evolutionId,
+        ingredients: CHIMERA_REPLAY_PARENTS,
+        logicalSlotCost: 1 as const,
+      },
+    };
+  }
+
+  visualState() {
+    return this.fused
+      ? [{
+        sourceId: CHIMERA_REPLAY_ID,
+        stage: 'mythic' as const,
+        rank: null,
+        isMaster: false,
+        logicalSlotCost: 1 as const,
+        sockets: ['back'] as const,
+        visualKey: 'chimera-static-spines',
+        enabled: true,
+        visualOnly: true,
+        chimeraParents: CHIMERA_REPLAY_PARENTS,
+        displayName: 'Static Spines',
+        rarity: 'wild',
+        temperamentId: 'stormy',
+        leanId: 'volley',
+        pairKind: 'wild' as const,
+        flavorIndex: 2,
+        variantSeed: 0x1a2b3c4d,
+      }]
+      : [];
+  }
+
+  hash(): string {
+    return `${this.fused ? '1' : '0'}000000000000000`;
+  }
+
+  fingerprint(): string { return 'c1c1c1c1c1c1c1c1'; }
+}
+
 function startUniversalRun(
   offerCount = 3,
   heroId: 'greg' | 'benny' | 'gracie' = 'greg',
@@ -157,6 +246,60 @@ test('a free Master fusion resolves beside a pending card and replays in same-ti
   assert.deepEqual(replay.upgradeSelections, expectedSelections);
   assert.deepEqual(runReplay(QUIET_UPGRADE_CONFIG, replay, {
     traitRuntimeFactory: () => new FusionReadyRuntime(),
+    traitOfferCount: 1,
+  }), { finalHash: sim.hash(), ticks: sim.tick });
+});
+
+test('a structural Chimera fusion ID round-trips through replay unchanged', () => {
+  const sim = createSimulation(QUIET_UPGRADE_CONFIG, 73, {
+    traitRuntimeFactory: () => new ChimeraReplayRuntime(),
+    traitOfferCount: 1,
+  });
+  sim.step({ moveX: 0, moveY: 0, paused: false });
+
+  assert.deepEqual(sim.availableFusions, [{
+    evolutionId: CHIMERA_REPLAY_ID,
+    ingredients: CHIMERA_REPLAY_PARENTS,
+    freesLogicalSlot: true,
+    displayName: 'Static Spines',
+    rarity: 'wild',
+    temperamentId: 'stormy',
+    leanId: 'volley',
+    pairKind: 'wild',
+    flavorIndex: 2,
+    variantSeed: 0x1a2b3c4d,
+  }]);
+
+  const fusion = sim.fuseEvolution(CHIMERA_REPLAY_ID);
+  assert.deepEqual(fusion, {
+    tick: 1,
+    kind: 'fusion',
+    id: 'fusion:chimera:porcupine-quills+electric-eel-coil',
+  });
+  assert.deepEqual(sim.traitVisualState(), [{
+    sourceId: CHIMERA_REPLAY_ID,
+    stage: 'mythic',
+    rank: null,
+    isMaster: false,
+    logicalSlotCost: 1,
+    sockets: ['back'],
+    visualKey: 'chimera-static-spines',
+    enabled: true,
+    visualOnly: true,
+    chimeraParents: CHIMERA_REPLAY_PARENTS,
+    displayName: 'Static Spines',
+    rarity: 'wild',
+    temperamentId: 'stormy',
+    leanId: 'volley',
+    pairKind: 'wild',
+    flavorIndex: 2,
+    variantSeed: 0x1a2b3c4d,
+  }]);
+
+  const replay = sim.getReplay();
+  assert.deepEqual(replay.upgradeSelections, [fusion]);
+  assert.deepEqual(runReplay(QUIET_UPGRADE_CONFIG, replay, {
+    traitRuntimeFactory: () => new ChimeraReplayRuntime(),
     traitOfferCount: 1,
   }), { finalHash: sim.hash(), ticks: sim.tick });
 });

@@ -14,6 +14,7 @@ import {
   applyUniversalUpgrade,
   availableUniversalUpgradeOffers,
   createUniversalUpgradeState,
+  describeUniversalUpgradeImpact,
   fingerprintUniversalUpgradeCatalog,
   getUniversalUpgradeCatalogForHero,
   resolveUniversalUpgradeStats,
@@ -217,5 +218,29 @@ test('validates rank state before projection instead of silently accepting malfo
   assert.throws(
     () => resolveUniversalUpgradeStats(UNIVERSAL_UPGRADE_CATALOG, malformed),
     /out of range/,
+  );
+});
+
+test('describes exact rank deltas and does not mislabel utility cards as direct damage', () => {
+  const damage = describeUniversalUpgradeImpact(SHARPENED_INSTINCT, 1, 2);
+  assert.deepEqual(damage, {
+    category: 'Direct damage',
+    directDamage: true,
+    currentRank: 1,
+    nextRank: 2,
+    rankTransition: 'Rank 1 → 2',
+    summary: 'All attack damage +12% → +24%.',
+    delta: '+12% all attack damage.',
+  });
+
+  const moteDraw = describeUniversalUpgradeImpact(XP_MAGNET, 0, 1);
+  assert.equal(moteDraw.category, 'Economy / utility');
+  assert.equal(moteDraw.directDamage, false);
+  assert.match(moteDraw.summary, /Pickup radius \+0 → \+10/);
+  assert.match(moteDraw.delta, /\+80 pull range/);
+
+  assert.throws(
+    () => describeUniversalUpgradeImpact(SHARPENED_INSTINCT, SHARPENED_INSTINCT.maxRank),
+    /currentRank/,
   );
 });

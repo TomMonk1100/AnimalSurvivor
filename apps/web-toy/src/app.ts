@@ -37,6 +37,11 @@ import { createRenderStressHarness } from './stress/render-stress-snapshots';
 import { createPerformanceMonitor } from './diagnostics/performance-monitor';
 import { createHud } from './diagnostics/debug-hud';
 import { createAttackDamageLabPanel } from './diagnostics/attack-damage-lab';
+import {
+  FUSION_QA_SCENARIOS,
+  createFusionQaTraitRuntimeFactory,
+  parseFusionQaScenario,
+} from './diagnostics/fusion-qa';
 import type { RendererAdapter } from './contracts';
 import { projectDirectorEvent, type DirectorNotice } from './presentation/director-notices';
 import { presentActiveAttackLoadout } from './presentation/active-attacks';
@@ -44,7 +49,7 @@ import { presentBossHealth } from './presentation/boss-health';
 import { getBossPortraitAsset } from './presentation/boss-art';
 import { presentPlayerHealth } from './presentation/player-health';
 import { presentRunSummary } from './presentation/run-summary';
-import { presentRunUpgrade } from './presentation/upgrade-copy';
+import { presentRunUpgrade, presentUpgradeConfirmation } from './presentation/upgrade-copy';
 import { isPauseShortcut, upgradeShortcutIndex } from './presentation/upgrade-shortcuts';
 import { presentRunIntro } from './presentation/run-intro';
 import { WILDGUARD_KEYART_URL } from './presentation/wildguard-keyart';
@@ -52,10 +57,16 @@ import { presentRunProgress } from './presentation/run-progress';
 import { presentPauseNotice } from './presentation/pause-notice';
 import { presentActiveUniversalUpgrades } from './presentation/active-universal-upgrades';
 import { presentFusion, type FusionOfferView } from './presentation/mastery-fusions';
+import { presentFusionAnnouncement } from './presentation/fusion-announcer';
 import { presentEnemyGlossary } from './presentation/enemy-glossary';
 import { calculateTerminalEssenceReward } from './presentation/terminal-essence';
 import { focusModalStart, trapModalFocus } from './presentation/modal-focus';
-import { pauseForHiddenPage, resumeFromVisiblePage, type VisibilityPauseState } from './presentation/visibility-pause';
+import {
+  pauseForHiddenPage,
+  resumeFromVisiblePage,
+  shouldResumeVisibilityAudio,
+  type VisibilityPauseState,
+} from './presentation/visibility-pause';
 import { createAudioCueRouter } from './audio/audio-cue-router';
 import { createProceduralAudio, type MusicState } from './audio/procedural-audio';
 import {
@@ -138,11 +149,14 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const stressMode = params.get('stress') === '1';
   const renderStressMode = params.get('renderstress') === '1';
   const diagnosticsMode = params.get('debug') === '1';
+  const fusionQaScenario = diagnosticsMode ? parseFusionQaScenario(params.get('fusionQa')) : null;
+  const activeTraitRuntimeFactory = fusionQaScenario === null
+    ? traitRuntimeFactory
+    : createFusionQaTraitRuntimeFactory(fusionQaScenario);
   // The default stress pass stays a quick five simulated minutes. `fullrun=1`
-  // continues until a terminal outcome, no later than the 8-minute normal
-  // boundary, so the boss encounter can be checked through the same harness.
+  // follows the selected authored run definition rather than maintaining a
+  // duplicate duration literal in presentation code.
   const fullRunStressMode = params.get('fullrun') === '1';
-  const stressStopTicks = config.hz * 60 * (fullRunStressMode ? 8 : 5);
   const seedParam = params.get('seed');
   const initialSeed = seedParam
     ? /^\d+$/.test(seedParam)
@@ -170,6 +184,29 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   const pauseNoticeRoot = document.getElementById('pause-notice') as HTMLElement;
   const ctxBanner = document.getElementById('ctx-banner') as HTMLElement;
   const upgradeRoot = document.getElementById('upgrade-choices') as HTMLElement;
+  // A short presentation-only readout for a successfully selected offer.
+  // It deliberately derives from the same offer object passed to the
+  // authoritative `selectUpgrade` call and never feeds values back into sim.
+  const upgradeConfirmationRoot = document.createElement('section');
+  upgradeConfirmationRoot.className = 'upgrade-confirmation banner';
+  upgradeConfirmationRoot.hidden = true;
+  upgradeConfirmationRoot.setAttribute('role', 'status');
+  upgradeConfirmationRoot.setAttribute('aria-live', 'polite');
+  upgradeConfirmationRoot.style.position = 'absolute';
+  upgradeConfirmationRoot.style.zIndex = '7';
+  upgradeConfirmationRoot.style.top = 'calc(132px + var(--safe-area-top))';
+  upgradeConfirmationRoot.style.left = '50%';
+  upgradeConfirmationRoot.style.transform = 'translateX(-50%)';
+  upgradeConfirmationRoot.style.width = 'min(440px, calc(100vw - 28px))';
+  upgradeConfirmationRoot.style.pointerEvents = 'none';
+  upgradeConfirmationRoot.style.padding = '10px 13px';
+  upgradeConfirmationRoot.style.color = '#edf9df';
+  upgradeConfirmationRoot.style.background = 'rgba(20, 61, 37, 0.96)';
+  upgradeConfirmationRoot.style.border = '1px solid #9bdc72';
+  upgradeConfirmationRoot.style.borderRadius = '8px';
+  upgradeConfirmationRoot.style.boxShadow = '0 8px 22px rgba(0, 0, 0, 0.35)';
+  upgradeConfirmationRoot.style.font = '600 12px/1.35 system-ui, sans-serif';
+  appRoot.appendChild(upgradeConfirmationRoot);
   const outcomeRoot = document.getElementById('run-outcome') as HTMLElement;
   const directorRoot = document.getElementById('director-notice') as HTMLElement;
   const bossHealthRoot = document.getElementById('boss-health') as HTMLElement;
@@ -245,6 +282,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     : 'forest';
   const biomeWasLocked = requestedBiomeId !== null && selectedBiomeId !== requestedBiomeId;
   const runDefinition = selectedBiomeId === 'saltwind' ? SALTWIND_RUINS_RUN : GREG_FIRST_RUN;
+  const stressStopTicks = fullRunStressMode ? runDefinition.durationTicks : config.hz * 60 * 5;
   const runDirectorFactory: RunDirectorFactory = ({ seed }) => new RunDirector({ seed, definition: runDefinition });
   const queryHeroId = params.get('hero');
   const selectedQueryHero = queryHeroId !== null
@@ -255,7 +293,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   function simulationOptions() {
     const profileLoadout = profileStore.startLoadout();
     return {
-      traitRuntimeFactory,
+      traitRuntimeFactory: activeTraitRuntimeFactory,
       universalUpgradeCatalog: getUniversalUpgradeCatalogForHero(selectedHeroId, UNIVERSAL_UPGRADE_CATALOG),
       runDirectorFactory,
       runStartLoadout: { ...profileLoadout, heroId: selectedHeroId, biomeId: selectedBiomeId },
@@ -329,6 +367,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   let currentRunId = createRunId(currentSeed, runSequence);
   let terminalRewardDetail: string | null = null;
   let upgradePromptSerial = 0;
+  let upgradeConfirmationTimer: number | null = null;
   let syntheticDriverNow = performance.now();
   let renderedOfferKey = '';
   // "Later" dismisses the interrupting prompt only. A ready fusion remains
@@ -502,7 +541,15 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
         effect.textContent = upgrade.effect;
         const cadence = document.createElement('small');
         cadence.textContent = upgrade.cadence;
-        card.append(cardTitle, effect, cadence);
+        const impact = document.createElement('small');
+        impact.textContent = `${upgrade.impactCategory} · ${upgrade.impact}`;
+        card.append(cardTitle, effect, cadence, impact);
+        if (upgrade.chimeraBraid !== null) {
+          const braid = document.createElement('small');
+          braid.className = 'pause-upgrade-braid';
+          braid.textContent = `✦ Braid · ${upgrade.chimeraBraid.parentRows.join(' + ')}`;
+          card.appendChild(braid);
+        }
         pauseNoticeRoot.appendChild(card);
       }
       if (universalUpgrades.length > 0) {
@@ -563,8 +610,12 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
         cardTitle.textContent = `${presentation.title} — Free fusion · 1 logical slot`;
         const ingredients = document.createElement('span');
         ingredients.textContent = presentation.ingredients;
+        const description = document.createElement('span');
+        description.textContent = presentation.description;
         const detail = document.createElement('small');
-        detail.textContent = presentation.detail;
+        detail.textContent = [presentation.rarity, presentation.temperament, presentation.detail]
+          .filter((value): value is string => value !== null && value.length > 0)
+          .join(' · ');
         const actions = document.createElement('div');
         actions.className = 'pause-actions';
         const fuse = document.createElement('button');
@@ -573,7 +624,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
         fuse.textContent = 'Fuse now — free';
         fuse.addEventListener('click', () => resolveFusion(fusion.evolutionId));
         actions.appendChild(fuse);
-        card.append(cardTitle, ingredients, detail, actions);
+        card.append(cardTitle, ingredients, description, detail, actions);
         pauseNoticeRoot.appendChild(card);
       }
     }
@@ -631,10 +682,77 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     directorRoot.append(title, detail);
   }
 
+  function clearUpgradeConfirmation(): void {
+    if (upgradeConfirmationTimer !== null) {
+      window.clearTimeout(upgradeConfirmationTimer);
+      upgradeConfirmationTimer = null;
+    }
+    upgradeConfirmationRoot.hidden = true;
+    upgradeConfirmationRoot.replaceChildren();
+  }
+
+  function showUpgradeConfirmation(presentation: ReturnType<typeof presentRunUpgrade>): void {
+    clearUpgradeConfirmation();
+    const confirmation = presentUpgradeConfirmation(presentation);
+    const title = document.createElement('strong');
+    title.textContent = `${confirmation.title} · ${confirmation.category}`;
+    const detail = document.createElement('span');
+    detail.textContent = confirmation.detail;
+    detail.style.display = 'block';
+    detail.style.marginTop = '3px';
+    detail.style.color = '#d5efbf';
+    upgradeConfirmationRoot.append(title, detail);
+    upgradeConfirmationRoot.hidden = false;
+    // This is wall-clock presentation feedback only. It never pauses, steps,
+    // hashes, or otherwise changes the deterministic simulation.
+    upgradeConfirmationTimer = window.setTimeout(() => {
+      upgradeConfirmationTimer = null;
+      upgradeConfirmationRoot.hidden = true;
+      upgradeConfirmationRoot.replaceChildren();
+    }, 3_600);
+  }
+
+  /** A completed fusion is acknowledged from the pre-action offer only. */
+  function showFusionAnnouncement(offer: FusionOfferView): void {
+    clearUpgradeConfirmation();
+    const announcement = presentFusionAnnouncement(offer);
+    const title = document.createElement('strong');
+    title.textContent = `${announcement.heading} ${announcement.name}`;
+    const detail = document.createElement('span');
+    detail.textContent = announcement.detail;
+    detail.style.display = 'block';
+    detail.style.marginTop = '3px';
+    detail.style.color = '#d5efbf';
+    const flavor = document.createElement('small');
+    flavor.textContent = announcement.flavor;
+    flavor.style.display = 'block';
+    flavor.style.marginTop = '5px';
+    flavor.style.color = '#c7e7b0';
+    upgradeConfirmationRoot.append(title, detail, flavor);
+    upgradeConfirmationRoot.hidden = false;
+    // This timeout is presentation-only: no simulation timing or state is
+    // affected by the celebration card.
+    upgradeConfirmationTimer = window.setTimeout(() => {
+      upgradeConfirmationTimer = null;
+      upgradeConfirmationRoot.hidden = true;
+      upgradeConfirmationRoot.replaceChildren();
+    }, 5_400);
+  }
+
   /** One presentation-owned path for click and keyboard upgrade selections. */
   function chooseUpgrade(id: string): void {
     if (!driver.upgradeSelectionPending) return;
+    const offer = driver.pendingUpgradeOffers.find((candidate) => candidate.id === id);
+    const presentation = offer === undefined
+      ? null
+      : presentRunUpgrade(
+        offer,
+        driver.traitVisualState(),
+        getHeroVisualProfile(selectedHeroId).displayName,
+        driver.universalUpgradeCatalog ?? UNIVERSAL_UPGRADE_CATALOG,
+      );
     driver.selectUpgrade(id);
+    if (presentation !== null) showUpgradeConfirmation(presentation);
     activeInput().clear();
     driver.noteVisible(syntheticDriverNow);
     renderedOfferKey = '';
@@ -644,12 +762,15 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   function resolveFusion(evolutionId: string): void {
     const fuseEvolution = driver.fuseEvolution;
     if (fuseEvolution === undefined) return;
+    // The runtime removes consumed offers, so retain the immutable metadata
+    // before fusing rather than rebuilding presentation from changed state.
+    const fusedOffer = availableFusionOffers().find((offer) => offer.evolutionId === evolutionId);
     try {
       fuseEvolution(evolutionId);
       deferredFusionIds.delete(evolutionId);
-      fusionMessage = availableFusionOffers().some((offer) => offer.evolutionId === evolutionId)
-        ? 'That Master pair is not available to fuse yet.'
-        : null;
+      const stillAvailable = availableFusionOffers().some((offer) => offer.evolutionId === evolutionId);
+      fusionMessage = stillAvailable ? 'That Master pair is not available to fuse yet.' : null;
+      if (!stillAvailable && fusedOffer !== undefined) showFusionAnnouncement(fusedOffer);
     } catch {
       // A stale browser prompt must never turn an optional V1.1 action into a
       // broken run. The simulation remains authoritative and the player can
@@ -698,9 +819,13 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       title.textContent = `Fuse now — FREE · ${presentation.title}`;
       const ingredients = document.createElement('small');
       ingredients.textContent = presentation.ingredients;
+      const description = document.createElement('span');
+      description.textContent = presentation.description;
       const detail = document.createElement('span');
-      detail.textContent = presentation.detail;
-      fuse.append(title, ingredients, detail);
+      detail.textContent = [presentation.rarity, presentation.temperament, presentation.detail]
+        .filter((value): value is string => value !== null && value.length > 0)
+        .join(' · ');
+      fuse.append(title, ingredients, description, detail);
       fuse.addEventListener('click', () => resolveFusion(offer.evolutionId));
       root.appendChild(fuse);
     }
@@ -769,9 +894,11 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       title.textContent = `${index + 1}. ${presentation.title} — ${presentation.badge}`;
       const socket = document.createElement('small');
       socket.textContent = presentation.socket;
+      const impact = document.createElement('small');
+      impact.textContent = `${presentation.impactCategory} · ${presentation.impact}`;
       const description = document.createElement('span');
       description.textContent = presentation.description;
-      choice.append(title, socket, description);
+      choice.append(title, socket, impact, description);
       if (presentation.pairingHint !== null) {
         const hint = document.createElement('em');
         hint.textContent = presentation.pairingHint;
@@ -952,6 +1079,9 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   seedInput.size = 10;
   seedInput.style.cssText = 'font:inherit;background:#0f151f;color:#d7e0ea;border:1px solid #33415a;border-radius:5px;padding:5px;';
   function restartRun(): void {
+    // A restart replaces the authoritative run immediately. Do not leave a
+    // short-lived presentation receipt from its predecessor on top of it.
+    clearUpgradeConfirmation();
     const raw = seedInput.value.trim();
     currentSeed = /^\d+$/.test(raw) ? Number(raw) >>> 0 : seedFromString(raw);
     seedInput.value = String(currentSeed);
@@ -977,7 +1107,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     perf.reset();
     setPaused(false);
     if (runStarted) {
-      proceduralAudio.resumeIfEnabled();
+      resumeProceduralAudioIfVisible();
       audioCueRouter.beginRun();
     }
   }
@@ -995,6 +1125,12 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     renderRunIntro();
   }
   if (diagnosticsMode) {
+    if (fusionQaScenario !== null) {
+      const fixture = document.createElement('span');
+      fixture.className = 'diagnostic-fixture';
+      fixture.textContent = `Fusion QA fixture: ${FUSION_QA_SCENARIOS[fusionQaScenario].label}`;
+      controlsRoot.appendChild(fixture);
+    }
     const autoBtn = button(controls.autopilotOn ? 'Autopilot: ON' : 'Autopilot: OFF', () => {
       controls.autopilotOn = !controls.autopilotOn;
       autoBtn.textContent = controls.autopilotOn ? 'Autopilot: ON' : 'Autopilot: OFF';
@@ -1275,19 +1411,19 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     const summary = document.createElement('summary');
     summary.textContent = 'Credits & notices';
     details.appendChild(summary);
-    const fox = document.createElement('span');
-    fox.textContent = 'Greg fox model: Quaternius Ultimate Animated Animal Pack · CC0 1.0.';
+    const scout = document.createElement('span');
+    scout.textContent = 'Scout hero art: AI-assisted original project artwork using the owner-provided Scout reference image.';
     const engine = document.createElement('span');
     engine.textContent = 'Runtime: PlayCanvas Engine 2.20.6 · MIT License.';
     const portraits = document.createElement('span');
-    portraits.textContent = 'Field Guide portraits: AI-assisted original project artwork · 2026-07-12 · no reference images.';
+    portraits.textContent = 'Field Guide portraits: AI-assisted original project artwork; Scout uses the owner-provided reference image.';
     const bossPortraits = document.createElement('span');
     bossPortraits.textContent = 'Boss-health portraits: AI-assisted original Forest and Saltwind artwork · 2026-07-12 · no reference images.';
     const original = document.createElement('span');
     original.textContent = 'Procedural heroes, attachments, simulation, UI, and audio presentation: AnimalSurvivor original project work.';
     const status = document.createElement('small');
     status.textContent = 'Local-only save; no telemetry, accounts, cookies, or cloud saves. See the release notice bundle for the complete current record.';
-    details.append(fox, engine, portraits, bossPortraits, original, status);
+    details.append(scout, engine, portraits, bossPortraits, original, status);
     creditsRoot.appendChild(details);
   }
 
@@ -1508,7 +1644,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
       const metadata = document.createElement('small');
       const biomeName = entry.biomeId === 'saltwind' ? 'Saltwind Ruins' : 'Forest Arsenal';
       const seedLabel = `0x${entry.seed.toString(16).padStart(8, '0')}`;
-      metadata.textContent = `${biomeName} · ${entry.heroId} · seed ${seedLabel} · ${entry.outcome === 'victory' ? 'Victory' : 'Defeat'} · ${formatFieldGuideDuration(entry.durationTicks)} · ${entry.kills} kills · +${entry.essenceEarned} Essence`;
+      const archivedHeroName = getHeroVisualProfile(entry.heroId).displayName;
+      metadata.textContent = `${biomeName} · ${archivedHeroName} · seed ${seedLabel} · ${entry.outcome === 'victory' ? 'Victory' : 'Defeat'} · ${formatFieldGuideDuration(entry.durationTicks)} · ${entry.kills} kills · +${entry.essenceEarned} Essence`;
       const note = document.createElement('span');
       note.textContent = entry.ecologyNote;
       card.append(portrait, title, metadata, note);
@@ -1587,7 +1724,8 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     const vitalityRank = profile.startingVitalityRank;
     const vitalityMaxRank = getPermanentUpgradeDefinition('vitality').maxRank;
     const hero = getHeroDefinition(selectedHeroId);
-    profileText.textContent = `Essence ${profile.essence} · ${hero.displayName} · Vitality ${vitalityRank}/${vitalityMaxRank}`;
+    const visualHero = getHeroVisualProfile(selectedHeroId);
+    profileText.textContent = `Essence ${profile.essence} · ${visualHero.displayName} · Vitality ${vitalityRank}/${vitalityMaxRank}`;
     const biomeProgress = profile.unlockedBiomeIds.includes('saltwind')
       ? 'Saltwind Ruins unlocked.'
       : 'Complete a Forest victory to unlock Saltwind Ruins.';
@@ -1688,6 +1826,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
 
   function beginRun(): void {
     if (runStarted) return;
+    clearUpgradeConfirmation();
     // Profile purchases are only allowed on this prep screen. Recreate the
     // deterministic run immediately before launch so its normalized loadout
     // includes the exact Vitality rank the player just bought.
@@ -1721,7 +1860,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     // makes the no-catch-up guarantee explicit at the player-controlled gate.
     driver.noteVisible(stressMode ? syntheticDriverNow : performance.now());
     renderRunIntro();
-    proceduralAudio.resumeIfEnabled();
+    resumeProceduralAudioIfVisible();
     audioCueRouter.beginRun();
     surface.focus({ preventScroll: true });
   }
@@ -1729,6 +1868,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   /** Leave a terminal card for the between-run prep screen without replaying it. */
   function returnToStart(): void {
     if (driver.runOutcome !== 'victory' && driver.runOutcome !== 'defeat') return;
+    clearUpgradeConfirmation();
     profileMessage = '';
     runStarted = false;
     setPaused(false);
@@ -1752,12 +1892,22 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
   renderSoundControls();
   renderRunIntro();
 
+  /**
+   * Visibility ownership is deliberately separate from manual pause: a manual
+   * resume may resume opted-in audio as before, but a hidden page can never
+   * restart an AudioContext before its visibility pause has been released.
+   */
+  function resumeProceduralAudioIfVisible(): void {
+    if (!shouldResumeVisibilityAudio(document.visibilityState, visibilityPauseState)) return;
+    proceduralAudio.resumeIfEnabled();
+  }
+
   function setPaused(p: boolean): void {
     controls.paused = p;
     pauseBtn.textContent = p ? 'Resume' : 'Pause';
     renderPauseNotice();
     if (p) activeInput().clear();
-    else proceduralAudio.resumeIfEnabled();
+    else resumeProceduralAudioIfVisible();
   }
 
   function activeInput(): InputSource {
@@ -1790,7 +1940,12 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
         paused: controls.paused,
       });
       visibilityPauseState = decision.state;
-      if (decision.pauseNow) setPaused(true);
+      if (decision.pauseNow) {
+        setPaused(true);
+        // This is a page-visibility resource pause, not a player opting out
+        // or opening the manual pause menu. `suspend` preserves opt-in state.
+        proceduralAudio.suspend();
+      }
     }
   };
   document.addEventListener('visibilitychange', onVisibility);
@@ -1858,7 +2013,10 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
                 : driver.runPhase === 'boss' || driver.runPhase === 'overtime'
                   ? 'boss'
                   : 'opening';
-    proceduralAudio.setMusicState(musicState);
+    // `suspend` clears the audio module's current phrase. Do not let the
+    // continuously-rendered hidden page immediately arm a replacement phrase;
+    // it is restarted only when the visibility-owned pause is released.
+    if (!visibilityPauseState.pausedByVisibility) proceduralAudio.setMusicState(musicState);
     audioCueRouter.observe({
       tick: driver.tick,
       combatFeedback: driver.combatFeedback,
@@ -1930,6 +2088,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
 
   function stop(): void {
     running = false;
+    clearUpgradeConfirmation();
     cancelAnimationFrame(raf);
     window.removeEventListener('resize', onResize);
     window.removeEventListener('keydown', onKeyboardShortcut);
@@ -1945,6 +2104,7 @@ export function startApp(config: SimConfig = DEFAULT_CONFIG): AppHandle {
     renderer.dispose();
     hud.dispose();
     proceduralAudio.dispose();
+    upgradeConfirmationRoot.remove();
   }
 
   // Console-visible note so stress evidence is never mistaken for a threshold.

@@ -91,7 +91,7 @@ async function main() {
     if (!Array.isArray(distManifest.files) || distManifest.files.length === 0) {
       fail('served dist manifest contains no generated asset records');
     }
-    for (const portrait of ['greg-final-form-v1', 'benny-final-form-v1', 'gracie-final-form-v1']) {
+    for (const portrait of ['scout-final-form-v1', 'benny-final-form-v1', 'gracie-final-form-v1']) {
       const generatedPath = distManifest.files.find((file) => file.path.includes(`${portrait}-`) && file.path.endsWith('.png'))?.path;
       if (generatedPath === undefined) fail(`served dist is missing authored portrait: ${portrait}`);
       const portraitResponse = await fetch(`${baseUrl}/${generatedPath}`);
@@ -105,6 +105,13 @@ async function main() {
       if (!portraitResponse.ok) fail(`served boss portrait ${portrait} returned HTTP ${portraitResponse.status}`);
       if ((await portraitResponse.arrayBuffer()).byteLength === 0) fail(`served boss portrait ${portrait} is empty`);
     }
+    const scoutKeyArt = distManifest.files.find((file) => (
+      file.path.includes('storybook-wildguard-scout-v1-') && file.path.endsWith('.jpg')
+    ))?.path;
+    if (scoutKeyArt === undefined) fail('served dist is missing Scout title key art');
+    const scoutKeyArtResponse = await fetch(`${baseUrl}/${scoutKeyArt}`);
+    if (!scoutKeyArtResponse.ok) fail(`served Scout title key art returned HTTP ${scoutKeyArtResponse.status}`);
+    if ((await scoutKeyArtResponse.arrayBuffer()).byteLength === 0) fail('served Scout title key art is empty');
     for (const marker of [
       'Accessibility',
       'Field Guide palettes',

@@ -19,7 +19,7 @@ The project prefers CC0. “Free to download” is not a license.
 
 | Status | Asset/source | Author | License | Formats/use | Downloaded | SHA-256 | Modifications |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| partially incorporated | [Ultimate Animated Animal Pack](https://quaternius.com/packs/ultimateanimatedanimals.html) | Quaternius | CC0 1.0 | 12 animated animals; FBX, OBJ, Blend, glTF; official Drive folder | 2026-07-09 | Per-file hashes below | Only license, preview, and Fox glTF downloaded for audit |
+| audit-only (not shipped) | [Ultimate Animated Animal Pack](https://quaternius.com/packs/ultimateanimatedanimals.html) | Quaternius | CC0 1.0 | 12 animated animals; FBX, OBJ, Blend, glTF; official Drive folder | 2026-07-09 | Per-file hashes below | License, preview, and Fox glTF retained for historical audit; Scout presentation art replaced the Fox runtime asset on 2026-07-15 |
 | candidate | [LowPoly Animated Animals](https://quaternius.itch.io/lowpoly-animated-animals) | Quaternius | CC0 1.0 | 6 animated animals; FBX, OBJ, Blend; alternate hero candidates | — | — | — |
 | candidate | [Ultimate Monsters](https://quaternius.com/packs/ultimatemonsters.html) | Quaternius | CC0 1.0 | 50 animated monsters; enemy prototype candidates | — | — | — |
 | candidate | [Ultimate Nature Pack](https://quaternius.com/packs/ultimatenature.html) | Quaternius | CC0 1.0 | 150 low-poly environment models | — | — | — |
@@ -32,7 +32,7 @@ The project prefers CC0. “Free to download” is not a license.
 | File | Source file ID | SHA-256 | Notes |
 | --- | --- | --- | --- |
 | `vendor/quaternius/ultimate_animated_animals/License.txt` | `1F2uy8T2fRpdc6gZ4mnS02_C2E63WvKtn` | `83d8959f9fc56353ed571fbe2dc52e4bcd64508e2399501cd45ac2ce3df0bf8c` | Original CC0 1.0 license, preserved unchanged |
-| `vendor/quaternius/ultimate_animated_animals/Fox.gltf` | `1z-CWoUC2vJxrqgGFTYlMaywpE1ooV-bA` | `2f36e3c9c75ecddda85c5f9944e98ee1e88e7c679a546534aff1cea8ecde64c7` | Original self-contained glTF, preserved unchanged |
+| `vendor/quaternius/ultimate_animated_animals/Fox.gltf` | `1z-CWoUC2vJxrqgGFTYlMaywpE1ooV-bA` | `2f36e3c9c75ecddda85c5f9944e98ee1e88e7c679a546534aff1cea8ecde64c7` | Original self-contained glTF, preserved unchanged for historical audit; not imported by the current web runtime after the Scout replacement |
 | `vendor/quaternius/ultimate_animated_animals/Preview.jpg` | `1HdDYH9Cq4pnwRZ7LPD0zS0lyYI6m3qQT` | `316a03d52e15a2b0ba4906074ad0c1e4ecd59fb0b92b63f07108bc81138a6d8a` | Publisher preview used only for audit/reference |
 
 ## Curated Quaternius forest runtime art
@@ -85,13 +85,16 @@ prompts are in `docs/gate0/concept-prompts.md`.
 
 These are authored presentation assets for the local Field Guide archive and
 Wildguard runtime. They do not enter simulation state, replay hashes, or
-gameplay decisions. The exact prompt set is checked in at
-`docs/release/field-guide-portrait-prompts.md`, and the generated source files
-remain versioned with the workspace.
+gameplay decisions. The earlier no-reference Field Guide prompts are checked
+in at `docs/release/field-guide-portrait-prompts.md`; the Scout replacement
+record is in `docs/release/scout-presentation-provenance.md`. The owner-provided
+Scout photo is a private task attachment and is neither stored in this
+repository nor shipped with the runtime.
 
 | File | Tool | Date | Reference images | SHA-256 | Intended use |
 | --- | --- | --- | --- | --- | --- |
-| `ui/field-guide/greg-final-form-v1.png` | Built-in OpenAI image generation, lossless adaptive PNG filtering | 2026-07-12 | None | `45192f8d712b0a4de18c88ae09223a77ac009ee18953ac4777c3b696cec7c744` | Greg Field Guide final-form portrait |
+| `ui/field-guide/greg-final-form-v1.png` | Built-in OpenAI image generation, lossless adaptive PNG filtering | 2026-07-12 | None | `45192f8d712b0a4de18c88ae09223a77ac009ee18953ac4777c3b696cec7c744` | Historical Greg Field Guide portrait, retained for audit and no longer imported by the current web runtime |
+| `ui/field-guide/scout-final-form-v1.png` | Built-in OpenAI image generation; 768×768 RGB runtime PNG export | 2026-07-15 | Owner-provided Scout photo (`IMG_1759.png`, private task attachment; not shipped) | `3de4aafbdf4ef06f457aa654d6f4f1bf7294d2bdfd563748ec327a8bae611d05` | Current Scout Field Guide portrait for the stable `greg` hero id; provenance brief in `docs/release/scout-presentation-provenance.md` |
 | `ui/field-guide/benny-final-form-v1.png` | Built-in OpenAI image generation, lossless adaptive PNG filtering | 2026-07-12 | None | `7aa5d6a3040c802c71297a41ee704d570a5ae655d20589e45c770a6cb3a6847e` | Benny Field Guide final-form portrait |
 | `ui/field-guide/gracie-final-form-v1.png` | Built-in OpenAI image generation, lossless adaptive PNG filtering | 2026-07-12 | None | `d2f50f73964fdde1ca33f690906053d25b23ca25608574c83feeb2ef4ea5bef5` | Gracie Field Guide final-form portrait |
 
@@ -102,16 +105,22 @@ These boss portraits use the exact prompts in `docs/release/boss-portrait-prompt
 | `ui/bosses/final-threat-v1.png` | Built-in OpenAI image generation, lossless adaptive PNG filtering | 2026-07-12 | None | `bec4ada08a8271e02fab1ee1da6b35f597e1aff5ff05a6f1150962e6a9676333` | Forest boss-health portrait |
 | `ui/bosses/sandglass-sovereign-v1.png` | Built-in OpenAI image generation, lossless adaptive PNG filtering | 2026-07-12 | None | `35e8e66739651b4cd17cca56b993c1fa17f3c5cd7ae031dea39492b811d73e9a` | Saltwind boss-health portrait |
 
-The playable Wildguard start screen uses a generated illustration with the
-exact prompt recorded in `docs/release/wildguard-keyart-prompt.md`. Its source
-PNG was non-destructively compressed to JPEG for the browser asset budget. The
-Forest clearing ground and Bramblehog gameplay sprite use the exact prompts
-and transformations recorded in `docs/release/v1-visual-art-prompts.md`.
+The current playable Wildguard start screen uses the Scout replacement title
+illustration. It was generated from the owner-provided Scout photo, the former
+project title key art, and the Scout gameplay cutout; its non-verbatim brief
+and source/runtime hashes are recorded in
+`docs/release/scout-presentation-provenance.md`. The former Fox title art and
+its exact prompt in `docs/release/wildguard-keyart-prompt.md` are retained for
+historical audit only. The Forest clearing ground and Bramblehog gameplay
+sprite use the exact prompts and transformations recorded in
+`docs/release/v1-visual-art-prompts.md`.
 
 | File | Tool | Date | Reference images | SHA-256 | Intended use |
 | --- | --- | --- | --- | --- | --- |
-| `ui/keyart/storybook-wildguard-forest-v1.jpg` | Built-in OpenAI image generation, JPEG compression | 2026-07-12 | None | `80e4efcbc9f2b07773cc7555991190ee4ef40ac096900853be2c97146801c18c` | Storybook Wildguard start-screen key art |
+| `ui/keyart/storybook-wildguard-forest-v1.jpg` | Built-in OpenAI image generation, JPEG compression | 2026-07-12 | None | `80e4efcbc9f2b07773cc7555991190ee4ef40ac096900853be2c97146801c18c` | Historical Fox title key art, retained for audit and no longer imported by the current web runtime |
+| `ui/keyart/storybook-wildguard-scout-v1.jpg` | Built-in OpenAI image generation from source `tmp/imagegen/scout-keyart-source-v1.png` (`0b60157a3d7f72d85aa7e5a86157183b22494309f6aca9714118309c657e6eba`); JPEG runtime export | 2026-07-15 | Owner-provided Scout photo (`IMG_1759.png`, private task attachment; not shipped); historical project key art and Scout gameplay cutout as project-owned visual references | `5dd0cd5aa13b24467e4cbade2bec9441b8405fda8ebaab3a8e29d856190b42f3` | Current 1672×941 RGB Scout title key art; menu-safe left opening is retained, and the former right-side Fox is replaced by Scout; provenance brief in `docs/release/scout-presentation-provenance.md` |
 | `ui/terrain/storybook-glade-ground-v1.jpg` | Built-in OpenAI image generation, JPEG compression | 2026-07-12 | None | `2cb3cc6943196f3136981280a424ea43ec1a4877fa067055b86a964e22c566d1` | Tiled-feeling full-arena Forest clearing ground plate |
+| `ui/heroes/scout-pouncer-v1.png` | Built-in OpenAI image generation from source `tmp/imagegen/scout-pouncer-source-v1.png` (`54fe5bd914f8accf967a060c82867904c6d99af9a7a827e0cd33c6af1f336314`); project alpha-matte conversion to RGBA runtime PNG | 2026-07-15 | Owner-provided Scout photo (`IMG_1759.png`, private task attachment; not shipped) | `8b95623f80f42af866133d257d7401dd151e494eaab5f71411d9b89a92f674fb` | Current transparent Scout playable-hero sprite for the stable `greg` hero id; source 1254×1254 RGB, runtime 1254×1254 RGBA; provenance brief in `docs/release/scout-presentation-provenance.md` |
 | `ui/heroes/benny-bastion-v1.png` | Built-in OpenAI image generation, chroma-key alpha cleanup, lossless adaptive PNG filtering | 2026-07-12 | None | `e0fd6f3810c8a4a2b11be325fa15d3756725b95311aedc83e51de7208c6b551e` | Transparent Benny the Bastion playable-hero sprite; source `exec-5740c719-1edc-4c9e-be60-7bddbab00199.png` |
 | `ui/heroes/gracie-surveyor-v1.png` | Built-in OpenAI image generation, chroma-key alpha cleanup, lossless adaptive PNG filtering | 2026-07-12 | None | `b6a6246b74f8a1127972be66d39c0ecc1b666ec989a3f8d49c1b8858a2d7488a` | Transparent Gracie the Surveyor playable-hero sprite; source `exec-1612d45a-3615-49c6-94a6-5b94c0d6bfc2.png` |
 | `ui/enemies/bramblehog-v1.png` | Built-in OpenAI image generation, chroma-key alpha cleanup, lossless adaptive PNG filtering | 2026-07-12 | None | `1fdea8ce0037f24120939cee4791b2625a18becd61268347dd13a4b2aec5ef8d` | Transparent Bramblehog swarm-enemy sprite |
@@ -145,9 +154,16 @@ dimensions, and runtime hashes are recorded in
 
 ### Generated playable-hero sprite source audit
 
-Both generated playable-hero sources used the built-in image-generation tool's
-flat `#ff00ff` chroma background and the same
+Benny and Gracie's generated playable-hero sources used the built-in
+image-generation tool's flat `#ff00ff` chroma background and the same
 `remove_chroma_key.py --auto-key border --soft-matte --transparent-threshold 12
 --opaque-threshold 220 --despill` cleanup. The full prompts, source hashes,
 output dimensions, and runtime hashes are recorded in
 `docs/release/v1-visual-art-prompts.md`.
+
+Scout's 1254×1254 source was generated with the built-in image-generation tool
+from the owner-provided Scout photo and uses the same flat `#ff00ff` backdrop.
+Its source and runtime hashes, non-verbatim generation brief, output formats,
+and reference-image boundary are recorded in
+`docs/release/scout-presentation-provenance.md`. The personal reference photo
+is not a repository or runtime asset.

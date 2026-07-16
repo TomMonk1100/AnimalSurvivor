@@ -22,11 +22,11 @@ test('different seeds can produce different selections', () => {
   assert.notDeepEqual(a, b);
 });
 
-test('offers exclude Mastered and socket-blocked traits while favoring owned ranks', () => {
+test('offers exclude Mastered traits while keeping shared-socket acquisitions eligible', () => {
   const s = createInitialState(0);
   // Master porcupine-quills; only a compatible Master pair may fuse it now.
   for (let rank = 1; rank <= 5; rank++) applyUpgrade(catalog, s, 'porcupine-quills');
-  // Occupy both shoulders so shoulder-traits become impossible offers.
+  // Occupy both shoulders. Wild Splice permits additional shoulder attachments.
   applyUpgrade(catalog, s, 'mantis-scythes');
 
   const offers = generateOffers(catalog, s, createRng(3), 20); // ask for more than exist
@@ -38,9 +38,9 @@ test('offers exclude Mastered and socket-blocked traits while favoring owned ran
   const mantis = offers.find((o) => o.traitId === 'mantis-scythes');
   assert.equal(mantis?.resultStage, 'adapted');
   assert.equal(mantis?.resultRank, 2);
-  // Shoulder-blocked locked traits are excluded (owl/crab need both shoulders).
-  assert.ok(!ids.includes('owl-pinions'));
-  assert.ok(!ids.includes('crab-pincers'));
+  // Shared-socket locked traits remain eligible (owl/crab need both shoulders).
+  assert.ok(ids.includes('owl-pinions'));
+  assert.ok(ids.includes('crab-pincers'));
 });
 
 test('offer count is capped and unique', () => {

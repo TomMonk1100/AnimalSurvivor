@@ -30,7 +30,7 @@ const HABITAT_COPY: Readonly<Record<HabitatId, Pick<FieldGuideHabitat, 'title' |
   }),
   'foxglove-thicket': Object.freeze({
     title: 'Foxglove Thicket',
-    description: 'Win with Greg, the Pouncer.',
+    description: 'Win with Scout, the Pouncer.',
   }),
   'sunstone-pasture': Object.freeze({
     title: 'Sunstone Pasture',

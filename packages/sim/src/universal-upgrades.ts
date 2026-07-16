@@ -119,6 +119,36 @@ export interface UniversalUpgradeDefinition {
 export type UniversalUpgradeCatalog = readonly UniversalUpgradeDefinition[];
 
 /**
+ * Player-facing classification of an authored upgrade's primary outcome.
+ * This is content metadata derived from the same immutable effect definition
+ * that `resolveUniversalUpgradeStats` projects into the simulation; it is not
+ * a browser-side combat rule.
+ */
+export type UniversalUpgradeImpactCategory =
+  | 'Direct damage'
+  | 'Crowd control'
+  | 'Targeting'
+  | 'Defense'
+  | 'Economy / utility';
+
+/**
+ * Exact before/after wording for one offered universal rank. The aggregate
+ * numbers are expressed relative to the run baseline, while `delta` names the
+ * one newly selected rank. `directDamage` intentionally stays false for
+ * movement, pickup, survival, and XP cards even when those can indirectly
+ * improve a successful run.
+ */
+export interface UniversalUpgradeImpact {
+  readonly category: UniversalUpgradeImpactCategory;
+  readonly directDamage: boolean;
+  readonly currentRank: number;
+  readonly nextRank: number;
+  readonly rankTransition: string;
+  readonly summary: string;
+  readonly delta: string;
+}
+
+/**
  * Rank storage is positional in canonical catalog order. The fingerprint
  * prevents a state from being accidentally interpreted against different
  * authored content or a reordered catalog.
@@ -565,6 +595,209 @@ export function getUniversalUpgrade(
   validateUniversalUpgradeCatalog(catalog);
   const index = indexOf(catalog, id);
   return index < 0 ? undefined : catalog[index];
+}
+
+function formatPercent(value: number): string {
+  const percent = Math.round(value * 10_000) / 100;
+  return Number.isInteger(percent) ? `${percent}%` : `${percent.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}%`;
+}
+
+function formatNumber(value: number): string {
+  const rounded = Math.round(value * 1_000) / 1_000;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+function rankTransition(currentRank: number, nextRank: number): string {
+  return `Rank ${currentRank} → ${nextRank}`;
+}
+
+function assertImpactRanks(definition: UniversalUpgradeDefinition, currentRank: number, nextRank: number): void {
+  if (!Number.isSafeInteger(currentRank) || currentRank < 0 || currentRank >= definition.maxRank) {
+    throw new RangeError(`currentRank for ${definition.id} must be a safe integer in [0, ${definition.maxRank - 1}]`);
+  }
+  if (nextRank !== currentRank + 1 || nextRank > definition.maxRank) {
+    throw new RangeError(`nextRank for ${definition.id} must advance exactly one rank within its cap`);
+  }
+}
+
+/**
+ * Describe one rank offer from immutable simulation content. Presentation may
+ * display this record, but it must not use it to apply or infer gameplay.
+ */
+export function describeUniversalUpgradeImpact(
+  definition: UniversalUpgradeDefinition,
+  currentRank: number,
+  nextRank = currentRank + 1,
+): UniversalUpgradeImpact {
+  assertImpactRanks(definition, currentRank, nextRank);
+  const transition = rankTransition(currentRank, nextRank);
+  const effect = definition.effect;
+  switch (effect.kind) {
+    case 'speedMultiplier': {
+      const before = effect.bonusPerRank * currentRank;
+      const after = effect.bonusPerRank * nextRank;
+      return Object.freeze({
+        category: 'Economy / utility',
+        directDamage: false,
+        currentRank,
+        nextRank,
+        rankTransition: transition,
+        summary: `Movement speed +${formatPercent(before)} → +${formatPercent(after)}.`,
+        delta: `+${formatPercent(effect.bonusPerRank)} movement speed.`,
+      });
+    }
+    case 'xpMagnet': {
+      const pickupBefore = effect.pickupRadiusBonusPerRank * currentRank;
+      const pickupAfter = effect.pickupRadiusBonusPerRank * nextRank;
+      const radiusBefore = effect.attractionRadiusBonusPerRank * currentRank;
+      const radiusAfter = effect.attractionRadiusBonusPerRank * nextRank;
+      const speedBefore = effect.attractionSpeedBonusPerRank * currentRank;
+      const speedAfter = effect.attractionSpeedBonusPerRank * nextRank;
+      return Object.freeze({
+        category: 'Economy / utility',
+        directDamage: false,
+        currentRank,
+        nextRank,
+        rankTransition: transition,
+        summary: `Pickup radius +${formatNumber(pickupBefore)} → +${formatNumber(pickupAfter)}; XP pull range ${formatNumber(radiusBefore)} → ${formatNumber(radiusAfter)} at ${formatNumber(speedBefore)} → ${formatNumber(speedAfter)}/sec.`,
+        delta: `+${formatNumber(effect.pickupRadiusBonusPerRank)} pickup radius, +${formatNumber(effect.attractionRadiusBonusPerRank)} pull range, +${formatNumber(effect.attractionSpeedBonusPerRank)}/sec pull speed.`,
+      });
+    }
+    case 'maxHp': {
+      const before = effect.bonusPerRank * currentRank;
+      const after = effect.bonusPerRank * nextRank;
+      return Object.freeze({
+        category: 'Defense',
+        directDamage: false,
+        currentRank,
+        nextRank,
+        rankTransition: transition,
+        summary: `Maximum health +${formatNumber(before)} → +${formatNumber(after)}; restores ${formatNumber(effect.bonusPerRank)} health on this pick.`,
+        delta: `+${formatNumber(effect.bonusPerRank)} maximum health and restore ${formatNumber(effect.bonusPerRank)} health.`,
+      });
+    }
+    case 'weaponDamageMultiplier': {
+      const before = effect.bonusPerRank * currentRank;
+      const after = effect.bonusPerRank * nextRank;
+      return Object.freeze({
+        category: 'Direct damage',
+        directDamage: true,
+        currentRank,
+        nextRank,
+        rankTransition: transition,
+        summary: `All attack damage +${formatPercent(before)} → +${formatPercent(after)}.`,
+        delta: `+${formatPercent(effect.bonusPerRank)} all attack damage.`,
+      });
+    }
+    case 'weaponCooldownMultiplier': {
+      const before = effect.reductionPerRank * currentRank;
+      const after = effect.reductionPerRank * nextRank;
+      return Object.freeze({
+        category: 'Direct damage',
+        directDamage: true,
+        currentRank,
+        nextRank,
+        rankTransition: transition,
+        summary: `All attack cooldown −${formatPercent(before)} → −${formatPercent(after)}.`,
+        delta: `−${formatPercent(effect.reductionPerRank)} all attack cooldown.`,
+      });
+    }
+    case 'xpMultiplier': {
+      const before = effect.bonusPerRank * currentRank;
+      const after = effect.bonusPerRank * nextRank;
+      return Object.freeze({
+        category: 'Economy / utility',
+        directDamage: false,
+        currentRank,
+        nextRank,
+        rankTransition: transition,
+        summary: `XP gained +${formatPercent(before)} → +${formatPercent(after)}.`,
+        delta: `+${formatPercent(effect.bonusPerRank)} XP gained.`,
+      });
+    }
+    case 'critChance': {
+      const before = effect.bonusPerRank * currentRank;
+      const after = effect.bonusPerRank * nextRank;
+      return Object.freeze({
+        category: 'Direct damage',
+        directDamage: true,
+        currentRank,
+        nextRank,
+        rankTransition: transition,
+        summary: `Critical-hit chance +${formatPercent(before)} → +${formatPercent(after)}.`,
+        delta: `+${formatPercent(effect.bonusPerRank)} critical-hit chance.`,
+      });
+    }
+    case 'heroDodge': {
+      const before = effect.bonusPerRank * currentRank;
+      const after = effect.bonusPerRank * nextRank;
+      return Object.freeze({
+        category: 'Defense',
+        directDamage: false,
+        currentRank,
+        nextRank,
+        rankTransition: transition,
+        summary: `${effect.heroId} dodge chance +${formatPercent(before)} → +${formatPercent(after)} (combat cap still applies).`,
+        delta: `+${formatPercent(effect.bonusPerRank)} dodge chance.`,
+      });
+    }
+    case 'heroArmor': {
+      const before = effect.bonusPerRank * currentRank;
+      const after = effect.bonusPerRank * nextRank;
+      return Object.freeze({
+        category: 'Defense',
+        directDamage: false,
+        currentRank,
+        nextRank,
+        rankTransition: transition,
+        summary: `${effect.heroId} armor +${formatNumber(before)} → +${formatNumber(after)}.`,
+        delta: `+${formatNumber(effect.bonusPerRank)} armor.`,
+      });
+    }
+    case 'heroShield': {
+      const shieldBefore = effect.shieldBonusPerRank * currentRank;
+      const shieldAfter = effect.shieldBonusPerRank * nextRank;
+      const rechargeBefore = effect.rechargeBonusPerRank * currentRank;
+      const rechargeAfter = effect.rechargeBonusPerRank * nextRank;
+      return Object.freeze({
+        category: 'Defense',
+        directDamage: false,
+        currentRank,
+        nextRank,
+        rankTransition: transition,
+        summary: `${effect.heroId} shield +${formatNumber(shieldBefore)} → +${formatNumber(shieldAfter)}; recharge +${formatNumber(rechargeBefore)} → +${formatNumber(rechargeAfter)}/tick.`,
+        delta: `+${formatNumber(effect.shieldBonusPerRank)} shield and +${formatNumber(effect.rechargeBonusPerRank)}/tick recharge.`,
+      });
+    }
+    case 'basicAttack': {
+      const damageBefore = effect.damageBonusPerRank * currentRank;
+      const damageAfter = effect.damageBonusPerRank * nextRank;
+      const cooldownBefore = effect.cooldownReductionPerRank * currentRank;
+      const cooldownAfter = effect.cooldownReductionPerRank * nextRank;
+      const rangeBefore = (effect.rangeBonusPerRank ?? 0) * currentRank;
+      const rangeAfter = (effect.rangeBonusPerRank ?? 0) * nextRank;
+      const unlocked: string[] = [];
+      if (effect.projectileCountAtRank !== undefined && currentRank < effect.projectileCountAtRank && nextRank >= effect.projectileCountAtRank) {
+        unlocked.push('extra starter projectile unlocked');
+      }
+      if (effect.pierceAtRank !== undefined && currentRank < effect.pierceAtRank && nextRank >= effect.pierceAtRank) {
+        unlocked.push('starter pierce unlocked');
+      }
+      if (nextRank === definition.maxRank) unlocked.push('Master payoff unlocked');
+      const rangeSummary = effect.rangeBonusPerRank === undefined
+        ? ''
+        : `; range +${formatNumber(rangeBefore)} → +${formatNumber(rangeAfter)}`;
+      return Object.freeze({
+        category: 'Direct damage',
+        directDamage: true,
+        currentRank,
+        nextRank,
+        rankTransition: transition,
+        summary: `${effect.heroId} starter damage +${formatPercent(damageBefore)} → +${formatPercent(damageAfter)}; cooldown −${formatPercent(cooldownBefore)} → −${formatPercent(cooldownAfter)}${rangeSummary}${unlocked.length === 0 ? '.' : `; ${unlocked.join(', ')}.`}`,
+        delta: `+${formatPercent(effect.damageBonusPerRank)} starter damage and −${formatPercent(effect.cooldownReductionPerRank)} starter cooldown${effect.rangeBonusPerRank === undefined ? '' : `; +${formatNumber(effect.rangeBonusPerRank)} reach`}${unlocked.length === 0 ? '.' : `; ${unlocked.join(', ')}.`}`,
+      });
+    }
+  }
 }
 
 /** Return the current rank of a known upgrade. */

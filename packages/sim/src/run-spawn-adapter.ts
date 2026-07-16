@@ -1,4 +1,9 @@
-import type { RunDirectorEventView, RunFormationView, RunSpawnIntentView } from './run-director-port.js';
+import type {
+  RunBossProfileView,
+  RunDirectorEventView,
+  RunFormationView,
+  RunSpawnIntentView,
+} from './run-director-port.js';
 import {
   runEnemyContentFor,
   RUN_ENEMY_ROLE,
@@ -21,6 +26,8 @@ export interface DirectedEnemySpawn {
   /** Multiplier applied to this unit's authored XP drop. */
   readonly xpMultiplier: number;
   readonly role: RunEnemyRole;
+  /** Present only for an authored boss; consumed into authoritative behavior state. */
+  readonly bossProfile?: RunBossProfileView;
   readonly x: number;
   readonly y: number;
 }
@@ -46,9 +53,6 @@ export interface RunSpawnAdapterOptions {
   readonly eliteHpMultiplier?: number;
   /** Makes rare elite kills a visibly meaningful XP event. Default 6. */
   readonly eliteXpMultiplier?: number;
-  readonly bossHpMultiplier?: number;
-  /** Boss XP is unused after a terminal kill today, but stays explicit. Default 1. */
-  readonly bossXpMultiplier?: number;
 }
 
 const TAU = Math.PI * 2;
@@ -91,17 +95,21 @@ function mapping(
   intent: RunSpawnIntentView,
   eliteMultiplier: number,
   eliteXpMultiplier: number,
-  bossMultiplier: number,
-  bossXpMultiplier: number,
 ) {
   const content = runEnemyContentFor(intent.archetypeId);
   if (content === undefined) return null;
   if (intent.boss || content.reward === 'boss') {
+    const profile = intent.bossProfile;
+    if (profile === undefined) {
+      throw new RangeError('boss spawn intent must include an authored bossProfile');
+    }
+    validateBossProfile(profile);
     return {
       archetype: content.simulationArchetype,
-      hpMultiplier: bossMultiplier,
-      xpMultiplier: bossXpMultiplier,
+      hpMultiplier: profile.hpMultiplier,
+      xpMultiplier: profile.xpMultiplier,
       role: RUN_ENEMY_ROLE.boss,
+      bossProfile: profile,
     } as const;
   }
   if (intent.elite || content.reward === 'elite') {
@@ -118,6 +126,52 @@ function mapping(
     xpMultiplier: 1,
     role: content.role,
   } as const;
+}
+
+function validateBossProfile(profile: RunBossProfileView): void {
+  if (typeof profile.id !== 'string' || profile.id.length === 0) {
+    throw new RangeError('boss profile id must be a non-empty string');
+  }
+  for (const [name, value] of Object.entries({
+    hpMultiplier: profile.hpMultiplier,
+    xpMultiplier: profile.xpMultiplier,
+    speedMultiplier: profile.speedMultiplier,
+    touchDamageMultiplier: profile.touchDamageMultiplier,
+    preferredRange: profile.preferredRange,
+    chargeSpeedMultiplier: profile.chargeSpeedMultiplier,
+    projectileSpeed: profile.projectileSpeed,
+    projectileDamage: profile.projectileDamage,
+  })) {
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new RangeError(`boss profile ${name} must be finite and positive`);
+    }
+  }
+  for (const [name, value] of Object.entries({
+    rangeBand: profile.rangeBand,
+    projectileHitRadius: profile.projectileHitRadius,
+  })) {
+    if (!Number.isFinite(value) || value < 0) {
+      throw new RangeError(`boss profile ${name} must be finite and non-negative`);
+    }
+  }
+  for (const [name, value] of Object.entries({
+    cycleTicks: profile.cycleTicks,
+    chargeWindupTicks: profile.chargeWindupTicks,
+    chargeDurationTicks: profile.chargeDurationTicks,
+    volleyTick: profile.volleyTick,
+    projectileLifetimeTicks: profile.projectileLifetimeTicks,
+  })) {
+    if (!Number.isSafeInteger(value) || value < 1 || value > 0xffff) {
+      throw new RangeError(`boss profile ${name} must be a positive uint16`);
+    }
+  }
+  if (!Number.isSafeInteger(profile.volleyCount) || profile.volleyCount < 1 || profile.volleyCount > 32) {
+    throw new RangeError('boss profile volleyCount must be an integer in [1, 32]');
+  }
+  if (profile.volleyTick >= profile.cycleTicks) throw new RangeError('boss profile volleyTick must be inside cycleTicks');
+  if (profile.chargeWindupTicks + profile.chargeDurationTicks >= profile.volleyTick) {
+    throw new RangeError('boss profile charge must resolve before volleyTick');
+  }
 }
 
 function coordinates(playerX: number, playerY: number, angle: number, distance: number): readonly [number, number] {
@@ -167,13 +221,8 @@ export function createRunSpawnAdapter(options: RunSpawnAdapterOptions = {}) {
   const clusterDistanceStep = CLUSTER_DISTANCE_STEP * distanceScale;
   const eliteMultiplier = options.eliteHpMultiplier ?? 5;
   const eliteXpMultiplier = options.eliteXpMultiplier ?? 6;
-  // The first playable Greg boss needs a real response period before the
-  // normal-mode boundary. This remains an adapter-owned temporary tune until
-  // boss health moves into versioned run content.
-  const bossMultiplier = options.bossHpMultiplier ?? 18;
-  const bossXpMultiplier = options.bossXpMultiplier ?? 1;
   for (const [name, value] of Object.entries({
-    distanceScale, eliteMultiplier, eliteXpMultiplier, bossMultiplier, bossXpMultiplier,
+    distanceScale, eliteMultiplier, eliteXpMultiplier,
   })) {
     if (!Number.isFinite(value) || value <= 0) throw new RangeError(`${name} must be finite and positive`);
   }
@@ -195,7 +244,7 @@ export function createRunSpawnAdapter(options: RunSpawnAdapterOptions = {}) {
         if (!Number.isSafeInteger(intent.count) || intent.count < 1) {
           throw new RangeError('run spawn intent count must be a positive safe integer');
         }
-        const mapped = mapping(intent, eliteMultiplier, eliteXpMultiplier, bossMultiplier, bossXpMultiplier);
+        const mapped = mapping(intent, eliteMultiplier, eliteXpMultiplier);
         if (mapped === null) {
           stats.unsupportedArchetypes += intent.count;
           continue;

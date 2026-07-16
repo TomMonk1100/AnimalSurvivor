@@ -1,7 +1,6 @@
 import * as pc from 'playcanvas';
 import type { TraitPresentationEventView, TraitVisualAttachmentView } from '@sim';
 import type { RenderSnapshot } from '../contracts';
-import { createGregPresentation } from './greg-presentation';
 import { getHeroVisualProfile, type HeroId } from './hero-roster';
 import { createProceduralAnimalPresentation } from './procedural-animal-presentation';
 
@@ -142,9 +141,10 @@ export interface HeroPresentation {
 }
 
 /**
- * Keeps the audited Greg asset and the two procedural founding animals behind
- * one renderer-only surface. All three project the same authoritative trait
- * visual state, so the body-as-loadout rule survives the roster expansion.
+ * Keeps the three founder presentations behind one renderer-only surface. All
+ * three project the same authoritative trait visual state, so the
+ * body-as-loadout rule survives personal visual swaps without changing run
+ * state, replay IDs, or combat behavior.
  */
 export function createHeroPresentation(
   app: pc.Application,
@@ -154,7 +154,9 @@ export function createHeroPresentation(
   initialHeroId: HeroId = 'greg',
 ): HeroPresentation {
   getHeroVisualProfile(initialHeroId);
-  const greg = createGregPresentation(app, parent, worldHalfWidth, worldHalfHeight);
+  // `greg` remains the stable deterministic hero id. Its current presentation
+  // is Scout, an owner-authored dog cutout with fixed-tick gait/action motion.
+  const scout = createProceduralAnimalPresentation('greg', parent, worldHalfWidth, worldHalfHeight);
   const benny = createProceduralAnimalPresentation('benny', parent, worldHalfWidth, worldHalfHeight);
   const gracie = createProceduralAnimalPresentation('gracie', parent, worldHalfWidth, worldHalfHeight);
   const sigilMesh = createWildguardWayfinderMesh(app.graphicsDevice);
@@ -185,7 +187,7 @@ export function createHeroPresentation(
   let disposed = false;
 
   function syncVisibility(): void {
-    greg.setVisible(activeHeroId === 'greg');
+    scout.setVisible(activeHeroId === 'greg');
     benny.setVisible(activeHeroId === 'benny');
     gracie.setVisible(activeHeroId === 'gracie');
   }
@@ -193,10 +195,10 @@ export function createHeroPresentation(
 
   return {
     get ready() {
-      return activeHeroId === 'greg' ? greg.ready : activeHeroId === 'benny' ? benny.ready : gracie.ready;
+      return activeHeroId === 'greg' ? scout.ready : activeHeroId === 'benny' ? benny.ready : gracie.ready;
     },
     get failed() {
-      return activeHeroId === 'greg' && greg.failed;
+      return false;
     },
     setHero(heroId) {
       if (disposed) return;
@@ -209,7 +211,7 @@ export function createHeroPresentation(
     update(previous, current, alpha, traitVisualState, traitPresentationEvents = []) {
       if (disposed) return;
       if (activeHeroId === 'greg') {
-        greg.update(previous, current, alpha, traitVisualState, traitPresentationEvents);
+        scout.update(previous, current, alpha, traitVisualState, traitPresentationEvents);
       } else if (activeHeroId === 'benny') {
         benny.update(previous, current, alpha, traitVisualState, traitPresentationEvents);
       } else {
@@ -231,7 +233,7 @@ export function createHeroPresentation(
     dispose() {
       if (disposed) return;
       disposed = true;
-      greg.dispose();
+      scout.dispose();
       benny.dispose();
       gracie.dispose();
       heroShadow.destroy();

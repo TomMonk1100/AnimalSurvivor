@@ -7,6 +7,8 @@
  * movement phase between enemies.
  */
 
+import type { RunBossProfileView } from './run-director-port.js';
+
 export const ENEMY_BEHAVIOR_KIND = Object.freeze({
   direct: 0,
   runnerWeave: 1,
@@ -27,6 +29,19 @@ export interface EnemyBehaviorState {
   readonly hostileShotCooldown: Uint16Array;
   /** Cycle position for a live bespoke boss; zeroed on every pool reuse. */
   readonly bossPatternTick: Uint16Array;
+  /** Per-boss authored behavior profile, copied on spawn and canonical-hashed. */
+  readonly bossPreferredRange: Float32Array;
+  readonly bossRangeBand: Float32Array;
+  readonly bossCycleTicks: Uint16Array;
+  readonly bossChargeWindupTicks: Uint16Array;
+  readonly bossChargeDurationTicks: Uint16Array;
+  readonly bossChargeSpeedMultiplier: Float32Array;
+  readonly bossVolleyTick: Uint16Array;
+  readonly bossVolleyCount: Uint8Array;
+  readonly bossProjectileSpeed: Float32Array;
+  readonly bossProjectileDamage: Float32Array;
+  readonly bossProjectileLifetimeTicks: Uint16Array;
+  readonly bossProjectileHitRadius: Float32Array;
 }
 
 export function createEnemyBehaviorState(capacity: number): EnemyBehaviorState {
@@ -37,6 +52,18 @@ export function createEnemyBehaviorState(capacity: number): EnemyBehaviorState {
     kind: new Uint8Array(capacity),
     hostileShotCooldown: new Uint16Array(capacity),
     bossPatternTick: new Uint16Array(capacity),
+    bossPreferredRange: new Float32Array(capacity),
+    bossRangeBand: new Float32Array(capacity),
+    bossCycleTicks: new Uint16Array(capacity),
+    bossChargeWindupTicks: new Uint16Array(capacity),
+    bossChargeDurationTicks: new Uint16Array(capacity),
+    bossChargeSpeedMultiplier: new Float32Array(capacity),
+    bossVolleyTick: new Uint16Array(capacity),
+    bossVolleyCount: new Uint8Array(capacity),
+    bossProjectileSpeed: new Float32Array(capacity),
+    bossProjectileDamage: new Float32Array(capacity),
+    bossProjectileLifetimeTicks: new Uint16Array(capacity),
+    bossProjectileHitRadius: new Float32Array(capacity),
   };
 }
 
@@ -48,7 +75,7 @@ export function resetEnemyBehavior(
   isElite: boolean,
   eliteInitialFireDelayTicks: number,
   spitterInitialFireDelayTicks: number,
-  isBoss = false,
+  bossProfile?: RunBossProfileView,
 ): void {
   if (!Number.isInteger(slot) || slot < 0 || slot >= state.kind.length) {
     throw new RangeError(`enemy behavior slot is out of range: ${slot}`);
@@ -60,9 +87,34 @@ export function resetEnemyBehavior(
     throw new RangeError(`spitterInitialFireDelayTicks must be a uint16, got ${spitterInitialFireDelayTicks}`);
   }
   state.bossPatternTick[slot] = 0;
-  if (isBoss) {
+  state.bossPreferredRange[slot] = 0;
+  state.bossRangeBand[slot] = 0;
+  state.bossCycleTicks[slot] = 0;
+  state.bossChargeWindupTicks[slot] = 0;
+  state.bossChargeDurationTicks[slot] = 0;
+  state.bossChargeSpeedMultiplier[slot] = 0;
+  state.bossVolleyTick[slot] = 0;
+  state.bossVolleyCount[slot] = 0;
+  state.bossProjectileSpeed[slot] = 0;
+  state.bossProjectileDamage[slot] = 0;
+  state.bossProjectileLifetimeTicks[slot] = 0;
+  state.bossProjectileHitRadius[slot] = 0;
+  if (bossProfile !== undefined) {
+    validateBossProfile(bossProfile);
     state.kind[slot] = ENEMY_BEHAVIOR_KIND.bossApex;
     state.hostileShotCooldown[slot] = 0;
+    state.bossPreferredRange[slot] = bossProfile.preferredRange;
+    state.bossRangeBand[slot] = bossProfile.rangeBand;
+    state.bossCycleTicks[slot] = bossProfile.cycleTicks;
+    state.bossChargeWindupTicks[slot] = bossProfile.chargeWindupTicks;
+    state.bossChargeDurationTicks[slot] = bossProfile.chargeDurationTicks;
+    state.bossChargeSpeedMultiplier[slot] = bossProfile.chargeSpeedMultiplier;
+    state.bossVolleyTick[slot] = bossProfile.volleyTick;
+    state.bossVolleyCount[slot] = bossProfile.volleyCount;
+    state.bossProjectileSpeed[slot] = bossProfile.projectileSpeed;
+    state.bossProjectileDamage[slot] = bossProfile.projectileDamage;
+    state.bossProjectileLifetimeTicks[slot] = bossProfile.projectileLifetimeTicks;
+    state.bossProjectileHitRadius[slot] = bossProfile.projectileHitRadius;
     return;
   }
   if (isElite) {
@@ -99,4 +151,37 @@ export function resetEnemyBehavior(
     ? ENEMY_BEHAVIOR_KIND.runnerWeave
     : ENEMY_BEHAVIOR_KIND.direct;
   state.hostileShotCooldown[slot] = 0;
+}
+
+function validateBossProfile(profile: RunBossProfileView): void {
+  const tickValues = [
+    profile.cycleTicks,
+    profile.chargeWindupTicks,
+    profile.chargeDurationTicks,
+    profile.volleyTick,
+    profile.projectileLifetimeTicks,
+  ];
+  if (tickValues.some((value) => !Number.isSafeInteger(value) || value < 1 || value > 0xffff)) {
+    throw new RangeError('boss profile ticks must be positive uint16 values');
+  }
+  if (!Number.isSafeInteger(profile.volleyCount) || profile.volleyCount < 1 || profile.volleyCount > 32) {
+    throw new RangeError('boss profile volleyCount must be an integer in [1, 32]');
+  }
+  for (const value of [
+    profile.preferredRange,
+    profile.rangeBand,
+    profile.chargeSpeedMultiplier,
+    profile.projectileSpeed,
+    profile.projectileDamage,
+    profile.projectileHitRadius,
+  ]) {
+    if (!Number.isFinite(value) || value < 0) throw new RangeError('boss profile has an invalid numeric value');
+  }
+  if (profile.preferredRange <= 0 || profile.chargeSpeedMultiplier <= 0 || profile.projectileSpeed <= 0 || profile.projectileDamage <= 0) {
+    throw new RangeError('boss profile has a non-positive combat value');
+  }
+  if (profile.volleyTick >= profile.cycleTicks) throw new RangeError('boss profile volleyTick must be inside cycleTicks');
+  if (profile.chargeWindupTicks + profile.chargeDurationTicks >= profile.volleyTick) {
+    throw new RangeError('boss profile charge must resolve before volleyTick');
+  }
 }

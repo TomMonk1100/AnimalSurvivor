@@ -8,6 +8,7 @@
 
 import type {
   ArchetypeDefinition,
+  BossCombatProfile,
   EliteBeatDefinition,
   PhaseDefinition,
   RunDefinition,
@@ -28,6 +29,11 @@ import {
 
 function isPosInt(value: number): boolean {
   return Number.isFinite(value) && Number.isInteger(value) && value > 0;
+}
+
+/** Boss timing values are copied into Uint16Arrays by the simulation. */
+function isPosUint16(value: number): boolean {
+  return isPosInt(value) && value <= 0xffff;
 }
 
 function isNonNegInt(value: number): boolean {
@@ -323,6 +329,55 @@ function validateBoss(
   }
   if (boss.minDistance > boss.maxDistance) {
     throw new Error('validateDefinition: boss minDistance must be <= maxDistance');
+  }
+  validateBossProfile(boss.profile);
+}
+
+function validateBossProfile(profile: BossCombatProfile): void {
+  if (typeof profile.id !== 'string' || !/^[a-z0-9][a-z0-9:-]*$/.test(profile.id)) {
+    throw new Error('validateDefinition: boss profile id must be a non-empty lowercase stable id');
+  }
+  for (const [name, value] of Object.entries({
+    hpMultiplier: profile.hpMultiplier,
+    xpMultiplier: profile.xpMultiplier,
+    speedMultiplier: profile.speedMultiplier,
+    touchDamageMultiplier: profile.touchDamageMultiplier,
+    preferredRange: profile.preferredRange,
+    chargeSpeedMultiplier: profile.chargeSpeedMultiplier,
+    projectileSpeed: profile.projectileSpeed,
+    projectileDamage: profile.projectileDamage,
+  })) {
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error(`validateDefinition: boss profile ${name} must be finite and positive`);
+    }
+  }
+  for (const [name, value] of Object.entries({
+    rangeBand: profile.rangeBand,
+    projectileHitRadius: profile.projectileHitRadius,
+  })) {
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error(`validateDefinition: boss profile ${name} must be finite and non-negative`);
+    }
+  }
+  for (const [name, value] of Object.entries({
+    cycleTicks: profile.cycleTicks,
+    chargeWindupTicks: profile.chargeWindupTicks,
+    chargeDurationTicks: profile.chargeDurationTicks,
+    volleyTick: profile.volleyTick,
+    projectileLifetimeTicks: profile.projectileLifetimeTicks,
+  })) {
+    if (!isPosUint16(value)) {
+      throw new Error(`validateDefinition: boss profile ${name} must be a positive uint16`);
+    }
+  }
+  if (!isPosInt(profile.volleyCount) || profile.volleyCount > 32) {
+    throw new Error('validateDefinition: boss profile volleyCount must be an integer in [1, 32]');
+  }
+  if (profile.volleyTick >= profile.cycleTicks) {
+    throw new Error('validateDefinition: boss profile volleyTick must be inside cycleTicks');
+  }
+  if (profile.chargeWindupTicks + profile.chargeDurationTicks >= profile.volleyTick) {
+    throw new Error('validateDefinition: boss profile charge must resolve before volleyTick');
   }
 }
 

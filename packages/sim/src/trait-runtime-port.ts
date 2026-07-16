@@ -24,6 +24,8 @@ export interface TraitRuntimeCommandView {
   readonly sourceId: string;
   readonly tick: number;
   readonly targeting: string;
+  /** Optional while legacy runtimes retain player-origin command behavior. */
+  readonly anchor?: 'player' | 'triggerTarget';
   readonly originX: number;
   readonly originY: number;
   readonly dirX: number;
@@ -74,6 +76,16 @@ export interface TraitFusionOfferView {
   readonly evolutionId: string;
   readonly ingredients: readonly [string, string];
   readonly freesLogicalSlot: true;
+  /** Optional player-facing Chimera preview metadata. */
+  readonly displayName?: string;
+  readonly rarity?: string;
+  readonly temperamentId?: string;
+  readonly leanId?: string;
+  readonly pairKind?: 'perfect' | 'wild' | 'support';
+  /** Stable renderer-facing flavor selection for this offer. */
+  readonly flavorIndex?: number;
+  /** Stable renderer-facing variant roll for this offer. */
+  readonly variantSeed?: number;
 }
 
 export type TraitUpgradeOutcomeView =
@@ -124,6 +136,18 @@ export interface TraitVisualAttachmentView {
   readonly sockets: readonly string[];
   readonly visualKey: string;
   readonly enabled: boolean;
+  /** True for renderer-only attachment state that has no gameplay authority. */
+  readonly visualOnly?: boolean;
+  /** Parent traits retained by a synthesized Chimera attachment. */
+  readonly chimeraParents?: readonly [string, string];
+  /** Optional player-facing Chimera metadata retained for renderer projection. */
+  readonly displayName?: string;
+  readonly rarity?: string;
+  readonly temperamentId?: string;
+  readonly leanId?: string;
+  readonly pairKind?: 'perfect' | 'wild' | 'support';
+  readonly flavorIndex?: number;
+  readonly variantSeed?: number;
 }
 
 export interface TraitRuntimePort {

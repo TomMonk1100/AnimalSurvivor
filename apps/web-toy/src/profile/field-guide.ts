@@ -59,19 +59,19 @@ export interface FieldGuideRecipe {
 }
 
 const HERO_NAMES: Readonly<Record<HeroId, string>> = Object.freeze({
-  greg: 'Greg',
+  greg: 'Scout',
   benny: 'Benny',
   gracie: 'Gracie',
 });
 
 const HERO_PORTRAITS: Readonly<Record<HeroId, Pick<FieldGuidePortrait, 'glyph' | 'accent'>>> = Object.freeze({
-  greg: Object.freeze({ glyph: 'G', accent: '#f1c27d' }),
+  greg: Object.freeze({ glyph: 'S', accent: '#187d83' }),
   benny: Object.freeze({ glyph: 'B', accent: '#d69052' }),
   gracie: Object.freeze({ glyph: 'G', accent: '#8bd8bb' }),
 });
 
 const HERO_PORTRAIT_ASSETS: Readonly<Record<HeroId, string>> = Object.freeze({
-  greg: new URL('../../../../assets/ui/field-guide/greg-final-form-v1.png', import.meta.url).href,
+  greg: new URL('../../../../assets/ui/field-guide/scout-final-form-v1.png', import.meta.url).href,
   benny: new URL('../../../../assets/ui/field-guide/benny-final-form-v1.png', import.meta.url).href,
   gracie: new URL('../../../../assets/ui/field-guide/gracie-final-form-v1.png', import.meta.url).href,
 });

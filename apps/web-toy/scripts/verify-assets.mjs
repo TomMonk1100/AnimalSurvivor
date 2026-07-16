@@ -9,7 +9,7 @@ const assetsRoot = join(workspaceRoot, 'assets');
 const ledgerPath = join(assetsRoot, 'ASSET_LEDGER.md');
 const gladeRoot = join(workspaceRoot, 'apps', 'web-toy', 'public', 'art', 'quaternius', 'glade');
 const portraitFiles = [
-  'ui/field-guide/greg-final-form-v1.png',
+  'ui/field-guide/scout-final-form-v1.png',
   'ui/field-guide/benny-final-form-v1.png',
   'ui/field-guide/gracie-final-form-v1.png',
 ];
@@ -17,9 +17,10 @@ const bossPortraitFiles = [
   'ui/bosses/final-threat-v1.png',
   'ui/bosses/sandglass-sovereign-v1.png',
 ];
-const keyArtFile = 'ui/keyart/storybook-wildguard-forest-v1.jpg';
+const keyArtFile = 'ui/keyart/storybook-wildguard-scout-v1.jpg';
 const terrainFile = 'ui/terrain/storybook-glade-ground-v1.jpg';
 const playableHeroSprites = [
+  { relativePath: 'ui/heroes/scout-pouncer-v1.png', width: 1254, height: 1254, maxBytes: 750_000 },
   { relativePath: 'ui/heroes/benny-bastion-v1.png', width: 1254, height: 1254, maxBytes: 1_000_000 },
   { relativePath: 'ui/heroes/gracie-surveyor-v1.png', width: 1254, height: 1254, maxBytes: 1_000_000 },
 ];
@@ -49,7 +50,6 @@ const vfxAtlases = [
   { relativePath: 'ui/vfx/wildguard-signature-debris-v1.png', width: 512, height: 128, maxBytes: 50_000 },
   { relativePath: 'ui/vfx/wildguard-ground-contact-v1.png', width: 256, height: 128, maxBytes: 25_000 },
 ];
-const foxPath = 'vendor/quaternius/ultimate_animated_animals/Fox.gltf';
 const gladeFiles = [
   'Bark_NormalTree.jpg',
   'Bush_Common_Flowers.bin',
@@ -96,7 +96,6 @@ const gladeModels = [
 const MAX_PORTRAIT_BYTES = 1_000_000;
 const MAX_KEY_ART_BYTES = 600_000;
 const MAX_TERRAIN_BYTES = 800_000;
-const MAX_FOX_BYTES = 4_000_000;
 const MAX_GLADE_BYTES = 1_250_000;
 // The completed VFX pass adds compact alpha atlases for player effects,
 // source-preserving eight-frame dissolves, and one small contact mask. The
@@ -186,50 +185,6 @@ function assertLedgerHash(ledger, relativePath, hash) {
   const ledgerLine = ledger.split('\n').find((line) => line.includes(`\`${relativePath}\``));
   if (ledgerLine === undefined || !ledgerLine.includes(hash)) {
     fail(`${relativePath} hash ${hash} is not recorded on its ledger row`);
-  }
-}
-
-function validateFoxGltf(contents) {
-  let gltf;
-  try {
-    gltf = JSON.parse(contents.toString('utf8'));
-  } catch (error) {
-    fail(`${foxPath} is not valid JSON glTF: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  if (typeof gltf !== 'object' || gltf === null || Array.isArray(gltf)) {
-    fail(`${foxPath} must contain a glTF object`);
-  }
-  if (gltf.asset?.version !== '2.0') fail(`${foxPath} must declare glTF asset version 2.0`);
-  if (!Number.isInteger(gltf.scene) || gltf.scene < 0 || gltf.scene >= (gltf.scenes?.length ?? 0)) {
-    fail(`${foxPath} must point at a valid default scene`);
-  }
-  if (!Array.isArray(gltf.nodes) || gltf.nodes.length < 1) fail(`${foxPath} must contain scene nodes`);
-  if (!Array.isArray(gltf.meshes) || gltf.meshes.length < 1) fail(`${foxPath} must contain a mesh`);
-  if (!Array.isArray(gltf.skins) || gltf.skins.length < 1) fail(`${foxPath} must contain a skin for the audited animated hero`);
-  if (!Array.isArray(gltf.animations) || gltf.animations.length < 1) fail(`${foxPath} must contain animations`);
-
-  const animationNames = new Set(gltf.animations.map((animation) => animation?.name).filter((name) => typeof name === 'string'));
-  for (const requiredName of ['Idle', 'Walk', 'Gallop', 'Attack', 'Death']) {
-    if (!animationNames.has(requiredName)) fail(`${foxPath} is missing required animation "${requiredName}"`);
-  }
-
-  if (!Array.isArray(gltf.buffers) || gltf.buffers.length < 1) fail(`${foxPath} must contain at least one buffer`);
-  for (const [index, buffer] of gltf.buffers.entries()) {
-    if (typeof buffer?.uri !== 'string' || !buffer.uri.startsWith('data:')) {
-      fail(`${foxPath} buffer ${index} must be embedded as a data URI`);
-    }
-    const comma = buffer.uri.indexOf(',');
-    if (comma < 0) fail(`${foxPath} buffer ${index} has a malformed data URI`);
-    const encoded = buffer.uri.slice(comma + 1);
-    let decoded;
-    try {
-      decoded = Buffer.from(encoded, 'base64');
-    } catch (error) {
-      fail(`${foxPath} buffer ${index} is not valid base64: ${error instanceof Error ? error.message : String(error)}`);
-    }
-    if (decoded.length !== buffer.byteLength) {
-      fail(`${foxPath} buffer ${index} byteLength ${buffer.byteLength} does not match embedded payload ${decoded.length}`);
-    }
   }
 }
 
@@ -366,14 +321,6 @@ function main() {
     totalBytes += atlas.bytes;
   }
 
-  const fox = requiredFile(foxPath);
-  if (fox.bytes > MAX_FOX_BYTES) fail(`${foxPath} exceeds ${MAX_FOX_BYTES} bytes (${fox.bytes})`);
-  if (!ledger.includes(`\`${foxPath}\``)) fail(`${foxPath} is absent from ASSET_LEDGER.md`);
-  const foxContents = readFileSync(fox.absolutePath);
-  validateFoxGltf(foxContents);
-  assertLedgerHash(ledger, foxPath, sha256(foxContents));
-  totalBytes += fox.bytes;
-
   const gladeAssets = new Map();
   let gladeBytes = 0;
   for (const fileName of gladeFiles) {
@@ -418,7 +365,7 @@ function main() {
     fail(`runtime asset payload exceeds ${MAX_RUNTIME_ASSET_BYTES} bytes (${totalBytes})`);
   }
 
-  console.log(`[verify-assets] ${portraitFiles.length} hero portraits + ${bossPortraitFiles.length} boss portraits + key art + terrain + ${playableHeroSprites.length} playable hero sprites + ${enemySprites.length} enemy sprites + ${vfxAtlases.length} VFX textures + Fox glTF + ${gladeFiles.length} curated glade files validated; ${totalBytes} source bytes within budget`);
+  console.log(`[verify-assets] ${portraitFiles.length} Field Guide portraits + ${bossPortraitFiles.length} boss portraits + key art + terrain + ${playableHeroSprites.length} playable hero sprites + ${enemySprites.length} enemy sprites + ${vfxAtlases.length} VFX textures + ${gladeFiles.length} curated glade files validated; ${totalBytes} source bytes within budget`);
 }
 
 try {

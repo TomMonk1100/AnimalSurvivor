@@ -1,8 +1,8 @@
 # Current Project Status
 
-**Updated:** 2026-07-13 — attack-family visual overhaul in final automated capture and panel review
-**Active milestone:** V1.1 feature-complete visual-overhaul candidate; automated visual gate, panel review, owner playtest, and balance evidence next
-**Project state:** Playtestable V1.1 candidate with deterministic implementation coverage and a renderer-only combat-language overhaul; the pre-integration visual approval claim has been withdrawn pending fresh evidence
+**Updated:** 2026-07-16 — V1.2 playtest-response pass and universal Wild Splice fusion implementation added; visual-panel flash gate passes
+**Active milestone:** V1.2 tempo, power-feedback, boss, and music playtest candidate; owner playtest evidence next
+**Project state:** Playtestable deterministic V1.2 candidate with a compressed six-minute normal run, versioned apex tuning, truthful upgrade impact feedback, and longer phase-score programs; no human-balance claim yet
 **Budget model:** AI subscription usage; no additional cash
 
 The external blind Claude swarm package has been reconciled in
@@ -10,8 +10,77 @@ The external blind Claude swarm package has been reconciled in
 Its standalone prototypes remain reference-only; no speculative content was
 merged from them.
 
+## V1.2 playtest-response — implemented 2026-07-15
+
+The first external playtest reported that runs were too easy and long, the
+opening felt slow, upgrades did not feel consequential, the apex was too easy,
+and the music repeated too quickly. This pass changes the real deterministic
+content rather than adding a presentation-only difficulty claim.
+
+- Normal mode is **6:00** with no overtime: Opening 0:00–0:45, Pressure
+  0:45–2:15, Adaptation 2:15–3:45, Mutation 3:45–4:45, and Boss 4:45–6:00.
+  The apex warning begins at 4:25; warned elite requests are 1:10, 2:25, 3:15,
+  3:55, 4:15, and 4:35.
+- The Final Threat now carries a versioned, fingerprinted `forest-final-threat-v3`
+  profile rather than an adapter-only multiplier. Its 56x HP, movement, charge,
+  and volley values are simulation/replay-bound. The deterministic strong-build
+  regression reaches a 48.48-second boss TTK; a stationary clean baseline ends
+  at the deadline with 27.60% boss HP remaining. These are engineering targets,
+  not human difficulty certification.
+- Upgrade offers, pause cards, and post-pick confirmation now show the actual
+  rank transition and label Direct damage, Crowd control, Targeting, Defense,
+  or Economy / utility truthfully. The deterministic Upgrade Impact Lab covers
+  65 rank transitions: 30 direct-damage comparisons produce positive
+  authoritative health deltas and 35 utility rows report their real stat lane.
+- The procedural score now runs a twelve-variation, bar-aligned phrase program
+  per music state. The fastest boss state takes about 57.6 seconds before its
+  exact program repeats; audio remains opt-in and presentation-only.
+- The bright Fox Swipe/Rush Rake illustration now uses a renderer-only
+  flash-safe cadence and reduced card heat. The exact rendered VFX audit passes
+  at or below 3 luminance swings per second against its 3-swing limit; combat simulation,
+  damage, and ordinary hit feedback remain unchanged.
+
+The owner playtest route and report template are in
+[`docs/playtests/v1-2-tempo-power-boss-audio.md`](../playtests/v1-2-tempo-power-boss-audio.md).
+
 The deterministic simulation is the production package `packages/sim`. Release
 verification and the web toy resolve the simulation through that package path.
+
+## Agent Harness v1 — implemented 2026-07-15
+
+The repository now carries a local, dependency-free operating harness for
+bounded AI-assisted work. It extends existing verification rather than adding a
+runtime service, paid model API, autonomous merge, or a second gameplay
+authority.
+
+- [`AGENTS.md`](../../AGENTS.md) is the canonical task, ownership, validation,
+  and handoff guide. [`CLAUDE.md`](../../CLAUDE.md) is a compact compatible
+  entry point; [`REVIEW.md`](../../REVIEW.md) defines evidence-based review.
+- `npm run verify:changed -- --files <repo-relative-paths> --dry-run` routes a
+  change to conservative package gates. It supports a Git-base route and JSON
+  handoffs, but mixed, unknown, root-tooling, and lockfile diffs recommend the
+  full `npm run verify:release` gate rather than silently under-testing.
+- `npm run verify:agent-contracts` checks the harness documents and stable
+  deterministic-package import boundaries. `npm run test:agent-harness` runs
+  12 deterministic routing/fixture checks. The normal GitHub verification
+  workflow now runs both checks in a dedicated Agent Harness job.
+- `npm --prefix apps/web-toy run verify:agent-smoke` builds and loopback-serves
+  the artifact, proves a visible seeded WebGL Start/Pause/Resume flow, and
+  reports a bounded terminal route as JSON. The terminal lane uses only the
+  existing hidden diagnostics renderer toggle after the visible proof and
+  labels that acceleration as non-player-visible; it is not visual or player
+  evidence.
+
+Validation on 2026-07-16: harness fixtures passed 12/12; the contract check
+covered 116 deterministic source/test files; focused browser-smoke tests passed
+5/5; the full browser smoke reached victory at tick 26,353 with matching build
+identity, no console errors/page errors/request failures, and closed its
+browser/server. The root release command passed its supply-chain, package,
+asset, content, artifact, served-build, and 180-second VFX flash gates. The
+flash audit reached, but did not exceed, its maximum of three luminance
+reversals in any one-second cell window; the compact technical record is
+[`docs/vfx/captures/final-review.md`](../vfx/captures/final-review.md). This
+does not establish a human visual or accessibility approval.
 
 ## V1.1 implementation handoff
 
@@ -63,15 +132,16 @@ Automated gates establish deterministic safety and bounded renderer behavior;
 a fresh owner pass is still the authority for whether the visual contrast feels
 right on the intended display.
 
-### Final visual-panel gate — pending current evidence
+### Final visual-panel technical gate — current evidence captured
 
-The prior panel statement was based on a capture that predates the integrated
-P2/P3/P6 renderer work and whose flash audit failed. It is not acceptance
-evidence. Closure requires a fresh normal-speed 30 s/180 s capture, a green
-180 s flash gate, current P1–P5 phase reports, and three independent harsh
-reviews against the ten-point rubric. The resulting decision will be recorded
-in `docs/vfx/captures/final-review.md`; it remains separate from the owner's
-human playtest.
+The older panel statement was based on a capture that predates the integrated
+P2/P3/P6 renderer work and whose flash audit failed. It is superseded for the
+technical flash-safety gate by the current normal-speed 180-second capture:
+the 8 × 8 luminance audit passed at no more than three reversals per second in
+every cell. The compact result is recorded in
+[`docs/vfx/captures/final-review.md`](../vfx/captures/final-review.md).
+Independent visual review, reduced-motion/accessibility evaluation, and owner
+human playtesting remain open and are not implied by this automated result.
 
 ### Six delivered pillars
 
@@ -80,11 +150,16 @@ human playtest.
    fires a **Spit Volley** that grows into a fan. Each resolves authoritatively,
    has a dedicated visible effect, and is replay/hash-bound through run-loadout
    version 4.
-2. **Five-rank attacks and free Master fusions.** Attack traits and starter
-   mastery cards rank from 1 to 5. Rank 5 is **MASTER**. When two compatible
-   Master attack traits match an authored recipe, the player takes an explicit,
-   free fusion that consumes one logical attack slot while retaining the fused
-   visual attachment footprint.
+2. **Five-rank attacks and Wild Splice.** Attack traits and starter mastery
+   cards rank from 1 to 5. Rank 5 is **MASTER**. Any two enabled Master attack
+   traits can receive an explicit, free Wild Splice offer: all 66 canonical
+   pairs are legal. The six former authored recipes remain signature
+   **Perfect Pairs**; the six all-utility pairs become **Support Chimeras**,
+   with one Support Chimera allowed per run. A splice turns two logical attack
+   slots into one and therefore frees a slot, while retaining both parents'
+   attachment footprint and adding the Chimera seam. Chimeras are terminal in
+   this version: they cannot rank further or re-fuse. The expanded acquired
+   capacity permits a ceiling of three terminal Chimeras in one run.
 3. **Crit and hero defenses.** All heroes start at 5% crit chance; **Keen Eye**
    adds 3% per rank. Greg has dodge and **Clever Footwork**, Benny has baseline
    armor and **Thick Skin**, and Gracie's **Fluffy Shield** absorbs damage before
@@ -113,10 +188,16 @@ with a fixed seed such as `?hero=greg&seed=1234` (then `benny` and `gracie`).
 - **Starter read:** Greg should damage close threats with a wide swipe and no
   starter projectile; Benny should create successive forward earth fronts, not
   bolts; Gracie should begin with one visible spit glob.
-- **Mastery read:** rank a starter Mastery to 5 and confirm its Master payoff:
-  Greg double-swipes, Benny gains a wilder Trample/aftershock, and Gracie gains
-  the final spit fan. Rank two compatible attack traits to Master and confirm
-  the free fusion prompt replaces two logical attack slots with one.
+- **Mastery and Wild Splice read:** rank a starter Mastery to 5 and confirm its
+  Master payoff: Greg double-swipes, Benny gains a wilder Trample/aftershock,
+  and Gracie gains the final spit fan. Rank any two enabled attack traits to
+  Master and confirm the explicit Wild Splice preview replaces two logical
+  attack slots with one, keeps both parent attachments visible, and cannot be
+  ranked or fused again. Compare a normal Wild Splice with a labelled Perfect
+  Pair; if a run reaches an all-utility pair, confirm its Support label and
+  that a second Support Chimera is not offered. In a late build, confirm the
+  freed slots allow up to three terminal Chimeras without exceeding five active
+  cards.
 - **Survival/crit read:** check that normal hit numbers are white and crits are
   yellow. Take hits with each hero: Greg can dodge, Benny's armor reduces the
   health loss, and Gracie's shield is spent before health then recovers. Choose
@@ -171,8 +252,9 @@ an engineering flow check, not a substitute for a human playtest.
 
 - Balance values, power-pickup cadence, boss tuning, and player-facing clarity
   still need owner evidence; automated tests do not establish fun or fairness.
-- Fusions exist only for compatible authored recipes and require an explicit
-  player choice; there is no arbitrary two-card combination or automatic fuse.
+- Wild Splice is player-chosen rather than automatic: it allows any two enabled
+  Master attacks, but the resulting terminal Chimera cannot re-fuse and one
+  run cannot hold more than one Support Chimera.
 - Damage numbers and locomotion are intentionally presentation-only. They must
   never become a second source of combat truth or modify deterministic state.
 - Benny and Gracie's movement is purposeful procedural presentation over
@@ -209,8 +291,8 @@ The founding roster has a deterministic browser survival loop with:
   victory, with earlier flanker/support pressure and a dedicated renderer
   palette, placement seed, and deterministic ruin-landmark dressing; a fresh
   profile remains Forest-only and Forest Arsenal is the default;
-- an eight-minute normal run: Opening (0:00–1:00), Pressure (1:00–3:00),
-  Adaptation (3:00–5:00), Mutation (5:00–6:30), and Boss (6:30–8:00);
+- a six-minute normal run: Opening (0:00–0:45), Pressure (0:45–2:15),
+  Adaptation (2:15–3:45), Mutation (3:45–4:45), and Boss (4:45–6:00);
 - off-screen approach waves, weaving runners, deterministic wind-up Chargers,
   spacing Denial threats, lateral Flankers, healing Support threats, ranged
   Spitters and elites, six warned elite requests, and a biome-specific apex;
@@ -222,8 +304,8 @@ The founding roster has a deterministic browser survival loop with:
   biome identity, while the boss bar now carries distinct authored Forest and
   Saltwind portrait tiles and the browser audio layer gives boss warning and
   arrival events distinct rate-safe cues;
-- four active-attack slots: the selected animal's distinct starter attack plus up to three acquired
-  choices from a 12-family launch pool;
+- five active-attack cards: the selected animal's distinct starter attack plus
+  up to four acquired choices from a 12-family launch pool;
 - three authored five-rank starter masteries: Greg's Pouncer's Precision,
   Benny's Trample Mastery, and Gracie's Spit Spiral; each reaches MASTER at
   rank five while keeping its distinct melee, ground-wave, or projectile identity;
@@ -232,16 +314,22 @@ The founding roster has a deterministic browser survival loop with:
   replay/hash coverage, rather than firing continuously while walking;
 - Benny's contact-charged **Brace Bloom** shockwave and Gracie's periodic **Scout**
   marks are authoritative, replay-safe, and rendered with dedicated cues;
-- **Quills** (a piercing forward volley), Puffer, **Electric Eel Coil** (an instant nearest-target strike that
-  chains to nearby unhit foes), **Firefly Colony** (orbiting contact fireflies), **Mantis Scythes**
-  (an auto-aimed directional scythe sweep), **Gecko Pads** (damaging pads after movement), **Bat Ears**
-  (sonar marks that every automatic attack prioritizes), and **Monarch Brood** (orbiting contact butterflies),
-  plus **Owl Pinions**, **Crab Pincers**, **Armadillo Greaves**, and **Skunk Brush**. Their paired two-slot Mythics are **Thornstorm Mantle**, **Thunderbug Dynamo**,
-  **Razorstep Chimera**, **Midnight Radar**, **Meteor Mauler**, and **Royal Stinkcloud**;
-- a developer-only `?debug=1` attack proof panel that runs 34 isolated,
-  deterministic 20-second weak-target cases and reports authoritative total
-  damage, kills, hits, and verified utility effects. All 27 direct-damage
-  cases and all 7 utility-only cases currently pass;
+- **Quills** (a piercing forward volley), Puffer, **Electric Eel Coil** (an
+  instant nearest-target strike that chains to nearby unhit foes), **Firefly
+  Colony** (orbiting contact fireflies), **Mantis Scythes** (an auto-aimed
+  directional scythe sweep), **Gecko Pads** (damaging pads after movement),
+  **Bat Ears** (sonar marks that every automatic attack prioritizes), and
+  **Monarch Brood** (orbiting contact butterflies), plus **Owl Pinions**,
+  **Crab Pincers**, **Armadillo Greaves**, and **Skunk Brush**. Any two enabled
+  Masters can form one of 66 Wild Splices: the six former named recipes are
+  Perfect Pairs, while six utility-only combinations are Support Chimeras and
+  the rest are standard Wild Splices. Each splice frees one logical acquired
+  slot, retains both parent attachments, and is terminal; only one Support
+  Chimera is permitted per run;
+- a developer-only `?debug=1` Chimera Lab that runs all 66 deterministic,
+  20-second weak-target pair cases, reports authoritative total damage, kills,
+  hits, and utility effects, and checks the planned DPS envelope plus the six
+  Support-Chimera utility observations;
 - deterministic mark-target commands now back Bat Ears and Midnight Radar, with visible sonar/weak-point
   feedback and shared automatic targeting; authored stink-cloud damage zones back Skunk Brush and Royal Stinkcloud;
 - five distinct neutral passive footprints, rank-up continuation for selected
@@ -254,10 +342,13 @@ The founding roster has a deterministic browser survival loop with:
 - terminal runs are archived in a bounded local Field Guide with generated build
   names, seed, hero, outcome, run stats, active forms, and ecology notes; the
   version-six save supports migration, corrupt-save recovery, export, import,
-  reset, a complete six-recipe Mythic compendium with ingredient pairs and
-  locked/discovered states, persistent discovered-Mythic recipe titles, the
-  first horizontal biome unlock, and Mythic-earned presentation palettes that
-  tint prep and arena presentation. Each archived build also receives an authored final-form
+  reset, and a six-card **Perfect Pair** reference with ingredient pairs and
+  locked/discovered states. That reference is not a Wild Splice restriction:
+  all enabled Master pairs remain eligible in a run, subject only to the
+  one-Support-Chimera cap. The profile also preserves
+  discovered named-form titles, the first horizontal biome unlock, and
+  Mythic-earned presentation palettes that tint prep and arena presentation.
+  Each archived build also receives an authored final-form
   portrait tile and an evolution tree with recipe ingredients; the portrait
   files are bundled, hashed, ledgered, and protected by a deterministic glyph
   fallback. The archive also derives a six-card no-currency Habitat Atlas and
@@ -318,31 +409,34 @@ The founding roster has a deterministic browser survival loop with:
 
 ## Forest Arsenal run contract
 
-Normal mode has a hard **8:00** boundary and no overtime. The boss is requested
-at **6:30** after a warning at **6:10**. Elite requests occur at **2:00**,
-**3:40**, **4:30**, **5:15**, **5:45**, and **6:05**; each gets a five-second
+Normal mode has a hard **6:00** boundary and no overtime. The boss is requested
+at **4:45** after a warning at **4:25**. Elite requests occur at **1:10**,
+**2:25**, **3:15**, **3:55**, **4:15**, and **4:35**; each gets a five-second
 warning.
 
-Active builds cannot exceed the starter plus three acquired traits. A Mythic
-retains the two slots used by its ingredients. Neutral builds cannot exceed five
-distinct passive families, though a selected passive can continue ranking up.
+Active builds cannot exceed the starter plus four acquired traits, for five
+active cards total. A Wild Splice replaces two enabled Masters with one terminal
+Chimera, freeing one logical acquired slot while retaining both parent attachment
+footprints. That economy permits up to three terminal Chimeras in a run. All 66
+Master pairs are eligible, with six Perfect Pairs, six Support Chimeras, and a
+one-Support-Chimera-per-run cap. Neutral builds cannot exceed five distinct
+passive families, though a selected passive can continue ranking up.
 **Sharpened Instinct** and **Rapid Instinct** now affect every current attack,
 not only starter fire.
 
 ## What still needs evidence
 
-- A fresh human retest of the compressed eight-minute curve. The V1 cleanup
-  lowers early fodder formation caps, brings the first XP thresholds forward,
-  and softens/slows Adaptation escalation; is pressure now urgent, fair, and
-  readable from opening through boss?
-- Attack clarity: can a player distinguish Quills, Puffer, Coil, orbiting Firefly,
-  Mantis Scythes, and Gecko Pads; understand each Mythic; and find build
-  details naturally in the pause panel?
+- A fresh human retest of the V1.2 six-minute curve. Is pressure urgent, fair,
+  and readable from opening through boss on both a fresh and an earned profile?
+- Attack clarity: can a player distinguish the 12 trait families, understand
+  that any two enabled Masters can form a Wild Splice, recognize the Perfect
+  Pair and Support Chimera labels, and find the freed-slot/parent-braid details
+  naturally in the pause panel?
 - Forest readability: does the clearing improve movement and threat awareness
   without hiding pickups, projectiles, or enemy silhouettes?
 - Human confirmation that the verified deterministic/browser integration feels
   as clear and satisfying as its automated coverage: slots, evolutions,
-  passives, and the eight-minute terminal boundary all have focused tests.
+  passives, and the six-minute terminal boundary all have focused tests.
 - A human comparison of Greg, Benny, and Gracie: do their silhouettes,
   starter attacks, mastery cards, and starting tradeoffs read quickly?
 - Physical touch hardware, low-end devices, human-forced WebGL context recovery,
@@ -358,7 +452,8 @@ not only starter fire.
    the Habitat Atlas, and the first challenge badge layer are now active without
    a second currency.
 3. Run the focused owner playtests using
-   [the Gate 1 guide](../playtests/gate1-owner-playtest.md) and
+   [the V1.2 tempo/power/boss/audio guide](../playtests/v1-2-tempo-power-boss-audio.md),
+   [the Gate 1 guide](../playtests/gate1-owner-playtest.md), and
    [the structured data sheet](../playtests/gate1-data-sheet.csv) when human
    evidence is available; tune only values supported by that feedback.
 4. Design a truthful Luck system and future difficulty definitions only after

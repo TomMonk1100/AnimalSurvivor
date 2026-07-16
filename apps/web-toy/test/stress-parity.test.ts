@@ -27,7 +27,10 @@ const FIVE_MINUTE_PARITY_TIMEOUT_MS = 45_000;
 // meta-progression stat block into the run-start fingerprint (gameplay is
 // unchanged at neutral defaults; only the loadout fingerprint shifted).
 // The headless control, fixed-tick driver, and repeated seeded run agree.
-const EXPECTED_FIVE_MINUTE_HASH = '14d4a69d3d2cc8b0';
+// Rebaselined for the V1.2 six-minute pressure curve and fingerprinted apex
+// profile. The headless control, fixed-tick driver, and repeated seeded run
+// agree on this intentional authoritative behavior change.
+const EXPECTED_FIVE_MINUTE_HASH = '4ae0cc5f4a67a7a1';
 
 /** Headless control: step a bare simulation with autopilot inputs keyed on pre-step tick. */
 function headlessControl(seed: number, ticks: number): string {

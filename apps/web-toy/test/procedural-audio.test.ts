@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createProceduralAudio,
+  getMusicProgramInfo,
+  MIN_MUSIC_PROGRAM_REPEAT_SECONDS,
+  MUSIC_PROGRAM_VARIATION_COUNT,
+  MUSIC_STATES,
   type AudioParamLike,
   type ProceduralAudioContext,
   type ProceduralGainNode,
@@ -9,6 +13,7 @@ import {
 
 class FakeParam implements AudioParamLike {
   readonly values: Array<readonly [string, number, number]> = [];
+  readonly cancellations: number[] = [];
 
   setValueAtTime(value: number, startTime: number): void {
     this.values.push(['set', value, startTime]);
@@ -16,6 +21,10 @@ class FakeParam implements AudioParamLike {
 
   linearRampToValueAtTime(value: number, endTime: number): void {
     this.values.push(['ramp', value, endTime]);
+  }
+
+  cancelScheduledValues(startTime: number): void {
+    this.cancellations.push(startTime);
   }
 }
 
@@ -171,6 +180,84 @@ describe('procedural audio', () => {
     audio.setMix({ musicVolume: 0 });
     expect(context.gains[2]!.gain.values.at(-1)).toEqual(['set', 0, 2]);
     audio.dispose();
+  });
+
+  it('builds a deterministic multi-variation phrase program that cannot repeat early', () => {
+    for (const state of MUSIC_STATES) {
+      const program = getMusicProgramInfo(state);
+      expect(program.variationCount).toBe(MUSIC_PROGRAM_VARIATION_COUNT);
+      expect(new Set(program.variationIds).size).toBe(MUSIC_PROGRAM_VARIATION_COUNT);
+      expect(program.phraseSeconds).toBeCloseTo(program.barSeconds * 2, 8);
+      expect(program.repeatAfterSeconds).toBeGreaterThanOrEqual(MIN_MUSIC_PROGRAM_REPEAT_SECONDS);
+    }
+
+    // Boss is the fastest state, so it proves the program never repeats an
+    // exact phrase cycle before the required persistent-play duration.
+    expect(getMusicProgramInfo('boss').repeatAfterSeconds).toBeCloseTo(57.6, 8);
+  });
+
+  it('moves score state at the next bar boundary with a scheduled crossfade', () => {
+    const context = new FakeAudioContext();
+    const audio = createProceduralAudio({ createContext: () => context });
+
+    audio.setEnabled(true);
+    const idlePhraseGain = context.gains[3]!;
+    audio.setMusicState('boss');
+
+    const bossDownbeat = context.oscillators.find((oscillator) => (
+      oscillator.type === 'sawtooth' && oscillator.frequency.values[0]?.[1] === 65.41
+    ));
+    expect(bossDownbeat).toBeDefined();
+    // Idle begins at 2.04; its eight-step bar is 3.52 seconds, so the next
+    // legal musical boundary is 5.56 rather than an immediate mid-bar restart.
+    expect(bossDownbeat!.starts[0]).toBeCloseTo(5.56, 8);
+    expect(idlePhraseGain.gain.values.some(([kind, value, time]) => (
+      kind === 'set' && value === 0.52 && Math.abs(time - 5.56) < 0.0001
+    ))).toBe(true);
+    expect(idlePhraseGain.gain.values.some(([kind, value, time]) => (
+      kind === 'ramp' && value === 0.0001 && Math.abs(time - 5.74) < 0.0001
+    ))).toBe(true);
+  });
+
+  it('advances to a different variation in persistent mode and clears scheduled music across lifecycle changes', () => {
+    vi.useFakeTimers();
+    try {
+      const context = new FakeAudioContext();
+      const audio = createProceduralAudio({ createContext: () => context, loopMusic: true });
+
+      audio.setEnabled(true);
+      expect(vi.getTimerCount()).toBe(1);
+      const idleProgram = getMusicProgramInfo('idle');
+      vi.advanceTimersByTime(Math.ceil(idleProgram.phraseSeconds * 1000));
+
+      const frequenciesAt = (time: number) => context.oscillators
+        .filter((oscillator) => Math.abs((oscillator.starts[0] ?? -1) - time) < 0.0001)
+        .map((oscillator) => oscillator.frequency.values[0]?.[1]);
+      // Variation zero uses motif step 1 at the first off-beat; variation one
+      // uses motif step 2, proving the recurring scheduler does not replay the
+      // old two-bar phrase unchanged.
+      expect(frequenciesAt(2.48)).toContain(369.99);
+      expect(frequenciesAt(9.52)).toContain(440);
+
+      const voicesBeforeSuspend = context.oscillators.length;
+      audio.suspend();
+      expect(context.suspend).toHaveBeenCalledTimes(1);
+      expect(context.gains.some((gain) => gain.gain.cancellations.length > 0)).toBe(true);
+      vi.advanceTimersByTime(120_000);
+      expect(context.oscillators).toHaveLength(voicesBeforeSuspend);
+
+      audio.resumeIfEnabled();
+      expect(context.resume).toHaveBeenCalledTimes(2);
+      expect(context.oscillators.length).toBeGreaterThan(voicesBeforeSuspend);
+
+      audio.dispose();
+      const voicesAfterDispose = context.oscillators.length;
+      vi.advanceTimersByTime(120_000);
+      expect(context.oscillators).toHaveLength(voicesAfterDispose);
+      expect(context.close).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('gives orbiting fireflies a clearly audible three-spark contact shimmer', () => {

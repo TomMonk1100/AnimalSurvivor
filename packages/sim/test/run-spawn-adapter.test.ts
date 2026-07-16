@@ -7,7 +7,27 @@ import {
   validateRunEnemyContent,
   type DirectedEnemySpawn,
 } from '../src/run-spawn-adapter.js';
-import type { RunDirectorEventView } from '../src/run-director-port.js';
+import type { RunBossProfileView, RunDirectorEventView } from '../src/run-director-port.js';
+
+const BOSS_PROFILE: RunBossProfileView = {
+  id: 'adapter-test-apex-v1',
+  hpMultiplier: 20,
+  xpMultiplier: 2,
+  speedMultiplier: 1.6,
+  touchDamageMultiplier: 1.2,
+  preferredRange: 220,
+  rangeBand: 32,
+  cycleTicks: 180,
+  chargeWindupTicks: 20,
+  chargeDurationTicks: 30,
+  chargeSpeedMultiplier: 2.5,
+  volleyTick: 90,
+  volleyCount: 6,
+  projectileSpeed: 200,
+  projectileDamage: 9,
+  projectileLifetimeTicks: 120,
+  projectileHitRadius: 6,
+};
 
 function spawnEvent(archetypeId: string, formation: 'ring' | 'arc' | 'lane' | 'cluster', count = 3): RunDirectorEventView {
   return {
@@ -58,13 +78,17 @@ test('maps authored archetypes and produces byte-identical deterministic placeme
   assert.equal(new Set(a.map((request) => `${request.x},${request.y}`)).size, 3);
 });
 
-test('maps elite and boss roles with explicit health multipliers', () => {
+test('maps elite values and the authored boss profile without an adapter fallback', () => {
   const out: DirectedEnemySpawn[] = [];
   const adapter = createRunSpawnAdapter({
-    eliteHpMultiplier: 4, eliteXpMultiplier: 7, bossHpMultiplier: 20, bossXpMultiplier: 2,
+    eliteHpMultiplier: 4, eliteXpMultiplier: 7,
   });
   const elite = { ...spawnEvent('enemy:elite', 'arc', 1), kind: 'eliteRequested', intent: { ...spawnEvent('enemy:elite', 'arc', 1).intent!, elite: true } };
-  const boss = { ...spawnEvent('enemy:boss', 'ring', 1), kind: 'bossRequested', intent: { ...spawnEvent('enemy:boss', 'ring', 1).intent!, boss: true } };
+  const boss = {
+    ...spawnEvent('enemy:boss', 'ring', 1),
+    kind: 'bossRequested' as const,
+    intent: { ...spawnEvent('enemy:boss', 'ring', 1).intent!, boss: true, bossProfile: BOSS_PROFILE },
+  };
   adapter.execute([elite, boss], {
     playerX: 0, playerY: 0, worldWidth: 1000, worldHeight: 1000,
     spawn: (request) => { out.push(request); return true; },
@@ -73,6 +97,7 @@ test('maps elite and boss roles with explicit health multipliers', () => {
     { archetype: 2, hpMultiplier: 4, xpMultiplier: 7, role: RUN_ENEMY_ROLE.elite },
     { archetype: 2, hpMultiplier: 20, xpMultiplier: 2, role: RUN_ENEMY_ROLE.boss },
   ]);
+  assert.equal(out[1]?.bossProfile, BOSS_PROFILE);
 });
 
 test('maps the normal-plus spitter to its distinct simulation archetype and presentation role', () => {
@@ -118,20 +143,32 @@ test('maps Flanker and Support content to distinct simulation roles', () => {
   ]);
 });
 
-test('uses the tuned default boss multiplier when content does not override it', () => {
-  const out: DirectedEnemySpawn[] = [];
+test('rejects a boss request with no versioned authored profile', () => {
   const boss = {
     ...spawnEvent('enemy:boss', 'ring', 1),
     kind: 'bossRequested' as const,
     intent: { ...spawnEvent('enemy:boss', 'ring', 1).intent!, boss: true },
   };
-  createRunSpawnAdapter().execute([boss], {
+  assert.throws(() => createRunSpawnAdapter().execute([boss], {
     playerX: 0, playerY: 0, worldWidth: 1_000, worldHeight: 1_000,
-    spawn: (request) => { out.push(request); return true; },
-  });
+    spawn: () => true,
+  }), /bossProfile/);
+});
 
-  assert.equal(out[0]?.hpMultiplier, 18);
-  assert.equal(out[0]?.xpMultiplier, 1);
+test('rejects boss timing that cannot fit the simulation uint16 storage', () => {
+  const boss = {
+    ...spawnEvent('enemy:boss', 'ring', 1),
+    kind: 'bossRequested' as const,
+    intent: {
+      ...spawnEvent('enemy:boss', 'ring', 1).intent!,
+      boss: true,
+      bossProfile: { ...BOSS_PROFILE, cycleTicks: 65_536 },
+    },
+  };
+  assert.throws(() => createRunSpawnAdapter().execute([boss], {
+    playerX: 0, playerY: 0, worldWidth: 1_000, worldHeight: 1_000,
+    spawn: () => true,
+  }), /cycleTicks must be a positive uint16/);
 });
 
 test('keeps off-screen approach formations at their authored radius near a world edge', () => {
@@ -140,7 +177,7 @@ test('keeps off-screen approach formations at their authored radius near a world
     kind: 'spawnRequested', tick: 27, seq: 3, phase: 'opening',
     intent: {
       archetypeId: 'enemy:fodder', count: 4, formation: 'arc',
-      minDistance: 22, maxDistance: 26, elite: false, boss: false,
+      minDistance: 20, maxDistance: 24, elite: false, boss: false,
     },
   };
   const stats = createRunSpawnAdapter().execute([event], {
@@ -152,7 +189,7 @@ test('keeps off-screen approach formations at their authored radius near a world
   assert.ok(out.every((request) => request.x >= 0 && request.x <= 2_000 && request.y >= 0 && request.y <= 2_000));
   for (const request of out) {
     const distance = Math.hypot(request.x - 50, request.y - 50);
-    assert.ok(distance >= 440 && distance <= 520, `spawn distance ${distance} stays in the authored opening band`);
+    assert.ok(distance >= 400 && distance <= 480, `spawn distance ${distance} stays in the authored opening band`);
   }
 });
 

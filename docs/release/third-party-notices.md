@@ -4,14 +4,15 @@ This file is the repository copy of the notices that must travel with a V1
 web artifact. The player-facing prep panel provides a short summary; this file
 is the complete current notice record.
 
-## Quaternius Ultimate Animated Animal Pack
+## Historical Quaternius Ultimate Animated Animal Pack audit (not shipped)
 
-The runtime Greg fox glTF is from Quaternius's [Ultimate Animated Animal
-Pack](https://quaternius.com/packs/ultimateanimatedanimals.html). The
-incorporated source is distributed under the CC0 1.0 Public Domain Dedication.
-The original `License.txt` is preserved beside the source at
-`assets/vendor/quaternius/ultimate_animated_animals/License.txt`; the source
-file hashes are recorded in `assets/ASSET_LEDGER.md`.
+The former Greg fox glTF is from Quaternius's [Ultimate Animated Animal
+Pack](https://quaternius.com/packs/ultimateanimatedanimals.html) under the CC0
+1.0 Public Domain Dedication. It is retained solely as historical audit
+material: Scout presentation art replaced it, and it is neither loaded nor
+included in the current web artifact. The original `License.txt` remains beside
+the source at `assets/vendor/quaternius/ultimate_animated_animals/License.txt`;
+the source-file hashes are recorded in `assets/ASSET_LEDGER.md`.
 
 ## Quaternius Stylized Nature MegaKit
 
@@ -49,15 +50,24 @@ THE SOFTWARE.
 
 ## AI-assisted project artwork
 
-The three Field Guide final-form portrait tiles and two boss-health portrait
-tiles are project artwork generated with the built-in OpenAI image-generation
-tool on 2026-07-12 without reference images. They are not third-party runtime
-models, and their hashes and intended use are recorded in
-`assets/ASSET_LEDGER.md`. The playable Forest clearing ground plate; Benny and
-Gracie hero sprites; and Bramblehog, Thornwing, Rootback, and Hollowhart Warden
-enemy sprites were generated with the same tool on that date without reference
-images; their exact prompts and post-processing are recorded in
+The current Benny and Gracie Field Guide final-form portrait tiles and two
+boss-health portrait tiles are project artwork generated with the built-in
+OpenAI image-generation tool on 2026-07-12 without reference images. They are
+not third-party runtime models, and their hashes and intended use are recorded
+in `assets/ASSET_LEDGER.md`. The playable Forest clearing ground plate; Benny
+and Gracie hero sprites; and Bramblehog, Thornwing, Rootback, and Hollowhart
+Warden enemy sprites were generated with the same tool on that date without
+reference images; their exact prompts and post-processing are recorded in
 `docs/release/v1-visual-art-prompts.md`.
+
+Scout's current playable-hero sprite, Field Guide portrait, and start-screen
+key art are project artwork generated with the same built-in tool on 2026-07-15
+using an owner-provided Scout photo as a private visual reference. The title
+art also used the former project key art and Scout gameplay cutout as
+project-owned visual references. The personal photo is not copied into the
+repository or runtime. The non-verbatim generation brief, source/runtime
+hashes, and output boundary are recorded in
+`docs/release/scout-presentation-provenance.md` and `assets/ASSET_LEDGER.md`.
 
 The V1.1 Wildguard attack-VFX sheets and universal impact core were likewise
 created with the built-in OpenAI image-generation tool without reference

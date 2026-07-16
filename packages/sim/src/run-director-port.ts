@@ -4,6 +4,31 @@ export type RunOutcomeView = 'running' | 'victory' | 'defeat';
 export type RunPhaseView = 'opening' | 'pressure' | 'adaptation' | 'mutation' | 'boss' | 'overtime';
 export type RunFormationView = 'ring' | 'arc' | 'lane' | 'cluster';
 
+/**
+ * Structural mirror of the authored run-director boss contract. The simulation
+ * intentionally imports this as data through its port rather than importing
+ * the run-director package at runtime.
+ */
+export interface RunBossProfileView {
+  readonly id: string;
+  readonly hpMultiplier: number;
+  readonly xpMultiplier: number;
+  readonly speedMultiplier: number;
+  readonly touchDamageMultiplier: number;
+  readonly preferredRange: number;
+  readonly rangeBand: number;
+  readonly cycleTicks: number;
+  readonly chargeWindupTicks: number;
+  readonly chargeDurationTicks: number;
+  readonly chargeSpeedMultiplier: number;
+  readonly volleyTick: number;
+  readonly volleyCount: number;
+  readonly projectileSpeed: number;
+  readonly projectileDamage: number;
+  readonly projectileLifetimeTicks: number;
+  readonly projectileHitRadius: number;
+}
+
 export interface RunMetricsView {
   readonly tick: number;
   readonly paused: boolean;
@@ -25,6 +50,8 @@ export interface RunSpawnIntentView {
   readonly maxDistance: number;
   readonly elite: boolean;
   readonly boss: boolean;
+  /** Required for a boss request; absent for every non-boss spawn. */
+  readonly bossProfile?: RunBossProfileView;
 }
 
 export interface RunDirectorEventView {

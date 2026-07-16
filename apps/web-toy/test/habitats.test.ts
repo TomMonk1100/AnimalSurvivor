@@ -29,6 +29,9 @@ describe('Field Guide Habitat Atlas', () => {
     expect(HABITAT_IDS).toHaveLength(6);
     expect(habitats.map((habitat) => habitat.id)).toEqual([...HABITAT_IDS]);
     expect(habitats.map((habitat) => habitat.unlocked)).toEqual([true, false, false, false, false, false]);
+    expect(habitats.find((habitat) => habitat.id === 'foxglove-thicket')).toMatchObject({
+      description: 'Win with Scout, the Pouncer.',
+    });
     expect(Object.isFrozen(habitats)).toBe(true);
   });
 

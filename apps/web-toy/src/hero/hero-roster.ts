@@ -15,6 +15,14 @@ export interface HeroVisualProfile {
 }
 
 interface HeroVisualDetails {
+  /**
+   * Presentation may give a stable simulation hero an owner-approved public
+   * identity without changing the deterministic roster key or content data.
+   */
+  readonly displayName?: string;
+  readonly species?: string;
+  readonly epithet?: string;
+  readonly description?: string;
   readonly palette: readonly [primary: string, accent: string, highlight: string];
   readonly silhouette: string;
   readonly characterLine: string;
@@ -23,10 +31,14 @@ interface HeroVisualDetails {
 
 const VISUALS: Readonly<Record<HeroId, HeroVisualDetails>> = Object.freeze({
   greg: Object.freeze({
-    characterLine: 'A proper gentleman whose Fox Swipe rewards fearless close-range footwork.',
+    displayName: 'Scout',
+    species: 'Dog',
+    epithet: 'The Pouncer',
+    description: 'A loyal canine melee duelist whose Scout Swipe and near-misses reward brave positioning.',
+    characterLine: 'A loyal dog whose Scout Swipe rewards fearless close-range footwork.',
     statLine: 'Baseline dodge · Melee Affinity · balanced health and speed',
-    palette: ['#b7653d', '#f1c27d', '#253342'] as const,
-    silhouette: 'long ears · brush tail',
+    palette: ['#b7653d', '#187d83', '#f6e2ba'] as const,
+    silhouette: 'floppy ears · wagging tail',
   }),
   benny: Object.freeze({
     characterLine: 'A gentle giant whose Trample turns a clear lane into a rolling earthwave.',
@@ -43,7 +55,20 @@ const VISUALS: Readonly<Record<HeroId, HeroVisualDetails>> = Object.freeze({
 });
 
 export const HERO_VISUAL_PROFILES: readonly HeroVisualProfile[] = Object.freeze(
-  HERO_CATALOG.map((definition) => Object.freeze({ ...definition, ...VISUALS[definition.id]! })),
+  HERO_CATALOG.map((definition): HeroVisualProfile => {
+    const visual = VISUALS[definition.id]!;
+    return Object.freeze({
+      id: definition.id,
+      displayName: visual.displayName ?? definition.displayName,
+      species: visual.species ?? definition.species,
+      epithet: visual.epithet ?? definition.epithet,
+      description: visual.description ?? definition.description,
+      characterLine: visual.characterLine,
+      statLine: visual.statLine,
+      palette: visual.palette,
+      silhouette: visual.silhouette,
+    });
+  }),
 );
 
 export function getHeroVisualProfile(heroId: HeroId): HeroVisualProfile {

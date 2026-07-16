@@ -8,6 +8,7 @@ import {
   getGregAttachmentVisualRecipe,
   isGregAttachmentVisualKey,
 } from './greg-attachment-visuals';
+import type { ChimeraSeamAttachmentPresentation } from './chimera-seam-presentation';
 
 const GREG_SOCKETS = new Set<string>([
   'head', 'back', 'leftShoulder', 'rightShoulder', 'tail', 'bodyOrbit',
@@ -46,22 +47,65 @@ const ANCHOR_BY_VISUAL_KEY: Readonly<Record<string, GregSocketName>> = Object.fr
   'monarch-brood:bud': 'bodyOrbit',
   'monarch-brood:adapted': 'bodyOrbit',
   'royal-stinkcloud:mythic': 'tail',
+  'chimera-seam:mythic': 'bodyOrbit',
 });
 
 interface MountedVisual {
+  readonly socket: GregSocketName;
   readonly id: AttachmentId;
-  readonly signature: string;
+  readonly visualKey: string;
+  /** Recreate a seam only when its published parent/temperament projection changes. */
+  readonly presentationKey: string | null;
+}
+
+interface DesiredVisual {
+  readonly socket: GregSocketName;
+  readonly visualKey: string;
+  readonly chimeraSeam?: ChimeraSeamAttachmentPresentation;
+  readonly presentationKey: string | null;
+}
+
+function seamPresentationFor(
+  visual: TraitVisualAttachmentView,
+): ChimeraSeamAttachmentPresentation | null {
+  if (visual.stage !== 'mythic' || visual.chimeraParents === undefined) return null;
+  const [first, second] = visual.chimeraParents;
+  if (
+    typeof first !== 'string'
+    || typeof second !== 'string'
+    || first.length === 0
+    || second.length === 0
+    || first === second
+  ) {
+    return null;
+  }
+  return Object.freeze({
+    sourceId: visual.sourceId,
+    parents: Object.freeze([first, second]) as unknown as readonly [string, string],
+    temperamentId: typeof visual.temperamentId === 'string' && visual.temperamentId.length > 0
+      ? visual.temperamentId
+      : null,
+  });
+}
+
+function seamPresentationKey(presentation: ChimeraSeamAttachmentPresentation): string {
+  return [
+    presentation.sourceId,
+    presentation.parents[0],
+    presentation.parents[1],
+    presentation.temperamentId ?? '',
+  ].join('\u0000');
 }
 
 /**
  * Projects immutable simulation-owned trait state onto Greg's renderer-only
- * sockets. Multi-socket sources reserve every declared socket but mount their
- * single combined recipe at its authored anchor.
+ * sockets. Wild Splice deliberately permits visual socket sharing, so every
+ * valid read-only attachment is mounted independently at its authored anchor.
  */
 export function createGregTraitVisualProjector<N>(
   sockets: Pick<GregAttachmentSockets<N & { readonly name: string }>, 'attach' | 'detach'>,
 ): { sync(state: readonly TraitVisualAttachmentView[]): void; clear(): void } {
-  const mounted = new Map<GregSocketName, MountedVisual>();
+  const mounted = new Map<string, MountedVisual>();
 
   function clear(): void {
     for (const visual of mounted.values()) sockets.detach(visual.id);
@@ -70,34 +114,72 @@ export function createGregTraitVisualProjector<N>(
 
   return {
     sync(state) {
-      const occupied = new Map<GregSocketName, string>();
-      const desired = new Map<GregSocketName, string>();
+      const desired = new Map<string, DesiredVisual>();
 
       for (const visual of state) {
-        if (!visual.enabled || visual.sourceId.length === 0 || !isGregAttachmentVisualKey(visual.visualKey)) continue;
-        const recipe = getGregAttachmentVisualRecipe(visual.visualKey);
-        const anchor = ANCHOR_BY_VISUAL_KEY[visual.visualKey];
-        if (anchor === undefined || recipe.stage !== visual.stage || !visual.sockets.includes(anchor)) continue;
+        if (!visual.enabled || visual.sourceId.length === 0) continue;
+        if (isGregAttachmentVisualKey(visual.visualKey)) {
+          const recipe = getGregAttachmentVisualRecipe(visual.visualKey);
+          const anchor = ANCHOR_BY_VISUAL_KEY[visual.visualKey];
+          const expectedSource = visual.visualKey.slice(0, visual.visualKey.lastIndexOf(':'));
+          if (
+            anchor === undefined
+            || recipe.stage !== visual.stage
+            || !visual.sockets.includes(anchor)
+            || (!visual.visualOnly && visual.chimeraParents === undefined && visual.sourceId !== expectedSource)
+          ) {
+            continue;
+          }
+          const declaredSockets = visual.sockets.filter(
+            (socket): socket is GregSocketName => GREG_SOCKETS.has(socket),
+          );
+          if (declaredSockets.length !== visual.sockets.length) continue;
+          const signature = `${visual.sourceId}\u0000${visual.stage}\u0000${visual.visualKey}\u0000${visual.visualOnly === true ? 'parent' : 'main'}`;
+          desired.set(signature, {
+            socket: anchor,
+            visualKey: visual.visualKey,
+            presentationKey: null,
+          });
+        }
 
-        const declaredSockets = visual.sockets.filter(
-          (socket): socket is GregSocketName => GREG_SOCKETS.has(socket),
-        );
-        if (declaredSockets.length !== visual.sockets.length) continue;
-        if (declaredSockets.some((socket) => occupied.has(socket))) continue;
-        for (const socket of declaredSockets) occupied.set(socket, visual.sourceId);
-        desired.set(anchor, `${visual.sourceId}\u0000${visual.stage}\u0000${visual.visualKey}`);
-      }
-
-      for (const [socket, current] of mounted) {
-        if (desired.get(socket) !== current.signature || !occupied.has(socket)) {
-          sockets.detach(current.id);
-          mounted.delete(socket);
+        // Generated Chimeras have no finite per-pair attachment atlas. Their
+        // retained parent views carry the silhouettes; this one reusable seam
+        // supplies the visible splice connection and temperament cadence cue.
+        if (visual.visualOnly !== true) {
+          const seam = seamPresentationFor(visual);
+          if (seam !== null) {
+            const presentationKey = seamPresentationKey(seam);
+            const signature = `${visual.sourceId}\u0000chimera-seam\u0000${presentationKey}`;
+            desired.set(signature, {
+              socket: 'bodyOrbit',
+              visualKey: 'chimera-seam:mythic',
+              chimeraSeam: seam,
+              presentationKey,
+            });
+          }
         }
       }
-      for (const [socket, signature] of desired) {
-        if (mounted.get(socket)?.signature === signature) continue;
-        const visualKey = signature.slice(signature.lastIndexOf('\u0000') + 1);
-        mounted.set(socket, { id: sockets.attach(socket, visualKey), signature });
+
+      for (const [signature, current] of mounted) {
+        const next = desired.get(signature);
+        if (
+          next === undefined
+          || next.socket !== current.socket
+          || next.visualKey !== current.visualKey
+          || next.presentationKey !== current.presentationKey
+        ) {
+          sockets.detach(current.id);
+          mounted.delete(signature);
+        }
+      }
+      for (const [signature, next] of desired) {
+        if (mounted.has(signature)) continue;
+        mounted.set(signature, {
+          id: sockets.attach(next.socket, next.visualKey, next.chimeraSeam),
+          socket: next.socket,
+          visualKey: next.visualKey,
+          presentationKey: next.presentationKey,
+        });
       }
     },
     clear,

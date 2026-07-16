@@ -23,25 +23,37 @@ import type {
 import type { SocketId, TraitId, TraitRank, TraitStage } from './ids.js';
 import { MASTER_RANK } from './ids.js';
 import { STATE_VERSION } from './serialization.js';
-import { availableFusions, fuseEvolution as fuseEvolutionState } from './evolution-resolver.js';
+import {
+  availableFusions,
+  fuseEvolution as fuseEvolutionState,
+  refreshFusionPreviews,
+} from './evolution-resolver.js';
 import { getCatalog } from './definitions.js';
-import { fingerprintCatalog } from './state-hash.js';
+import { fingerprintCatalog, fingerprintRuntimeContent } from './state-hash.js';
 import { isMasterRank, rankStageFor } from './rank-progression.js';
+import { rebuildSocketProjection } from './socket-projection.js';
+import { resolveEvolution, resolveSynthesizedEvolution } from './chimera/resolved-evolution.js';
 
 /** Fresh empty state. Use offerRngState = seed >>> 0. */
 export function createInitialState(
   _seed: number,
   catalogFingerprint = fingerprintCatalog(getCatalog()),
   initialTick = -1,
+  chimeraFingerprint = fingerprintRuntimeContent(getCatalog()),
 ): RuntimeState {
   return {
     version: STATE_VERSION,
     catalogFingerprint,
+    chimeraFingerprint,
     tick: initialTick,
+    runSeed: _seed >>> 0,
+    fusionReadyCount: 0,
+    fusionPreviews: [],
     owned: [],
     sockets: {},
     evolutions: [],
     timers: [],
+    pendingEmissions: [],
     offerRngState: _seed >>> 0,
   };
 }
@@ -97,30 +109,12 @@ export function applyUpgrade(
       return result(catalog, state, { ok: false, kind: 'loadoutFull', traitId, capacity });
     }
 
-    const conflictSockets: SocketId[] = [];
-    const heldBySeen = new Set<string>();
-    const heldBy: string[] = [];
-    for (const socket of traitDef.sockets) {
-      const currentOwner = state.sockets[socket];
-      if (currentOwner === undefined) continue;
-      conflictSockets.push(socket);
-      if (!heldBySeen.has(currentOwner)) {
-        heldBySeen.add(currentOwner);
-        heldBy.push(currentOwner);
-      }
-    }
-    if (conflictSockets.length > 0) {
-      return result(catalog, state, {
-        ok: false,
-        kind: 'socketConflict',
-        traitId,
-        sockets: conflictSockets,
-        heldBy,
-      });
-    }
-
+    // Wild Splice deliberately allows visual socket sharing. Logical capacity
+    // remains the gameplay limit; `sockets` is rebuilt as a deterministic
+    // primary projection for legacy callers while each active record retains
+    // its full renderer-facing socket footprint.
     state.owned.push({ id: traitId, stage: 'bud', rank: 1, disabled: false });
-    for (const socket of traitDef.sockets) state.sockets[socket] = traitId;
+    rebuildSocketProjection(catalog, state);
     return result(catalog, state, {
       ok: true,
       kind: 'created',
@@ -139,6 +133,9 @@ export function applyUpgrade(
   // Every advancement after rank 1 maps to the renderer's existing Adapted
   // attachment bucket until rank-specific art is authored.
   owned.stage = 'adapted';
+  // The variant is captured exactly when this advancement makes one or more
+  // Master pairs available, never when the UI happens to inspect the offer.
+  refreshFusionPreviews(catalog, state);
   return result(catalog, state, {
     ok: true,
     kind: 'advanced',
@@ -199,8 +196,9 @@ export function visualState(catalog: Catalog, state: RuntimeState): VisualAttach
   }
 
   for (const resolved of state.evolutions) {
-    const evoDef = catalog.evolutions.find((evolution) => evolution.id === resolved.id);
+    const evoDef = resolveEvolution(catalog, resolved);
     if (!evoDef) continue;
+    const synthesized = resolveSynthesizedEvolution(catalog, resolved);
     result.push({
       sourceId: resolved.id,
       stage: 'mythic',
@@ -210,7 +208,42 @@ export function visualState(catalog: Catalog, state: RuntimeState): VisualAttach
       sockets: evoDef.occupiedSockets,
       visualKey: evoDef.visualKey,
       enabled: true,
+      chimeraParents: [resolved.ingredients[0], resolved.ingredients[1]],
+      ...(synthesized === undefined ? {} : {
+        displayName: synthesized.displayName,
+        rarity: synthesized.rarity,
+        temperamentId: synthesized.temperamentId,
+        leanId: synthesized.leanId,
+        pairKind: synthesized.pairKind,
+        variantSeed: synthesized.variantSeed,
+      }),
     });
+
+    // Fused ingredients no longer execute, but their Master attachments stay
+    // renderer-visible. These read-only entries are explicitly excluded from
+    // logical slot/accounting projections by `visualOnly`.
+    for (const ingredient of resolved.ingredients) {
+      const parent = findTraitDef(catalog, ingredient);
+      if (parent === undefined) continue;
+      const parentStage = rankStageFor(parent, MASTER_RANK);
+      result.push({
+        sourceId: ingredient,
+        stage: 'adapted',
+        rank: MASTER_RANK,
+        isMaster: true,
+        logicalSlotCost: 1,
+        sockets: parent.sockets,
+        visualKey: parentStage.visualKey,
+        enabled: true,
+        visualOnly: true,
+        chimeraParents: [resolved.ingredients[0], resolved.ingredients[1]],
+        ...(synthesized === undefined ? {} : {
+          temperamentId: synthesized.temperamentId,
+          pairKind: synthesized.pairKind,
+          variantSeed: synthesized.variantSeed,
+        }),
+      });
+    }
   }
 
   return result;

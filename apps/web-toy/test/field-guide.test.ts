@@ -8,12 +8,12 @@ import {
 } from '../src/profile/field-guide';
 
 describe('Field Guide entry projection', () => {
-  it('shares stable authored portrait assets with hero selection', () => {
-    expect(getHeroPortraitAsset('gracie')).toEqual({
-      assetUrl: expect.stringContaining('gracie-final-form-v1.png'),
-      assetAlt: 'Gracie founding hero portrait',
-      fallbackGlyph: 'G',
-      fallbackAccent: '#8bd8bb',
+  it('uses the Scout portrait for the stable greg simulation profile', () => {
+    expect(getHeroPortraitAsset('greg')).toEqual({
+      assetUrl: expect.stringContaining('scout-final-form-v1.png'),
+      assetAlt: 'Scout founding hero portrait',
+      fallbackGlyph: 'S',
+      fallbackAccent: '#187d83',
     });
   });
 
@@ -37,7 +37,7 @@ describe('Field Guide entry projection', () => {
     const first = createFieldGuideEntry(input);
     const second = createFieldGuideEntry(input);
     expect(first).toEqual(second);
-    expect(first.buildName).toBe('Moonlit Greg Mythic Hunt: Owl Pinions + Midnight Radar');
+    expect(first.buildName).toBe('Moonlit Scout Mythic Hunt: Owl Pinions + Midnight Radar');
     expect(first.ecologyNote).toContain('The final threat fell');
     expect(first.ecologyNote).toContain('a Mythic transformation');
     expect(first.visuals).toEqual([
@@ -46,11 +46,11 @@ describe('Field Guide entry projection', () => {
     ]);
     expect(presentFieldGuidePortrait(first)).toEqual({
       key: 'greg:midnight-radar:mythic',
-      glyph: 'G',
-      accent: '#f1c27d',
-      assetUrl: expect.stringContaining('greg-final-form-v1.png'),
-      assetAlt: 'Greg final-form portrait',
-      title: 'Greg portrait',
+      glyph: 'S',
+      accent: '#187d83',
+      assetUrl: expect.stringContaining('scout-final-form-v1.png'),
+      assetAlt: 'Scout final-form portrait',
+      title: 'Scout portrait',
       formLabel: 'Mythic · Midnight Radar',
     });
     expect(presentFieldGuideEvolutionTree(first)).toEqual([

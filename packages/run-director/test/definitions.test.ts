@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 import { getDefaultDefinition } from '../src/definitions.js';
 import { validateDefinition } from '../src/validation.js';
-import { BOSS_ENTRANCE_TICK, NORMAL_RUN_PHASE_ORDER } from '../src/ids.js';
+import { BOSS_ENTRANCE_TICK, NORMAL_RUN_PHASE_ORDER, RUN_DURATION_TICKS } from '../src/ids.js';
 import { OPEN_END, type RunDefinition } from '../src/contracts.js';
 import { SALTWIND_RUINS_RUN } from '../src/content/saltwind-ruins.js';
 
@@ -24,10 +24,11 @@ test('each required phase starts at its exact boundary', () => {
   const def = getDefaultDefinition();
   const byId = new Map(def.phases.map((p) => [p.id, p]));
   assert.equal(byId.get('opening')?.startTick, 0);
-  assert.equal(byId.get('pressure')?.startTick, 3_600);
-  assert.equal(byId.get('adaptation')?.startTick, 10_800);
-  assert.equal(byId.get('mutation')?.startTick, 18_000);
-  assert.equal(byId.get('boss')?.startTick, 23_400);
+  assert.equal(byId.get('pressure')?.startTick, 2_700);
+  assert.equal(byId.get('adaptation')?.startTick, 8_100);
+  assert.equal(byId.get('mutation')?.startTick, 13_500);
+  assert.equal(byId.get('boss')?.startTick, 17_100);
+  assert.equal(byId.get('boss')?.endTick, RUN_DURATION_TICKS - 1);
   assert.equal(byId.has('overtime'), false);
   assert.equal(def.mode, 'normal');
   assert.equal(def.overtime, undefined);
@@ -57,28 +58,48 @@ test('elite beats become more frequent in later pre-boss phases', () => {
   ]);
 });
 
-test('boss requestTick === BOSS_ENTRANCE_TICK (23,400 / 6:30)', () => {
+test('boss requestTick === BOSS_ENTRANCE_TICK (17,100 / 4:45)', () => {
   const def = getDefaultDefinition();
   assert.equal(def.boss.requestTick, BOSS_ENTRANCE_TICK);
-  assert.equal(def.boss.requestTick, 23_400);
+  assert.equal(def.boss.requestTick, 17_100);
+  assert.equal(def.boss.warningTick, 15_900);
+  assert.deepEqual(def.boss.profile, {
+    id: 'forest-final-threat-v3',
+    hpMultiplier: 56,
+    xpMultiplier: 1,
+    speedMultiplier: 1.8,
+    touchDamageMultiplier: 1.25,
+    preferredRange: 250,
+    rangeBand: 45,
+    cycleTicks: 270,
+    chargeWindupTicks: 30,
+    chargeDurationTicks: 48,
+    chargeSpeedMultiplier: 3.1,
+    volleyTick: 135,
+    volleyCount: 10,
+    projectileSpeed: 250,
+    projectileDamage: 12,
+    projectileLifetimeTicks: 180,
+    projectileHitRadius: 8,
+  });
 });
 
 test('opening fodder becomes readable within the first dodge window while the boss enters quickly enough to fight', () => {
   const def = getDefaultDefinition();
   const fodder = def.archetypes.find((archetype) => archetype.id === 'enemy:fodder');
   assert.ok(fodder);
-  assert.deepEqual([fodder.minDistance, fodder.maxDistance], [22, 26]);
-  assert.deepEqual([def.boss.minDistance, def.boss.maxDistance], [20, 24]);
+  assert.deepEqual([fodder.minDistance, fodder.maxDistance], [20, 24]);
+  assert.deepEqual([def.boss.minDistance, def.boss.maxDistance], [16, 20]);
 });
 
-test('adaptation adds pressure without repeating the old three-minute density cliff', () => {
+test('shorter adaptation phase keeps a readable but meaningfully denser middle', () => {
   const def = getDefaultDefinition();
   const adaptation = def.phases.find((phase) => phase.id === 'adaptation');
   assert.deepEqual(adaptation, {
-    id: 'adaptation', startTick: 10_800, endTick: 17_999,
-    softCap: 24, hardCap: 40, threatPerTick: 5,
+    id: 'adaptation', startTick: 8_100, endTick: 13_499,
+    softCap: 32, hardCap: 50, threatPerTick: 7,
   });
-  assert.equal(def.waves.phaseIntervalTicks?.adaptation, 50);
+  assert.equal(def.waves.phaseIntervalTicks?.adaptation, 32);
 });
 
 test('normal-plus spitters arrive after the opening and never crowd the boss entrance', () => {
@@ -87,7 +108,7 @@ test('normal-plus spitters arrive after the opening and never crowd the boss ent
   assert.ok(spitter);
   assert.deepEqual(
     [spitter.cost, spitter.weight, spitter.count, spitter.minDistance, spitter.maxDistance],
-    [3, 2, 1, 38, 46],
+    [3, 2, 1, 32, 40],
   );
   assert.equal(def.waves.phaseArchetypes.opening?.includes('enemy:spitter'), false);
   assert.equal(def.waves.phaseArchetypes.pressure?.includes('enemy:spitter'), true);
@@ -141,6 +162,30 @@ test('minDistance > maxDistance fails validation', () => {
   );
   const bad: RunDefinition = { ...def, archetypes: badArchetypes };
   assert.throws(() => validateDefinition(bad));
+});
+
+test('boss combat profile must keep a readable charge before its volley', () => {
+  const def = getDefaultDefinition();
+  const bad: RunDefinition = {
+    ...def,
+    boss: {
+      ...def.boss,
+      profile: { ...def.boss.profile, volleyTick: def.boss.profile.chargeWindupTicks },
+    },
+  };
+  assert.throws(() => validateDefinition(bad), /charge must resolve before volleyTick/);
+});
+
+test('boss combat profile timing must fit the simulation uint16 storage', () => {
+  const def = getDefaultDefinition();
+  const bad: RunDefinition = {
+    ...def,
+    boss: {
+      ...def.boss,
+      profile: { ...def.boss.profile, cycleTicks: 65_536 },
+    },
+  };
+  assert.throws(() => validateDefinition(bad), /cycleTicks must be a positive uint16/);
 });
 
 test('endless remains an explicit separate definition, not normal-mode fallback', () => {

@@ -42,21 +42,21 @@ The arena is a readable forest clearing. Its trees, ground treatment, and
 landmarks are presentation-only: they make movement and threat direction easier
 to read without changing deterministic gameplay.
 
-## Eight-minute normal run
+## Six-minute normal run
 
-Normal mode has a hard **8:00** boundary and no hidden overtime. Survive and
+Normal mode has a hard **6:00** boundary and no hidden overtime. Survive and
 defeat **The Final Threat** before that boundary to win.
 
 | Time | Phase | What changes |
 | --- | --- | --- |
-| 0:00–1:00 | Opening | A readable first wave of off-screen approaches. |
-| 1:00–3:00 | Pressure | Faster waves, runners, and ranged threats begin. |
-| 3:00–5:00 | Adaptation | Density and mixed threats rise. |
-| 5:00–6:30 | Mutation | The most sustained pre-boss pressure. |
-| 6:30–8:00 | Boss | **The Final Threat** enters; end the run before 8:00. |
+| 0:00–0:45 | Opening | A readable first wave of off-screen approaches. |
+| 0:45–2:15 | Pressure | Faster waves, runners, and ranged threats begin. |
+| 2:15–3:45 | Adaptation | Density and mixed threats rise. |
+| 3:45–4:45 | Mutation | The most sustained pre-boss pressure. |
+| 4:45–6:00 | Boss | **The Final Threat** enters; end the run before 6:00. |
 
-Elite requests arrive at **2:00**, **3:40**, **4:30**, **5:15**, **5:45**, and
-**6:05**. Each gets a five-second warning. The boss warning starts at **6:10**.
+Elite requests arrive at **1:10**, **2:25**, **3:15**, **3:55**, **4:15**, and
+**4:35**. Each gets a five-second warning. The boss warning starts at **4:25**.
 Ordinary threats approach from outside the camera rather than spawning within
 attack range. Runners weave, Spitters and elites use ranged pressure, and elite
 kills award a noticeably larger XP pickup.
@@ -64,9 +64,9 @@ kills award a noticeably larger XP pickup.
 ## Forest Arsenal loadout
 
 Every founding animal begins with a distinct starter attack. The selected
-animal can choose up to three of twelve additional attack families, for a compact
-four-slot active build. Greg fires a precise nearest-target shot, Benny fires
-a slower two-bolt Brace Burst, and Gracie fires a fast highest-health Keen Dart.
+animal can choose up to four of twelve additional attack families, for five
+active cards total. Greg fires a precise nearest-target shot, Benny fires a
+slower two-bolt Brace Burst, and Gracie fires a fast highest-health Keen Dart.
 
 | Attack | Role |
 | --- | --- |
@@ -86,8 +86,10 @@ a slower two-bolt Brace Burst, and Gracie fires a fast highest-health Keen Dart.
 | **Skunk Brush** | Leaves a damaging stink cloud that punishes pursuit. |
 | **Monarch Brood** | Summons orbiting butterflies that sting nearby enemies on contact. |
 
-Each animal attack can be improved from Bud to Adapted. Three pairs can become
-Mythics:
+Each animal attack can be improved from Bud to Adapted to **Master** at rank
+five. Any two enabled Masters can be explicitly fused through **Wild Splice**:
+all 66 unordered pairs are available. The six former named recipes remain
+signature **Perfect Pairs**:
 
 - **Thornstorm Mantle** — Adapted Quills + Adapted Pouch: telegraph, gather,
   then a radial quill storm.
@@ -102,13 +104,18 @@ Mythics:
 - **Royal Stinkcloud** — Adapted Skunk Brush + Adapted Monarch Brood: creates a
   larger monarch-crowned hazard cloud.
 
-An evolution keeps both of its ingredient attack slots. A Mythic makes a more
-powerful combined attack; it never creates a free sixth weapon slot.
+The six all-utility pairs become **Support Chimeras**: their control effects
+remain meaningful and receive a damage rider, but a run may own only one.
+Every Wild Splice is free and voluntary. It turns two logical acquired attacks
+into one terminal Chimera, freeing an acquired slot while retaining both parent
+attachment footprints; the Chimera cannot rank further or re-fuse. The pause
+panel shows its braid and both parent names. This economy permits up to three
+terminal Chimeras in one run. Base starter fire does not pierce; Quills and the
+selected starter mastery own piercing explicitly.
 
 Greg's movement and near-misses also charge a deterministic three-wave **Rush
-Rake** burst. Each starter has a dedicated three-rank mastery path in the run upgrade pool;
-mastery strengthens only the selected animal's starter. Base starter fire does
-not pierce; Quills and the Greg mastery own piercing explicitly.
+Rake** burst. Each starter has a dedicated five-rank mastery path in the run
+upgrade pool; mastery strengthens only the selected animal's starter.
 
 There is no player-visible level cap. Alongside attacks, level-ups offer neutral
 passives: **Swift Paws**, **XP Magnet**, **Sturdy Hide**, **Sharpened Instinct**,

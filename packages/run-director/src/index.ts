@@ -377,6 +377,7 @@ export class RunDirector {
         maxDistance: boss.maxDistance,
         elite: false,
         boss: true,
+        bossProfile: boss.profile,
       };
       pending.push({
         tick: rt,

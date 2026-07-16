@@ -26,6 +26,7 @@ function makeCommand(): Command {
     sourceId: BLANK_COMMAND.sourceId,
     tick: BLANK_COMMAND.tick,
     targeting: BLANK_COMMAND.targeting,
+    anchor: BLANK_COMMAND.anchor ?? 'player',
     originX: BLANK_COMMAND.originX,
     originY: BLANK_COMMAND.originY,
     dirX: BLANK_COMMAND.dirX,
@@ -54,6 +55,7 @@ export function resetCommand(cmd: Command): void {
   cmd.sourceId = BLANK_COMMAND.sourceId;
   cmd.tick = BLANK_COMMAND.tick;
   cmd.targeting = BLANK_COMMAND.targeting;
+  cmd.anchor = BLANK_COMMAND.anchor ?? 'player';
   cmd.originX = BLANK_COMMAND.originX;
   cmd.originY = BLANK_COMMAND.originY;
   cmd.dirX = BLANK_COMMAND.dirX;

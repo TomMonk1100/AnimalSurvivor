@@ -176,6 +176,7 @@ import {
   createRunDirectorPort,
   type RunDirectorEventView,
   type RunDirectorFactory,
+  type RunBossProfileView,
   type RunOutcomeView,
   type RunPhaseView,
 } from './run-director-port.js';
@@ -1266,9 +1267,20 @@ export function createSimulation(
     y: number,
     role: number,
     xpMultiplier = 1,
+    bossProfile?: RunBossProfileView,
   ): boolean {
+    if (!Number.isFinite(hpMultiplier) || hpMultiplier <= 0) {
+      throw new RangeError('enemy HP multiplier must be finite and positive');
+    }
     if (!Number.isFinite(xpMultiplier) || xpMultiplier <= 0) {
       throw new RangeError('enemy XP multiplier must be finite and positive');
+    }
+    const isBoss = role === RUN_ENEMY_ROLE.boss;
+    if (isBoss && bossProfile === undefined) {
+      throw new RangeError('directed boss spawn must include an authored boss profile');
+    }
+    if (!isBoss && bossProfile !== undefined) {
+      throw new RangeError('only a directed boss spawn may include a boss profile');
     }
     const slot = enemies.spawn();
     if (slot < 0) return false;
@@ -1281,9 +1293,9 @@ export function createSimulation(
     data.velY[slot] = 0;
     data.hp[slot] = arch.hp * hpMultiplier;
     data.maxHp[slot] = arch.hp * hpMultiplier;
-    data.speed[slot] = arch.speed;
+    data.speed[slot] = arch.speed * (bossProfile?.speedMultiplier ?? 1);
     data.radius[slot] = arch.radius;
-    data.touchDamage[slot] = arch.touchDamage;
+    data.touchDamage[slot] = arch.touchDamage * (bossProfile?.touchDamageMultiplier ?? 1);
     data.contactCooldown[slot] = 0;
     data.zoneDamageCooldown[slot] = 0;
     data.archetype[slot] = archetype;
@@ -1299,7 +1311,7 @@ export function createSimulation(
       role === RUN_ENEMY_ROLE.elite,
       config.enemyBehavior.eliteInitialFireDelayTicks,
       config.enemyBehavior.spitterInitialFireDelayTicks,
-      role === RUN_ENEMY_ROLE.boss,
+      bossProfile,
     );
 
     grid.insert(enemies.idOf(slot), x, y);
@@ -1324,6 +1336,7 @@ export function createSimulation(
       request.y,
       request.role,
       request.xpMultiplier,
+      request.bossProfile,
     );
   }
 
@@ -1713,6 +1726,14 @@ export function createSimulation(
               event.dirY = dirY;
               event.meleeArcResolved = true;
             },
+            onCommandOriginResolved(commandIndex, originX, originY): void {
+              const event = traitPresentationEvents[traitPresentationCommandOffset + commandIndex];
+              if (event === undefined) return;
+              // A target-anchored Chimera graft must render at the same
+              // deterministic coordinate the executor used for combat.
+              event.originX = originX;
+              event.originY = originY;
+            },
           });
           events.projectilesFired += traitStats.projectilesSpawned;
         } catch (error) {
@@ -1979,6 +2000,18 @@ export function createSimulation(
           writer.u8(enemyBehavior.kind[slot]!);
           writer.u16(enemyBehavior.hostileShotCooldown[slot]!);
           writer.u16(enemyBehavior.bossPatternTick[slot]!);
+          writer.f32(enemyBehavior.bossPreferredRange[slot]!);
+          writer.f32(enemyBehavior.bossRangeBand[slot]!);
+          writer.u16(enemyBehavior.bossCycleTicks[slot]!);
+          writer.u16(enemyBehavior.bossChargeWindupTicks[slot]!);
+          writer.u16(enemyBehavior.bossChargeDurationTicks[slot]!);
+          writer.f32(enemyBehavior.bossChargeSpeedMultiplier[slot]!);
+          writer.u16(enemyBehavior.bossVolleyTick[slot]!);
+          writer.u8(enemyBehavior.bossVolleyCount[slot]!);
+          writer.f32(enemyBehavior.bossProjectileSpeed[slot]!);
+          writer.f32(enemyBehavior.bossProjectileDamage[slot]!);
+          writer.u16(enemyBehavior.bossProjectileLifetimeTicks[slot]!);
+          writer.f32(enemyBehavior.bossProjectileHitRadius[slot]!);
         }
       }
     }

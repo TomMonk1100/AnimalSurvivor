@@ -15,6 +15,7 @@
     "verify:assets": "node scripts/verify-assets.mjs",
     "verify:artifact": "node scripts/verify-dist.mjs",
     "verify:served": "node scripts/verify-served-artifact.mjs",
+    "verify:agent-smoke": "node scripts/verify-agent-smoke.mjs",
     "golden:propose": "node scripts/propose-golden-hashes.mjs",
     "vfx:capture": "node scripts/vfx-capture.mjs",
     "vfx:make-signature-v3": "node scripts/make-signature-v3.mjs",

@@ -1,9 +1,10 @@
 # V1 Visual Runtime Art Prompts
 
-These authored runtime images were generated with the built-in OpenAI
-image-generation tool on 2026-07-12 without reference images. They are
-presentation assets only: they do not enter simulation state, replay data,
-hashes, or gameplay decisions.
+The original authored runtime images in this file were generated with the
+built-in OpenAI image-generation tool on 2026-07-12 without reference images.
+The Scout replacement record below covers the owner-provided-reference work
+from 2026-07-15. All of these are presentation assets only: they do not enter
+simulation state, replay data, hashes, or gameplay decisions.
 
 ## Forest clearing ground — `assets/ui/terrain/storybook-glade-ground-v1.jpg`
 
@@ -137,3 +138,59 @@ Lighting/mood: warm key light from upper left, subtle soft rim light only on the
 Constraints: background must be exactly uniform #ff00ff with no shadow, floor plane, gradient, texture, reflection, or lighting variation; no text, no UI, no watermark, no logo; subject must not contain magenta or bright pink.
 Avoid: circles, rings, humanoid body, weapons held in hands, extra creatures, cropped hooves, photorealism, detailed scenery.
 ```
+
+## Scout replacement presentation art — `assets/ui/heroes/scout-pouncer-v1.png` and `assets/ui/field-guide/scout-final-form-v1.png`
+
+On 2026-07-15 (America/Chicago), the owner asked to replace the Fox with their
+dog Scout and supplied `IMG_1759.png` as a private visual reference. The photo
+is not copied into this repository or the shipped runtime. Both Scout outputs
+were made with the built-in OpenAI image-generation tool and remain
+presentation-only; the stable `greg` simulation id, replay data, and gameplay
+rules did not receive image-derived state.
+
+The following is a concise, non-verbatim generation brief. It records the
+intent and constraints supplied for the task, rather than reconstructing an
+unpreserved full prompt.
+
+### Gameplay cutout brief
+
+```text
+Create Scout as a caramel/tan, short-haired dog with floppy ears, a white
+blaze, muzzle, chest, and front paws, plus a teal bandana. Match the project's
+low-poly, isometric/top-down game presentation. Show a running or leaping pose
+on a flat #ff00ff chroma background for an isolated gameplay cutout. No text.
+```
+
+### Field Guide portrait brief
+
+```text
+Use the supplied Scout reference and the gameplay art to create a low-poly
+Scout portrait in a moonlit forest. Preserve Scout's caramel/tan coat, white
+blaze, muzzle, chest, and front paws, and teal bandana. No text or logos.
+```
+
+The preserved gameplay generation source is
+`tmp/imagegen/scout-pouncer-source-v1.png`: 1254×1254 8-bit RGB PNG,
+SHA-256 `54fe5bd914f8accf967a060c82867904c6d99af9a7a827e0cd33c6af1f336314`.
+The runtime cutout is 1254×1254 8-bit RGBA,
+SHA-256 `8b95623f80f42af866133d257d7401dd151e494eaab5f71411d9b89a92f674fb`.
+The Field Guide portrait is 768×768 8-bit RGB,
+SHA-256 `3de4aafbdf4ef06f457aa654d6f4f1bf7294d2bdfd563748ec327a8bae611d05`.
+
+### Title key art replacement brief
+
+```text
+Use the supplied Scout reference, the existing Wildguard title key art, and
+the generated Scout gameplay cutout to make a replacement 1672×941 title
+illustration. Preserve the menu-safe open space on the left. Replace the
+right-side Fox with low-poly Scout in the forest, retaining Scout's teal
+bandana. Do not include text.
+```
+
+The preserved title generation source is
+`tmp/imagegen/scout-keyart-source-v1.png`: 1672×941 8-bit RGB PNG,
+SHA-256 `0b60157a3d7f72d85aa7e5a86157183b22494309f6aca9714118309c657e6eba`.
+The runtime title key art is 1672×941 8-bit RGB JPEG,
+SHA-256 `5dd0cd5aa13b24467e4cbade2bec9441b8405fda8ebaab3a8e29d856190b42f3`.
+The full provenance, privacy boundary, and verifier coverage are in
+[`scout-presentation-provenance.md`](scout-presentation-provenance.md).

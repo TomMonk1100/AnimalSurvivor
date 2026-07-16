@@ -7,6 +7,7 @@ import { UNIVERSAL_UPGRADE_CATALOG } from '../src/universal-upgrades.js';
 import type {
   RunDirectorEventView,
   RunDirectorFactory,
+  RunBossProfileView,
   RunDirectorPort,
   RunMetricsView,
   RunOutcomeView,
@@ -14,6 +15,26 @@ import type {
 } from '../src/run-director-port.js';
 
 const RUN_FP = '12345678';
+
+const TEST_BOSS_PROFILE: RunBossProfileView = {
+  id: 'simulation-test-apex-v1',
+  hpMultiplier: 24,
+  xpMultiplier: 1,
+  speedMultiplier: 1.8,
+  touchDamageMultiplier: 1.25,
+  preferredRange: 250,
+  rangeBand: 45,
+  cycleTicks: 270,
+  chargeWindupTicks: 30,
+  chargeDurationTicks: 48,
+  chargeSpeedMultiplier: 3.1,
+  volleyTick: 135,
+  volleyCount: 10,
+  projectileSpeed: 250,
+  projectileDamage: 12,
+  projectileLifetimeTicks: 180,
+  projectileHitRadius: 8,
+};
 
 class FakeRunDirector implements RunDirectorPort {
   outcome: RunOutcomeView = 'running';
@@ -32,7 +53,7 @@ class FakeRunDirector implements RunDirectorPort {
         kind: 'bossRequested', tick: 1, seq: 1, phase: 'opening',
         intent: {
           archetypeId: 'enemy:boss', count: 1, formation: 'ring',
-          minDistance: 5, maxDistance: 5, elite: false, boss: true,
+          minDistance: 5, maxDistance: 5, elite: false, boss: true, bossProfile: TEST_BOSS_PROFILE,
         },
       }];
     }
@@ -171,7 +192,9 @@ test('primes tick zero, replaces legacy waves, and executes authored boss placem
   const slot = sim.enemies.data.alive.indexOf(1);
   assert.notEqual(slot, -1);
   assert.equal(sim.enemies.data.archetype[slot], 2);
-  assert.equal(sim.enemies.data.maxHp[slot], DEFAULT_CONFIG.archetypes[2]!.hp * 18);
+  assert.equal(sim.enemies.data.maxHp[slot], DEFAULT_CONFIG.archetypes[2]!.hp * TEST_BOSS_PROFILE.hpMultiplier);
+  assert.equal(sim.enemies.data.speed[slot], DEFAULT_CONFIG.archetypes[2]!.speed * TEST_BOSS_PROFILE.speedMultiplier);
+  assert.equal(sim.enemies.data.touchDamage[slot], DEFAULT_CONFIG.archetypes[2]!.touchDamage * TEST_BOSS_PROFILE.touchDamageMultiplier);
   const bossId = sim.enemies.idOf(slot);
   const hashBeforePresentationRead = sim.hash();
   assert.equal(sim.enemyPresentationRole(bossId), RUN_ENEMY_ROLE.boss);
@@ -220,16 +243,16 @@ test('bespoke boss emits deterministic charge and volley presentation cues throu
   assert.equal(firstBossStep.enemyProjectilesFired, 0);
   assert.equal(sim.traitPresentationEvents[0]?.sourceId, 'forest-final-threat');
   assert.equal(sim.traitPresentationEvents[0]?.tag, 'boss-charge');
-  assert.equal(sim.traitPresentationEvents[0]?.durationTicks, DEFAULT_CONFIG.enemyBehavior.bossChargeWindupTicks);
+  assert.equal(sim.traitPresentationEvents[0]?.durationTicks, TEST_BOSS_PROFILE.chargeWindupTicks);
 
   let volleyEvents = 0;
-  for (let tick = 0; tick < DEFAULT_CONFIG.enemyBehavior.bossVolleyTick + 2; tick++) {
+  for (let tick = 0; tick < TEST_BOSS_PROFILE.volleyTick + 2; tick++) {
     const events = sim.step({ moveX: 0, moveY: 0, paused: false });
     volleyEvents += events.enemyProjectilesFired;
     if (sim.traitPresentationEvents.some((event) => event.tag === 'boss-volley')) break;
   }
-  assert.equal(volleyEvents, DEFAULT_CONFIG.enemyBehavior.bossVolleyCount);
-  assert.ok(sim.projectiles.data.count >= DEFAULT_CONFIG.enemyBehavior.bossVolleyCount);
+  assert.equal(volleyEvents, TEST_BOSS_PROFILE.volleyCount);
+  assert.ok(sim.projectiles.data.count >= TEST_BOSS_PROFILE.volleyCount);
   assert.equal(
     runReplay(quietConfig(), sim.getReplay(), { runDirectorFactory: factory() }).finalHash,
     sim.hash(),

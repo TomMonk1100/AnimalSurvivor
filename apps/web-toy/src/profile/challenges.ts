@@ -25,7 +25,7 @@ const CHALLENGE_COPY: Readonly<Record<ChallengeId, Pick<FieldGuideChallenge, 'ti
   'forest-clearer': Object.freeze({ title: 'Forest Clearer', description: 'Win in Forest Arsenal.' }),
   'saltwind-survivor': Object.freeze({ title: 'Saltwind Survivor', description: 'Win in Saltwind Ruins.' }),
   'mythic-maker': Object.freeze({ title: 'Mythic Maker', description: 'Archive a run that reaches a Mythic form.' }),
-  'roster-scout': Object.freeze({ title: 'Roster Scout', description: 'Win with Greg, Benny, and Gracie.' }),
+  'roster-scout': Object.freeze({ title: 'Roster Scout', description: 'Win with Scout, Benny, and Gracie.' }),
 });
 
 function isVictory(entry: FieldGuideEntry): boolean {

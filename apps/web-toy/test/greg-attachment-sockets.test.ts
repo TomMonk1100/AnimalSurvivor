@@ -94,17 +94,18 @@ describe('Greg attachment sockets', () => {
     expect(manager.attachmentCount).toBe(1);
   });
 
-  it('replaces an occupied socket and makes the old generation id stale', () => {
+  it('permits multiple retained visuals on a shared Wild Splice socket', () => {
     const { factory, events } = fixture();
     const manager = createGregAttachmentSockets(auditedSkeleton(), factory);
     const oldId = manager.attach('head', 'acorn-cap');
     const newId = manager.attach('head', 'owl-crown');
 
     expect(newId).not.toBe(oldId);
+    expect(manager.attachmentCount).toBe(2);
+    expect(manager.detach(oldId)).toBe(true);
     expect(manager.attachmentCount).toBe(1);
-    expect(manager.detach(oldId)).toBe(false);
     expect(events.map((event) => event.action)).toEqual([
-      'create', 'mount', 'unmount', 'destroy', 'create', 'mount',
+      'create', 'mount', 'create', 'mount', 'unmount', 'destroy',
     ]);
     expect(events[1]?.parent).toBe('Head');
   });

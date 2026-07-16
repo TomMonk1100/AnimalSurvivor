@@ -8,6 +8,8 @@
  * Nothing in this module reads or writes simulation state.
  */
 
+import type { ChimeraSeamAttachmentPresentation } from './chimera-seam-presentation';
+
 export type GregSocketName =
   | 'head'
   | 'back'
@@ -33,6 +35,11 @@ export interface AttachmentRequest {
   /** Data-defined visual key, for example `acorn-crown` or `primitive:sphere`. */
   readonly visualKey: string;
   readonly socket: GregSocketName;
+  /**
+   * Optional renderer-only metadata for the finite Chimera seam recipe. It is
+   * copied from the immutable simulation snapshot and never fed back into it.
+   */
+  readonly chimeraSeam?: ChimeraSeamAttachmentPresentation;
 }
 
 /**
@@ -56,8 +63,16 @@ export interface ResolvedGregSocket<N extends AttachmentNode> {
 
 export interface GregAttachmentSockets<N extends AttachmentNode> {
   readonly sockets: Readonly<Record<GregSocketName, ResolvedGregSocket<N>>>;
-  attach(socket: GregSocketName, visualKey: string): AttachmentId;
-  /** Stale or already-detached generation ids are harmless and return false. */
+  /**
+   * Mounts one renderer-only attachment. Multiple views may share a gameplay
+   * socket: Wild Splice preserves both parent silhouettes on that anchor.
+   */
+  attach(
+    socket: GregSocketName,
+    visualKey: string,
+    chimeraSeam?: ChimeraSeamAttachmentPresentation,
+  ): AttachmentId;
+  /** Stale or already-detached ids are harmless and return false. */
   detach(id: AttachmentId): boolean;
   /** Unmount and destroy every currently attached visual. */
   clear(): void;
@@ -103,17 +118,8 @@ function findNamedNode<N extends AttachmentNode>(root: N, name: string): N | und
   return undefined;
 }
 
-function nextGeneration(generation: number): number {
-  // Zero is reserved so every issued id has a visibly non-zero generation.
-  const next = (generation + 1) & 0xffff;
-  return next === 0 ? 1 : next;
-}
-
-function makeAttachmentId(slot: number, generation: number): AttachmentId {
-  return ((((generation & 0xffff) << 16) | (slot & 0xffff)) >>> 0) as AttachmentId;
-}
-
 interface Mounted<V> {
+  readonly socket: GregSocketName;
   readonly id: AttachmentId;
   readonly view: V;
 }
@@ -142,53 +148,55 @@ export function createGregAttachmentSockets<N extends AttachmentNode, V>(
     });
   }
 
-  const generations = new Uint16Array(DEFINITIONS.length);
-  generations.fill(1);
-  const mounted: Array<Mounted<V> | undefined> = new Array(DEFINITIONS.length);
-  let count = 0;
+  const mounted = new Map<AttachmentId, Mounted<V>>();
+  let nextId = 1;
 
-  function release(slot: number): void {
-    const current = mounted[slot];
-    if (current === undefined) return;
+  function allocateId(): AttachmentId {
+    // The attachment set is tiny and bounded by presentation state. Still
+    // avoid ever issuing zero or colliding after an extremely long session.
+    do {
+      nextId = (nextId + 1) >>> 0;
+      if (nextId === 0) nextId = 1;
+    } while (mounted.has(nextId as AttachmentId));
+    return nextId as AttachmentId;
+  }
+
+  function release(id: AttachmentId): boolean {
+    const current = mounted.get(id);
+    if (current === undefined) return false;
     factory.unmount(current.view);
     factory.destroy(current.view);
-    mounted[slot] = undefined;
-    generations[slot] = nextGeneration(generations[slot]!);
-    count -= 1;
+    mounted.delete(id);
+    return true;
   }
 
   return {
     sockets: Object.freeze(resolved),
-    attach(socket, visualKey) {
+    attach(socket, visualKey, chimeraSeam) {
       const slot = SOCKET_NAMES.indexOf(socket);
       // SocketName is a closed union; this protects untyped runtime callers.
       if (slot < 0) throw new Error(`Unknown Greg attachment socket: ${String(socket)}`);
       if (visualKey.length === 0) throw new Error('Attachment visualKey must not be empty');
 
-      release(slot); // one visible attachment per stable gameplay socket
-      const view = factory.create({ visualKey, socket });
-      const id = makeAttachmentId(slot, generations[slot]!);
+      const view = factory.create({ visualKey, socket, chimeraSeam });
+      const id = allocateId();
       try {
         factory.mount(view, resolved[socket].parent, resolved[socket].transform);
       } catch (error) {
         factory.destroy(view);
         throw error;
       }
-      mounted[slot] = { id, view };
-      count += 1;
+      mounted.set(id, { id, socket, view });
       return id;
     },
     detach(id) {
-      const slot = id & 0xffff;
-      if (slot >= mounted.length || mounted[slot]?.id !== id) return false;
-      release(slot);
-      return true;
+      return release(id) === true;
     },
     clear() {
-      for (let slot = 0; slot < mounted.length; slot++) release(slot);
+      for (const id of [...mounted.keys()]) release(id);
     },
     get attachmentCount() {
-      return count;
+      return mounted.size;
     },
   };
 }

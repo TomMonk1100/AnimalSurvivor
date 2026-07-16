@@ -74,7 +74,16 @@ describe('procedural animal scene headings', () => {
       .toMatchObject({ moving: false, frontLeftLift: 0, frontRightLift: 0, rearLeftLift: 0, rearRightLift: 0 });
   });
 
-  it('reacts only to the active companion signature sources and decays by fixed tick', () => {
+  it('reacts only to active-companion authoritative signature sources and decays by fixed tick', () => {
+    expect(classifyProceduralAnimalAction('greg', {
+      sourceId: 'greg-fox-swipe', tag: 'greg-fox-swipe',
+    })).toBe('scout-swipe');
+    expect(classifyProceduralAnimalAction('greg', {
+      sourceId: 'greg-rush-rake', tag: 'greg-rush-rake',
+    })).toBe('scout-swipe');
+    expect(classifyProceduralAnimalAction('greg', {
+      sourceId: 'scout-swipe', tag: 'scout-swipe',
+    })).toBe('none');
     expect(classifyProceduralAnimalAction('benny', {
       sourceId: 'benny-trample', tag: 'benny-trample-wave',
     })).toBe('trample');
@@ -84,6 +93,13 @@ describe('procedural animal scene headings', () => {
     expect(classifyProceduralAnimalAction('benny', {
       sourceId: 'gracie-spit', tag: 'gracie-spit',
     })).toBe('none');
+
+    const scoutSwipe = projectProceduralAnimalActionReaction('scout-swipe', 100, 100, 0.5);
+    expect(scoutSwipe.forwardKick).toBeGreaterThan(0);
+    expect(scoutSwipe.footfallKick).toBeGreaterThan(0);
+    expect(projectProceduralAnimalActionReaction('scout-swipe', 100, 111, 0)).toMatchObject({
+      kind: 'none', strength: 0, forwardKick: 0,
+    });
 
     const trample = projectProceduralAnimalActionReaction('trample', 100, 100, 0.5);
     expect(trample.forwardKick).toBeGreaterThan(0);

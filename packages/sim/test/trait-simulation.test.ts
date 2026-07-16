@@ -180,6 +180,61 @@ class ZoneTraitRuntime implements TraitRuntimePort {
   fingerprint(): string { return TRAIT_FINGERPRINT; }
 }
 
+/** Emits a payload plus one target-anchored residue command for presentation parity. */
+class AnchoredPresentationTraitRuntime extends ZoneTraitRuntime {
+  override update(context: TraitRuntimeUpdateContext) {
+    const payload: TraitRuntimeCommandView = {
+      kind: 'spawnProjectileBurst',
+      sourceId: 'chimera-anchor-test',
+      tick: context.tick,
+      targeting: 'highestHealth',
+      originX: context.playerX,
+      originY: context.playerY,
+      dirX: 1,
+      dirY: 0,
+      count: 1,
+      damage: 0,
+      speed: 1,
+      radius: 0,
+      strength: 0,
+      facing: 0,
+      spread: 0,
+      range: 200,
+    };
+    const residue: TraitRuntimeCommandView = {
+      kind: 'spawnZone',
+      sourceId: payload.sourceId,
+      tick: context.tick,
+      targeting: 'none',
+      anchor: 'triggerTarget',
+      originX: context.playerX,
+      originY: context.playerY,
+      dirX: 0,
+      dirY: 0,
+      count: 0,
+      damage: 0,
+      speed: 0,
+      radius: 12,
+      strength: 0,
+      durationTicks: 30,
+      intervalTicks: 10,
+      amount: 1,
+      facing: 0,
+      spread: 0,
+      range: 0,
+      tag: 'sticky-trail',
+    };
+    return {
+      length: 2,
+      at(index: number): TraitRuntimeCommandView {
+        if (index === 0) return payload;
+        if (index === 1) return residue;
+        throw new RangeError('command index out of range');
+      },
+    };
+  }
+}
+
 /** Emits one real direct-damage chain each tick for the simulation bridge test. */
 class ChainTraitRuntime implements TraitRuntimePort {
   update(context: TraitRuntimeUpdateContext) {
@@ -365,6 +420,46 @@ test('publishes detached presentation copies for executed trait commands and cle
   assert.equal(sim.tick, 1);
   assert.deepEqual(sim.traitPresentationEvents, []);
   assert.equal(sim.hash(), peer.hash());
+});
+
+test('publishes a target-anchored Chimera graft at the executor-resolved coordinate', () => {
+  const sim = createSimulation(quietConfig(), 73, {
+    traitRuntimeFactory: () => new AnchoredPresentationTraitRuntime(),
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'gracie' as const, maxHpBonus: 0 },
+  });
+  const nearby = sim.enemies.spawn();
+  const payloadTarget = sim.enemies.spawn();
+  assert.notEqual(nearby, -1);
+  assert.notEqual(payloadTarget, -1);
+  const enemies = sim.enemies.data;
+  enemies.posX[nearby] = sim.player.x + 8;
+  enemies.posY[nearby] = sim.player.y;
+  enemies.hp[nearby] = 10;
+  enemies.maxHp[nearby] = 10;
+  enemies.speed[nearby] = 0;
+  enemies.radius[nearby] = 1;
+  enemies.touchDamage[nearby] = 0;
+  enemies.archetype[nearby] = 0;
+  enemies.xpDrop[nearby] = 0;
+  enemies.posX[payloadTarget] = sim.player.x + 80;
+  enemies.posY[payloadTarget] = sim.player.y;
+  enemies.hp[payloadTarget] = 1_000;
+  enemies.maxHp[payloadTarget] = 1_000;
+  enemies.speed[payloadTarget] = 0;
+  enemies.radius[payloadTarget] = 1;
+  enemies.touchDamage[payloadTarget] = 0;
+  enemies.archetype[payloadTarget] = 0;
+  enemies.xpDrop[payloadTarget] = 0;
+  sim.grid.insert(sim.enemies.idOf(nearby), enemies.posX[nearby]!, enemies.posY[nearby]!);
+  sim.grid.insert(sim.enemies.idOf(payloadTarget), enemies.posX[payloadTarget]!, enemies.posY[payloadTarget]!);
+
+  sim.step({ moveX: 0, moveY: 0, paused: false });
+
+  const residue = sim.traitPresentationEvents.find((event) => event.tag === 'sticky-trail');
+  assert.ok(residue !== undefined);
+  assert.equal(residue.originX, sim.zones.data.posX[0]);
+  assert.equal(residue.originY, sim.zones.data.posY[0]);
+  assert.notEqual(residue.originX, sim.player.x, 'presentation must not fall back to Greg after combat anchors the graft');
 });
 
 test('captures actual chain endpoints before lethal cleanup for a renderer-facing event', () => {

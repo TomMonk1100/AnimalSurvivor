@@ -1,33 +1,49 @@
+import {
+  presentChimeraCopy,
+  readChimeraFusionOffer,
+  type ChimeraPairKind,
+} from './chimera-copy';
+
 /**
- * Structural, app-local projection of the V1.1 free-fusion surface. Keeping
- * this independent of the runtime package lets an older simulation simply
- * report no offers rather than preventing the browser app from starting.
+ * Structural, app-local projection of the free-fusion surface. Keeping this
+ * independent of the runtime package lets an older simulation simply report
+ * no Chimera metadata rather than preventing the browser app from starting.
  */
 export interface FusionOfferView {
   readonly evolutionId: string;
   readonly ingredients: readonly [string, string];
+  readonly displayName?: string;
+  readonly rarity?: string;
+  readonly temperamentId?: string;
+  readonly pairKind?: ChimeraPairKind;
+  readonly flavorIndex?: number;
 }
 
 export interface FusionPresentation {
   readonly evolutionId: string;
   readonly title: string;
   readonly ingredients: string;
+  readonly description: string;
   readonly detail: string;
+  readonly rarity: string | null;
+  readonly temperament: string | null;
+  readonly temperamentAside: string | null;
+  readonly pairKind: ChimeraPairKind | null;
+  readonly usesLegacyFallback: boolean;
 }
 
-function titleCase(id: string): string {
-  return id
-    .split('-')
-    .filter((part) => part.length > 0)
-    .map((part) => `${part[0]?.toUpperCase() ?? ''}${part.slice(1)}`)
-    .join(' ');
-}
-
-function isStringPair(value: unknown): value is readonly [string, string] {
-  return Array.isArray(value)
-    && value.length === 2
-    && typeof value[0] === 'string' && value[0].trim().length > 0
-    && typeof value[1] === 'string' && value[1].trim().length > 0;
+function normalizeFusionOffer(value: unknown): FusionOfferView | null {
+  const offer = readChimeraFusionOffer(value);
+  if (offer.evolutionId === null || offer.ingredients === null) return null;
+  return Object.freeze({
+    evolutionId: offer.evolutionId,
+    ingredients: offer.ingredients,
+    ...(offer.displayName === null ? {} : { displayName: offer.displayName }),
+    ...(offer.rarity === null ? {} : { rarity: offer.rarity }),
+    ...(offer.temperamentId === null ? {} : { temperamentId: offer.temperamentId }),
+    ...(offer.pairKind === null ? {} : { pairKind: offer.pairKind }),
+    ...(offer.flavorIndex === null ? {} : { flavorIndex: offer.flavorIndex }),
+  });
 }
 
 /** Reads a tolerant external/legacy fusion value into immutable app data. */
@@ -36,15 +52,10 @@ export function readFusionOffers(value: unknown): readonly FusionOfferView[] {
   const offers: FusionOfferView[] = [];
   const seen = new Set<string>();
   for (const candidate of value) {
-    if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) continue;
-    const record = candidate as Record<string, unknown>;
-    if (typeof record.evolutionId !== 'string' || record.evolutionId.trim().length === 0 || !isStringPair(record.ingredients)) continue;
-    if (seen.has(record.evolutionId)) continue;
-    seen.add(record.evolutionId);
-    offers.push(Object.freeze({
-      evolutionId: record.evolutionId,
-      ingredients: Object.freeze([record.ingredients[0], record.ingredients[1]]) as unknown as readonly [string, string],
-    }));
+    const offer = normalizeFusionOffer(candidate);
+    if (offer === null || seen.has(offer.evolutionId)) continue;
+    seen.add(offer.evolutionId);
+    offers.push(offer);
   }
   return Object.freeze(offers);
 }
@@ -61,11 +72,17 @@ export function presentMasteryRank(
 }
 
 export function presentFusion(offer: FusionOfferView): FusionPresentation {
-  const ingredients = `${titleCase(offer.ingredients[0])} + ${titleCase(offer.ingredients[1])}`;
+  const copy = presentChimeraCopy(offer);
   return Object.freeze({
     evolutionId: offer.evolutionId,
-    title: titleCase(offer.evolutionId),
-    ingredients,
-    detail: `Fuse two Master attacks into one logical attack slot. This fusion is free.`,
+    title: copy.title,
+    ingredients: copy.ingredients,
+    description: copy.description,
+    detail: copy.detail,
+    rarity: copy.rarity,
+    temperament: copy.temperament,
+    temperamentAside: copy.temperamentAside,
+    pairKind: copy.pairKind,
+    usesLegacyFallback: copy.usesLegacyFallback,
   });
 }

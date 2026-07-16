@@ -139,7 +139,7 @@ function main(): void {
   console.log('run-director benchmark (diagnostic, not a hardware gate)');
 
   // 1. One complete authored normal run.
-  const full = runScenario('full', 2024, 0, RUN_DURATION_TICKS, undefined, -1, 3_600);
+  const full = runScenario('full', 2024, 0, RUN_DURATION_TICKS, undefined, -1, 2_700);
   report(`full ${RUN_DURATION_TICKS.toLocaleString()}-tick run`, full);
 
   // 2. Congested / high-live-enemy scenario.

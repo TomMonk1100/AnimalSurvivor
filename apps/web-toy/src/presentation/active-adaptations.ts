@@ -1,12 +1,26 @@
 import type { TraitVisualAttachmentView } from '@sim';
+import { describeTraitUpgradeImpact } from '@traits';
 
 /** Plain-language HUD content for the Forest Arsenal launch pool. */
-export interface ActiveAdaptationCard {
+export type ActiveAdaptationImpactCategory =
+  | 'Direct damage'
+  | 'Crowd control'
+  | 'Targeting'
+  | 'Defense'
+  | 'Economy / utility';
+
+interface ActiveAdaptationCardBase {
   readonly id: string;
   readonly title: string;
   readonly stageLabel: string;
   readonly effect: string;
   readonly cadence: string;
+}
+
+export interface ActiveAdaptationCard extends ActiveAdaptationCardBase {
+  /** Read-only explanation derived from the executable trait rank content. */
+  readonly impactCategory: ActiveAdaptationImpactCategory;
+  readonly impact: string;
 }
 
 type GregAdaptationId =
@@ -42,7 +56,7 @@ type GregAdaptationId =
   | 'royal-stinkcloud:mythic';
 
 export interface AdaptationPresentationDefinition {
-  readonly card: ActiveAdaptationCard;
+  readonly card: ActiveAdaptationCardBase;
   readonly sourceId: string;
   readonly stage: TraitVisualAttachmentView['stage'];
 }
@@ -403,29 +417,65 @@ function activeVisual(
   return selected;
 }
 
+const MYTHIC_IMPACT_CATEGORIES: Readonly<Record<string, ActiveAdaptationImpactCategory>> = Object.freeze({
+  'thornstorm-mantle': 'Direct damage',
+  'thunderbug-dynamo': 'Direct damage',
+  'razorstep-chimera': 'Direct damage',
+  'midnight-radar': 'Targeting',
+  'meteor-mauler': 'Direct damage',
+  'royal-stinkcloud': 'Direct damage',
+});
+
+function activeImpact(
+  definition: AdaptationPresentationDefinition,
+  visual: TraitVisualAttachmentView,
+): Pick<ActiveAdaptationCard, 'impactCategory' | 'impact'> {
+  if (definition.stage === 'mythic') {
+    const category = MYTHIC_IMPACT_CATEGORIES[definition.sourceId] ?? 'Economy / utility';
+    return Object.freeze({
+      impactCategory: category,
+      impact: category === 'Direct damage'
+        ? 'Fused attack: direct-damage outcome resolves in the authoritative simulation.'
+        : `Fused attack: ${category}; no direct damage is claimed.`,
+    });
+  }
+  const rank = visualRank(visual) || (definition.stage === 'bud' ? 1 : 2);
+  const authored = describeTraitUpgradeImpact(definition.sourceId, rank);
+  if (authored !== undefined) {
+    return Object.freeze({ impactCategory: authored.category, impact: authored.summary });
+  }
+  return Object.freeze({
+    impactCategory: 'Economy / utility',
+    impact: 'Authored impact data is unavailable; no direct damage is claimed.',
+  });
+}
+
 function presentCard(
   definition: AdaptationPresentationDefinition,
   visual: TraitVisualAttachmentView,
 ): ActiveAdaptationCard {
   const base = definition.card;
+  const impact = activeImpact(definition, visual);
   if (definition.stage === 'mythic') {
     return Object.freeze({
       ...base,
       stageLabel: 'Fused · 1 slot',
       effect: `${base.effect} Fused form; occupies one slot.`,
       cadence: `${base.cadence} · One slot`,
+      ...impact,
     });
   }
 
   const rank = visualRank(visual);
-  if (rank === 0) return base;
+  if (rank === 0) return Object.freeze({ ...base, ...impact });
   const rankCopy = RANK_PRESENTATIONS[definition.sourceId as AttackSourceId]?.[rank - 1];
-  if (rankCopy === undefined) return base;
+  if (rankCopy === undefined) return Object.freeze({ ...base, ...impact });
   return Object.freeze({
     ...base,
     stageLabel: rank === 5 ? 'MASTER · Rank 5' : `Rank ${rank}`,
     effect: rankCopy.effect,
     cadence: rankCopy.cadence,
+    ...impact,
   });
 }
 

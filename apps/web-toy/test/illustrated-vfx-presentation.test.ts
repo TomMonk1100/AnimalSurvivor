@@ -4,11 +4,18 @@ import type {
   IllustratedTraitVfxEvent,
 } from '../src/render/illustrated-vfx-presentation';
 import {
+  FOX_SWIPE_FLASH_SAFE_MIN_INTERVAL_TICKS,
+  FOX_SWIPE_FLASH_SAFE_OPACITY_MULTIPLIER,
+  PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS,
+  PUFFER_PULSE_FLASH_SAFE_OPACITY_MULTIPLIER,
   SIGNATURE_VFX_ENVELOPE_RELEASE,
+  canStartIllustratedVfxClip,
   illustratedVfxClipForCombatEvent,
   illustratedVfxClipForTraitEvent,
   illustratedVfxEnvelopeReleaseForClip,
+  illustratedVfxFlashSafeIntervalForClip,
   illustratedVfxLifetimeForClip,
+  illustratedVfxOpacityMultiplierForClip,
   illustratedVfxRadiusForTraitEvent,
 } from '../src/render/illustrated-vfx-presentation';
 
@@ -54,6 +61,27 @@ describe('illustrated VFX presentation routing', () => {
     for (const clip of ['foxSwipe', 'earthWave', 'spitComet'] as const) {
       expect(illustratedVfxEnvelopeReleaseForClip(clip)).toBeGreaterThanOrEqual(0.5);
     }
+  });
+
+  it('keeps the large Fox Swipe card on a deterministic flash-safe cadence', () => {
+    expect(FOX_SWIPE_FLASH_SAFE_MIN_INTERVAL_TICKS).toBeGreaterThan(60);
+    expect(FOX_SWIPE_FLASH_SAFE_OPACITY_MULTIPLIER).toBeGreaterThan(0.2);
+    expect(FOX_SWIPE_FLASH_SAFE_OPACITY_MULTIPLIER).toBeLessThan(0.3);
+    expect(PUFFER_PULSE_FLASH_SAFE_OPACITY_MULTIPLIER).toBeGreaterThan(0.3);
+    expect(PUFFER_PULSE_FLASH_SAFE_OPACITY_MULTIPLIER).toBeLessThan(0.4);
+    expect(illustratedVfxFlashSafeIntervalForClip('foxSwipe')).toBe(FOX_SWIPE_FLASH_SAFE_MIN_INTERVAL_TICKS);
+    expect(PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS).toBeGreaterThan(60);
+    expect(illustratedVfxFlashSafeIntervalForClip('pufferPulse')).toBe(PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS);
+    expect(illustratedVfxFlashSafeIntervalForClip('earthWave')).toBe(0);
+    expect(illustratedVfxOpacityMultiplierForClip('foxSwipe')).toBe(FOX_SWIPE_FLASH_SAFE_OPACITY_MULTIPLIER);
+    expect(illustratedVfxOpacityMultiplierForClip('pufferPulse')).toBe(PUFFER_PULSE_FLASH_SAFE_OPACITY_MULTIPLIER);
+    expect(illustratedVfxOpacityMultiplierForClip('earthWave')).toBe(1);
+    expect(canStartIllustratedVfxClip('foxSwipe', 100, undefined)).toBe(true);
+    expect(canStartIllustratedVfxClip('foxSwipe', 100 + FOX_SWIPE_FLASH_SAFE_MIN_INTERVAL_TICKS - 1, 100)).toBe(false);
+    expect(canStartIllustratedVfxClip('foxSwipe', 100 + FOX_SWIPE_FLASH_SAFE_MIN_INTERVAL_TICKS, 100)).toBe(true);
+    expect(canStartIllustratedVfxClip('pufferPulse', 100 + PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS - 1, 100)).toBe(false);
+    expect(canStartIllustratedVfxClip('pufferPulse', 100 + PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS, 100)).toBe(true);
+    expect(canStartIllustratedVfxClip('earthWave', 101, 100)).toBe(true);
   });
 
   it('requires a resolved target before drawing an illustrated Fox Swipe', () => {

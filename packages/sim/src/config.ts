@@ -5,10 +5,10 @@
 import type { EnemyArchetype, WaveSegment } from './types.js';
 import { createHashWriter } from './state-hash.js';
 
-// Version 12 adds V1.1 hero attack modes and explicit replay-recorded Master
-// fusions on top of the combat/pickup state introduced in v11. Old records
-// must reject rather than silently replay with a different action vocabulary.
-export const CONFIG_VERSION = 12;
+// Version 13 adds per-spawn, run-content-authored boss behavior state on top
+// of the V1.1 hero attack modes and replay-recorded Master fusions. Old
+// records reject rather than silently replay with a different boss contract.
+export const CONFIG_VERSION = 13;
 
 export interface WeaponConfig {
   /** Ticks between automatic shots. */

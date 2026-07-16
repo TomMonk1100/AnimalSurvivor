@@ -10,6 +10,8 @@ describe('pause notice presentation', () => {
       stageLabel: 'Bud',
       effect: 'Automatically fires a compact quill burst at nearby enemies.',
       cadence: 'Every 1.5 seconds',
+      impactCategory: 'Direct damage',
+      impact: 'Direct damage: rank-one quills.',
     }])).toEqual({
       title: 'Paused',
       detail: 'Press Esc or Resume to continue.',
@@ -24,6 +26,8 @@ describe('pause notice presentation', () => {
         stageLabel: 'Bud',
         effect: 'Automatically fires a compact quill burst at nearby enemies.',
         cadence: 'Every 1.5 seconds',
+        impactCategory: 'Direct damage',
+        impact: 'Direct damage: rank-one quills.',
       }],
     });
   });

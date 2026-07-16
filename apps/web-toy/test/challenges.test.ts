@@ -38,6 +38,9 @@ describe('Field Guide challenge projection', () => {
     expect(first.map((challenge) => challenge.title)).toEqual([
       'First Light', 'Forest Clearer', 'Saltwind Survivor', 'Mythic Maker', 'Roster Scout',
     ]);
+    expect(first.find((challenge) => challenge.id === 'roster-scout')).toMatchObject({
+      description: 'Win with Scout, Benny, and Gracie.',
+    });
   });
 
   it('keeps unfinished challenges explicitly locked', () => {

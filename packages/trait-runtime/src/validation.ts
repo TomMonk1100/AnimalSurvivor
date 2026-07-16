@@ -32,8 +32,10 @@
  * The shipped CATALOG must validate with ok=true and zero issues.
  */
 
+import { COMMAND_ANCHORS } from './contracts.js';
 import type {
   BehaviorDefinition,
+  BehaviorFollowUp,
   Catalog,
   CommandTemplate,
   EvolutionDefinition,
@@ -84,6 +86,8 @@ const MAX_EXECUTABLE_CHAIN_JUMPS = 7;
 /** Keeps one orbit pulse bounded even if future content adds more fireflies. */
 const MAX_EXECUTABLE_ORBITING_DAMAGE_COUNT = 16;
 const MAX_EXECUTABLE_PROJECTILE_PIERCE = 255;
+const MAX_SYNTHESIZED_PHASES = 4;
+const MAX_COMMANDS_PER_BEHAVIOR_TRIGGER = 3;
 
 function pushIssue(
   issues: ValidationIssue[],
@@ -101,6 +105,17 @@ function validateTemplateNumbers(
 ): void {
   if (!template) {
     return;
+  }
+  if (
+    template.anchor !== undefined
+    && !(COMMAND_ANCHORS as readonly string[]).includes(template.anchor)
+  ) {
+    pushIssue(
+      issues,
+      'invalidCommandAnchor',
+      `Command template anchor "${String(template.anchor)}" is not supported.`,
+      subjectId,
+    );
   }
   for (const field of NON_NEGATIVE_FIELDS) {
     const value = template[field];
@@ -283,6 +298,101 @@ function validateProjectilePierceTemplate(
   }
 }
 
+function validateFollowUps(
+  subjectId: string,
+  followUps: readonly BehaviorFollowUp[] | undefined,
+  issues: ValidationIssue[],
+): void {
+  if (followUps === undefined) return;
+  if (!Array.isArray(followUps) || followUps.length > MAX_COMMANDS_PER_BEHAVIOR_TRIGGER - 1) {
+    pushIssue(
+      issues,
+      'chimeraCommandBound',
+      `A behavior trigger supports at most ${MAX_COMMANDS_PER_BEHAVIOR_TRIGGER} total commands.`,
+      subjectId,
+    );
+    return;
+  }
+  for (let index = 0; index < followUps.length; index++) {
+    const followUp = followUps[index];
+    if (followUp === undefined) continue;
+    const followUpSubject = `${subjectId}[follow-up ${index}]`;
+    const delayTicks = followUp.delayTicks ?? 0;
+    const everyCycles = followUp.everyCycles ?? 1;
+    if (!Number.isSafeInteger(delayTicks) || delayTicks < 0) {
+      pushIssue(issues, 'nonFiniteParam', 'follow-up delayTicks must be a non-negative safe integer.', followUpSubject);
+    }
+    if (!Number.isSafeInteger(everyCycles) || everyCycles < 1) {
+      pushIssue(issues, 'nonFiniteParam', 'follow-up everyCycles must be a positive safe integer.', followUpSubject);
+    }
+    validateTemplateNumbers(followUpSubject, followUp.emit, issues);
+    validateChainDamageTemplate(followUpSubject, followUp.emit, issues);
+    validateMeleeArcTemplate(followUpSubject, followUp.emit, issues);
+    validateOrbitingDamageTemplate(followUpSubject, followUp.emit, issues);
+    validateProjectilePierceTemplate(followUpSubject, followUp.emit, issues);
+  }
+}
+
+/** Preludes are immediate ordering guarantees, never delayed timer work. */
+function validatePreludes(
+  subjectId: string,
+  preludes: readonly BehaviorFollowUp[] | undefined,
+  issues: ValidationIssue[],
+): void {
+  validateFollowUps(subjectId, preludes, issues);
+  for (let index = 0; index < (preludes?.length ?? 0); index++) {
+    const prelude = preludes?.[index];
+    if (prelude === undefined) continue;
+    if ((prelude.delayTicks ?? 0) !== 0) {
+      pushIssue(
+        issues,
+        'invalidPrelude',
+        'A prelude must have delayTicks 0 so it executes before its payload.',
+        `${subjectId}[prelude ${index}]`,
+      );
+    }
+  }
+}
+
+function validateTriggerCommandBound(
+  subjectId: string,
+  preludes: readonly BehaviorFollowUp[] | undefined,
+  followUps: readonly BehaviorFollowUp[] | undefined,
+  issues: ValidationIssue[],
+): void {
+  if ((preludes?.length ?? 0) + (followUps?.length ?? 0) <= MAX_COMMANDS_PER_BEHAVIOR_TRIGGER - 1) return;
+  pushIssue(
+    issues,
+    'chimeraCommandBound',
+    `A behavior trigger supports at most ${MAX_COMMANDS_PER_BEHAVIOR_TRIGGER} total commands.`,
+    subjectId,
+  );
+}
+
+function validateOrbitingAggregate(
+  subjectId: string,
+  emit: CommandTemplate | undefined,
+  preludes: readonly BehaviorFollowUp[] | undefined,
+  followUps: readonly BehaviorFollowUp[] | undefined,
+  issues: ValidationIssue[],
+): void {
+  let total = emit?.kind === 'orbitingDamage' ? emit.count ?? 0 : 0;
+  for (const prelude of preludes ?? []) {
+    if (prelude.emit.kind === 'orbitingDamage') total += prelude.emit.count ?? 0;
+  }
+  for (const followUp of followUps ?? []) {
+    if (followUp.emit.kind === 'orbitingDamage') total += followUp.emit.count ?? 0;
+  }
+  if (total > MAX_EXECUTABLE_ORBITING_DAMAGE_COUNT) {
+    pushIssue(
+      issues,
+      'chimeraOrbitBound',
+      `Summed orbitingDamage count must be <= ${MAX_EXECUTABLE_ORBITING_DAMAGE_COUNT}.`,
+      subjectId,
+    );
+  }
+}
+
 function validateBehavior(
   subjectId: string,
   behavior: BehaviorDefinition,
@@ -299,6 +409,8 @@ function validateBehavior(
       subjectId,
     );
   }
+
+  validatePreludes(subjectId, behavior.preludes, issues);
 
   switch (behavior.kind) {
     case 'periodicBurst':
@@ -319,6 +431,9 @@ function validateBehavior(
       validateMeleeArcTemplate(subjectId, behavior.emit, issues);
       validateOrbitingDamageTemplate(subjectId, behavior.emit, issues);
       validateProjectilePierceTemplate(subjectId, behavior.emit, issues);
+      validateFollowUps(subjectId, behavior.followUps, issues);
+      validateTriggerCommandBound(subjectId, behavior.preludes, behavior.followUps, issues);
+      validateOrbitingAggregate(subjectId, behavior.emit, behavior.preludes, behavior.followUps, issues);
       break;
     }
     case 'multiPhase': {
@@ -330,6 +445,14 @@ function validateBehavior(
           subjectId,
         );
       } else {
+        if (behavior.phases.length > MAX_SYNTHESIZED_PHASES) {
+          pushIssue(
+            issues,
+            'chimeraPhaseBound',
+            `multiPhase behavior must have at most ${MAX_SYNTHESIZED_PHASES} phases.`,
+            subjectId,
+          );
+        }
         for (let i = 0; i < behavior.phases.length; i++) {
           const phase = behavior.phases[i];
           if (!phase) {
@@ -356,6 +479,10 @@ function validateBehavior(
           validateMeleeArcTemplate(phaseSubject, phase.emit, issues);
           validateOrbitingDamageTemplate(phaseSubject, phase.emit, issues);
           validateProjectilePierceTemplate(phaseSubject, phase.emit, issues);
+          validateFollowUps(phaseSubject, phase.followUps, issues);
+          const preludes = i === 0 ? behavior.preludes : undefined;
+          validateTriggerCommandBound(phaseSubject, preludes, phase.followUps, issues);
+          validateOrbitingAggregate(phaseSubject, phase.emit, preludes, phase.followUps, issues);
         }
       }
       break;
@@ -383,6 +510,9 @@ function validateBehavior(
       validateMeleeArcTemplate(subjectId, behavior.emit, issues);
       validateOrbitingDamageTemplate(subjectId, behavior.emit, issues);
       validateProjectilePierceTemplate(subjectId, behavior.emit, issues);
+      validateFollowUps(subjectId, behavior.followUps, issues);
+      validateTriggerCommandBound(subjectId, behavior.preludes, behavior.followUps, issues);
+      validateOrbitingAggregate(subjectId, behavior.emit, behavior.preludes, behavior.followUps, issues);
       break;
     }
   }

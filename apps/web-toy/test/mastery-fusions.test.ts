@@ -36,6 +36,53 @@ describe('V1.1 mastery fusion presentation', () => {
       title: 'Razorstep Chimera',
       ingredients: 'Mantis Scythes + Gecko Pads',
     });
-    expect(presentation.detail).toMatch(/one logical attack slot.*free/i);
+    expect(presentation.detail).toBe('Fuses 2 Master attacks into 1 slot. Free. Permanent. Enthusiastic.');
+  });
+
+  it('preserves future Chimera preview fields while legacy offers remain valid', () => {
+    const [offer] = readFusionOffers([{
+      evolutionId: 'chimera:porcupine-quills+owl-pinions',
+      ingredients: ['porcupine-quills', 'owl-pinions'],
+      displayName: 'TWITCHY QUILLNADO (Rare)',
+      rarity: 'rare',
+      temperamentId: 'twitchy',
+      pairKind: 'wild',
+      flavorIndex: 17,
+    }]);
+
+    expect(offer).toEqual({
+      evolutionId: 'chimera:porcupine-quills+owl-pinions',
+      ingredients: ['porcupine-quills', 'owl-pinions'],
+      displayName: 'TWITCHY QUILLNADO (Rare)',
+      rarity: 'rare',
+      temperamentId: 'twitchy',
+      pairKind: 'wild',
+      flavorIndex: 17,
+    });
+    expect(presentFusion(offer!)).toMatchObject({
+      title: 'TWITCHY QUILLNADO (Rare)',
+      rarity: 'Rare',
+      temperament: 'Twitchy',
+      description: expect.stringContaining('Porcupine Quills chassis'),
+      detail: 'Fuses 2 Master attacks into 1 slot. Free. Permanent. Enthusiastic.',
+      pairKind: 'wild',
+      usesLegacyFallback: false,
+    });
+  });
+
+  it('drops malformed additive fields without rejecting an otherwise valid legacy offer', () => {
+    const [offer] = readFusionOffers([{
+      evolutionId: 'thornstorm-mantle',
+      ingredients: ['porcupine-quills', 'puffer-pouch'],
+      displayName: 42,
+      pairKind: 'not-a-kind',
+      flavorIndex: 3.5,
+    }]);
+
+    expect(offer).toEqual({
+      evolutionId: 'thornstorm-mantle',
+      ingredients: ['porcupine-quills', 'puffer-pouch'],
+    });
+    expect(presentFusion(offer!).usesLegacyFallback).toBe(true);
   });
 });

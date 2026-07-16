@@ -8,14 +8,19 @@ interface View { readonly request: AttachmentRequest }
 
 function fixture() {
   const events: string[] = [];
+  const requests: AttachmentRequest[] = [];
   const root: AttachmentNode = { name: 'Greg' };
   const sockets = createGregAttachmentSockets(root, {
-    create(request): View { events.push(`create:${request.socket}:${request.visualKey}`); return { request }; },
+    create(request): View {
+      requests.push(request);
+      events.push(`create:${request.socket}:${request.visualKey}`);
+      return { request };
+    },
     mount(): void {},
     unmount(view): void { events.push(`unmount:${view.request.socket}:${view.request.visualKey}`); },
     destroy(): void {},
   });
-  return { events, sockets, projector: createGregTraitVisualProjector(sockets) };
+  return { events, requests, sockets, projector: createGregTraitVisualProjector(sockets) };
 }
 
 function visual(overrides: Partial<TraitVisualAttachmentView>): TraitVisualAttachmentView {
@@ -83,7 +88,7 @@ describe('Greg trait visual projector', () => {
     expect(events).toEqual(['create:rightShoulder:gecko-pads:adapted']);
   });
 
-  it('anchors Razorstep at the left shoulder while reserving both shoulders', () => {
+  it('anchors Razorstep at the left shoulder without hiding a shared-socket attachment', () => {
     const { events, sockets, projector } = fixture();
     projector.sync([
       visual({
@@ -100,8 +105,90 @@ describe('Greg trait visual projector', () => {
       }),
     ]);
 
-    expect(events).toEqual(['create:leftShoulder:razorstep-chimera:mythic']);
-    expect(sockets.attachmentCount).toBe(1);
+    expect(events).toEqual([
+      'create:leftShoulder:razorstep-chimera:mythic',
+      'create:rightShoulder:gecko-pads:adapted',
+    ]);
+    expect(sockets.attachmentCount).toBe(2);
+  });
+
+  it('retains both fused Master parents and adds one reusable splice seam', () => {
+    const { events, requests, sockets, projector } = fixture();
+    projector.sync([
+      visual({
+        sourceId: 'thornstorm-mantle',
+        stage: 'mythic',
+        sockets: ['head', 'back'],
+        visualKey: 'thornstorm-mantle:mythic',
+        chimeraParents: ['porcupine-quills', 'puffer-pouch'],
+      }),
+      visual({
+        sourceId: 'porcupine-quills',
+        stage: 'adapted',
+        sockets: ['back'],
+        visualKey: 'porcupine-quills:adapted',
+        visualOnly: true,
+      }),
+      visual({
+        sourceId: 'puffer-pouch',
+        stage: 'adapted',
+        sockets: ['head'],
+        visualKey: 'puffer-pouch:adapted',
+        visualOnly: true,
+      }),
+    ]);
+
+    expect(events).toEqual([
+      'create:back:thornstorm-mantle:mythic',
+      'create:bodyOrbit:chimera-seam:mythic',
+      'create:back:porcupine-quills:adapted',
+      'create:head:puffer-pouch:adapted',
+    ]);
+    expect(requests.find((request) => request.visualKey === 'chimera-seam:mythic')?.chimeraSeam)
+      .toEqual({
+        sourceId: 'thornstorm-mantle',
+        parents: ['porcupine-quills', 'puffer-pouch'],
+        temperamentId: null,
+      });
+    expect(sockets.attachmentCount).toBe(4);
+  });
+
+  it('rebinds a generated seam when immutable temperament metadata changes', () => {
+    const { events, requests, projector } = fixture();
+    const generated = visual({
+      sourceId: 'chimera:porcupine-quills+electric-eel-coil',
+      stage: 'mythic',
+      sockets: ['back', 'tail'],
+      visualKey: 'chimera:porcupine-quills+electric-eel-coil:mythic',
+      chimeraParents: ['porcupine-quills', 'electric-eel-coil'],
+      temperamentId: 'steady',
+    });
+    projector.sync([generated]);
+    projector.sync([{ ...generated, temperamentId: 'apex-whisper' }]);
+
+    expect(events).toEqual([
+      'create:bodyOrbit:chimera-seam:mythic',
+      'unmount:bodyOrbit:chimera-seam:mythic',
+      'create:bodyOrbit:chimera-seam:mythic',
+    ]);
+    expect(requests.map((request) => request.chimeraSeam?.temperamentId)).toEqual([
+      'steady',
+      'apex-whisper',
+    ]);
+  });
+
+  it('does not synthesize a seam from malformed parent metadata', () => {
+    const { events, projector } = fixture();
+    projector.sync([
+      visual({
+        sourceId: 'chimera:puffer-pouch+bat-ears',
+        stage: 'mythic',
+        sockets: ['head'],
+        visualKey: 'chimera:puffer-pouch+bat-ears:mythic',
+        chimeraParents: ['puffer-pouch', 'puffer-pouch'],
+      }),
+    ]);
+    expect(events).toEqual([]);
   });
 
   it('hides disabled and malformed or socket-conflicting entries', () => {

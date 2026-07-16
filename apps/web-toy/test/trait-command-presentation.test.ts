@@ -10,6 +10,7 @@ import {
   resolveTraitCommandVisualConcurrencyCap,
   resolveTraitCommandVisualIntensity,
   resolveTraitCommandPaletteMaterialKey,
+  resolveTraitCommandAccentPaletteLane,
   resolveTraitCommandPaletteLane,
   resolveTraitCommandVisualStage,
   resolveIllustratedHeroUnderlayOpacityMultiplier,
@@ -152,6 +153,15 @@ describe('trait command presentation profiles', () => {
 
     const boss = command({ kind: 'telegraph', sourceId: 'boss-charge', tag: 'boss-charge' });
     expect(resolveTraitCommandPaletteLane(boss, projectTraitCommandEffect(boss)!)).toBe('danger');
+
+    const wildSplice = command({
+      kind: 'spawnProjectileBurst',
+      sourceId: 'chimera:porcupine-quills+electric-eel-coil',
+      tag: 'chimera-primary',
+    });
+    const wildSpliceProfile = projectTraitCommandEffect(wildSplice)!;
+    expect(resolveTraitCommandPaletteLane(wildSplice, wildSpliceProfile)).toBe('physical');
+    expect(resolveTraitCommandAccentPaletteLane(wildSplice, wildSpliceProfile)).toBe('storm');
   });
 
   it('selects the finite live material key from the source family, including the Razorstep compatibility route', () => {
@@ -168,13 +178,13 @@ describe('trait command presentation profiles', () => {
     const trampleProfile = projectTraitCommandEffect(trample)!;
     expect(resolveTraitCommandPaletteMaterialKey(trample, trampleProfile)).toBe('benny-trample-wave:earth');
 
-    // Current Razorstep is a venom zone; this verifies the bounded prebuilt
-    // fallback lane retained for older deterministic melee replays as well.
+    // Perfect Razorstep follows the same Mantis-chassis / Gecko-accent
+    // duotone as a generated splice; its core remains a physical melee arc.
     const razorstep = command({
       kind: 'meleeArc', sourceId: 'razorstep-chimera', arc: 2, range: 72, meleeArcResolved: true,
     });
     const razorstepProfile = projectTraitCommandEffect(razorstep)!;
-    expect(resolveTraitCommandPaletteMaterialKey(razorstep, razorstepProfile)).toBe('melee-arc:venom');
+    expect(resolveTraitCommandPaletteMaterialKey(razorstep, razorstepProfile)).toBe('melee-arc:physical');
   });
 
   it('projects Bat Ears echo marks as a violet sonar pulse and Midnight Radar as cyan', () => {

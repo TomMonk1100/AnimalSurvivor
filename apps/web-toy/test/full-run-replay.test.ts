@@ -10,12 +10,17 @@ import {
   type SimulationOptions,
   type TraitRuntimeFactory,
 } from '@sim';
-import { RunDirector, SALTWIND_RUINS_RUN } from '@director';
+import { RUN_DURATION_TICKS, RunDirector, SALTWIND_RUINS_RUN } from '@director';
 import { GREG_FOREST_ARSENAL_CATALOG, TraitRuntime } from '@traits';
 import { createAutopilot } from '../src/stress/autopilot';
 
-const RUN_TICKS = 28_800;
+const RUN_TICKS = RUN_DURATION_TICKS;
 const SEED = 0x1234abcd;
+// This deterministic first-offer policy grows into a coherent, high-output
+// build. Keep its apex encounter in the player-facing finale band rather than
+// allowing a one-rotation boss delete.
+const STRONG_BUILD_BOSS_TTK_MIN_TICKS = 45 * 60;
+const STRONG_BUILD_BOSS_TTK_MAX_TICKS = 65 * 60;
 
 const traitRuntimeFactory: TraitRuntimeFactory = ({ seed, initialTick }) =>
   new TraitRuntime({ seed, initialTick, catalog: GREG_FOREST_ARSENAL_CATALOG });
@@ -56,20 +61,22 @@ function resolveQueuedRunActions(sim: ReturnType<typeof createSimulation>): void
 }
 
 describe('full authored run replay', () => {
-  it('advances the real integrated stack to its terminal outcome no later than 8 minutes and reproduces its exact hash', () => {
+  it('keeps a coherent deterministic build in a 45–65 second boss finale and reproduces its exact hash', () => {
     const config = enduranceConfig();
     const sim = createSimulation(config, SEED, options);
     const autopilot = createAutopilot();
     const eventKinds = new Set<string>();
     const phases = new Set<string>();
+    let bossArrivalTick: number | null = null;
 
     // The simulation freezes at either victory or defeat. A strong build may
-    // defeat the 6:30 boss before the normal 8:00 deadline, so do not keep
+    // defeat the 4:45 boss before the normal 6:00 deadline, so do not keep
     // feeding inputs into an already-terminal run just to reach the cap.
     while (sim.tick < RUN_TICKS && sim.runOutcome === 'running') {
       resolveQueuedRunActions(sim);
       sim.step(autopilot.sample(sim.tick, false));
       for (const event of sim.directorEvents) eventKinds.add(event.kind);
+      if (sim.directorEvents.some((event) => event.kind === 'bossRequested')) bossArrivalTick = sim.tick;
       if (sim.runPhase !== null) phases.add(sim.runPhase);
     }
     if (sim.runOutcome === 'running') resolveQueuedRunActions(sim);
@@ -89,6 +96,11 @@ describe('full authored run replay', () => {
     expect(sim.runOutcome === 'victory' || sim.runOutcome === 'defeat').toBe(true);
     expect(phases.has('overtime')).toBe(false);
     expect(reproduced).toEqual({ finalHash, ticks: sim.tick });
+    expect(bossArrivalTick).not.toBeNull();
+    expect(sim.runOutcome).toBe('victory');
+    const bossTtk = sim.tick - bossArrivalTick!;
+    expect(bossTtk).toBeGreaterThanOrEqual(STRONG_BUILD_BOSS_TTK_MIN_TICKS);
+    expect(bossTtk).toBeLessThanOrEqual(STRONG_BUILD_BOSS_TTK_MAX_TICKS);
   }, 30_000);
 
   it('runs the unlocked Saltwind contract through its apex variant and reproduces its exact hash', () => {

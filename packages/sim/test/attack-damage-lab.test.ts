@@ -3,9 +3,11 @@ import { test } from 'node:test';
 import {
   ATTACK_DAMAGE_LAB_CASE_COUNT,
   ATTACK_DAMAGE_LAB_DURATION_SECONDS,
+  MASTER_DAMAGE_LAB_CASE_COUNT,
   formatAttackDamageLabReport,
   runAttackDamageLab,
   runAttackDamageLabReport,
+  runMasterDamageLab,
 } from '../src/index.js';
 
 function result(report: ReturnType<typeof runAttackDamageLabReport>, id: string) {
@@ -25,12 +27,35 @@ test('attack damage lab runs every launch attack in deterministic isolated twent
   assert.deepEqual(runAttackDamageLab(), first.results, 'simple developer-panel API exposes the same result rows');
   assert.deepEqual(first.summary, {
     totalCases: ATTACK_DAMAGE_LAB_CASE_COUNT,
-    damageCases: 27,
-    damageConfirmed: 27,
-    utilityCases: 7,
-    utilityConfirmed: 7,
+    damageCases: 36,
+    damageConfirmed: 36,
+    utilityCases: 10,
+    utilityConfirmed: 10,
     failures: 0,
   });
+});
+
+test('Master Damage Lab derives twelve reproducible anchors and keeps utility evidence honest', () => {
+  const masters = runMasterDamageLab();
+  assert.equal(masters.length, MASTER_DAMAGE_LAB_CASE_COUNT);
+  const byId = new Map(masters.map((entry) => [entry.id, entry]));
+  for (const id of ['master:puffer-pouch', 'master:bat-ears', 'master:armadillo-greaves']) {
+    const utility = byId.get(id);
+    assert.ok(utility, `missing ${id}`);
+    assert.equal(utility.status, 'utility-confirmed');
+    assert.equal(utility.totalDamage, 0);
+    assert.ok(utility.utilityEffectsObserved > 0);
+  }
+  // Monarch belongs to Wild Splice's support-cap family but its real orbiters
+  // still deal direct contact damage; the lab must not erase that evidence.
+  const monarch = byId.get('master:monarch-brood');
+  assert.ok(monarch);
+  assert.equal(monarch.status, 'damage-confirmed');
+  assert.ok(monarch.damagePerSecond > 0);
+  for (const result of masters) {
+    if (['master:puffer-pouch', 'master:bat-ears', 'master:armadillo-greaves'].includes(result.id)) continue;
+    assert.equal(result.status, 'damage-confirmed', result.id);
+  }
 });
 
 test('damage lab proves the reported player concerns through authoritative health changes', () => {

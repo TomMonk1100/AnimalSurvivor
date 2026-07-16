@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getCatalog } from '../src/definitions.js';
 import {
+  activeAttackSlots,
   applyUpgrade,
   createInitialState,
   rankOf,
@@ -54,31 +55,37 @@ test('unknown trait id is rejected without mutation', () => {
   assert.equal(hashState(s), before);
 });
 
-test('conflicting socket acquisition fails without mutating state', () => {
+test('shared socket acquisition succeeds while retaining a stable primary projection', () => {
   // owl-pinions and crab-pincers both use leftShoulder+rightShoulder.
   const s = createInitialState(0);
   applyUpgrade(catalog, s, 'owl-pinions');
   const before = hashState(s);
   const r = applyUpgrade(catalog, s, 'crab-pincers');
-  assert.equal(r.outcome.ok, false);
-  assert.equal(r.outcome.kind, 'socketConflict');
-  if (r.outcome.kind === 'socketConflict') {
-    assert.deepEqual([...r.outcome.sockets], ['leftShoulder', 'rightShoulder']);
-    assert.deepEqual([...r.outcome.heldBy], ['owl-pinions']);
-  }
-  // No silent replacement: owl still owns both shoulders, crab not owned.
+  assert.deepEqual(r.outcome, {
+    ok: true,
+    kind: 'created',
+    traitId: 'crab-pincers',
+    stage: 'bud',
+    rank: 1,
+  });
+  // The legacy single-owner projection remains deterministic: first active
+  // claimant wins, while both attacks stay logically active and renderable.
   assert.equal(socketOwner(s, 'leftShoulder'), 'owl-pinions');
-  assert.equal(stageOf(s, 'crab-pincers'), 'locked');
-  assert.equal(hashState(s), before);
+  assert.equal(socketOwner(s, 'rightShoulder'), 'owl-pinions');
+  assert.equal(stageOf(s, 'crab-pincers'), 'bud');
+  assert.equal(activeAttackSlots(s), 2);
+  assert.notEqual(hashState(s), before);
 });
 
-test('heldBy is de-duplicated preserving first-seen order', () => {
+test('the primary projection retains each earliest claim across partial socket overlap', () => {
   const s = createInitialState(0);
-  // mantis-scythes holds both shoulders; owl-pinions also wants both.
+  // Mantis claims the left shoulder; Owl subsequently shares it and claims the
+  // otherwise-free right shoulder.
   applyUpgrade(catalog, s, 'mantis-scythes');
   const r = applyUpgrade(catalog, s, 'owl-pinions');
-  assert.equal(r.outcome.kind, 'socketConflict');
-  if (r.outcome.kind === 'socketConflict') {
-    assert.deepEqual([...r.outcome.heldBy], ['mantis-scythes']);
-  }
+  assert.equal(r.outcome.kind, 'created');
+  assert.equal(socketOwner(s, 'leftShoulder'), 'mantis-scythes');
+  assert.equal(socketOwner(s, 'rightShoulder'), 'owl-pinions');
+  assert.equal(stageOf(s, 'owl-pinions'), 'bud');
+  assert.equal(activeAttackSlots(s), 2);
 });

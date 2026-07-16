@@ -27,6 +27,12 @@ export const ATTACK_VFX_RESERVED_LANE = Object.freeze({
 export type AttackVfxPaletteLane = AttackVfxFamily
   | (typeof ATTACK_VFX_RESERVED_LANE)[keyof typeof ATTACK_VFX_RESERVED_LANE];
 
+/** Primary chassis lane plus donor-accent lane for a generated Wild Splice. */
+export interface ChimeraPaletteLanes {
+  readonly primary: AttackVfxFamily;
+  readonly accent: AttackVfxFamily;
+}
+
 export interface AttackVfxRgb {
   readonly r: number;
   readonly g: number;
@@ -176,6 +182,74 @@ export const TRAIT_COMMAND_PALETTE_FAMILY_BY_SOURCE: Readonly<Record<string, Att
   'support-pulse': 'danger',
 });
 
+const CHIMERA_TRAIT_FAMILY: Readonly<Record<string, AttackVfxFamily>> = Object.freeze({
+  'porcupine-quills': 'physical',
+  'puffer-pouch': 'venom',
+  'electric-eel-coil': 'storm',
+  'firefly-colony': 'storm',
+  'mantis-scythes': 'physical',
+  'gecko-pads': 'venom',
+  'owl-pinions': 'storm',
+  'bat-ears': 'arcane',
+  'crab-pincers': 'physical',
+  'armadillo-greaves': 'earth',
+  'skunk-brush': 'venom',
+  'monarch-brood': 'physical',
+});
+
+const CHIMERA_CHASSIS_PRIORITY: Readonly<Record<string, number>> = Object.freeze({
+  'mantis-scythes': 90,
+  'porcupine-quills': 85,
+  'owl-pinions': 80,
+  'electric-eel-coil': 75,
+  'skunk-brush': 70,
+  'gecko-pads': 65,
+  'crab-pincers': 60,
+  'firefly-colony': 55,
+  'monarch-brood': 50,
+  'puffer-pouch': 40,
+  'armadillo-greaves': 35,
+  'bat-ears': 30,
+});
+
+const PERFECT_CHIMERA_PARENTS: Readonly<Record<string, readonly [string, string]>> = Object.freeze({
+  'thornstorm-mantle': ['porcupine-quills', 'puffer-pouch'],
+  'thunderbug-dynamo': ['electric-eel-coil', 'firefly-colony'],
+  'razorstep-chimera': ['mantis-scythes', 'gecko-pads'],
+  'midnight-radar': ['owl-pinions', 'bat-ears'],
+  'meteor-mauler': ['crab-pincers', 'armadillo-greaves'],
+  'royal-stinkcloud': ['skunk-brush', 'monarch-brood'],
+});
+
+function chimeraParentsForSource(sourceId: string): readonly [string, string] | null {
+  const authored = PERFECT_CHIMERA_PARENTS[sourceId];
+  if (authored !== undefined) return authored;
+  const match = /^chimera:([^+:]+)\+([^:]+)$/.exec(sourceId);
+  if (match === null || match[1] === undefined || match[2] === undefined) return null;
+  return [match[1], match[2]];
+}
+
+/**
+ * Resolves a safe chassis/donor duotone without introducing a new colour lane.
+ * Unknown or malformed ids deliberately return null so existing physical
+ * fallback behaviour remains unchanged.
+ */
+export function paletteLaneForChimeraSource(sourceId: string): ChimeraPaletteLanes | null {
+  const parents = chimeraParentsForSource(sourceId);
+  if (parents === null) return null;
+  const [first, second] = parents;
+  const firstFamily = CHIMERA_TRAIT_FAMILY[first];
+  const secondFamily = CHIMERA_TRAIT_FAMILY[second];
+  if (firstFamily === undefined || secondFamily === undefined) return null;
+  const firstPriority = CHIMERA_CHASSIS_PRIORITY[first] ?? -1;
+  const secondPriority = CHIMERA_CHASSIS_PRIORITY[second] ?? -1;
+  const firstIsChassis = firstPriority >= secondPriority;
+  return Object.freeze({
+    primary: firstIsChassis ? firstFamily : secondFamily,
+    accent: firstIsChassis ? secondFamily : firstFamily,
+  });
+}
+
 /**
  * The trait-command renderer works in effect-material names after projecting
  * source events. Keeping this lookup alongside the source table makes every
@@ -228,11 +302,14 @@ export const EFFECT_MATERIAL_PALETTE_FAMILY: Readonly<Record<string, AttackVfxPa
 });
 
 export function paletteLaneForTraitSource(sourceId: string): AttackVfxPaletteLane {
-  return TRAIT_COMMAND_PALETTE_FAMILY_BY_SOURCE[sourceId] ?? ATTACK_VFX_FAMILY.physical;
+  return paletteLaneForChimeraSource(sourceId)?.primary
+    ?? TRAIT_COMMAND_PALETTE_FAMILY_BY_SOURCE[sourceId]
+    ?? ATTACK_VFX_FAMILY.physical;
 }
 
 export function hasExplicitTraitSourcePaletteLane(sourceId: string): boolean {
-  return Object.prototype.hasOwnProperty.call(TRAIT_COMMAND_PALETTE_FAMILY_BY_SOURCE, sourceId);
+  return paletteLaneForChimeraSource(sourceId) !== null
+    || Object.prototype.hasOwnProperty.call(TRAIT_COMMAND_PALETTE_FAMILY_BY_SOURCE, sourceId);
 }
 
 export function paletteLaneForEffectMaterial(material: string): AttackVfxPaletteLane {

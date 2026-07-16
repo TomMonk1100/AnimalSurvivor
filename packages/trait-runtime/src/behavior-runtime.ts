@@ -52,6 +52,7 @@
 
 import type {
   BehaviorDefinition,
+  BehaviorFollowUp,
   BehaviorTimer,
   Catalog,
   CommandBuffer,
@@ -60,6 +61,8 @@ import type {
   RuntimeState,
 } from './contracts.js';
 import { rankStageFor } from './rank-progression.js';
+import { resolveEvolution } from './chimera/resolved-evolution.js';
+import { selectChassis } from './chimera/chassis.js';
 
 const MILLIUNITS_PER_WORLD_UNIT = 1_000;
 
@@ -92,6 +95,12 @@ function addCharges(current: number, added: number): number {
   return current + added;
 }
 
+/** Saturating trigger counter for patterned synthesized behavior follow-ups. */
+function nextCycle(timer: BehaviorTimer): number {
+  if (timer.cycles < Number.MAX_SAFE_INTEGER) timer.cycles += 1;
+  return timer.cycles;
+}
+
 /** Linear scan for the timer owned by `ownerId`. No allocation. */
 function findTimer(state: RuntimeState, ownerId: string): BehaviorTimer | undefined {
   const timers = state.timers;
@@ -102,9 +111,29 @@ function findTimer(state: RuntimeState, ownerId: string): BehaviorTimer | undefi
   return undefined;
 }
 
+/**
+ * Apex Whisper is the one deliberate exception to normal fusion replacement:
+ * the lower-priority parent keeps its entire Master scheduler in parallel,
+ * while the fused loop remains the chassis plus donor graft. Reusing the
+ * already-serialized parent timer gives that schedule independent cadence,
+ * movement charges, and phase progress without introducing a second gameplay
+ * authority or a new command kind.
+ */
+function apexEvolutionByDonorId(catalog: Catalog, state: RuntimeState): ReadonlyMap<string, string> {
+  const result = new Map<string, string>();
+  for (const evolution of state.evolutions) {
+    if (evolution.variant?.temperamentId !== 'apex-whisper') continue;
+    const roles = selectChassis(catalog, evolution.ingredients[0], evolution.ingredients[1]);
+    result.set(roles.donor.id, evolution.id);
+  }
+  return result;
+}
+
 /** Reconcile state.timers against active owners. Mutates state.timers. */
 export function ensureTimers(_catalog: Catalog, state: RuntimeState): void {
-  // Deterministic active-owner order: owned (non-disabled) traits, then evolutions.
+  const apexEvolutionByDonor = apexEvolutionByDonorId(_catalog, state);
+  // Deterministic active-owner order: owned (non-disabled) traits, the
+  // explicitly parallel Apex donor timers, then fused evolutions.
   const activeOwnerIds: string[] = [];
   for (let i = 0; i < state.owned.length; i++) {
     const trait = state.owned[i];
@@ -112,6 +141,7 @@ export function ensureTimers(_catalog: Catalog, state: RuntimeState): void {
       activeOwnerIds.push(trait.id);
     }
   }
+  for (const donorId of apexEvolutionByDonor.keys()) activeOwnerIds.push(donorId);
   for (let i = 0; i < state.evolutions.length; i++) {
     const evo = state.evolutions[i];
     if (evo !== undefined) {
@@ -122,7 +152,7 @@ export function ensureTimers(_catalog: Catalog, state: RuntimeState): void {
   // Deactivate timers whose owning trait has been disabled (consumed by a Mythic).
   for (let i = 0; i < state.owned.length; i++) {
     const trait = state.owned[i];
-    if (trait !== undefined && trait.disabled) {
+    if (trait !== undefined && trait.disabled && !apexEvolutionByDonor.has(trait.id)) {
       const timer = findTimer(state, trait.id);
       if (timer !== undefined) {
         timer.active = false;
@@ -144,9 +174,21 @@ export function ensureTimers(_catalog: Catalog, state: RuntimeState): void {
         phaseTicks: 0,
         cooldown: 0,
         charges: 0,
+        cycles: 0,
       });
     }
   }
+
+  // A delayed Echo/temperament emission must never outlive an owner that was
+  // consumed by a fusion or defensively recovered from a stale save. Compact
+  // in place so normal fixed-tick updates remain allocation-free.
+  let pendingWrite = 0;
+  for (let i = 0; i < state.pendingEmissions.length; i++) {
+    const pending = state.pendingEmissions[i];
+    if (pending === undefined || !activeOwnerIds.includes(pending.ownerId)) continue;
+    state.pendingEmissions[pendingWrite++] = pending;
+  }
+  state.pendingEmissions.length = pendingWrite;
 }
 
 /**
@@ -165,6 +207,7 @@ function emitCommand(
 
   cmd.kind = template.kind;
   if (template.targeting !== undefined) cmd.targeting = template.targeting;
+  cmd.anchor = template.anchor ?? 'player';
   cmd.originX = template.originX !== undefined ? template.originX : ctx.playerX;
   cmd.originY = template.originY !== undefined ? template.originY : ctx.playerY;
   if (template.dirX !== undefined) cmd.dirX = template.dirX;
@@ -212,6 +255,82 @@ function emitHeartbeat(out: CommandBuffer, ownerId: string, ctx: RuntimeContext)
   cmd.originY = ctx.playerY;
 }
 
+function appliesThisCycle(followUp: BehaviorFollowUp, cycle: number): boolean {
+  const everyCycles = followUp.everyCycles ?? 1;
+  return Number.isSafeInteger(everyCycles) && everyCycles >= 1 && cycle % everyCycles === 0;
+}
+
+/** Emit or deterministically queue synthesized behavior follow-ups. */
+function emitFollowUps(
+  out: CommandBuffer,
+  followUps: readonly BehaviorFollowUp[] | undefined,
+  ownerId: string,
+  cycle: number,
+  ctx: RuntimeContext,
+  state: RuntimeState,
+): void {
+  if (followUps === undefined) return;
+  for (const followUp of followUps) {
+    if (!appliesThisCycle(followUp, cycle)) continue;
+    const delayTicks = followUp.delayTicks ?? 0;
+    if (!Number.isSafeInteger(delayTicks) || delayTicks < 0) continue;
+    if (delayTicks === 0) {
+      emitCommand(out, followUp.emit, ownerId, ctx);
+      continue;
+    }
+    const dueTick = Math.min(Number.MAX_SAFE_INTEGER, ctx.tick + delayTicks);
+    state.pendingEmissions.push({
+      ownerId,
+      dueTick,
+      // Snapshot the template at schedule time so a subsequent rank/content
+      // transition cannot rewrite a replay-bound delayed emission.
+      emit: { ...followUp.emit },
+    });
+  }
+}
+
+function emitBehaviorTrigger(
+  out: CommandBuffer,
+  template: CommandTemplate | undefined,
+  preludes: readonly BehaviorFollowUp[] | undefined,
+  followUps: readonly BehaviorFollowUp[] | undefined,
+  ownerId: string,
+  timer: BehaviorTimer,
+  ctx: RuntimeContext,
+  state: RuntimeState,
+): void {
+  const cycle = nextCycle(timer);
+  // Prelude commands intentionally run before the payload in this exact
+  // fixed-tick batch. This lets a movement-triggered Undertow gather or
+  // Lock-On mark prepare its own payload without renderer timing.
+  emitFollowUps(out, preludes, ownerId, cycle, ctx, state);
+  if (template !== undefined) {
+    emitCommand(out, template, ownerId, ctx);
+  } else {
+    emitHeartbeat(out, ownerId, ctx);
+  }
+  emitFollowUps(out, followUps, ownerId, cycle, ctx, state);
+}
+
+/** Emit all delayed existing-vocabulary commands due at this fixed tick. */
+function emitDuePending(
+  state: RuntimeState,
+  ctx: RuntimeContext,
+  out: CommandBuffer,
+): void {
+  let write = 0;
+  for (let i = 0; i < state.pendingEmissions.length; i++) {
+    const pending = state.pendingEmissions[i];
+    if (pending === undefined) continue;
+    if (pending.dueTick <= ctx.tick) {
+      emitCommand(out, pending.emit, pending.ownerId, ctx);
+      continue;
+    }
+    state.pendingEmissions[write++] = pending;
+  }
+  state.pendingEmissions.length = write;
+}
+
 /**
  * periodicBurst / periodicPulse / generic scheme: `timer.cooldown` counts down
  * to the next fire. When cooldown <= 0, fire now and reset cooldown to
@@ -227,14 +346,11 @@ function stepPeriodic(
   ownerId: string,
   ctx: RuntimeContext,
   out: CommandBuffer,
+  state: RuntimeState,
 ): void {
   if (timer.cooldown <= 0) {
     timer.cooldown = scaleCooldownTicks(behavior.periodTicks, ctx);
-    if (behavior.emit !== undefined) {
-      emitCommand(out, behavior.emit, ownerId, ctx);
-    } else {
-      emitHeartbeat(out, ownerId, ctx);
-    }
+    emitBehaviorTrigger(out, behavior.emit, behavior.preludes, behavior.followUps, ownerId, timer, ctx, state);
   }
   timer.cooldown -= 1;
 }
@@ -253,6 +369,7 @@ function stepMultiPhase(
   ownerId: string,
   ctx: RuntimeContext,
   out: CommandBuffer,
+  state: RuntimeState,
 ): void {
   const phases = behavior.phases;
   if (phases === undefined || phases.length === 0) return;
@@ -265,7 +382,16 @@ function stepMultiPhase(
   if (phase === undefined) return;
 
   if (timer.phaseTicks === 0) {
+    // A multi-phase cycle starts at phase zero. Follow-ups on later phases
+    // share that cycle index so the authored sequence stays one behavior.
+    const cycle = timer.phase === 0 ? nextCycle(timer) : timer.cycles;
+    if (timer.phase === 0) {
+      // A behavior-level prelude is the deterministic start of a complete
+      // multi-phase cycle, before the first phase's payload.
+      emitFollowUps(out, behavior.preludes, ownerId, cycle, ctx, state);
+    }
     emitCommand(out, phase.emit, ownerId, ctx);
+    emitFollowUps(out, phase.followUps, ownerId, cycle, ctx, state);
   }
   timer.phaseTicks += 1;
   const durationTicks = scaleCooldownTicks(phase.durationTicks, ctx);
@@ -288,6 +414,7 @@ function stepMovementTrail(
   ownerId: string,
   ctx: RuntimeContext,
   out: CommandBuffer,
+  state: RuntimeState,
 ): void {
   const threshold = behavior.distanceMilliunits;
   const template = behavior.emit;
@@ -305,7 +432,7 @@ function stepMovementTrail(
   if (timer.charges < threshold) return;
 
   timer.charges -= threshold;
-  emitCommand(out, template, ownerId, ctx);
+  emitBehaviorTrigger(out, template, behavior.preludes, behavior.followUps, ownerId, timer, ctx, state);
 }
 
 function advanceTimer(
@@ -314,18 +441,19 @@ function advanceTimer(
   ownerId: string,
   ctx: RuntimeContext,
   out: CommandBuffer,
+  state: RuntimeState,
 ): void {
   switch (behavior.kind) {
     case 'periodicBurst':
     case 'periodicPulse':
     case 'generic':
-      stepPeriodic(behavior, timer, ownerId, ctx, out);
+      stepPeriodic(behavior, timer, ownerId, ctx, out, state);
       break;
     case 'multiPhase':
-      stepMultiPhase(behavior, timer, ownerId, ctx, out);
+      stepMultiPhase(behavior, timer, ownerId, ctx, out, state);
       break;
     case 'movementTrail':
-      stepMovementTrail(behavior, timer, ownerId, ctx, out);
+      stepMovementTrail(behavior, timer, ownerId, ctx, out, state);
       break;
   }
 }
@@ -337,9 +465,13 @@ export function stepBehaviors(
   ctx: RuntimeContext,
   out: CommandBuffer,
 ): void {
+  emitDuePending(state, ctx, out);
+  const apexEvolutionByDonor = apexEvolutionByDonorId(_catalog, state);
   for (let i = 0; i < state.owned.length; i++) {
     const trait = state.owned[i];
-    if (trait === undefined || trait.disabled) continue;
+    if (trait === undefined) continue;
+    const apexEvolutionId = apexEvolutionByDonor.get(trait.id);
+    if (trait.disabled && apexEvolutionId === undefined) continue;
     const timer = findTimer(state, trait.id);
     if (timer === undefined || !timer.active) continue;
     const traitDefinition = _catalog.traits.find((candidate) => candidate.id === trait.id);
@@ -347,7 +479,9 @@ export function stepBehaviors(
       ? undefined
       : rankStageFor(traitDefinition, trait.rank).behavior;
     if (behavior === undefined) continue;
-    advanceTimer(behavior, timer, trait.id, ctx, out);
+    // The donor's intent is authored as a parent behavior, but its commands
+    // belong to the fused evolution for combat attribution and presentation.
+    advanceTimer(behavior, timer, apexEvolutionId ?? trait.id, ctx, out, state);
   }
 
   for (let i = 0; i < state.evolutions.length; i++) {
@@ -355,9 +489,8 @@ export function stepBehaviors(
     if (evo === undefined) continue;
     const timer = findTimer(state, evo.id);
     if (timer === undefined || !timer.active) continue;
-    const evolutionDefinition = _catalog.evolutions.find((candidate) => candidate.id === evo.id);
-    const behavior = evolutionDefinition?.behavior;
+    const behavior = resolveEvolution(_catalog, evo)?.behavior;
     if (behavior === undefined) continue;
-    advanceTimer(behavior, timer, evo.id, ctx, out);
+    advanceTimer(behavior, timer, evo.id, ctx, out, state);
   }
 }

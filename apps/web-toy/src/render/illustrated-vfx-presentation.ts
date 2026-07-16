@@ -260,6 +260,34 @@ const VFX_ENVELOPE_RELEASE = 0.55;
  * establish their shared silhouette.
  */
 export const SIGNATURE_VFX_ENVELOPE_RELEASE = 0.5;
+/**
+ * Fox Swipe's full-frame three-claw card is intentionally the brightest
+ * routine hero signature. A dense Rush Rake sequence can otherwise restart
+ * that large white shape before the previous cue has cleared the view. Keep
+ * the card to a little more than one fixed second between starts; every
+ * authoritative attack still keeps its normal contact, damage, and gameplay
+ * outcome through the independent renderer lanes.
+ */
+export const FOX_SWIPE_FLASH_SAFE_MIN_INTERVAL_TICKS = 66;
+/**
+ * Master Puffer can pulse every 51 ticks. The animated full-radius card is
+ * intentionally less frequent than the authoritative control command so two
+ * bright rings cannot arrive inside one photosensitivity-audit window.
+ */
+export const PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS = 80;
+/**
+ * The painted claw remains legible as a directional silhouette while keeping
+ * the bright atlas frames below the rendered 8×8 luminance-reversal budget.
+ * A 0.35 cap still produced four center-cell swings per second when a dense
+ * run placed its rapid claw frames beside other combat reads.
+ */
+export const FOX_SWIPE_FLASH_SAFE_OPACITY_MULTIPLIER = 0.22;
+/**
+ * Puffer's full-radius inhale/exhale ring covers several audit cells at once.
+ * Keep that wide control tell readable without allowing its bright atlas frames
+ * to combine with a nearby signature card into a four-swing second.
+ */
+export const PUFFER_PULSE_FLASH_SAFE_OPACITY_MULTIPLIER = 0.32;
 
 function finite(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
@@ -327,6 +355,44 @@ export function illustratedVfxLifetimeForClip(clip: WildguardVfxClip): number {
     case WILDGUARD_VFX_CLIP.batSonar: return 24;
     case WILDGUARD_VFX_CLIP.midnightRadar: return 28;
   }
+}
+
+/** Renderer-only cadence policy for the high-contrast hero signature cards. */
+export function illustratedVfxFlashSafeIntervalForClip(clip: WildguardVfxClip): number {
+  switch (clip) {
+    case WILDGUARD_VFX_CLIP.foxSwipe:
+      return FOX_SWIPE_FLASH_SAFE_MIN_INTERVAL_TICKS;
+    case WILDGUARD_VFX_CLIP.pufferPulse:
+      return PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS;
+    default:
+      return 0;
+  }
+}
+
+/** Renderer-only intensity policy; no simulation value or event is changed. */
+export function illustratedVfxOpacityMultiplierForClip(clip: WildguardVfxClip): number {
+  switch (clip) {
+    case WILDGUARD_VFX_CLIP.foxSwipe:
+      return FOX_SWIPE_FLASH_SAFE_OPACITY_MULTIPLIER;
+    case WILDGUARD_VFX_CLIP.pufferPulse:
+      return PUFFER_PULSE_FLASH_SAFE_OPACITY_MULTIPLIER;
+    default:
+      return 1;
+  }
+}
+
+/**
+ * Event-tick cadence keeps the visual policy deterministic even if rAF drops
+ * or batches several simulation ticks into one browser frame.
+ */
+export function canStartIllustratedVfxClip(
+  clip: WildguardVfxClip,
+  eventTick: number,
+  previousStartTick: number | undefined,
+): boolean {
+  const interval = illustratedVfxFlashSafeIntervalForClip(clip);
+  if (interval <= 0 || previousStartTick === undefined) return true;
+  return normalizedTick(eventTick) - normalizedTick(previousStartTick) >= interval;
 }
 
 function priorityForClip(clip: WildguardVfxClip): number {
@@ -565,6 +631,9 @@ export function createIllustratedVfxPresentation(
   let highWaterSlots = 0;
   let lastTick = -1;
   const lastMasterAccentTickBySource = new Map<string, number>();
+  // The clip union is finite, so this renderer-owned cadence cache remains
+  // bounded and cannot feed any state back into the simulation.
+  const lastFlashSafeSignatureTickByClip = new Map<WildguardVfxClip, number>();
 
   function selectSlot(priority: number): IllustratedVfxSlot | null {
     for (const slot of slots) {
@@ -638,6 +707,12 @@ export function createIllustratedVfxPresentation(
       const event = events[index]!;
       const clip = illustratedVfxClipForTraitEvent(event);
       if (clip === null) continue;
+      const eventTick = normalizedTick(event.tick);
+      if (!canStartIllustratedVfxClip(
+        clip,
+        eventTick,
+        lastFlashSafeSignatureTickByClip.get(clip),
+      )) continue;
       const rankProfile = illustratedVfxRankProfileForSource(traitVisualState, event.sourceId);
       const radius = illustratedVfxRadiusForTraitEvent(event, clip);
       // A chain card is a resolved contact marker, not a decorative bolt
@@ -648,7 +723,7 @@ export function createIllustratedVfxPresentation(
       const y = isResolvedChain ? event.resolvedHitY[0]! : event.originY;
       start(
         clip,
-        event.tick,
+        eventTick,
         x,
         y,
         event.dirX,
@@ -659,6 +734,9 @@ export function createIllustratedVfxPresentation(
         event.facing,
         rankProfile,
       );
+      if (illustratedVfxFlashSafeIntervalForClip(clip) > 0) {
+        lastFlashSafeSignatureTickByClip.set(clip, eventTick);
+      }
 
       const lastAccentTick = lastMasterAccentTickBySource.get(event.sourceId);
       if (
@@ -734,7 +812,9 @@ export function createIllustratedVfxPresentation(
     const height = HEIGHT + slot.motion.heightOffset;
     // A shared attack/hold/release curve makes every card arrive with intent,
     // remain readable, and reach exact zero before the pooled slot is reused.
-    let opacity = 0.96 * envelope(progress, VFX_ENVELOPE_ATTACK, illustratedVfxEnvelopeReleaseForClip(slot.clip));
+    let opacity = 0.96
+      * envelope(progress, VFX_ENVELOPE_ATTACK, illustratedVfxEnvelopeReleaseForClip(slot.clip))
+      * illustratedVfxOpacityMultiplierForClip(slot.clip);
 
     // This is the only rank treatment applied to a live card. Duration already
     // drives the motion curve above, so R1–R5 read as a deliberately paced,
@@ -791,6 +871,7 @@ export function createIllustratedVfxPresentation(
       if (lastTick >= 0 && tick < lastTick) {
         for (const slot of slots) resetSlot(slot);
         lastMasterAccentTickBySource.clear();
+        lastFlashSafeSignatureTickByClip.clear();
       }
       startTraitEvents(traitEvents, tick, traitVisualState);
       startCombatEvents(combatEvents, tick);
@@ -809,6 +890,7 @@ export function createIllustratedVfxPresentation(
       highWaterSlots = 0;
       lastTick = -1;
       lastMasterAccentTickBySource.clear();
+      lastFlashSafeSignatureTickByClip.clear();
     },
     dispose(): void {
       if (disposed) return;

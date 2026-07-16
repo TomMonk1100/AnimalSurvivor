@@ -26,6 +26,15 @@ import {
   type MonarchBroodAttachmentMotion,
   type MonarchBroodMotionNode,
 } from './monarch-brood-presentation-motion';
+import {
+  createChimeraSeamAttachmentMotion,
+  type ChimeraSeamAttachmentMotion,
+  type ChimeraSeamMotionNode,
+} from './chimera-seam-presentation';
+import {
+  createChimeraSeamMaterialBinding,
+  type ChimeraSeamMaterialBinding,
+} from './chimera-seam-playcanvas';
 import { createGregFoxLoader, type GregFoxLoader } from './greg-fox-loader';
 import { createGregTraitVisualProjector } from './greg-trait-visual-projector';
 import {
@@ -186,7 +195,11 @@ function locomotionLift(tick: number, alpha: number, moving: boolean, movementMa
 function createAttachmentFactory(
   materials: Readonly<Record<GregMaterialRole, pc.StandardMaterial>>,
   monarchBroodMotion?: MonarchBroodAttachmentMotion,
+  chimeraSeamMotion?: ChimeraSeamAttachmentMotion,
 ): GregAttachmentFactory<AttachmentNode, pc.Entity> {
+  const chimeraSeamBindings = new Map<pc.Entity, ChimeraSeamMaterialBinding>();
+  const chimeraSeamPresentations = new Map<pc.Entity, NonNullable<AttachmentRequest['chimeraSeam']>>();
+
   function primitive(
     parent: pc.Entity,
     name: string,
@@ -210,6 +223,12 @@ function createAttachmentFactory(
           view.setLocalEulerAngles(...part.transform.euler);
           view.setLocalScale(...part.transform.scale);
         }
+        if (request.visualKey === 'chimera-seam:mythic' && request.chimeraSeam !== undefined) {
+          const binding = createChimeraSeamMaterialBinding(request.chimeraSeam);
+          binding.apply(root);
+          chimeraSeamBindings.set(root, binding);
+          chimeraSeamPresentations.set(root, request.chimeraSeam);
+        }
       } else {
         const marker = primitive(root, 'unknown-attachment', 'sphere', materials.quillAccent);
         marker.setLocalScale(0.12, 0.12, 0.12);
@@ -230,12 +249,20 @@ function createAttachmentFactory(
         transform.scale[2] * fireflyEmphasis,
       );
       monarchBroodMotion?.track(view as unknown as MonarchBroodMotionNode, view.name);
+      const chimeraSeam = chimeraSeamPresentations.get(view);
+      if (chimeraSeam !== undefined) {
+        chimeraSeamMotion?.track(view as unknown as ChimeraSeamMotionNode, chimeraSeam);
+      }
     },
     unmount(view): void {
       view.parent?.removeChild(view);
     },
     destroy(view): void {
       monarchBroodMotion?.untrack(view as unknown as MonarchBroodMotionNode);
+      chimeraSeamMotion?.untrack(view as unknown as ChimeraSeamMotionNode);
+      chimeraSeamPresentations.delete(view);
+      chimeraSeamBindings.get(view)?.destroy();
+      chimeraSeamBindings.delete(view);
       view.destroy();
     },
   };
@@ -315,6 +342,7 @@ export function createGregPresentation(
     launchMythicGlow: mythicGlow,
   };
   const monarchBroodMotion = createMonarchBroodAttachmentMotion();
+  const chimeraSeamMotion = createChimeraSeamAttachmentMotion();
 
   let entity: pc.Entity | null = null;
   let sockets: GregAttachmentSockets<AttachmentNode> | null = null;
@@ -336,7 +364,7 @@ export function createGregPresentation(
     renderedClip = 'Idle';
     sockets = createGregAttachmentSockets(
       entity as unknown as AttachmentNode,
-      createAttachmentFactory(attachmentMaterials, monarchBroodMotion),
+      createAttachmentFactory(attachmentMaterials, monarchBroodMotion, chimeraSeamMotion),
     );
     traitVisualProjector = createGregTraitVisualProjector(sockets);
   }).catch(() => {
@@ -361,6 +389,7 @@ export function createGregPresentation(
       if (entity === null) return;
       traitVisualProjector?.sync(traitVisualState);
       monarchBroodMotion.update(current.tick + alpha);
+      chimeraSeamMotion.update(current.tick + alpha);
       entity.enabled = visible && current.playerAlive;
       if (current.tick < locomotion.sampledTick) {
         locomotion = createGregLocomotionPresentationState();
@@ -414,6 +443,7 @@ export function createGregPresentation(
       sockets?.clear();
       sockets = null;
       monarchBroodMotion.clear();
+      chimeraSeamMotion.clear();
       loader.dispose();
       entity = null;
       renderedClip = null;

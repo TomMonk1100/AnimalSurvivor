@@ -23,11 +23,18 @@ import {
   type ResolvedOutgoingDamage,
 } from './combat-resolution.js';
 
+/** Renderer-independent command-origin handoff supplied by trait-runtime. */
+export type TraitCommandAnchor = 'player' | 'triggerTarget';
+
+const TRAIT_COMMAND_ANCHORS: readonly TraitCommandAnchor[] = ['player', 'triggerTarget'];
+
 export interface TraitCombatCommand {
   readonly kind: string;
   readonly sourceId: string;
   readonly tick: number;
   readonly targeting: string;
+  /** Omitted preserves player-origin behavior for legacy runtime fixtures. */
+  readonly anchor?: TraitCommandAnchor;
   readonly originX: number;
   readonly originY: number;
   readonly dirX: number;
@@ -111,6 +118,16 @@ export interface TraitCommandExecutionContext {
     commandIndex: number,
     dirX: number,
     dirY: number,
+  ) => void;
+  /**
+   * Presentation-only observer for the command origin after an optional
+   * same-trigger target-anchor handoff has resolved. This lets a renderer use
+   * the exact coordinate that combat used without becoming an authority.
+   */
+  readonly onCommandOriginResolved?: (
+    commandIndex: number,
+    originX: number,
+    originY: number,
   ) => void;
 }
 
@@ -280,6 +297,12 @@ function validateCommand(
   }
   float32('command.originX', command.originX);
   float32('command.originY', command.originY);
+  if (
+    command.anchor !== undefined
+    && !(TRAIT_COMMAND_ANCHORS as readonly string[]).includes(command.anchor)
+  ) {
+    throw new RangeError(`unsupported command anchor: ${String(command.anchor)}`);
+  }
   if (REJECTED_KINDS.has(command.kind)) {
     throw new Error(`trait command kind requires unsupported simulation state: ${command.kind}`);
   }
@@ -497,6 +520,67 @@ function targetingPolicy(value: string): 'nearest' | 'highestHealth' | 'densestC
     case 'rearThreat': return 'rearThreat';
     default: return 'nearest';
   }
+}
+
+interface TargetAnchor {
+  x: number;
+  y: number;
+}
+
+type MutableTraitCombatCommand = {
+  -readonly [Key in keyof TraitCombatCommand]: TraitCombatCommand[Key];
+};
+
+/**
+ * Resolve a stable, simulation-owned target coordinate for one command.
+ *
+ * Command execution is deliberately still responsible for its own targeting;
+ * this selection only supplies the explicit same-trigger handoff used by a
+ * dependent Chimera graft. A command without an authored targeting policy
+ * uses nearest here, which gives radial, zone, and area payloads a stable
+ * anchor without adding a new combat authority.
+ */
+function selectTargetAnchor(
+  command: TraitCombatCommand,
+  context: TraitCommandExecutionContext,
+  options: TraitCommandExecutorOptions,
+  scratch: EntityId[],
+): TargetAnchor | undefined {
+  const target = selectPriorityTarget(
+    targetingPolicy(command.targeting),
+    {
+      originX: command.originX,
+      originY: command.originY,
+      range: Math.max(command.range, command.radius, options.defaultTargetRange),
+      moveDirX: context.moveDirX,
+      moveDirY: context.moveDirY,
+    },
+    context.enemies,
+    context.enemyGrid,
+    options.clusterRadius,
+  );
+  if (target === NO_ENTITY) return undefined;
+  const slot = context.enemies.slotOf(target);
+  if (slot < 0) return undefined;
+  return {
+    x: context.enemies.data.posX[slot]!,
+    y: context.enemies.data.posY[slot]!,
+  };
+}
+
+/** Reuse one command view when a dependent graft inherits its payload anchor. */
+function withAnchorOrigin(
+  command: TraitCombatCommand,
+  anchor: TargetAnchor | undefined,
+  scratch: MutableTraitCombatCommand,
+): TraitCombatCommand {
+  if (anchor === undefined || (command.originX === anchor.x && command.originY === anchor.y)) {
+    return command;
+  }
+  Object.assign(scratch, command);
+  scratch.originX = anchor.x;
+  scratch.originY = anchor.y;
+  return scratch;
 }
 
 function executeDirectedBurst(
@@ -986,6 +1070,8 @@ export function createTraitCommandExecutor(
   const scratch: EntityId[] = [];
   const chainVisited: EntityId[] = [];
   const validatedCommands: TraitCombatCommand[] = [];
+  const triggerTargets = new Map<string, TargetAnchor>();
+  const anchoredCommand = {} as MutableTraitCombatCommand;
   const stats: TraitCommandExecutionStats = {
     commandsProcessed: 0,
     projectileBursts: 0,
@@ -1033,8 +1119,23 @@ export function createTraitCommandExecutor(
       validatedCommands.length = source.length;
 
       resetStats(stats);
+      triggerTargets.clear();
       for (let index = 0; index < source.length; index++) {
-        const command = validatedCommands[index]!;
+        const sourceCommand = validatedCommands[index]!;
+        const anchorKind = sourceCommand.anchor ?? 'player';
+        // A normal payload starts a fresh same-trigger anchor scope. Its
+        // follow-ups can then reuse the exact selected coordinate even if the
+        // payload removes that enemy from the pool.
+        if (anchorKind === 'player') triggerTargets.delete(sourceCommand.sourceId);
+        const inheritedAnchor = anchorKind === 'triggerTarget'
+          ? triggerTargets.get(sourceCommand.sourceId) ?? selectTargetAnchor(sourceCommand, context, options, scratch)
+          : undefined;
+        const command = withAnchorOrigin(sourceCommand, inheritedAnchor, anchoredCommand);
+        context.onCommandOriginResolved?.(index, command.originX, command.originY);
+        const selectedAnchor = selectTargetAnchor(command, context, options, scratch);
+        if (selectedAnchor !== undefined) {
+          triggerTargets.set(sourceCommand.sourceId, selectedAnchor);
+        }
         stats.commandsProcessed++;
         switch (command.kind) {
           case 'spawnProjectileBurst':

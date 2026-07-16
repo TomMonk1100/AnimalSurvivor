@@ -4,6 +4,6 @@
  * replay, or profile state.
  */
 export const WILDGUARD_KEYART_URL = new URL(
-  '../../../../assets/ui/keyart/storybook-wildguard-forest-v1.jpg',
+  '../../../../assets/ui/keyart/storybook-wildguard-scout-v1.jpg',
   import.meta.url,
 ).href;

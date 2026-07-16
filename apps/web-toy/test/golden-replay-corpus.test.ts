@@ -13,11 +13,11 @@ import {
   type RunDirectorFactory,
   type TraitRuntimeFactory,
 } from '@sim';
-import { RunDirector, SALTWIND_RUINS_RUN } from '@director';
+import { RUN_DURATION_TICKS, RunDirector, SALTWIND_RUINS_RUN } from '@director';
 import { GREG_FOREST_ARSENAL_CATALOG, TraitRuntime } from '@traits';
 import { createAutopilot } from '../src/stress/autopilot';
 
-const RUN_TICKS = DEFAULT_CONFIG.hz * 60 * 8;
+const RUN_TICKS = RUN_DURATION_TICKS;
 const CORPUS_SEED = 0x51_aa_2026;
 const PROPOSE_GOLDENS = process.env.ANIMAL_SURVIVOR_GOLDEN_MODE === 'propose';
 
@@ -28,12 +28,17 @@ const GOLDEN_HASHES: Readonly<Record<string, string>> = Object.freeze({
   // meta-progression stat block (Might, Swiftness, Armor, Haste, etc.) is now
   // part of the run-start fingerprint. Gameplay is identical at the neutral
   // defaults these goldens use; only the loadout fingerprint changed.
-  'greg/forest': 'ca9ee1e9a4fe8402',
-  'benny/forest': 'cef32f15ca469e4b',
-  'gracie/forest': '542e0e317d2578c7',
-  'greg/saltwind': '7754277decd78cd0',
-  'benny/saltwind': 'dc36f31cdf790ac7',
-  'gracie/saltwind': '44104dcc4c563d68',
+  // Rebaselined for Wild Splice v2: measured Lab calibration and the
+  // four-acquired-slot (three-terminal-Chimera) loadout contract both affect
+  // the deterministic runtime-content fingerprint. The replay driver and
+  // headless controls agreed for all six seeded corpus lanes before these
+  // intentional expectations were updated.
+  'greg/forest': 'f2cd913edee0269a',
+  'benny/forest': 'c1e89b5f3638e032',
+  'gracie/forest': '90ff0d0ddf9f0aea',
+  'greg/saltwind': '56296ee1cac16e65',
+  'benny/saltwind': 'a1d33fdb1f445060',
+  'gracie/saltwind': '3694c77a21c4fe66',
 });
 
 const traitRuntimeFactory: TraitRuntimeFactory = ({ seed, initialTick }) =>

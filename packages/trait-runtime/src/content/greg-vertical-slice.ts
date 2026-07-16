@@ -390,10 +390,11 @@ export const RAZORSTEP_CHIMERA: EvolutionDefinition = {
 };
 
 /**
- * Exact content boundary for the current four-attack loadout: the selected
- * animal's starter fire plus any three acquired candidates from the twelve
- * Forest Arsenal launch families. The Mythics each
- * retain both ingredient attack slots rather than creating a free slot.
+ * Exact Wild Splice content boundary: the selected animal's starter fire plus
+ * up to four acquired candidates from the twelve Forest Arsenal launch
+ * families. A fusion replaces two Masters with one logical attack, so the
+ * four acquired slots can deliberately progress to three terminal Chimeras
+ * while both parent attachment footprints remain visible.
  */
 export const GREG_FOREST_ARSENAL_CATALOG: Catalog = Object.freeze({
   // The full authored launch pool already lives in the data catalog. Keep the
@@ -414,8 +415,8 @@ export const GREG_FOREST_ARSENAL_CATALOG: Catalog = Object.freeze({
     RAZORSTEP_CHIMERA,
     ...COMPLETE_CATALOG.evolutions.slice(3),
   ]),
-  maxActiveTraits: 3,
+  maxActiveTraits: 4,
 });
 
-/** @deprecated Use GREG_FOREST_ARSENAL_CATALOG for the playable four-slot build. */
+/** @deprecated Use GREG_FOREST_ARSENAL_CATALOG for the playable five-slot build. */
 export const GREG_VERTICAL_SLICE_CATALOG = GREG_FOREST_ARSENAL_CATALOG;

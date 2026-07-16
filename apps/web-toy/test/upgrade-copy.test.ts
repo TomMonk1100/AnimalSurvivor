@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { getUniversalUpgradeCatalogForHero } from '@sim';
-import { presentRunUpgrade, presentUpgrade } from '../src/presentation/upgrade-copy';
+import {
+  presentRunUpgrade,
+  presentUpgrade,
+  presentUpgradeConfirmation,
+} from '../src/presentation/upgrade-copy';
 
 describe('upgrade card copy', () => {
   it('explains Greg Bud attachments and their sockets', () => {
@@ -116,12 +120,49 @@ describe('upgrade card copy', () => {
     expect(presentRunUpgrade({ kind: 'essence', id: 'essence-cache', amount: 5 }, [])).toMatchObject({
       title: 'Essence Cache', badge: '+5 ESSENCE', socket: 'Permanent progression',
     });
+    const scoutMastery = presentRunUpgrade({
+      kind: 'universal', id: 'universal:basic-attack:greg-precision',
+      upgradeId: 'basic-attack:greg-precision', currentRank: 1, nextRank: 2, maxRank: 5,
+    }, [], 'Scout', getUniversalUpgradeCatalogForHero('greg'));
+    expect(scoutMastery).toMatchObject({
+      title: "Pouncer's Precision", badge: 'RANK 2/5', socket: 'Starter mastery',
+      description: expect.stringContaining('Scout Swipe'),
+    });
+    expect(scoutMastery.description).not.toMatch(/Fox/);
     expect(presentRunUpgrade({
       kind: 'universal', id: 'universal:basic-attack:benny-brace-burst',
       upgradeId: 'basic-attack:benny-brace-burst', currentRank: 1, nextRank: 2, maxRank: 5,
     }, [], 'Benny', getUniversalUpgradeCatalogForHero('benny'))).toMatchObject({
       title: 'Trample Mastery', badge: 'RANK 2/5', socket: 'Starter mastery',
       description: expect.stringContaining('earth waves'),
+    });
+  });
+
+  it('shows exact rank transitions and labels direct versus utility outcomes truthfully', () => {
+    const quills = presentUpgrade({
+      traitId: 'porcupine-quills', resultStage: 'adapted', resultRank: 3, isMaster: false,
+    }, []);
+    expect(quills).toMatchObject({ impactCategory: 'Direct damage' });
+    expect(quills.impact).toMatch(/Rank 2 → 3/);
+    expect(quills.impact).toMatch(/damage/i);
+
+    const puffer = presentUpgrade({
+      traitId: 'puffer-pouch', resultStage: 'adapted', resultRank: 2, isMaster: false,
+    }, []);
+    expect(puffer).toMatchObject({ impactCategory: 'Crowd control' });
+    expect(puffer.impact).toMatch(/no direct damage/i);
+
+    const instinct = presentRunUpgrade({
+      kind: 'universal', id: 'universal:sharpened-instinct', upgradeId: 'sharpened-instinct', currentRank: 1, nextRank: 2, maxRank: 5,
+    }, []);
+    expect(instinct).toMatchObject({ impactCategory: 'Direct damage' });
+    expect(instinct.impact).toMatch(/Rank 1 → 2/);
+    expect(instinct.impact).toMatch(/\+12% all attack damage/i);
+
+    expect(presentUpgradeConfirmation(puffer)).toEqual({
+      title: 'Puffer Pouch applied',
+      category: 'Crowd control',
+      detail: puffer.impact,
     });
   });
 });

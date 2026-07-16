@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 
 import type {
   ArchetypeDefinition,
+  BossCombatProfile,
   BossDefinition,
   EliteBeatDefinition,
   OvertimeConfig,
@@ -27,32 +28,32 @@ import { serializeState, deserializeState } from '../src/serialization.js';
 import { hashState, fingerprintDefinition } from '../src/state-hash.js';
 
 /* ============================================================================
- * Minimal inline RunDefinition (mirrors the frozen eight-minute phase-boundary ticks).
+ * Minimal inline RunDefinition (mirrors the frozen six-minute phase-boundary ticks).
  * ==========================================================================*/
 
 const PHASES: readonly PhaseDefinition[] = [
-  { id: 'opening', startTick: 0, endTick: 3_599, softCap: 4, hardCap: 8, threatPerTick: 2 },
-  { id: 'pressure', startTick: 3_600, endTick: 10_799, softCap: 6, hardCap: 12, threatPerTick: 4 },
+  { id: 'opening', startTick: 0, endTick: 2_699, softCap: 4, hardCap: 8, threatPerTick: 2 },
+  { id: 'pressure', startTick: 2_700, endTick: 8_099, softCap: 6, hardCap: 12, threatPerTick: 4 },
   {
     id: 'adaptation',
-    startTick: 10_800,
-    endTick: 17_999,
+    startTick: 8_100,
+    endTick: 13_499,
     softCap: 8,
     hardCap: 14,
     threatPerTick: 6,
   },
   {
     id: 'mutation',
-    startTick: 18_000,
-    endTick: 23_399,
+    startTick: 13_500,
+    endTick: 17_099,
     softCap: 10,
     hardCap: 16,
     threatPerTick: 8,
   },
-  { id: 'boss', startTick: 23_400, endTick: 28_799, softCap: 6, hardCap: 10, threatPerTick: 3 },
+  { id: 'boss', startTick: 17_100, endTick: 21_599, softCap: 6, hardCap: 10, threatPerTick: 3 },
   {
     id: 'overtime',
-    startTick: 28_800,
+    startTick: 21_600,
     endTick: OPEN_END,
     softCap: 6,
     hardCap: 10,
@@ -100,8 +101,8 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
   {
     id: 'elite:pressure-1',
     phaseId: 'pressure',
-    warningTick: 6_900,
-    requestTick: 7_200,
+    warningTick: 3_900,
+    requestTick: 4_200,
     archetypeId: 'enemy:elite',
     count: 1,
     formation: 'arc',
@@ -110,13 +111,34 @@ const ELITE_BEATS: readonly EliteBeatDefinition[] = [
   },
 ];
 
+const BOSS_PROFILE: BossCombatProfile = {
+  id: 'test-apex-v1',
+  hpMultiplier: 2,
+  xpMultiplier: 1,
+  speedMultiplier: 1,
+  touchDamageMultiplier: 1,
+  preferredRange: 200,
+  rangeBand: 20,
+  cycleTicks: 120,
+  chargeWindupTicks: 12,
+  chargeDurationTicks: 18,
+  chargeSpeedMultiplier: 2,
+  volleyTick: 60,
+  volleyCount: 4,
+  projectileSpeed: 160,
+  projectileDamage: 5,
+  projectileLifetimeTicks: 90,
+  projectileHitRadius: 4,
+};
+
 const BOSS: BossDefinition = {
-  warningTick: 22_200,
-  requestTick: 23_400,
+  warningTick: 15_900,
+  requestTick: 17_100,
   archetypeId: 'enemy:boss',
   formation: 'ring',
   minDistance: 15,
   maxDistance: 25,
+  profile: BOSS_PROFILE,
 };
 
 const THREAT: ThreatConfig = { initialBudget: 0, maxBudget: 2_000 };
@@ -147,7 +169,7 @@ function makeDefinition(overrides?: Partial<RunDefinition>): RunDefinition {
   const base: RunDefinition = {
     contentVersion: CONTENT_VERSION,
     mode: 'endless',
-    durationTicks: 28_800,
+    durationTicks: 21_600,
     phases: PHASES,
     archetypes: ARCHETYPES,
     eliteBeats: ELITE_BEATS,
@@ -216,12 +238,12 @@ test('cloneState produces a deep, reference-free copy', () => {
 
 test('phaseAt returns correct phases at boundary ticks', () => {
   assert.equal(phaseAt(DEF, 0).id, 'opening');
-  assert.equal(phaseAt(DEF, 3_599).id, 'opening');
-  assert.equal(phaseAt(DEF, 3_600).id, 'pressure');
-  assert.equal(phaseAt(DEF, 23_399).id, 'mutation');
-  assert.equal(phaseAt(DEF, 23_400).id, 'boss');
-  assert.equal(phaseAt(DEF, 28_799).id, 'boss');
-  assert.equal(phaseAt(DEF, 28_800).id, 'overtime');
+  assert.equal(phaseAt(DEF, 2_699).id, 'opening');
+  assert.equal(phaseAt(DEF, 2_700).id, 'pressure');
+  assert.equal(phaseAt(DEF, 17_099).id, 'mutation');
+  assert.equal(phaseAt(DEF, 17_100).id, 'boss');
+  assert.equal(phaseAt(DEF, 21_599).id, 'boss');
+  assert.equal(phaseAt(DEF, 21_600).id, 'overtime');
   assert.equal(phaseAt(DEF, 100_000).id, 'overtime');
 });
 
@@ -249,7 +271,7 @@ test('evaluateOutcome: no victory before boss.requested, even if bossDefeatedThi
 test('evaluateOutcome: victory when boss.requested && bossDefeatedThisTick', () => {
   const state = createInitialState(DEF, 1);
   state.boss.requested = true;
-  const result = evaluateOutcome(state, aliveMetrics(23_400, { bossDefeatedThisTick: true }));
+  const result = evaluateOutcome(state, aliveMetrics(17_100, { bossDefeatedThisTick: true }));
   assert.deepEqual(result, { outcome: 'victory', terminalKind: 'victory' });
 });
 
@@ -258,7 +280,7 @@ test('evaluateOutcome: defeat wins over simultaneous victory signal', () => {
   state.boss.requested = true;
   const result = evaluateOutcome(
     state,
-    aliveMetrics(23_400, { playerAlive: false, bossDefeatedThisTick: true }),
+    aliveMetrics(17_100, { playerAlive: false, bossDefeatedThisTick: true }),
   );
   assert.deepEqual(result, { outcome: 'defeat', terminalKind: 'defeat' });
 });
@@ -276,7 +298,7 @@ test('evaluateOutcome: terminal outcome is sticky', () => {
 
 test('deserializeState rejects a forged victory-without-boss-requested state', () => {
   const state = createInitialState(DEF, 1);
-  state.tick = 23_400;
+  state.tick = 17_100;
   state.phase = 'boss';
   state.outcome = 'victory';
   // boss.requested left false — forged.
@@ -351,6 +373,13 @@ test('fingerprintDefinition differs when a phase boundary is altered', () => {
   const original = fingerprintDefinition(DEF);
   const changed = fingerprintDefinition(altered);
   assert.notEqual(original, changed);
+});
+
+test('fingerprintDefinition differs when the authored boss profile changes', () => {
+  const altered = makeDefinition({
+    boss: { ...BOSS, profile: { ...BOSS.profile, projectileDamage: BOSS.profile.projectileDamage + 1 } },
+  });
+  assert.notEqual(fingerprintDefinition(DEF), fingerprintDefinition(altered));
 });
 
 test('fingerprintDefinition is equal for structurally-equal definitions', () => {

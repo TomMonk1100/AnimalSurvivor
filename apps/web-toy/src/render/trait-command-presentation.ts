@@ -1,6 +1,7 @@
 import * as pc from 'playcanvas';
 import {
   hasExplicitTraitSourcePaletteLane,
+  paletteLaneForChimeraSource,
   paletteLaneForEffectMaterial,
   paletteLaneForTraitSource,
   proceduralAccentOpacity,
@@ -381,6 +382,10 @@ const EXTRA_PREBUILT_PALETTE_LANES: Readonly<Partial<Record<EffectMaterial, read
   'melee-arc': Object.freeze(['venom'] as const),
 });
 
+const PLAYER_ATTACK_PALETTE_LANES: readonly AttackVfxPaletteLane[] = Object.freeze([
+  'physical', 'earth', 'venom', 'arcane', 'storm', 'fire',
+]);
+
 function paletteMaterialKey(material: EffectMaterial, lane: AttackVfxPaletteLane): PaletteMaterialKey {
   return `${material}:${lane}`;
 }
@@ -388,7 +393,7 @@ function paletteMaterialKey(material: EffectMaterial, lane: AttackVfxPaletteLane
 function prebuiltPaletteLanesForEffectMaterial(material: EffectMaterial): readonly AttackVfxPaletteLane[] {
   const defaultLane = paletteLaneForEffectMaterial(material);
   const extras = EXTRA_PREBUILT_PALETTE_LANES[material] ?? [];
-  return extras.includes(defaultLane) ? extras : [defaultLane, ...extras];
+  return [...new Set([defaultLane, ...extras, ...PLAYER_ATTACK_PALETTE_LANES])];
 }
 
 const OPACITY: Readonly<Record<EffectMaterial, number>> = Object.freeze({
@@ -653,9 +658,19 @@ export function resolveTraitCommandPaletteLane(
   event: Pick<TraitCommandPresentationEvent, 'sourceId'>,
   profile: TraitCommandEffectProfile,
 ): AttackVfxPaletteLane {
-  return hasExplicitTraitSourcePaletteLane(event.sourceId)
+  return paletteLaneForChimeraSource(event.sourceId)?.primary
+    ?? (hasExplicitTraitSourcePaletteLane(event.sourceId)
     ? paletteLaneForTraitSource(event.sourceId)
-    : paletteLaneForEffectMaterial(profile.material);
+    : paletteLaneForEffectMaterial(profile.material));
+}
+
+/** The accent half of a Chimera duotone; ordinary effects preserve one lane. */
+export function resolveTraitCommandAccentPaletteLane(
+  event: Pick<TraitCommandPresentationEvent, 'sourceId'>,
+  profile: TraitCommandEffectProfile,
+): AttackVfxPaletteLane {
+  return paletteLaneForChimeraSource(event.sourceId)?.accent
+    ?? resolveTraitCommandPaletteLane(event, profile);
 }
 
 /**
@@ -1718,6 +1733,7 @@ interface EffectSlot {
   profile: TraitCommandEffectProfile | null;
   material: EffectMaterial;
   paletteLane: AttackVfxPaletteLane;
+  accentPaletteLane: AttackVfxPaletteLane;
   tick: number;
   expiresAtTick: number;
   x: number;
@@ -1760,6 +1776,7 @@ interface MeleeArcSlot {
   dirY: number;
   intensity: number;
   paletteLane: AttackVfxPaletteLane;
+  accentPaletteLane: AttackVfxPaletteLane;
 }
 
 /**
@@ -1784,6 +1801,7 @@ interface GenericMeleeSlashSlot {
   yawDegrees: number;
   intensity: number;
   paletteLane: AttackVfxPaletteLane;
+  accentPaletteLane: AttackVfxPaletteLane;
 }
 
 interface OrbitingDamageSlot {
@@ -1954,7 +1972,10 @@ export function createTraitCommandPresentation(
     parent.addChild(accentEntity);
     slots.push({
       entity, meshInstance, accentEntity, accentMeshInstance,
-      active: false, profile: null, material: 'telegraph', paletteLane: paletteLaneForEffectMaterial('telegraph'), tick: 0, expiresAtTick: 0,
+      active: false, profile: null, material: 'telegraph',
+      paletteLane: paletteLaneForEffectMaterial('telegraph'),
+      accentPaletteLane: paletteLaneForEffectMaterial('telegraph'),
+      tick: 0, expiresAtTick: 0,
       x: 0, y: 0, radius: 0, aspect: 1, yawDegrees: 0, dirX: 1, dirY: 0, intensity: 1,
     });
   }
@@ -1983,6 +2004,7 @@ export function createTraitCommandPresentation(
         active: false, tick: 0, expiresAtTick: 0,
         x: 0, y: 0, radius: 0, yawDegrees: 0, dirX: 1, dirY: 0, intensity: 1,
         paletteLane: paletteLaneForEffectMaterial('melee-arc'),
+        accentPaletteLane: paletteLaneForEffectMaterial('melee-arc'),
       });
     }
   }
@@ -2007,6 +2029,7 @@ export function createTraitCommandPresentation(
       active: false, mesh: genericMeleeSlashMesh, material: 'melee-arc', tick: 0, expiresAtTick: 0,
       x: 0, y: 0, dirX: 1, dirY: 0, radius: 0, yawDegrees: 0, intensity: 1,
       paletteLane: paletteLaneForEffectMaterial('melee-arc'),
+      accentPaletteLane: paletteLaneForEffectMaterial('melee-arc'),
     });
   }
 
@@ -2157,7 +2180,7 @@ export function createTraitCommandPresentation(
     );
     const accent = resolveStagedAccent(blueprint, stage);
     slot.accentMeshInstance.mesh = accentMeshes[accent];
-    slot.accentMeshInstance.material = accentMaterialFor(slot.material, slot.paletteLane);
+    slot.accentMeshInstance.material = accentMaterialFor(slot.material, slot.accentPaletteLane);
     slot.accentMeshInstance.setParameter('material_opacity', accentOpacity);
     slot.accentEntity.setLocalPosition(
       slot.x + slot.dirX * accentTravel - worldHalfWidth,
@@ -2216,7 +2239,7 @@ export function createTraitCommandPresentation(
       stage,
     );
     slot.accentMeshInstance.mesh = accentMeshes[accent];
-    slot.accentMeshInstance.material = accentMaterialFor('melee-arc', slot.paletteLane);
+    slot.accentMeshInstance.material = accentMaterialFor('melee-arc', slot.accentPaletteLane);
     slot.accentMeshInstance.setParameter('material_opacity', accentOpacity);
     slot.accentEntity.setLocalPosition(
       slot.x + slot.dirX * accentTravel - worldHalfWidth,
@@ -2291,7 +2314,7 @@ export function createTraitCommandPresentation(
       stage,
     );
     slot.accentMeshInstance.mesh = accentMeshes[accent];
-    slot.accentMeshInstance.material = accentMaterialFor(slot.material, slot.paletteLane);
+    slot.accentMeshInstance.material = accentMaterialFor(slot.material, slot.accentPaletteLane);
     slot.accentMeshInstance.setParameter('material_opacity', accentOpacity);
     slot.accentEntity.setLocalPosition(
       slot.x + slot.dirX * accentTravel - worldHalfWidth,
@@ -2457,6 +2480,7 @@ export function createTraitCommandPresentation(
     slot.profile = profile;
     slot.material = profile.material;
     slot.paletteLane = resolveTraitCommandPaletteLane(event, profile);
+    slot.accentPaletteLane = resolveTraitCommandAccentPaletteLane(event, profile);
     slot.tick = emittedTick;
     slot.expiresAtTick = emittedTick + lifetimeTicks;
     slot.x = finiteOr(event.originX, 0);
@@ -2547,6 +2571,7 @@ export function createTraitCommandPresentation(
     slot.dirY = directionLength > 1e-8 ? rawDirY / directionLength : -Math.cos(yawRadians);
     slot.intensity = resolveTraitCommandVisualIntensity(event, profile);
     slot.paletteLane = resolveTraitCommandPaletteLane(event, profile);
+    slot.accentPaletteLane = resolveTraitCommandAccentPaletteLane(event, profile);
   }
 
   function startGenericMeleeSlash(
@@ -2575,6 +2600,7 @@ export function createTraitCommandPresentation(
     slot.intensity = resolveTraitCommandVisualIntensity(event, profile);
     slot.material = profile.material;
     slot.paletteLane = resolveTraitCommandPaletteLane(event, profile);
+    slot.accentPaletteLane = resolveTraitCommandAccentPaletteLane(event, profile);
     slot.mesh = profile.material === 'greg-fox-swipe'
       ? foxSwipeMesh
       : profile.material === 'greg-rush-rake'

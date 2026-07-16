@@ -7,40 +7,40 @@ import assert from 'node:assert/strict';
 import { RunDirector } from '../src/index.js';
 import { metricsAt, runEveryTick, runAtTicks, authoredOnly, countKind } from './helpers.js';
 
-test('every required phase starts at its exact eight-minute boundary, in order', () => {
+test('every required phase starts at its exact six-minute boundary, in order', () => {
   const d = new RunDirector({ seed: 1 });
-  const events = runEveryTick(d, 0, 28_800);
+  const events = runEveryTick(d, 0, 21_600);
   const starts = events
     .filter((e) => e.kind === 'phaseStarted')
     .map((e) => ({ id: (e as { phaseId: string }).phaseId, tick: e.tick }));
   assert.deepEqual(starts, [
     { id: 'opening', tick: 0 },
-    { id: 'pressure', tick: 3_600 },
-    { id: 'adaptation', tick: 10_800 },
-    { id: 'mutation', tick: 18_000 },
-    { id: 'boss', tick: 23_400 },
+    { id: 'pressure', tick: 2_700 },
+    { id: 'adaptation', tick: 8_100 },
+    { id: 'mutation', tick: 13_500 },
+    { id: 'boss', tick: 17_100 },
   ]);
 });
 
 test('increasing pre-boss elite beats fire exactly once at authored ticks', () => {
   const d = new RunDirector({ seed: 2 });
-  const events = runEveryTick(d, 0, 23_400);
+  const events = runEveryTick(d, 0, 17_100);
   const elites = events
     .filter((e) => e.kind === 'eliteRequested')
     .map((e) => ({ id: (e as { beatId: string }).beatId, tick: e.tick }));
   assert.deepEqual(elites, [
-    { id: 'elite:pressure-1', tick: 7_200 },
-    { id: 'elite:adaptation-1', tick: 13_200 },
-    { id: 'elite:adaptation-2', tick: 16_200 },
-    { id: 'elite:mutation-1', tick: 18_900 },
-    { id: 'elite:mutation-2', tick: 20_700 },
-    { id: 'elite:mutation-3', tick: 21_900 },
+    { id: 'elite:pressure-1', tick: 4_200 },
+    { id: 'elite:adaptation-1', tick: 8_700 },
+    { id: 'elite:adaptation-2', tick: 11_700 },
+    { id: 'elite:mutation-1', tick: 14_100 },
+    { id: 'elite:mutation-2', tick: 15_300 },
+    { id: 'elite:mutation-3', tick: 16_500 },
   ]);
 });
 
 test('each elite warning precedes its request in stable order', () => {
   const d = new RunDirector({ seed: 3 });
-  const events = runEveryTick(d, 0, 23_400);
+  const events = runEveryTick(d, 0, 17_100);
   for (const beatId of [
     'elite:pressure-1',
     'elite:adaptation-1',
@@ -57,45 +57,47 @@ test('each elite warning precedes its request in stable order', () => {
   }
 });
 
-test('boss warning precedes boss request; request fires exactly once at 23,400', () => {
+test('boss warning precedes boss request; request fires exactly once at 17,100 with its profile', () => {
   const d = new RunDirector({ seed: 4 });
-  const events = runEveryTick(d, 0, 28_800);
+  const events = runEveryTick(d, 0, 21_600);
   const warn = events.find((e) => e.kind === 'bossWarning');
   const reqs = events.filter((e) => e.kind === 'bossRequested');
   assert.ok(warn, 'boss warning present');
   assert.equal(reqs.length, 1, 'exactly one boss request');
-  assert.equal(reqs[0]!.tick, 23_400);
+  assert.equal(reqs[0]!.tick, 17_100);
+  assert.equal(reqs[0]!.intent.bossProfile?.id, 'forest-final-threat-v3');
+  assert.equal(reqs[0]!.intent.bossProfile?.hpMultiplier, 56);
   assert.ok(warn!.tick < reqs[0]!.tick);
   assert.ok(warn!.seq < reqs[0]!.seq);
 });
 
 test('boss entrance owns its tick without a concurrent discretionary wave', () => {
   const d = new RunDirector({ seed: 41 });
-  const events = runEveryTick(d, 0, 23_400)
-    .filter((event) => event.tick === 23_400);
+  const events = runEveryTick(d, 0, 17_100)
+    .filter((event) => event.tick === 17_100);
 
   assert.equal(events.filter((event) => event.kind === 'bossRequested').length, 1);
   assert.equal(events.filter((event) => event.kind === 'spawnRequested').length, 0);
 });
 
-test('normal mode ends at 8:00 with defeat when the boss survives, without overtime', () => {
+test('normal mode ends at 6:00 with defeat when the boss survives, without overtime', () => {
   const d = new RunDirector({ seed: 5 });
-  const events = runEveryTick(d, 0, 28_800); // no boss defeat ever
+  const events = runEveryTick(d, 0, 21_600); // no boss defeat ever
   const defeat = events.find((event) => event.kind === 'defeat');
   assert.ok(defeat);
-  assert.equal(defeat!.tick, 28_800);
+  assert.equal(defeat!.tick, 21_600);
   assert.equal(defeat!.phase, 'boss');
   assert.equal(countKind(events, 'victory'), 0);
   assert.equal(countKind(events, 'overtimeStarted'), 0);
-  assert.equal(events.filter((event) => event.kind === 'spawnRequested' && event.tick >= 28_800).length, 0);
+  assert.equal(events.filter((event) => event.kind === 'spawnRequested' && event.tick >= 21_600).length, 0);
   assert.equal(d.outcome, 'defeat');
   assert.equal(d.phase, 'boss');
 });
 
 test('a boss killed on the exact normal deadline wins rather than timing out', () => {
   const d = new RunDirector({ seed: 6 });
-  runEveryTick(d, 0, 28_799);
-  const events = runAtTicks(d, [28_800], { bossDefeatTick: 28_800 });
+  runEveryTick(d, 0, 21_599);
+  const events = runAtTicks(d, [21_600], { bossDefeatTick: 21_600 });
   assert.equal(countKind(events, 'victory'), 1);
   assert.equal(countKind(events, 'defeat'), 0);
   assert.equal(countKind(events, 'overtimeStarted'), 0);
@@ -104,8 +106,8 @@ test('a boss killed on the exact normal deadline wins rather than timing out', (
 
 test('valid boss defeat after request produces exactly one victory', () => {
   const d = new RunDirector({ seed: 7 });
-  runEveryTick(d, 0, 25_000);
-  const events = runAtTicks(d, [25_001], { bossDefeatTick: 25_001 });
+  runEveryTick(d, 0, 18_000);
+  const events = runAtTicks(d, [18_001], { bossDefeatTick: 18_001 });
   assert.equal(countKind(events, 'victory'), 1);
   assert.equal(d.outcome, 'victory');
   // Later inputs emit nothing and cannot change outcome.
@@ -132,8 +134,8 @@ test('player death produces exactly one defeat event and is terminal', () => {
 
 test('same-tick death and boss defeat: defeat wins', () => {
   const d = new RunDirector({ seed: 10 });
-  runEveryTick(d, 0, 25_000);
-  const events = runAtTicks(d, [25_050], { deathTick: 25_050, bossDefeatTick: 25_050 });
+  runEveryTick(d, 0, 18_000);
+  const events = runAtTicks(d, [18_050], { deathTick: 18_050, bossDefeatTick: 18_050 });
   assert.equal(countKind(events, 'defeat'), 1);
   assert.equal(countKind(events, 'victory'), 0);
   assert.equal(d.outcome, 'defeat');
@@ -142,7 +144,7 @@ test('same-tick death and boss defeat: defeat wins', () => {
 test('terminal state suppresses later spawns and phase events', () => {
   const d = new RunDirector({ seed: 11 });
   runEveryTick(d, 0, 5_000, { deathTick: 4_000 });
-  // Cross the pressure boundary (7,200) after death — no phaseStarted should emit.
+  // Cross the adaptation boundary after death — no phaseStarted should emit.
   const after = runEveryTick(d, 5_001, 8_000);
   assert.equal(after.length, 0);
   assert.equal(d.outcome, 'defeat');
@@ -207,11 +209,11 @@ test('delayed waves never release as an unbounded burst when congestion clears',
 test('tick-skip catch-up preserves authored one-shot events and ordering', () => {
   const fine = new RunDirector({ seed: 16 });
   const skip = new RunDirector({ seed: 16 });
-  const fineEvents = authoredOnly(runEveryTick(fine, 0, 28_800));
+  const fineEvents = authoredOnly(runEveryTick(fine, 0, 21_600));
   // Big skips that still straddle every authored boundary and beat.
   const ticks = [
-    0, 3_600, 6_900, 7_200, 10_800, 12_900, 13_200, 15_900, 16_200, 18_000, 18_600,
-    18_900, 20_400, 20_700, 21_600, 21_900, 22_200, 23_400, 28_800,
+    0, 2_700, 3_900, 4_200, 8_100, 8_400, 8_700, 11_400, 11_700, 13_500, 13_800,
+    14_100, 15_000, 15_300, 15_900, 16_200, 16_500, 17_100, 21_600,
   ];
   const skipEvents = authoredOnly(runAtTicks(skip, ticks));
   const norm = (e: (typeof fineEvents)[number]) => `${e.kind}@${e.tick}`;

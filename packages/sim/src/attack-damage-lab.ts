@@ -31,7 +31,7 @@ const LAB_TARGET_COUNT = 96;
 const LAB_RUNTIME_FINGERPRINT = 'd0a6e00000000001';
 const LAB_HERO_ID = 'greg';
 
-export type AttackDamageLabCategory = 'starter' | 'trait' | 'mythic';
+export type AttackDamageLabCategory = 'starter' | 'trait' | 'master' | 'mythic';
 export type AttackDamageLabStatus =
   | 'damage-confirmed'
   | 'damage-missing'
@@ -233,6 +233,33 @@ function mythic(
 }
 
 /**
+ * Exact rank-five profiles derived from trait-runtime's SCALE_BY_RANK[5].
+ * Keep these explicit at the simulation boundary: this lab must remain usable
+ * without importing the trait runtime package or renderer code.
+ */
+function master(
+  id: string,
+  name: string,
+  behavior: AttackBehavior,
+  notes: string,
+  expectsDamage = true,
+): AttackDamageLabCase {
+  return {
+    id,
+    name,
+    category: 'master',
+    sourceId: id.slice('master:'.length),
+    expectsDamage,
+    notes,
+    behavior,
+    requiresMovement: behavior.kind === 'movementTrail',
+    suppressBaseAttack: false,
+    avoidRushRakeNearMisses: false,
+    heroId: LAB_HERO_ID,
+  };
+}
+
+/**
  * Active Forest Arsenal data, expanded to one isolated Bud/Adapted/Mythic
  * combat proof each.  Utility-only entries deliberately remain in the report:
  * a zero damage total for Puffer, Bat, Armadillo, or Midnight is expected,
@@ -348,6 +375,50 @@ const CASES: readonly AttackDamageLabCase[] = Object.freeze([
     speed: (Math.PI * 2) / 150, radius: 84, range: 16, facing: Math.PI / 4,
   }), 'Three wide-orbit contact monarchs; this is a real damage proof, not a visual cue.'),
 
+  // Master profiles: exact rank-five transformations of the Adapted entries
+  // above (cadence ×0.64, damage/strength ×1.78, reach ×1.36, duration ×1.26,
+  // speed/spread rank-step scaling, and +3 visible count/jumps/pierce).
+  master('master:porcupine-quills', 'Porcupine Quills — Master', periodic(38, {
+    kind: 'spawnProjectileBurst', targeting: 'nearest', count: 8, damage: 10.68, speed: 11.8, spread: 0.645, pierce: 5,
+  }), 'Rank-five piercing volley derived from the live Adapted profile.'),
+  master('master:puffer-pouch', 'Puffer Pouch — Master', periodic(51, {
+    kind: 'areaKnockback', targeting: 'none', radius: 190.4, strength: 16.02,
+  }), 'Rank-five crowd control remains intentionally utility-only.', false),
+  master('master:electric-eel-coil', 'Electric Eel Coil — Master', periodic(33, {
+    kind: 'chainDamage', targeting: 'nearest', damage: 8.9, jumps: 6, range: 204,
+  }), 'Rank-five six-hop chain profile derived from the live Adapted profile.'),
+  master('master:firefly-colony', 'Firefly Colony — Master', periodic(15, {
+    kind: 'orbitingDamage', targeting: 'none', count: 7, damage: 7.12,
+    speed: 0.077, radius: 87.04, range: 27.2, facing: 0,
+  }), 'Rank-five orbit/contact profile; targets remain on the measured contact ring.'),
+  master('master:mantis-scythes', 'Mantis Scythes — Master', periodic(19, {
+    kind: 'meleeArc', targeting: 'nearest', damage: 17.8, arc: 2.176, range: 119.68,
+  }), 'Rank-five auto-aimed close cleave.'),
+  master('master:gecko-pads', 'Gecko Pads — Master', movementTrail(70_400, {
+    kind: 'spawnZone', targeting: 'none', radius: 70.72, amount: 8.9,
+    durationTicks: 227, intervalTicks: 12, tag: 'gecko-pad',
+  }), 'Rank-five movement-gated pad; the lab continuously walks Greg through fresh targets.'),
+  master('master:owl-pinions', 'Owl Pinions — Master', periodic(45, {
+    kind: 'spawnProjectileBurst', targeting: 'nearest', count: 10, damage: 8.9, speed: 11.8, spread: 0.372,
+  }), 'Rank-five ten-ribbon volley derived from the live Adapted profile.'),
+  master('master:bat-ears', 'Bat Ears — Master', periodic(58, {
+    kind: 'markTargets', targeting: 'densestCluster', count: 8, radius: 353.6, tag: 'echo-mark',
+  }), 'Rank-five marking remains intentionally utility-only.', false),
+  master('master:crab-pincers', 'Crab Pincers — Master', periodic(48, {
+    kind: 'applyAreaDamage', targeting: 'nearest', radius: 88.4, damage: 14.24,
+  }), 'Rank-five area crush.'),
+  master('master:armadillo-greaves', 'Armadillo Greaves — Master', periodic(64, {
+    kind: 'areaKnockback', targeting: 'none', radius: 122.4, strength: 17.8,
+  }), 'Rank-five recoil remains intentionally utility-only.', false),
+  master('master:skunk-brush', 'Skunk Brush — Master', periodic(77, {
+    kind: 'spawnZone', targeting: 'none', radius: 129.2, amount: 7.12,
+    durationTicks: 176, intervalTicks: 15, tag: 'stink-cloud',
+  }), 'Rank-five persistent stink-cloud.'),
+  master('master:monarch-brood', 'Monarch Brood — Master', periodic(29, {
+    kind: 'orbitingDamage', targeting: 'none', count: 6, damage: 5.34,
+    speed: 0.049, radius: 114.24, range: 21.76, facing: Math.PI / 4,
+  }), 'Rank-five guardians remain damage-confirmed in the authoritative lab.'),
+
   mythic('mythic:thornstorm-mantle', 'Thornstorm Mantle — Mythic', multiPhase(
     { durationTicks: 20, command: { kind: 'telegraph', targeting: 'none', radius: 140, durationTicks: 20, tag: 'thornstorm-inhale' } },
     { durationTicks: 15, command: { kind: 'areaGather', targeting: 'none', radius: 140, strength: 9 } },
@@ -375,6 +446,12 @@ const CASES: readonly AttackDamageLabCase[] = Object.freeze([
 
 /** Number of independently exercised entries in the launch attack proof. */
 export const ATTACK_DAMAGE_LAB_CASE_COUNT = CASES.length;
+
+/** Stable ids consumed by the Master DPS generator and Chimera budget tests. */
+export const MASTER_DAMAGE_LAB_CASE_IDS: readonly string[] = Object.freeze(
+  CASES.filter((attackCase) => attackCase.category === 'master').map((attackCase) => attackCase.id),
+);
+export const MASTER_DAMAGE_LAB_CASE_COUNT = MASTER_DAMAGE_LAB_CASE_IDS.length;
 
 function materializeCommand(
   template: AttackCommandTemplate,
@@ -754,6 +831,11 @@ function summarize(results: readonly AttackDamageLabResult[]): AttackDamageLabSu
  */
 export function runAttackDamageLab(): readonly AttackDamageLabResult[] {
   return runAttackDamageLabReport().results;
+}
+
+/** Isolated rank-five measurements for deterministic Chimera budget anchors. */
+export function runMasterDamageLab(): readonly AttackDamageLabResult[] {
+  return runAttackDamageLabReport().results.filter((result) => result.category === 'master');
 }
 
 /** Full metadata companion to `runAttackDamageLab()` for CI and issue reports. */

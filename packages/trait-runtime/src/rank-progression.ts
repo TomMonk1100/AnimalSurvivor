@@ -11,6 +11,7 @@
 
 import type {
   BehaviorDefinition,
+  BehaviorFollowUp,
   CommandTemplate,
   StageDefinition,
   TraitDefinition,
@@ -37,7 +38,8 @@ const SCALE_BY_RANK: Readonly<Record<3 | 4 | 5, Readonly<{
   5: { cadence: 0.64, damage: 1.78, reach: 1.36, duration: 1.26 },
 };
 
-function rounded(value: number): number {
+/** Shared three-decimal deterministic rounding law for authored rank and Chimera synthesis. */
+export function rounded(value: number): number {
   // Keep authored integer behavior integer while making non-integer authored
   // arcs/spreads byte-stable across every JS runtime we support.
   return Math.round(value * 1_000) / 1_000;
@@ -82,6 +84,17 @@ function scaledTemplate(template: CommandTemplate | undefined, rank: 3 | 4 | 5):
   return next;
 }
 
+function scaledFollowUps(
+  followUps: readonly BehaviorFollowUp[] | undefined,
+  rank: 3 | 4 | 5,
+): readonly BehaviorFollowUp[] | undefined {
+  if (followUps === undefined) return undefined;
+  return followUps.map((followUp) => ({
+    ...followUp,
+    emit: scaledTemplate(followUp.emit, rank)!,
+  }));
+}
+
 function scaledBehavior(behavior: BehaviorDefinition, rank: 3 | 4 | 5): BehaviorDefinition {
   const tuning = SCALE_BY_RANK[rank];
   const next: BehaviorDefinition = {
@@ -95,12 +108,18 @@ function scaledBehavior(behavior: BehaviorDefinition, rank: 3 | 4 | 5): Behavior
   }
   const emit = scaledTemplate(behavior.emit, rank);
   if (emit !== undefined) next.emit = emit;
+  const followUps = scaledFollowUps(behavior.followUps, rank);
+  if (followUps !== undefined) next.followUps = followUps;
   if (behavior.phases !== undefined) {
-    next.phases = behavior.phases.map((phase) => ({
-      ...phase,
-      durationTicks: Math.max(1, Math.round(phase.durationTicks * tuning.cadence)),
-      emit: scaledTemplate(phase.emit, rank)!,
-    }));
+    next.phases = behavior.phases.map((phase) => {
+      const phaseFollowUps = scaledFollowUps(phase.followUps, rank);
+      return {
+        ...phase,
+        durationTicks: Math.max(1, Math.round(phase.durationTicks * tuning.cadence)),
+        emit: scaledTemplate(phase.emit, rank)!,
+        ...(phaseFollowUps === undefined ? {} : { followUps: phaseFollowUps }),
+      };
+    });
   }
   return next;
 }

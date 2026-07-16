@@ -13,6 +13,7 @@ import {
 } from '../src/combat.js';
 import { DEFAULT_CONFIG } from '../src/config.js';
 import { ENEMY_BEHAVIOR_KIND, createEnemyBehaviorState, resetEnemyBehavior } from '../src/enemy-behavior.js';
+import type { RunBossProfileView } from '../src/run-director-port.js';
 import { BruteForceGrid, createEnemyPool, createPickupPool, createProjectilePool } from './helpers-c.js';
 
 function makePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
@@ -37,6 +38,29 @@ function makeEvents(): SimEvents {
     levelUps: [], kills: 0, pickupsCollected: 0, enemiesSpawned: 0,
     enemyProjectilesFired: 0, projectilesFired: 0,
     powerPickupsCollected: 0, bombsTriggered: 0, magnetsTriggered: 0, foodCollected: 0,
+  };
+}
+
+function bossProfile(overrides: Partial<RunBossProfileView> = {}): RunBossProfileView {
+  return {
+    id: 'combat-test-apex-v1',
+    hpMultiplier: 1,
+    xpMultiplier: 1,
+    speedMultiplier: 1,
+    touchDamageMultiplier: 1,
+    preferredRange: 320,
+    rangeBand: 50,
+    cycleTicks: 360,
+    chargeWindupTicks: 36,
+    chargeDurationTicks: 42,
+    chargeSpeedMultiplier: 2.4,
+    volleyTick: 180,
+    volleyCount: 8,
+    projectileSpeed: 220,
+    projectileDamage: 10,
+    projectileLifetimeTicks: 180,
+    projectileHitRadius: 8,
+    ...overrides,
   };
 }
 
@@ -222,15 +246,15 @@ test('stepEnemies: The Final Threat runs a hashed charge-to-volley attack cycle'
   pool.data.radius[slot] = 12;
   pool.data.touchDamage[slot] = 8;
   grid.insert(pool.idOf(slot), 0, 0);
-  resetEnemyBehavior(state, slot, 'brute', false, 0, 0, true);
-  const config = {
-    ...DEFAULT_CONFIG.enemyBehavior,
-    bossCycleTicks: 12,
-    bossChargeWindupTicks: 2,
-    bossChargeDurationTicks: 2,
-    bossVolleyTick: 6,
-    bossVolleyCount: 4,
-  };
+  const profile = bossProfile({
+    cycleTicks: 12,
+    chargeWindupTicks: 2,
+    chargeDurationTicks: 2,
+    volleyTick: 6,
+    volleyCount: 4,
+  });
+  resetEnemyBehavior(state, slot, 'brute', false, 0, 0, profile);
+  const config = DEFAULT_CONFIG.enemyBehavior;
   const behavior = {
     state,
     config,
@@ -246,15 +270,15 @@ test('stepEnemies: The Final Threat runs a hashed charge-to-volley attack cycle'
   assert.equal(pool.data.posX[slot], 0, 'charge wind-up holds the boss in place');
   assert.deepEqual(cues, ['boss-charge']);
 
-  while (state.bossPatternTick[slot] !== config.bossVolleyTick) {
+  while (state.bossPatternTick[slot] !== profile.volleyTick) {
     behavior.tick++;
     stepEnemies(pool, grid, player, 1, 2_000, 2_000, 30, 20, behavior);
   }
   const beforeVolleyX = pool.data.posX[slot]!;
   stepEnemies(pool, grid, player, 1, 2_000, 2_000, 30, 20, behavior);
   assert.equal(cues[1], 'boss-volley');
-  assert.equal(events.enemyProjectilesFired, config.bossVolleyCount);
-  assert.equal(projectiles.data.count, config.bossVolleyCount);
+  assert.equal(events.enemyProjectilesFired, profile.volleyCount);
+  assert.equal(projectiles.data.count, profile.volleyCount);
   assert.equal(pool.data.posX[slot], beforeVolleyX, 'volley beat holds the boss silhouette');
 });
 
@@ -344,15 +368,15 @@ test('stepEnemies: Saltwind apex uses its own sandstorm volley variant', () => {
   pool.data.maxHp[slot] = 500;
   pool.data.hp[slot] = 500;
   grid.insert(pool.idOf(slot), 0, 0);
-  resetEnemyBehavior(state, slot, 'brute', false, 0, 0, true);
-  const config = {
-    ...DEFAULT_CONFIG.enemyBehavior,
-    bossCycleTicks: 12,
-    bossChargeWindupTicks: 2,
-    bossChargeDurationTicks: 2,
-    bossVolleyTick: 6,
-    bossVolleyCount: 8,
-  };
+  const profile = bossProfile({
+    cycleTicks: 12,
+    chargeWindupTicks: 2,
+    chargeDurationTicks: 2,
+    volleyTick: 6,
+    volleyCount: 8,
+  });
+  resetEnemyBehavior(state, slot, 'brute', false, 0, 0, profile);
+  const config = DEFAULT_CONFIG.enemyBehavior;
   const cues: string[] = [];
   const behavior = {
     state,
@@ -364,7 +388,7 @@ test('stepEnemies: Saltwind apex uses its own sandstorm volley variant', () => {
     onBossCue(tag: string) { cues.push(tag); },
   };
   const player = makePlayer({ x: 1_000, y: 0 });
-  for (let tick = 0; tick <= config.bossVolleyTick; tick++) {
+  for (let tick = 0; tick <= profile.volleyTick; tick++) {
     behavior.tick = tick;
     stepEnemies(pool, grid, player, 1, 2_000, 2_000, 30, 20, behavior);
   }
