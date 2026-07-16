@@ -12,7 +12,7 @@
  * fixture change; the corresponding fingerprint invalidates old replays.
  */
 
-export const CHIMERA_LAB_CALIBRATION_VERSION = 2 as const;
+export const CHIMERA_LAB_CALIBRATION_VERSION = 3 as const;
 
 /** Pair-order independent, post-estimator multiplier measured from Lab v2. */
 export const CHIMERA_LAB_CALIBRATION = Object.freeze({
@@ -162,7 +162,10 @@ export const CHIMERA_LAB_CADENCE_CALIBRATION = Object.freeze({
   'owl-pinions+monarch-brood': 0.907082,
   'bat-ears+crab-pincers': 1.550769,
   'bat-ears+armadillo-greaves': 1.213495,
-  'bat-ears+skunk-brush': 4.566909,
+  // Bat's mark prelude now delivers this cloud to the marked enemy cluster
+  // instead of leaving the zone under Greg. Re-measured target geometry needs
+  // a faster fixed cadence, not more already-lethal zone damage.
+  'bat-ears+skunk-brush': 3.000000,
   'bat-ears+monarch-brood': 2.225706,
   'crab-pincers+armadillo-greaves': 1.033846,
   'crab-pincers+skunk-brush': 4.449945,

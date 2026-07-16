@@ -23,14 +23,26 @@ test('each founding hero owns a distinct V1.1 starter attack and defensive basel
     { id: 'gracie-keen-dart', title: 'Spit Volley', pattern: 'projectile', targeting: 'highestHealth' },
   ]);
   assert.deepEqual(attacks.map((attack) => ({
+    damageMultiplier: attack.damageMultiplier,
+    cooldownMultiplier: attack.cooldownMultiplier,
+    rangeMultiplier: attack.rangeMultiplier,
     projectileCount: attack.projectileCount,
     arcRadians: attack.arcRadians,
     groundWaveCount: attack.groundWaveCount,
     groundWaveSpacingTicks: attack.groundWaveSpacingTicks,
   })), [
-    { projectileCount: 0, arcRadians: 1.72, groundWaveCount: 0, groundWaveSpacingTicks: 0 },
-    { projectileCount: 0, arcRadians: 0, groundWaveCount: 2, groundWaveSpacingTicks: 7 },
-    { projectileCount: 1, arcRadians: 0, groundWaveCount: 0, groundWaveSpacingTicks: 0 },
+    {
+      damageMultiplier: 1.32, cooldownMultiplier: 1.35, rangeMultiplier: 0.42,
+      projectileCount: 0, arcRadians: 0.9, groundWaveCount: 0, groundWaveSpacingTicks: 0,
+    },
+    {
+      damageMultiplier: 1.08, cooldownMultiplier: 1.28, rangeMultiplier: 1,
+      projectileCount: 0, arcRadians: 0, groundWaveCount: 2, groundWaveSpacingTicks: 7,
+    },
+    {
+      damageMultiplier: 0.9, cooldownMultiplier: 0.78, rangeMultiplier: 1.1,
+      projectileCount: 1, arcRadians: 0, groundWaveCount: 0, groundWaveSpacingTicks: 0,
+    },
   ]);
   assert.deepEqual(HERO_CATALOG.map((hero) => ({
     id: hero.id,

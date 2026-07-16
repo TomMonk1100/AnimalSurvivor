@@ -162,7 +162,7 @@ function presentTraitUpgradeBase(
       description: offer.resultStage === 'bud'
         ? 'Auto-aims a narrow scythe sweep through nearby enemies.'
         : razorstepReady
-          ? fusionReadyDescription(offer, `Completes Razorstep Chimera: movement leaves stronger scythe pads at ${heroName}'s feet.`)
+          ? fusionReadyDescription(offer, `Completes Razorstep Chimera: movement leaves stronger scythe pads behind ${heroName}.`)
           : 'Auto-aims a wider, stronger scythe sweep through nearby enemies.',
       pairingHint: pairingHint(offer, razorstepReady, 'Gecko Pads', 'Adapt Gecko Pads too to evolve both into Razorstep Chimera.'),
     };
@@ -173,10 +173,10 @@ function presentTraitUpgradeBase(
       badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW ATTACK' : 'UPGRADE', razorstepReady),
       socket: 'Right shoulder attachment',
       description: offer.resultStage === 'bud'
-        ? `After moving, leaves a damaging pad at ${heroName}'s feet.`
+        ? `After moving, leaves a damaging pad behind ${heroName}.`
         : razorstepReady
-          ? fusionReadyDescription(offer, `Completes Razorstep Chimera: movement leaves stronger scythe pads at ${heroName}'s feet.`)
-          : `After moving, leaves larger, stronger damaging pads at ${heroName}'s feet.`,
+          ? fusionReadyDescription(offer, `Completes Razorstep Chimera: movement leaves stronger scythe pads behind ${heroName}.`)
+          : `After moving, leaves larger, stronger damaging pads behind ${heroName}.`,
       pairingHint: pairingHint(offer, razorstepReady, 'Mantis Scythes', 'Adapt Mantis Scythes too to evolve both into Razorstep Chimera.'),
     };
   }
@@ -238,10 +238,10 @@ function presentTraitUpgradeBase(
       badge: traitBadge(offer, offer.resultStage === 'bud' ? 'NEW' : 'UPGRADE', royalReady),
       socket: 'Tail attachment',
       description: offer.resultStage === 'bud'
-        ? 'Leaves a damaging stink cloud that punishes pursuit.'
+        ? 'Places a damaging stink cloud on an enemy cluster ahead.'
         : royalReady
-          ? fusionReadyDescription(offer, 'Completes Royal Stinkcloud: a monarch-crowned hazard surrounds you.')
-          : 'Leaves a larger, stronger stink cloud.',
+          ? fusionReadyDescription(offer, 'Completes Royal Stinkcloud: a monarch-crowned cloud lands on an enemy cluster ahead.')
+          : 'Places a larger, stronger stink cloud on an enemy cluster ahead.',
       pairingHint: pairingHint(offer, royalReady, 'Monarch Brood', 'Adapt Monarch Brood too to evolve both into Royal Stinkcloud.'),
     };
   }
@@ -253,7 +253,7 @@ function presentTraitUpgradeBase(
       description: offer.resultStage === 'bud'
         ? `Two monarchs orbit ${heroName} and sting nearby enemies on contact.`
         : royalReady
-          ? fusionReadyDescription(offer, 'Completes Royal Stinkcloud: a monarch-crowned hazard surrounds you.')
+          ? fusionReadyDescription(offer, 'Completes Royal Stinkcloud: a monarch-crowned cloud lands on an enemy cluster ahead.')
           : 'Three monarchs orbit wider and sting nearby enemies more often.',
       pairingHint: pairingHint(offer, royalReady, 'Skunk Brush', 'Adapt Skunk Brush too to evolve both into Royal Stinkcloud.'),
     };

@@ -33,12 +33,16 @@ const GOLDEN_HASHES: Readonly<Record<string, string>> = Object.freeze({
   // the deterministic runtime-content fingerprint. The replay driver and
   // headless controls agreed for all six seeded corpus lanes before these
   // intentional expectations were updated.
-  'greg/forest': 'f2cd913edee0269a',
-  'benny/forest': 'c1e89b5f3638e032',
-  'gracie/forest': '90ff0d0ddf9f0aea',
-  'greg/saltwind': '56296ee1cac16e65',
-  'benny/saltwind': 'a1d33fdb1f445060',
-  'gracie/saltwind': '3694c77a21c4fe66',
+  // Rebaselined for target-anchored pack zones, authored Gecko trail
+  // placement, the compact Scout opening swipe, and the measured Bat/Skunk
+  // Chimera cadence correction. Every lane carries fingerprinted content;
+  // Greg lanes also exercise the revised baseline swipe during the run.
+  'greg/forest': '9b5317d809e766d4',
+  'benny/forest': '9a6ed9a0c3e10156',
+  'gracie/forest': 'd00d865addfa09d5',
+  'greg/saltwind': '48aef897105b72c1',
+  'benny/saltwind': '84da3e01287cd1a2',
+  'gracie/saltwind': '101c5fe8b19a05f6',
 });
 
 const traitRuntimeFactory: TraitRuntimeFactory = ({ seed, initialTick }) =>

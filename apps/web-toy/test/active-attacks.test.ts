@@ -29,7 +29,7 @@ describe('active attack loadout', () => {
     ]);
     expect(loadout.cards[0]).toMatchObject({
       title: 'Scout Swipe',
-      effect: expect.stringContaining('Scout commits'),
+      effect: expect.stringContaining('Scout commits to a tight forward paw swipe through nearby threats.'),
     });
     expect(loadout.cards[0]?.effect).not.toMatch(/Fox|Greg/);
   });

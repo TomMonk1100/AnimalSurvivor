@@ -178,15 +178,22 @@ function bestFrameSequence(
 }
 
 /**
- * These are the plan's compact eight-frame fallback: one approved body
- * illustration erodes through one fixed noise field. Unlike the original AI
- * board rows, every live cell is a moment in the same dissolve and can safely
- * crossfade. The source atlas remains a 4×4 grid for the shared UV contract;
- * its unused terminal copies are intentionally never sampled.
+ * Fluffy's shield owns the one deliberately short dissolve in this atlas. The
+ * zone cards below deliberately do not share it: an active damage area needs
+ * a stable body for its full readable lifetime, not a terminal scatter frame
+ * held after its attack has already disappeared.
  */
 const DISSOLVE_SEQUENCE_FRAMES: readonly AnimatedVfxAtlasFrame[] = Object.freeze(
   Array.from({ length: 8 }, (_, index) => frame(index % 4, Math.floor(index / 4))),
 );
+
+// Each authored zone sheet begins with its clearest full-body illustration.
+// Keep that cell static while the renderer supplies the slow deterministic
+// breathing motion. This avoids rapid texture swaps and lets rank-scaled card
+// size/opacity remain legible over the whole presentation lifetime.
+const GECKO_PAD_BODY = frame(0, 0);
+const SKUNK_CLOUD_BODY = frame(0, 0);
+const ROYAL_STINK_BODY = frame(0, 0);
 
 /**
  * The frame order follows the authored sheets left-to-right. One-frame clips
@@ -222,15 +229,15 @@ export const WILDGUARD_VFX_CLIPS: Readonly<Record<WildguardVfxClip, WildguardVfx
   pufferPulse: Object.freeze({ sheet: 'fields', sequence: bestFrameSequence('pufferPulse', FIELDS_PUFFER[1]!, 5, true) }),
   geckoPad: Object.freeze({
     sheet: 'geckoDissolve',
-    sequence: sequence('geckoPad', DISSOLVE_SEQUENCE_FRAMES, 2),
+    sequence: bestFrameSequence('geckoPad', GECKO_PAD_BODY, 6),
   }),
   skunkCloud: Object.freeze({
     sheet: 'skunkDissolve',
-    sequence: sequence('skunkCloud', DISSOLVE_SEQUENCE_FRAMES, 2),
+    sequence: bestFrameSequence('skunkCloud', SKUNK_CLOUD_BODY, 6),
   }),
   royalStink: Object.freeze({
     sheet: 'royalStinkDissolve',
-    sequence: sequence('royalStink', DISSOLVE_SEQUENCE_FRAMES, 2),
+    sequence: bestFrameSequence('royalStink', ROYAL_STINK_BODY, 6),
   }),
   mantisSweep: Object.freeze({ sheet: 'melee', sequence: bestFrameSequence('mantisSweep', MELEE_MANTIS[0]!, 3) }),
   crabCrush: Object.freeze({ sheet: 'melee', sequence: bestFrameSequence('crabCrush', MELEE_CRAB[1]!, 4) }),

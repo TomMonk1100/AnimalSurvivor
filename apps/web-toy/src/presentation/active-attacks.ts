@@ -70,7 +70,7 @@ function playerFacingStarterCopy(basicAttack: HeroBasicAttackDefinition): Readon
   if (basicAttack.id === 'greg-auto-fire') {
     return Object.freeze({
       title: 'Scout Swipe',
-      description: 'Scout commits to a broad forward paw swipe through nearby threats.',
+      description: 'Scout commits to a tight forward paw swipe through nearby threats.',
     });
   }
   return Object.freeze({ title: basicAttack.title, description: basicAttack.description });

@@ -290,6 +290,12 @@ export interface BehaviorDefinition {
   periodTicks: number;
   /** Distance threshold in thousandths of a world unit; required by movementTrail. */
   distanceMilliunits?: number;
+  /**
+   * World-space distance a movementTrail payload is placed behind the current
+   * movement heading. Omitted (or zero) preserves player-origin placement.
+   * This is authored deterministic placement, never a renderer-only offset.
+   */
+  trailBehindDistance?: number;
   /** Single emit for periodic/generic/movementTrail kinds. */
   emit?: CommandTemplate;
   /**

@@ -258,6 +258,9 @@ export const GECKO_PADS: TraitDefinition = {
         kind: 'movementTrail',
         periodTicks: 0,
         distanceMilliunits: 150_000,
+        // A trail reads as a dropped pad, not a decal appearing beneath the
+        // hero. The fixed offset is part of the authored combat placement.
+        trailBehindDistance: 24,
         emit: {
           kind: 'spawnZone',
           targeting: 'none',
@@ -275,6 +278,7 @@ export const GECKO_PADS: TraitDefinition = {
         kind: 'movementTrail',
         periodTicks: 0,
         distanceMilliunits: 110_000,
+        trailBehindDistance: 30,
         emit: {
           kind: 'spawnZone',
           targeting: 'none',
@@ -377,6 +381,7 @@ export const RAZORSTEP_CHIMERA: EvolutionDefinition = {
     kind: 'movementTrail',
     periodTicks: 0,
     distanceMilliunits: 90_000,
+    trailBehindDistance: 36,
     emit: {
       kind: 'spawnZone',
       targeting: 'none',

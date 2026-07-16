@@ -120,6 +120,10 @@ test('movementTrail validates every spawnZone field required by the accepted exe
   behavior.emit = { kind: 'spawnZone', radius: 20, amount: 2, durationTicks: 30, intervalTicks: 10, tag: 'gecko-pad' };
   assert.equal(codes(c).includes('invalidMovementTrail'), false);
 
+  behavior.trailBehindDistance = -1;
+  assert.ok(codes(c).includes('invalidMovementTrail'));
+  behavior.trailBehindDistance = 12;
+
   behavior.emit = { kind: 'spawnZone', radius: 0, amount: 2, durationTicks: 0, intervalTicks: 0, tag: '' };
   assert.ok(codes(c).includes('invalidMovementTrail'));
 });

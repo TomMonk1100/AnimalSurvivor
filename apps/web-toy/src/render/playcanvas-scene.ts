@@ -551,9 +551,13 @@ const SIGNATURE_GROUND_OPACITY_BUCKETS = Object.freeze([0.06, 0.14, 0.21, 0.25])
 const IMPACT_CORE_OPACITY_BUCKETS = Object.freeze([0.16, 0.4, 0.68, 0.9]);
 const IMPACT_DEBRIS_OPACITY_BUCKETS = Object.freeze([0.08, 0.22, 0.4, 0.6]);
 const IMPACT_GROUND_OPACITY_BUCKETS = Object.freeze([0.04, 0.1, 0.17, 0.24]);
-const DISSOLVE_FRAME_COUNT = 8;
-const DISSOLVE_TICKS_PER_FRAME = 2;
-const PERSISTENT_DISSOLVE_MATURE_FRAME = 4;
+// Zone sheets use the stable first body cell for both their event card and
+// their instanced footprint. The renderer animates only a slow transform
+// breath, which keeps long-lived damage areas readable without an atlas-frame
+// flash or a held terminal dissolve.
+const PERSISTENT_ZONE_BODY_FRAME = 0;
+const GECKO_PAD_SCALE_MULTIPLIER = 0.72;
+const RAZORSTEP_PAD_SCALE_MULTIPLIER = 0.78;
 
 /**
  * Descriptor families are routed into a small number of retained instanced
@@ -586,26 +590,6 @@ function sumBatchViews(
   let total = 0;
   for (const batch of batches) total += batch[field];
   return total;
-}
-
-/**
- * Persistent primary lanes are one fixed batch, so their age selects one
- * source-preserving dissolve cell. The concurrent spawn card crossfades the
- * same sequence; this mature lane simply continues into the quiet footprint.
- */
-function dissolveFrameIndex(ageTicks: number | null): number {
-  const age = ageTicks === null || !Number.isFinite(ageTicks) ? 0 : Math.max(0, Math.floor(ageTicks));
-  return Math.min(DISSOLVE_FRAME_COUNT - 1, Math.floor(age / DISSOLVE_TICKS_PER_FRAME));
-}
-
-/**
- * The short-lived spawn card owns the full eight-frame disappearance. A
- * persistent damage zone instead settles on one coherent mature cell, so it
- * remains legible for its authoritative lifetime instead of becoming an
- * invisible terminal dissolve after half a second.
- */
-function persistentDissolveFrameIndex(ageTicks: number | null): number {
-  return Math.min(PERSISTENT_DISSOLVE_MATURE_FRAME, dissolveFrameIndex(ageTicks));
 }
 
 function attackColorForFamily(family: AttackVfxFamily): pc.Color {
@@ -893,14 +877,15 @@ export function createRenderer(
   const bombCollectionMaterial = wildguardVfxMaterialBank.materialForFrame('bomb');
   const magnetCollectionMaterial = wildguardVfxMaterialBank.materialForFrame('magnet');
   const foodCollectionMaterial = wildguardVfxMaterialBank.materialForFrame('food');
-  // Persistent zones are alpha-cutout art, never a filled colored plane. The
-  // bank owns these materials, and `refreshAnimatedWorldArt` advances their
-  // finite frames once per semantic lane without making per-zone resources.
-  // Frame zero is Gecko's spawn leaf and frame three is its decay scatter.
-  // Persistent pads deliberately begin in the two readable living frames;
-  // refreshAnimatedWorldArt alternates those frames while the sim zone lives.
-  const geckoPadMaterial = wildguardVfxMaterialBank.materialForFrame('geckoPad', 1);
-  const razorstepPadMaterial = wildguardVfxMaterialBank.materialForFrame('geckoPad', 2);
+  // Persistent zones are alpha-cutout art, never a filled colored plane. One
+  // stable, full-body cell is selected for the whole zone lifetime so the
+  // renderer does not turn an active damage area into a fast fade-out.
+  const geckoPadMaterial = wildguardVfxMaterialBank.materialForFrame(
+    'geckoPad', PERSISTENT_ZONE_BODY_FRAME,
+  );
+  const razorstepPadMaterial = wildguardVfxMaterialBank.materialForFrame(
+    'geckoPad', PERSISTENT_ZONE_BODY_FRAME,
+  );
   const skunkCloudMaterial = wildguardVfxMaterialBank.materialForFrame('skunkCloud');
   const royalStinkMaterial = wildguardVfxMaterialBank.materialForFrame('royalStink');
   const hostileProjectileAccentMaterial = wildguardVfxMaterialBank.materialForFrame('hostileThorn', 1);
@@ -1670,14 +1655,14 @@ export function createRenderer(
     bombAccentBatch.setOpacity(0.92);
     magnetAccentBatch.setOpacity(0.94);
     foodAccentBatch.setOpacity(0.92);
-    // The instanced Gecko/Razorstep footprint is deliberately a stable mature
-    // dissolve cell. Per-zone spawn cards crossfade the actual coherent
-    // erosion; this shared low-opacity batch must never make all pads blink
-    // in unison.
-    zoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame('geckoPad', PERSISTENT_DISSOLVE_MATURE_FRAME));
-    zoneBatch.setOpacity(0.7);
-    razorstepZoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame('geckoPad', PERSISTENT_DISSOLVE_MATURE_FRAME));
-    razorstepZoneBatch.setOpacity(0.76);
+    // Static full-body zone cards retain their silhouette while their slow
+    // transform breath carries motion. They are deliberately compact inside
+    // the authoritative hit area, so greater upgrade radii still grow the
+    // footprint without falsely painting extra collision space.
+    zoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame('geckoPad', PERSISTENT_ZONE_BODY_FRAME));
+    zoneBatch.setOpacity(0.78);
+    razorstepZoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame('geckoPad', PERSISTENT_ZONE_BODY_FRAME));
+    razorstepZoneBatch.setOpacity(0.84);
     hostileProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('hostileThorn', tick));
     hostileTrailAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('hostileThorn', tick + 3));
   }
@@ -1740,19 +1725,26 @@ export function createRenderer(
   const razorstepZoneTransforms = new InstancedTransformStore(config.zoneCap);
   // A Master Skunk can keep several authoritative damage zones alive. The
   // renderer deliberately promotes only the newest one to a bright painted
-  // cloud and lets it settle to a quiet footprint, preventing fog from
-  // masking Greg while preserving every simulation-owned zone underneath.
+  // cloud, then retains a clearly visible but smaller footprint instead of
+  // fading it into the green forest floor. Every simulation-owned zone still
+  // exists and damages independently underneath this one-card policy.
   const stinkCloudZoneVisuals = createPersistentZoneVisualPresentation({
     zoneTag: ZONE_TAG.stinkCloud,
-    baseOpacity: 0.54,
-    scaleMultiplier: 0.78,
-    quietOpacityRatio: 0.22,
+    baseOpacity: 0.66,
+    scaleMultiplier: 0.68,
+    quietOpacityRatio: 0.58,
+    fadeInTicks: 10,
+    primaryTicks: 42,
+    settleTicks: 24,
   });
   const royalStinkZoneVisuals = createPersistentZoneVisualPresentation({
     zoneTag: ZONE_TAG.royalStink,
-    baseOpacity: 0.6,
-    scaleMultiplier: 0.82,
-    quietOpacityRatio: 0.24,
+    baseOpacity: 0.72,
+    scaleMultiplier: 0.72,
+    quietOpacityRatio: 0.62,
+    fadeInTicks: 10,
+    primaryTicks: 48,
+    settleTicks: 28,
   });
   // These stores are all fixed-capacity and renderer-owned. They turn the
   // projection modules' bounded descriptors into GPU instance matrices with
@@ -2778,6 +2770,7 @@ export function createRenderer(
       worldHalfHeight,
       -1,
       ZONE_TAG.geckoPad,
+      GECKO_PAD_SCALE_MULTIPLIER,
     );
     razorstepZoneTransforms.update(
       prev.zones,
@@ -2787,6 +2780,7 @@ export function createRenderer(
       worldHalfHeight,
       -1,
       ZONE_TAG.razorstepScythePad,
+      RAZORSTEP_PAD_SCALE_MULTIPLIER,
     );
     stinkCloudZoneVisuals.update(
       curr.zones,
@@ -2796,7 +2790,7 @@ export function createRenderer(
       -1,
     );
     stinkCloudZoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame(
-      'skunkCloud', persistentDissolveFrameIndex(stinkCloudZoneVisuals.selectedAgeTicks),
+      'skunkCloud', PERSISTENT_ZONE_BODY_FRAME,
     ));
     stinkCloudZoneBatch.setOpacity(stinkCloudZoneVisuals.opacity);
     royalStinkZoneVisuals.update(
@@ -2807,7 +2801,7 @@ export function createRenderer(
       -1,
     );
     royalStinkZoneBatch.setMaterial(wildguardVfxMaterialBank.materialForFrame(
-      'royalStink', persistentDissolveFrameIndex(royalStinkZoneVisuals.selectedAgeTicks),
+      'royalStink', PERSISTENT_ZONE_BODY_FRAME,
     ));
     royalStinkZoneBatch.setOpacity(royalStinkZoneVisuals.opacity);
     walkerEnemyBatch.sync(walkerEnemyTransforms);

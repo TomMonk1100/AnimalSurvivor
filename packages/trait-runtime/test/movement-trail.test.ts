@@ -62,6 +62,8 @@ test('Gecko Pads accumulate fixed movement, never fire while stationary, and emi
       durationTicks: pad.at(0).durationTicks,
       intervalTicks: pad.at(0).intervalTicks,
       tag: pad.at(0).tag,
+      originX: pad.at(0).originX,
+      originY: pad.at(0).originY,
     },
     {
       sourceId: 'gecko-pads',
@@ -71,9 +73,26 @@ test('Gecko Pads accumulate fixed movement, never fire while stationary, and emi
       durationTicks: 150,
       intervalTicks: 24,
       tag: 'gecko-pad',
+      originX: -12,
+      originY: -8,
     },
   );
   assert.equal(geckoTimer(runtime).charges, 0);
+});
+
+test('movement trails place authored pads behind the normalized movement heading', () => {
+  const runtime = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
+  upgrade(runtime, 'gecko-pads');
+
+  const pad = runtime.update(context(1, 150, {
+    playerX: 100,
+    playerY: 80,
+    moveDirX: 3,
+    moveDirY: 4,
+  })).at(0);
+  assert.equal(pad.kind, 'spawnZone');
+  assert.equal(pad.originX, 85.6);
+  assert.equal(pad.originY, 60.8);
 });
 
 test('movement trails emit at most one pad per positive-movement tick and preserve excess charge', () => {
@@ -205,4 +224,10 @@ test('movement-trail charges round-trip and authored fields participate in catal
   assert.ok(geckoInterval);
   geckoInterval.stages.bud.behavior.emit!.intervalTicks = 25;
   assert.notEqual(fingerprintCatalog(changedInterval), baseline);
+
+  const changedPlacement = JSON.parse(JSON.stringify(GREG_FOREST_ARSENAL_CATALOG)) as Catalog;
+  const geckoPlacement = changedPlacement.traits.find((trait) => trait.id === 'gecko-pads');
+  assert.ok(geckoPlacement);
+  geckoPlacement.stages.bud.behavior.trailBehindDistance = 25;
+  assert.notEqual(fingerprintCatalog(changedPlacement), baseline);
 });

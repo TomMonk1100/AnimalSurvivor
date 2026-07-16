@@ -84,24 +84,33 @@ describe('Wildguard animated VFX routing', () => {
     }
   });
 
-  it('uses compact coherent erosion sequences for clouds, pads, and the fluffy shield', () => {
+  it('keeps persistent damage-zone cards on their clearest stable body frame', () => {
     const expected = {
       geckoPad: WILDGUARD_VFX_SHEET.geckoDissolve,
       skunkCloud: WILDGUARD_VFX_SHEET.skunkDissolve,
       royalStink: WILDGUARD_VFX_SHEET.royalStinkDissolve,
-      fluffyShield: WILDGUARD_VFX_SHEET.fluffyShieldDissolve,
     } as const;
 
     for (const [clip, sheet] of Object.entries(expected)) {
       const definition = wildguardVfxClipDefinition(clip as keyof typeof WILDGUARD_VFX_CLIP);
       expect(definition.sheet).toBe(sheet);
       expect(definition.sequence.loop).toBe(false);
-      expect(definition.sequence.frames).toHaveLength(8);
-      expect(definition.sequence.ticksPerFrame).toBe(2);
-      expect(definition.sequence.crossfadeTicks).toBe(1);
+      expect(definition.sequence.frames).toHaveLength(1);
+      expect(definition.sequence.ticksPerFrame).toBe(6);
+      expect(definition.sequence.crossfadeTicks).toBeUndefined();
       expect(definition.sequence.frames[0]).toMatchObject({ column: 0, row: 0 });
-      expect(definition.sequence.frames[7]).toMatchObject({ column: 3, row: 1 });
     }
+  });
+
+  it('reserves the compact eight-frame erosion for Fluffy’s short shield cue', () => {
+    const definition = wildguardVfxClipDefinition(WILDGUARD_VFX_CLIP.fluffyShield);
+    expect(definition.sheet).toBe(WILDGUARD_VFX_SHEET.fluffyShieldDissolve);
+    expect(definition.sequence.loop).toBe(false);
+    expect(definition.sequence.frames).toHaveLength(8);
+    expect(definition.sequence.ticksPerFrame).toBe(2);
+    expect(definition.sequence.crossfadeTicks).toBe(1);
+    expect(definition.sequence.frames[0]).toMatchObject({ column: 0, row: 0 });
+    expect(definition.sequence.frames[7]).toMatchObject({ column: 3, row: 1 });
   });
 
   it('loads all four dedicated secondary VFX sheets', () => {

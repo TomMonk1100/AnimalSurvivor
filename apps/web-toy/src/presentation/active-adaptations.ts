@@ -192,7 +192,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationPresentationDefin
     'bud',
     'Gecko Pads',
     'Bud',
-    'After moving, leaves a damaging pad at your feet.',
+    'After moving, leaves a damaging pad behind you.',
     'Placement: after travelling 150 units',
   ),
   'gecko-pads:adapted': definition(
@@ -201,7 +201,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationPresentationDefin
     'adapted',
     'Gecko Pads',
     'Adapted',
-    'After moving, leaves larger, stronger damaging pads at your feet.',
+    'After moving, leaves larger, stronger damaging pads behind you.',
     'Placement: after travelling 110 units',
   ),
   'razorstep-chimera:mythic': definition(
@@ -210,7 +210,7 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationPresentationDefin
     'mythic',
     'Razorstep Chimera',
     'Mythic',
-    'Movement leaves stronger scythe pads at your feet.',
+    'Movement leaves stronger scythe pads behind you.',
     'Placement: after travelling 90 units',
   ),
   'owl-pinions:bud': definition('owl-pinions:bud', 'owl-pinions', 'bud', 'Owl Pinions', 'Bud', 'Fires a four-feather spread at the nearest threat.', 'Every 1.6 seconds'),
@@ -223,11 +223,11 @@ const DEFINITIONS: Readonly<Record<GregAdaptationId, AdaptationPresentationDefin
   'armadillo-greaves:bud': definition('armadillo-greaves:bud', 'armadillo-greaves', 'bud', 'Armadillo Greaves', 'Bud', 'Shoves nearby threats away from your body.', 'Every 2.3 seconds'),
   'armadillo-greaves:adapted': definition('armadillo-greaves:adapted', 'armadillo-greaves', 'adapted', 'Armadillo Greaves', 'Adapted', 'Creates a stronger defensive shove around you.', 'Every 1.7 seconds'),
   'meteor-mauler:mythic': definition('meteor-mauler:mythic', 'meteor-mauler', 'mythic', 'Meteor Mauler', 'Mythic', 'A heavy close-range impact crushes the nearest crowd.', 'Every 1.5 seconds'),
-  'skunk-brush:bud': definition('skunk-brush:bud', 'skunk-brush', 'bud', 'Skunk Brush', 'Bud', 'Leaves a damaging stink cloud that punishes pursuit.', 'Every 2.7 seconds'),
-  'skunk-brush:adapted': definition('skunk-brush:adapted', 'skunk-brush', 'adapted', 'Skunk Brush', 'Adapted', 'Leaves a larger, stronger stink cloud.', 'Every 2 seconds'),
+  'skunk-brush:bud': definition('skunk-brush:bud', 'skunk-brush', 'bud', 'Skunk Brush', 'Bud', 'Places a damaging stink cloud on an enemy cluster ahead.', 'Every 2.7 seconds'),
+  'skunk-brush:adapted': definition('skunk-brush:adapted', 'skunk-brush', 'adapted', 'Skunk Brush', 'Adapted', 'Places a larger, stronger stink cloud on an enemy cluster ahead.', 'Every 2 seconds'),
   'monarch-brood:bud': definition('monarch-brood:bud', 'monarch-brood', 'bud', 'Monarch Brood', 'Bud', 'Two monarchs orbit you and sting nearby enemies on contact.', 'Every second'),
   'monarch-brood:adapted': definition('monarch-brood:adapted', 'monarch-brood', 'adapted', 'Monarch Brood', 'Adapted', 'Three monarchs orbit wider and sting nearby enemies more often.', 'Every 0.75 seconds'),
-  'royal-stinkcloud:mythic': definition('royal-stinkcloud:mythic', 'royal-stinkcloud', 'mythic', 'Royal Stinkcloud', 'Mythic', 'A monarch-crowned cloud turns the space around you into a hazard.', 'Every 2.3 seconds'),
+  'royal-stinkcloud:mythic': definition('royal-stinkcloud:mythic', 'royal-stinkcloud', 'mythic', 'Royal Stinkcloud', 'Mythic', 'Places a monarch-crowned stink cloud on an enemy cluster ahead.', 'Every 2.3 seconds'),
 });
 
 type AttackSourceId =
@@ -299,11 +299,11 @@ const RANK_PRESENTATIONS: Readonly<Record<AttackSourceId, FiveRankPresentation>>
     { effect: 'Carves a Master scythe crescent with the widest, fastest cleave.', cadence: 'Every 0.32 seconds' },
   ],
   'gecko-pads': [
-    { effect: 'After moving, leaves a damaging pad at your feet.', cadence: 'Placement: after travelling 150 units' },
-    { effect: 'After moving, leaves larger, stronger damaging pads at your feet.', cadence: 'Placement: after travelling 110 units' },
-    { effect: 'Leaves stronger pads more often as you move.', cadence: 'Placement: after travelling 97 units' },
-    { effect: 'Lays broad, punishing pads on a shorter movement rhythm.', cadence: 'Placement: after travelling 84 units' },
-    { effect: 'Leaves Master scythe pads almost continuously while moving.', cadence: 'Placement: after travelling 70 units' },
+    { effect: 'After moving, leaves a damaging pad behind you.', cadence: 'Placement: after travelling 150 units' },
+    { effect: 'After moving, leaves larger, stronger damaging pads behind you.', cadence: 'Placement: after travelling 110 units' },
+    { effect: 'Leaves stronger pads behind you more often as you move.', cadence: 'Placement: after travelling 97 units' },
+    { effect: 'Lays broad, punishing pads behind you on a shorter movement rhythm.', cadence: 'Placement: after travelling 84 units' },
+    { effect: 'Leaves Master scythe pads behind you almost continuously while moving.', cadence: 'Placement: after travelling 70 units' },
   ],
   'owl-pinions': [
     { effect: 'Fires a four-feather spread at the nearest threat.', cadence: 'Every 1.6 seconds' },
@@ -334,11 +334,11 @@ const RANK_PRESENTATIONS: Readonly<Record<AttackSourceId, FiveRankPresentation>>
     { effect: 'Unleashes a Master repel wave that clears the largest safety ring.', cadence: 'Every 1.1 seconds' },
   ],
   'skunk-brush': [
-    { effect: 'Leaves a damaging stink cloud that punishes pursuit.', cadence: 'Every 2.7 seconds' },
-    { effect: 'Leaves a larger, stronger stink cloud.', cadence: 'Every 2 seconds' },
-    { effect: 'Spreads a wider toxic cloud that bites more often.', cadence: 'Every 1.8 seconds' },
-    { effect: 'Blankets pursuit paths with a dense, damaging stink zone.', cadence: 'Every 1.5 seconds' },
-    { effect: 'Creates a Master stink cloud that dominates the widest pursuit lane.', cadence: 'Every 1.3 seconds' },
+    { effect: 'Places a damaging stink cloud on an enemy cluster ahead.', cadence: 'Every 2.7 seconds' },
+    { effect: 'Places a larger, stronger stink cloud on an enemy cluster ahead.', cadence: 'Every 2 seconds' },
+    { effect: 'Places a wider toxic cloud on an enemy cluster ahead more often.', cadence: 'Every 1.8 seconds' },
+    { effect: 'Blankets an enemy cluster ahead with a dense, damaging stink zone.', cadence: 'Every 1.5 seconds' },
+    { effect: 'Creates a Master stink cloud over the widest enemy cluster ahead.', cadence: 'Every 1.3 seconds' },
   ],
   'monarch-brood': [
     { effect: 'Two monarchs orbit you and sting nearby enemies on contact.', cadence: 'Every second' },

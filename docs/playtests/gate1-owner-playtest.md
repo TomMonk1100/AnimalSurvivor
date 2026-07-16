@@ -73,16 +73,20 @@ to three of six additional attack families:
   nearby unhit foes (1 at Bud, 3 at Adapted).
 - **Firefly Colony** — orbiting fireflies that zap enemies when they make contact.
 - **Mantis Scythes** — an auto-aimed narrow scythe sweep; Adapted widens and strengthens it.
-- **Gecko Pads** — after the selected animal travels 150 units, creates a
-  damaging pad at its feet; Adapted pads recur after 110 units. The pads damage
-  but do not slow.
+- **Gecko Pads** — after the selected animal travels 150 units, leaves a
+  damaging pad behind the moving animal; Adapted pads recur after 110 units.
+  The pads damage but do not slow.
+- **Skunk Brush** — places a damaging stink cloud on an enemy cluster ahead;
+  Adapted makes the cloud larger and stronger.
 
 Adapted Quills + Pouch can become **Thornstorm Mantle**. Adapted Coil + Colony
 can become **Thunderbug Dynamo**, which telegraphs a larger chain discharge.
 A Mythic keeps both of its ingredient slots:
 the loadout remains a four-active-attack build, not five. Adapted Mantis Scythes
 + Adapted Gecko Pads can become **Razorstep Chimera**, which leaves stronger
-scythe pads every 90 units of movement.
+scythe pads behind the moving animal every 90 units of movement. Adapted Skunk
+Brush + Adapted Monarch Brood can become **Royal Stinkcloud**, which places a
+larger monarch-crowned stink cloud on an enemy cluster ahead.
 
 The neutral pool contains Swift Paws, XP Magnet, Sturdy Hide, Sharpened
 Instinct, Rapid Instinct, and Growth. A run can choose five distinct neutral
@@ -109,7 +113,9 @@ read as upgrades to every attack.
    tell what Quills, Puffer, Coil, orbiting Firefly, Mantis Scythes, and Gecko Pads are
    meant to do from their cards and their first use? Does Mantis visibly sweep
    toward its target without implying damage behind the selected animal? Does Gecko Pads clearly
-   read as damaging movement trail rather than a slow? Circle tightly around a
+   leave its damaging trail behind the moving animal rather than directly under it or imply a slow?
+   If you choose Skunk Brush or Royal Stinkcloud, does its cloud land on an enemy cluster ahead,
+   distinct from the selected animal's position? Circle tightly around a
    durable enemy: does pad damage feel strong without turning into a runaway
    stationary kill zone? Which feels most satisfying, weak, or confusing?
 6. **Build limits.** Pause after taking upgrades. Can you find the active attack

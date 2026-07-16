@@ -139,12 +139,12 @@ attack cards total:
 | **Electric Eel Coil** | Instant strike on the nearest threat, then chain to 1 nearby unhit foe | Instant strike on the nearest threat, then chain to 3 nearby unhit foes |
 | **Firefly Colony** | Two fireflies orbit Greg and zap enemies on contact | Four fireflies orbit wider and zap nearby enemies |
 | **Mantis Scythes** | Auto-aimed narrow scythe sweep | Wider, stronger auto-aimed scythe sweep |
-| **Gecko Pads** | After traveling 150 units, create a damaging pad at the selected animal's feet; it does not slow enemies | After traveling 110 units, create a stronger damaging pad at the selected animal's feet; it does not slow enemies |
+| **Gecko Pads** | After traveling 150 units, leave a damaging pad behind the moving selected animal; it does not slow enemies | After traveling 110 units, leave a stronger damaging pad behind the moving selected animal; it does not slow enemies |
 | **Owl Pinions** | Four-feather spread at the nearest threat | Wider seven-feather spread |
 | **Bat Ears** | Echo-marks a nearby cluster; every automatic attack prioritizes it | Echo-marks a larger priority cluster for every automatic attack |
 | **Crab Pincers** | Compact area strike | Wider, heavier area strike |
 | **Armadillo Greaves** | Shoves nearby threats away | Stronger defensive shove |
-| **Skunk Brush** | Damaging stink cloud | Larger, stronger stink cloud |
+| **Skunk Brush** | Places a damaging stink cloud on an enemy cluster ahead | Places a larger, stronger stink cloud on an enemy cluster ahead |
 | **Monarch Brood** | Two orbiting butterflies sting nearby enemies on contact | Three wider-orbit butterflies sting nearby enemies more often |
 
 Every attack has Bud, Adapted, and **Master** (rank-five) forms. Any two enabled
@@ -153,10 +153,10 @@ are available. The six former named recipes remain signature **Perfect Pairs**:
 
 - **Thornstorm Mantle** — Quills + Pouch.
 - **Thunderbug Dynamo** — Coil + Colony.
-- **Razorstep Chimera** — Mantis Scythes + Gecko Pads.
+- **Razorstep Chimera** — Mantis Scythes + Gecko Pads; leaves stronger scythe pads behind the moving selected animal.
 - **Midnight Radar** — Bat Ears + Owl Pinions.
 - **Meteor Mauler** — Crab Pincers + Armadillo Greaves.
-- **Royal Stinkcloud** — Skunk Brush + Monarch Brood.
+- **Royal Stinkcloud** — Skunk Brush + Monarch Brood; places a monarch-crowned stink cloud on an enemy cluster ahead.
 
 The six all-utility pairs become **Support Chimeras**: their control effects
 remain meaningful and they receive a damage rider, but a run may own only one.

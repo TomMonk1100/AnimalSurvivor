@@ -200,14 +200,14 @@ function startUniversalRun(
   return sim;
 }
 
-function addStationaryEnemy(sim: Simulation, distance = 100): number {
+function addStationaryEnemyAt(sim: Simulation, offsetX: number, offsetY: number, hp = 100): number {
   const slot = sim.enemies.spawn();
   assert.notEqual(slot, -1);
   const data = sim.enemies.data;
-  data.posX[slot] = sim.player.x + distance;
-  data.posY[slot] = sim.player.y;
-  data.hp[slot] = 100;
-  data.maxHp[slot] = 100;
+  data.posX[slot] = sim.player.x + offsetX;
+  data.posY[slot] = sim.player.y + offsetY;
+  data.hp[slot] = hp;
+  data.maxHp[slot] = hp;
   data.speed[slot] = 0;
   data.radius[slot] = 6;
   data.touchDamage[slot] = 0;
@@ -215,6 +215,10 @@ function addStationaryEnemy(sim: Simulation, distance = 100): number {
   data.xpDrop[slot] = 0;
   sim.grid.insert(sim.enemies.idOf(slot), data.posX[slot]!, data.posY[slot]!);
   return slot;
+}
+
+function addStationaryEnemy(sim: Simulation, distance = 100, hp = 100): number {
+  return addStationaryEnemyAt(sim, distance, 0, hp);
 }
 
 test('a free Master fusion resolves beside a pending card and replays in same-tick order', () => {
@@ -462,6 +466,59 @@ test('hero starter attacks resolve as a Fox Swipe, earth-wave Trample, and Spit 
   assert.equal(gracieEvents.projectilesFired, 1, 'Spit Volley begins as one visible glob');
   assert.equal(gracie.projectiles.data.count, 1);
   assert.equal(gracie.projectiles.data.pierce[0], 0);
+});
+
+test('Scout starts with a two-target opening cleave, one-hit runners, and two-hit walkers', () => {
+  const quietConfig = { ...DEFAULT_CONFIG, waves: [] };
+  const sim = createSimulation(quietConfig, 58, {
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'greg', maxHpBonus: 0 },
+  });
+  // This is an authored baseline-attack test, not a crit-roll test.
+  sim.player.critChance = 0;
+
+  // The run-director's opening arc uses 0.28-radian formation spacing. The
+  // nearest first target anchors the swipe at zero radians; the 0.9-radian
+  // sector can take the adjacent target but must leave the other two alive.
+  const openingAngles = [0, 0.28, 0.56, 0.84];
+  const openingSlots = openingAngles.map((angle, index) => {
+    const distance = index === 0 ? 120 : 121;
+    return addStationaryEnemyAt(sim, Math.cos(angle) * distance, Math.sin(angle) * distance, 20);
+  });
+  const openingIds = openingSlots.map((slot) => sim.enemies.idOf(slot));
+
+  const first = sim.step({ moveX: 0, moveY: 0, paused: false });
+  const swipe = sim.traitPresentationEvents.find((event) => event.sourceId === 'greg-fox-swipe');
+  assert.ok(swipe);
+  assert.equal(swipe.range, 147);
+  assert.equal(swipe.arc, 0.9);
+  assert.equal(first.kills, 0);
+  assert.equal(
+    sim.combatPresentationEvents.filter((event) => event.sourceId === 'greg-fox-swipe').length,
+    2,
+    'the baseline opening swipe must not automatically hit all four enemies',
+  );
+  assert.ok(sim.enemies.data.hp[openingSlots[0]!]! > 0);
+  assert.ok(sim.enemies.data.hp[openingSlots[1]!]! > 0);
+  assert.equal(sim.enemies.data.hp[openingSlots[2]!]!, 20);
+  assert.equal(sim.enemies.data.hp[openingSlots[3]!]!, 20);
+
+  let second = first;
+  while (sim.tick < 28) second = sim.step({ moveX: 0, moveY: 0, paused: false });
+  assert.equal(second.kills, 2, 'the two hit walkers die only on Scout’s second 27-tick-cadence swipe');
+  assert.equal(sim.enemies.isLive(openingIds[0]!), false);
+  assert.equal(sim.enemies.isLive(openingIds[1]!), false);
+  assert.equal(sim.enemies.isLive(openingIds[2]!), true);
+  assert.equal(sim.enemies.isLive(openingIds[3]!), true);
+
+  const runnerSim = createSimulation(quietConfig, 58, {
+    runStartLoadout: { version: RUN_START_LOADOUT_VERSION, heroId: 'greg', maxHpBonus: 0 },
+  });
+  runnerSim.player.critChance = 0;
+  const runnerSlot = addStationaryEnemy(runnerSim, 120, 12);
+  const runnerId = runnerSim.enemies.idOf(runnerSlot);
+  const runnerHit = runnerSim.step({ moveX: 0, moveY: 0, paused: false });
+  assert.equal(runnerHit.kills, 1, 'a regular 12-HP runner remains a one-hit opening threat');
+  assert.equal(runnerSim.enemies.isLive(runnerId), false);
 });
 
 test('rank-five Mastery stays capped and gives Greg the authored Master double-swipe', () => {

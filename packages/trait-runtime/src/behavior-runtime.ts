@@ -201,6 +201,8 @@ function emitCommand(
   template: CommandTemplate,
   ownerId: string,
   ctx: RuntimeContext,
+  fallbackOriginX = ctx.playerX,
+  fallbackOriginY = ctx.playerY,
 ): void {
   const cmd = out.acquire();
   if (cmd === null) return;
@@ -208,8 +210,8 @@ function emitCommand(
   cmd.kind = template.kind;
   if (template.targeting !== undefined) cmd.targeting = template.targeting;
   cmd.anchor = template.anchor ?? 'player';
-  cmd.originX = template.originX !== undefined ? template.originX : ctx.playerX;
-  cmd.originY = template.originY !== undefined ? template.originY : ctx.playerY;
+  cmd.originX = template.originX !== undefined ? template.originX : fallbackOriginX;
+  cmd.originY = template.originY !== undefined ? template.originY : fallbackOriginY;
   if (template.dirX !== undefined) cmd.dirX = template.dirX;
   if (template.dirY !== undefined) cmd.dirY = template.dirY;
   if (template.count !== undefined) cmd.count = template.count;
@@ -298,6 +300,8 @@ function emitBehaviorTrigger(
   timer: BehaviorTimer,
   ctx: RuntimeContext,
   state: RuntimeState,
+  payloadOriginX = ctx.playerX,
+  payloadOriginY = ctx.playerY,
 ): void {
   const cycle = nextCycle(timer);
   // Prelude commands intentionally run before the payload in this exact
@@ -305,7 +309,7 @@ function emitBehaviorTrigger(
   // Lock-On mark prepare its own payload without renderer timing.
   emitFollowUps(out, preludes, ownerId, cycle, ctx, state);
   if (template !== undefined) {
-    emitCommand(out, template, ownerId, ctx);
+    emitCommand(out, template, ownerId, ctx, payloadOriginX, payloadOriginY);
   } else {
     emitHeartbeat(out, ownerId, ctx);
   }
@@ -432,7 +436,27 @@ function stepMovementTrail(
   if (timer.charges < threshold) return;
 
   timer.charges -= threshold;
-  emitBehaviorTrigger(out, template, behavior.preludes, behavior.followUps, ownerId, timer, ctx, state);
+  const behindDistance = behavior.trailBehindDistance ?? 0;
+  const headingLength = Math.hypot(ctx.moveDirX, ctx.moveDirY);
+  const hasUsableHeading = Number.isFinite(headingLength) && headingLength > 1e-9;
+  const payloadOriginX = behindDistance > 0 && hasUsableHeading
+    ? ctx.playerX - ctx.moveDirX / headingLength * behindDistance
+    : ctx.playerX;
+  const payloadOriginY = behindDistance > 0 && hasUsableHeading
+    ? ctx.playerY - ctx.moveDirY / headingLength * behindDistance
+    : ctx.playerY;
+  emitBehaviorTrigger(
+    out,
+    template,
+    behavior.preludes,
+    behavior.followUps,
+    ownerId,
+    timer,
+    ctx,
+    state,
+    payloadOriginX,
+    payloadOriginY,
+  );
 }
 
 function advanceTimer(

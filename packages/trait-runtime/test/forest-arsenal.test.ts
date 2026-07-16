@@ -166,10 +166,15 @@ test('Forest Arsenal exposes twelve launch attack families and six supported Myt
   assert.equal(bat.update(context(1)).at(0).kind, 'markTargets');
   const crab = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
   upgrade(crab, 'crab-pincers');
-  assert.equal(crab.update(context(1)).at(0).kind, 'applyAreaDamage');
+  const crabCommand = crab.update(context(1)).at(0);
+  assert.equal(crabCommand.kind, 'applyAreaDamage');
+  assert.equal(crabCommand.anchor, 'triggerTarget');
   const skunk = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
   upgrade(skunk, 'skunk-brush');
-  assert.equal(skunk.update(context(1)).at(0).tag, 'stink-cloud');
+  const skunkCommand = skunk.update(context(1)).at(0);
+  assert.equal(skunkCommand.tag, 'stink-cloud');
+  assert.equal(skunkCommand.anchor, 'triggerTarget');
+  assert.equal(skunkCommand.targeting, 'densestCluster');
 
   const monarch = new TraitRuntime({ catalog: GREG_FOREST_ARSENAL_CATALOG, initialTick: 0 });
   upgrade(monarch, 'monarch-brood');

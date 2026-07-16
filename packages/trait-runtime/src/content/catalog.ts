@@ -342,6 +342,7 @@ const CRAB_PINCERS: TraitDefinition = {
         emit: {
           kind: 'applyAreaDamage',
           targeting: 'nearest',
+          anchor: 'triggerTarget',
           radius: 50,
           damage: 5,
         },
@@ -355,6 +356,7 @@ const CRAB_PINCERS: TraitDefinition = {
         emit: {
           kind: 'applyAreaDamage',
           targeting: 'nearest',
+          anchor: 'triggerTarget',
           radius: 65,
           damage: 8,
         },
@@ -408,6 +410,7 @@ const METEOR_MAULER: EvolutionDefinition = {
     emit: {
       kind: 'applyAreaDamage',
       targeting: 'nearest',
+      anchor: 'triggerTarget',
       radius: 100,
       damage: 20,
     },
@@ -430,7 +433,11 @@ const SKUNK_BRUSH: TraitDefinition = {
         periodTicks: 160,
         emit: {
           kind: 'spawnZone',
-          targeting: 'none',
+          // Miasma belongs on the hostile pack, not hidden at the hero's
+          // feet. The executor resolves this same authoritative target for
+          // both the damage zone and its renderer event.
+          targeting: 'densestCluster',
+          anchor: 'triggerTarget',
           radius: 70,
           amount: 2,
           durationTicks: 120,
@@ -446,7 +453,8 @@ const SKUNK_BRUSH: TraitDefinition = {
         periodTicks: 120,
         emit: {
           kind: 'spawnZone',
-          targeting: 'none',
+          targeting: 'densestCluster',
+          anchor: 'triggerTarget',
           radius: 95,
           amount: 4,
           durationTicks: 140,
@@ -512,7 +520,8 @@ const ROYAL_STINKCLOUD: EvolutionDefinition = {
     periodTicks: 140,
     emit: {
       kind: 'spawnZone',
-      targeting: 'none',
+      targeting: 'densestCluster',
+      anchor: 'triggerTarget',
       radius: 110,
       amount: 6,
       durationTicks: 160,

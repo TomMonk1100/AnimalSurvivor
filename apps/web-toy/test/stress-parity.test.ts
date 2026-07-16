@@ -27,10 +27,11 @@ const FIVE_MINUTE_PARITY_TIMEOUT_MS = 45_000;
 // meta-progression stat block into the run-start fingerprint (gameplay is
 // unchanged at neutral defaults; only the loadout fingerprint shifted).
 // The headless control, fixed-tick driver, and repeated seeded run agree.
-// Rebaselined for the V1.2 six-minute pressure curve and fingerprinted apex
-// profile. The headless control, fixed-tick driver, and repeated seeded run
+// Rebaselined for target-anchored pack zones, authored Gecko trail placement,
+// the compact Scout baseline swipe, and the measured Bat/Skunk Chimera cadence
+// correction. The headless control, fixed-tick driver, and repeated seeded run
 // agree on this intentional authoritative behavior change.
-const EXPECTED_FIVE_MINUTE_HASH = '4ae0cc5f4a67a7a1';
+const EXPECTED_FIVE_MINUTE_HASH = '328b17810b43bce5';
 
 /** Headless control: step a bare simulation with autopilot inputs keyed on pre-step tick. */
 function headlessControl(seed: number, ticks: number): string {

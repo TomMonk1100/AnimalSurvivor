@@ -504,6 +504,21 @@ function validateBehavior(
           subjectId,
         );
       }
+      if (
+        behavior.trailBehindDistance !== undefined
+        && (
+          !Number.isFinite(behavior.trailBehindDistance)
+          || behavior.trailBehindDistance < 0
+          || behavior.trailBehindDistance > MAX_FLOAT32
+        )
+      ) {
+        pushIssue(
+          issues,
+          'invalidMovementTrail',
+          'movementTrail trailBehindDistance must be a non-negative finite Float32-safe distance.',
+          subjectId,
+        );
+      }
       validateTemplateNumbers(subjectId, behavior.emit, issues);
       validateMovementTrailZoneTemplate(subjectId, behavior.emit, issues);
       validateChainDamageTemplate(subjectId, behavior.emit, issues);

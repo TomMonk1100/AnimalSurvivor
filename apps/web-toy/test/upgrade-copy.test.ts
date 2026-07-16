@@ -77,7 +77,7 @@ describe('upgrade card copy', () => {
       title: 'Gecko Pads',
       badge: 'NEW ATTACK',
       socket: 'Right shoulder attachment',
-      description: "After moving, leaves a damaging pad at Greg's feet.",
+      description: 'After moving, leaves a damaging pad behind Greg.',
     });
     expect(gecko.description).not.toMatch(/slow/i);
     expect(gecko.pairingHint).toMatch(/Mantis Scythes/);
@@ -87,7 +87,7 @@ describe('upgrade card copy', () => {
     ]);
     expect(geckoReady).toMatchObject({
       badge: 'MYTHIC READY',
-      description: "Completes Razorstep Chimera: movement leaves stronger scythe pads at Greg's feet.",
+      description: 'Completes Razorstep Chimera: movement leaves stronger scythe pads behind Greg.',
       pairingHint: null,
     });
 
@@ -96,7 +96,7 @@ describe('upgrade card copy', () => {
     ]);
     expect(mantisReady).toMatchObject({
       badge: 'MYTHIC READY',
-      description: "Completes Razorstep Chimera: movement leaves stronger scythe pads at Greg's feet.",
+      description: 'Completes Razorstep Chimera: movement leaves stronger scythe pads behind Greg.',
       pairingHint: null,
     });
   });
@@ -108,6 +108,18 @@ describe('upgrade card copy', () => {
     expect(bat.description).toMatch(/every automatic attack prioritizes/i);
     expect(monarch).toMatchObject({ title: 'Monarch Brood', badge: 'NEW' });
     expect(monarch.description).toMatch(/orbit Greg.*contact/i);
+  });
+
+  it('explains that Skunk and Royal clouds land on enemy clusters ahead', () => {
+    const skunk = presentUpgrade({ traitId: 'skunk-brush', resultStage: 'bud' }, []);
+    expect(skunk.description).toBe('Places a damaging stink cloud on an enemy cluster ahead.');
+
+    const royalReady = presentUpgrade({ traitId: 'skunk-brush', resultStage: 'adapted' }, [
+      { sourceId: 'monarch-brood', stage: 'adapted', sockets: ['bodyOrbit'], visualKey: 'monarch-brood:adapted', enabled: true },
+    ]);
+    expect(royalReady.description).toBe(
+      'Completes Royal Stinkcloud: a monarch-crowned cloud lands on an enemy cluster ahead.',
+    );
   });
 
   it('describes truthful neutral and Essence fallback cards without pretending they are body traits', () => {

@@ -169,7 +169,7 @@ describe('active adaptation presentation', () => {
       expect.objectContaining({
         id: 'gecko-pads:bud',
         title: 'Gecko Pads',
-        effect: 'After moving, leaves a damaging pad at your feet.',
+        effect: 'After moving, leaves a damaging pad behind you.',
         cadence: 'Placement: after travelling 150 units',
       }),
     ]);
@@ -183,7 +183,7 @@ describe('active adaptation presentation', () => {
       }),
     ]);
     expect(adapted[0]).toMatchObject({
-      effect: 'After moving, leaves larger, stronger damaging pads at your feet.',
+      effect: 'After moving, leaves larger, stronger damaging pads behind you.',
       cadence: 'Placement: after travelling 110 units',
     });
   });
@@ -203,6 +203,9 @@ describe('active adaptation presentation', () => {
       'armadillo-greaves:bud', 'skunk-brush:bud', 'monarch-brood:adapted',
     ]);
     expect(cards.find((card) => card.id === 'bat-ears:bud')?.effect).toMatch(/mark/i);
+    expect(cards.find((card) => card.id === 'skunk-brush:bud')?.effect).toBe(
+      'Places a damaging stink cloud on an enemy cluster ahead.',
+    );
     expect(cards.find((card) => card.id === 'monarch-brood:adapted')?.effect).toMatch(/sting nearby enemies/i);
 
     const royal = presentActiveAdaptations([
@@ -211,7 +214,11 @@ describe('active adaptation presentation', () => {
       visual({ sourceId: 'monarch-brood', stage: 'adapted', sockets: ['bodyOrbit'], visualKey: 'monarch-brood:adapted' }),
     ]);
     expect(royal).toHaveLength(1);
-    expect(royal[0]).toMatchObject({ id: 'royal-stinkcloud:mythic', title: 'Royal Stinkcloud' });
+    expect(royal[0]).toMatchObject({
+      id: 'royal-stinkcloud:mythic',
+      title: 'Royal Stinkcloud',
+      effect: 'Places a monarch-crowned stink cloud on an enemy cluster ahead. Fused form; occupies one slot.',
+    });
   });
 
   it('replaces Mantis and Gecko with their one-slot fused Razorstep card', () => {
@@ -241,7 +248,7 @@ describe('active adaptation presentation', () => {
         id: 'razorstep-chimera:mythic',
         title: 'Razorstep Chimera',
         stageLabel: 'Fused · 1 slot',
-        effect: 'Movement leaves stronger scythe pads at your feet. Fused form; occupies one slot.',
+        effect: 'Movement leaves stronger scythe pads behind you. Fused form; occupies one slot.',
         cadence: 'Placement: after travelling 90 units · One slot',
       }),
     ]);
