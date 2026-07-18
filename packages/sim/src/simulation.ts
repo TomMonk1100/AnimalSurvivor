@@ -282,6 +282,17 @@ type MutableTraitPresentationEvent = {
   -readonly [Key in keyof TraitPresentationEventView]: TraitPresentationEventView[Key];
 };
 
+/**
+ * Read-only presentation access to the enemy behavior fields that cannot be
+ * reconstructed from a transform snapshot. Consumers may read these arrays at
+ * a tick boundary only; writing through them would corrupt authoritative
+ * simulation state.
+ */
+export interface EnemyBehaviorPresentationView {
+  readonly kind: Readonly<Uint8Array>;
+  readonly hostileShotCooldown: Readonly<Uint16Array>;
+}
+
 export interface Simulation {
   readonly tick: number;
   readonly player: PlayerState;
@@ -292,6 +303,12 @@ export interface Simulation {
   readonly powerPickups: Pool<PowerPickupPool>;
   /** Persistent player damage pads; compact numeric tags are renderer-ready. */
   readonly zones: Pool<ZonePool>;
+  /**
+   * Presentation-only view of live enemy behavior. This aliases authoritative
+   * storage, so it is deliberately typed read-only and must never be retained
+   * for mutation or written through by application code.
+   */
+  readonly enemyBehaviorView: EnemyBehaviorPresentationView;
   readonly grid: SpatialGrid;
   readonly waveDirector: WaveDirector;
   /** XP silently dropped because the pickup pool was full at kill time. Diagnostic only. */
@@ -514,6 +531,10 @@ export function createSimulation(
   }
   const enemyRoles = new Uint8Array(config.enemyCap);
   const enemyBehavior = createEnemyBehaviorState(config.enemyCap);
+  const enemyBehaviorView: EnemyBehaviorPresentationView = {
+    kind: enemyBehavior.kind,
+    hostileShotCooldown: enemyBehavior.hostileShotCooldown,
+  };
 
   let maxEnemyRadius = 0;
   for (const a of config.archetypes) {
@@ -1190,8 +1211,8 @@ export function createSimulation(
 
   const worldWidth = config.worldWidth;
   const worldHeight = config.worldHeight;
-  let pickupAttractionRadius = 0;
-  let pickupAttractionSpeed = 0;
+  let pickupAttractionRadius = config.basePickupAttractionRadius;
+  let pickupAttractionSpeed = config.basePickupAttractionSpeed;
   let xpGainMultiplier = basePermanentXpMultiplier;
   let traitDamageMultiplier = hero.weaponDamageMultiplier * permanentDamageMultiplier;
   let traitCooldownMultiplier = hero.weaponCooldownMultiplier * permanentCooldownMultiplier;
@@ -1204,8 +1225,8 @@ export function createSimulation(
 
     player.speed = basePlayerSpeed * stats.speedMultiplier;
     player.pickupRadius = basePlayerPickupRadius + stats.pickupRadiusBonus;
-    pickupAttractionRadius = stats.pickupAttractionRadius;
-    pickupAttractionSpeed = stats.pickupAttractionSpeed;
+    pickupAttractionRadius = config.basePickupAttractionRadius + stats.pickupAttractionRadius;
+    pickupAttractionSpeed = config.basePickupAttractionSpeed + stats.pickupAttractionSpeed;
     weapon.damage = baseWeaponDamage * stats.weaponDamageMultiplier;
     weapon.cooldownTicks = Math.max(1, Math.round(baseWeaponCooldownTicks * stats.weaponCooldownMultiplier));
     basicWeapon.damage = baseWeaponDamage
@@ -2177,6 +2198,7 @@ export function createSimulation(
     pickups,
     powerPickups,
     zones,
+    enemyBehaviorView,
     grid,
     waveDirector,
     traitCatalogFingerprint,

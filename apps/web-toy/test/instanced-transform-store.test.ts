@@ -34,6 +34,7 @@ function snapshot(entries: readonly Entry[], category: ViewCategory = 'enemy'): 
   const source = new Uint8Array(capacity);
   const critical = new Uint8Array(capacity);
   const marked = new Uint8Array(capacity);
+  const attackCharge = new Float32Array(capacity);
 
   entries.forEach((entry, index) => {
     id[index] = entry.id;
@@ -49,7 +50,7 @@ function snapshot(entries: readonly Entry[], category: ViewCategory = 'enemy'): 
 
   return {
     category, count: capacity, id, x, y, radius, value, velocityX, velocityY,
-    hp, maxHp, archetype, role, source, critical, marked,
+    hp, maxHp, archetype, role, source, critical, marked, attackCharge,
   };
 }
 

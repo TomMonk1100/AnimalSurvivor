@@ -9,7 +9,9 @@ test('default config validates and fingerprints identically across independent c
   assert.match(fingerprintConfig(DEFAULT_CONFIG), /^[0-9a-f]{16}$/);
   assert.equal(fingerprintConfig(DEFAULT_CONFIG), fingerprintConfig({ ...DEFAULT_CONFIG }));
   assert.equal(DEFAULT_CONFIG.weapon.pierce, 0, 'basic Auto-Fire must not inherit Quills pierce');
-  assert.deepEqual(DEFAULT_CONFIG.xpThresholds, [4, 10, 18, 30, 46, 68, 96, 132, 176, 228]);
+  assert.equal(DEFAULT_CONFIG.basePickupAttractionRadius, 70);
+  assert.equal(DEFAULT_CONFIG.basePickupAttractionSpeed, 90);
+  assert.deepEqual(DEFAULT_CONFIG.xpThresholds, [32, 80, 144, 224, 320, 432, 560, 704, 864, 1_040]);
 });
 
 test('fingerprint changes when a gameplay value changes', () => {
@@ -34,6 +36,12 @@ test('fingerprint changes when a gameplay value changes', () => {
   };
   assert.notEqual(fingerprintConfig(zoneChanged), fingerprintConfig(DEFAULT_CONFIG));
 
+  const pickupDriftChanged: SimConfig = {
+    ...DEFAULT_CONFIG,
+    basePickupAttractionRadius: DEFAULT_CONFIG.basePickupAttractionRadius + 1,
+  };
+  assert.notEqual(fingerprintConfig(pickupDriftChanged), fingerprintConfig(DEFAULT_CONFIG));
+
 });
 
 test('validation rejects capacities that can collide with packed ids', () => {
@@ -41,6 +49,11 @@ test('validation rejects capacities that can collide with packed ids', () => {
   assert.throws(() => validateConfig({ ...DEFAULT_CONFIG, enemyCap: 0xffff }), /enemyCap/);
   assert.throws(() => validateConfig({ ...DEFAULT_CONFIG, zoneCap: 0 }), /zoneCap/);
   assert.throws(() => validateConfig({ ...DEFAULT_CONFIG, zoneCap: 0xffff }), /zoneCap/);
+});
+
+test('validation rejects malformed baseline pickup drift', () => {
+  assert.throws(() => validateConfig({ ...DEFAULT_CONFIG, basePickupAttractionRadius: -1 }), /basePickupAttractionRadius/);
+  assert.throws(() => validateConfig({ ...DEFAULT_CONFIG, basePickupAttractionSpeed: Number.NaN }), /basePickupAttractionSpeed/);
 });
 
 test('validation rejects mismatched wave weights and non-finite values', () => {

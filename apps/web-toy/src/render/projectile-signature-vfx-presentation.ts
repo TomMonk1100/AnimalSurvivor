@@ -31,10 +31,19 @@ const EMPTY_COMBAT_EVENTS: readonly CombatPresentationEventView[] = Object.freez
  * read as a projectile rather than the old tiny cyan dot. The card itself is
  * still placed directly on the real snapshot in the scene adapter.
  */
-export const HERO_SPIT_BODY_MIN_LATERAL_SCALE = 42;
-export const HERO_SPIT_BODY_MIN_FORWARD_SCALE = 56;
+// The first production pass made this body so large and pale that consecutive
+// volleys could occupy a flash-audit cell like a white strobe. These values
+// keep Gracie's projectile unmistakably larger than a normal bolt while
+// leaving enough of the forest visible to track the incoming-danger lane.
+export const HERO_SPIT_BODY_MIN_LATERAL_SCALE = 32;
+export const HERO_SPIT_BODY_MIN_FORWARD_SCALE = 44;
 export const HERO_SPIT_BODY_VISUAL_FOOTPRINT = HERO_SPIT_BODY_MIN_FORWARD_SCALE;
+/** Shared normal-blend body ceiling applied by the scene’s fixed batch. */
+export const HERO_SPIT_BODY_OPACITY = 0.58;
 export const HERO_SPIT_CORE_LIFETIME_TICKS = DEFAULT_CORE_LIFETIME_TICKS;
+export const HERO_SPIT_CORE_OPACITY_CAP = 0.62;
+export const HERO_SPIT_IMPACT_CORE_ROUTINE_OPACITY = 0.58;
+export const HERO_SPIT_IMPACT_CORE_CRITICAL_OPACITY = 0.66;
 /** Two quiet drops for routine shots; a crit receives one extra, never a spray. */
 export const HERO_SPIT_ROUTINE_DROPLET_COUNT = 2;
 export const HERO_SPIT_CRITICAL_DROPLET_COUNT = MAX_DEBRIS_PER_PROJECTILE;
@@ -414,7 +423,7 @@ export function createHeroSpitProjectileSignaturePresentation(
     cores.x[index] = x + directionX * headOffset;
     cores.y[index] = y + directionY * headOffset;
     cores.scale[index] = visualFootprint * (0.17 + 0.06 * entry);
-    cores.opacity[index] = clamp(0.82 * entry * release, 0, 0.82);
+    cores.opacity[index] = clamp(HERO_SPIT_CORE_OPACITY_CAP * entry * release, 0, HERO_SPIT_CORE_OPACITY_CAP);
     cores.yawRadians[index] = Math.atan2(directionY, directionX);
   }
 
@@ -496,7 +505,10 @@ export function createHeroSpitProjectileSignaturePresentation(
         cores.x[index] = impactX[slot]!;
         cores.y[index] = impactY[slot]!;
         cores.scale[index] = HERO_SPIT_BODY_VISUAL_FOOTPRINT * (0.24 + 0.09 * entry);
-        cores.opacity[index] = clamp((critical ? 0.84 : 0.76) * entry * release, 0, 0.84);
+        const maximumOpacity = critical
+          ? HERO_SPIT_IMPACT_CORE_CRITICAL_OPACITY
+          : HERO_SPIT_IMPACT_CORE_ROUTINE_OPACITY;
+        cores.opacity[index] = clamp(maximumOpacity * entry * release, 0, maximumOpacity);
         cores.yawRadians[index] = seededUnit(impactSeed[slot]!) * TAU;
       }
 

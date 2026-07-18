@@ -407,14 +407,14 @@ function validateLevelPressure(def: RunDefinition): void {
   if (!isPosInt(levelPressure.levelsPerStep)) {
     throw new Error('validateDefinition: levelPressure.levelsPerStep must be a positive integer');
   }
-  if (!isPosInt(levelPressure.maxSteps) || levelPressure.maxSteps > 3) {
-    throw new Error('validateDefinition: levelPressure.maxSteps must be an integer in [1, 3]');
+  if (!isPosInt(levelPressure.maxSteps) || levelPressure.maxSteps > 6) {
+    throw new Error('validateDefinition: levelPressure.maxSteps must be an integer in [1, 6]');
   }
-  if (!isPosInt(levelPressure.softCapPerStep) || levelPressure.softCapPerStep > 1) {
-    throw new Error('validateDefinition: levelPressure.softCapPerStep must be 1');
+  if (!isPosInt(levelPressure.softCapPerStep) || levelPressure.softCapPerStep > 3) {
+    throw new Error('validateDefinition: levelPressure.softCapPerStep must be in [1, 3]');
   }
-  if (!isPosInt(levelPressure.hardCapPerStep) || levelPressure.hardCapPerStep > 2) {
-    throw new Error('validateDefinition: levelPressure.hardCapPerStep must be in [1, 2]');
+  if (!isPosInt(levelPressure.hardCapPerStep) || levelPressure.hardCapPerStep > 5) {
+    throw new Error('validateDefinition: levelPressure.hardCapPerStep must be in [1, 5]');
   }
   if (levelPressure.hardCapPerStep < levelPressure.softCapPerStep) {
     throw new Error('validateDefinition: levelPressure.hardCapPerStep must be >= softCapPerStep');

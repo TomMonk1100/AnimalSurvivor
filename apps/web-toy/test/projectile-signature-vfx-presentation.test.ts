@@ -4,9 +4,13 @@ import type { CategorySnapshot } from '../src/contracts';
 import type { CombatPresentationEventView } from '../src/presentation/combat-presentation-events';
 import {
   HERO_SPIT_BODY_VISUAL_FOOTPRINT,
+  HERO_SPIT_BODY_MIN_FORWARD_SCALE,
+  HERO_SPIT_BODY_MIN_LATERAL_SCALE,
+  HERO_SPIT_BODY_OPACITY,
   HERO_SPIT_CRITICAL_DROPLET_COUNT,
   HERO_SPIT_CONTACT_KIND,
   HERO_SPIT_CORE_LIFETIME_TICKS,
+  HERO_SPIT_CORE_OPACITY_CAP,
   HERO_SPIT_GROUND_CONTACT_OPACITY_CAP,
   HERO_SPIT_MUZZLE_OFFSET_RATIO,
   HERO_SPIT_ROUTINE_DROPLET_COUNT,
@@ -46,6 +50,7 @@ function projectiles(entries: readonly ProjectileEntry[]): CategorySnapshot {
     source: new Uint8Array(capacity),
     critical: new Uint8Array(capacity),
     marked: new Uint8Array(capacity),
+    attackCharge: new Float32Array(capacity),
   };
   for (let index = 0; index < entries.length; index++) {
     const entry = entries[index]!;
@@ -78,6 +83,14 @@ function spitImpact(tick: number, overrides: Partial<CombatPresentationEventView
 }
 
 describe('heroSpit projectile signature VFX presentation', () => {
+  it('keeps Gracie’s real projectile prominent without letting its pale body dominate the flash budget', () => {
+    expect(HERO_SPIT_BODY_MIN_LATERAL_SCALE).toBeGreaterThanOrEqual(30);
+    expect(HERO_SPIT_BODY_MIN_FORWARD_SCALE).toBeGreaterThanOrEqual(42);
+    expect(HERO_SPIT_BODY_OPACITY).toBeGreaterThanOrEqual(0.5);
+    expect(HERO_SPIT_BODY_OPACITY).toBeLessThanOrEqual(0.6);
+    expect(HERO_SPIT_CORE_OPACITY_CAP).toBeLessThanOrEqual(0.66);
+  });
+
   it('derives compact anatomy only from a real current heroSpit projectile snapshot', () => {
     const projection = createHeroSpitProjectileSignaturePresentation({ projectileCapacity: 16 });
     const live = projectiles([{ id: makeId(2, 1), x: 108, y: 76 }]);
@@ -151,7 +164,7 @@ describe('heroSpit projectile signature VFX presentation', () => {
       300 + visualFootprint * (HERO_SPIT_MUZZLE_OFFSET_RATIO + HERO_SPIT_TRAVEL_CONTACT_LEAD_RATIO),
     );
     expect(fresh.cores.count).toBe(1);
-    expect(fresh.cores.opacity[0]).toBeGreaterThan(0.4);
+    expect(fresh.cores.opacity[0]).toBeGreaterThan(0.3);
   });
 
   it('keeps the core to four ticks while the real projectile retains its normal-blend tail', () => {
@@ -173,7 +186,7 @@ describe('heroSpit projectile signature VFX presentation', () => {
     expect(first.cores.count).toBe(1);
     expect(first.cores.x[0]).toBeCloseTo(146);
     expect(first.cores.y[0]).toBeCloseTo(88);
-    expect(first.cores.opacity[0]).toBeGreaterThan(0.4);
+    expect(first.cores.opacity[0]).toBeGreaterThan(0.3);
     expect(first.debris.count).toBe(2);
     expect(Math.hypot(
       first.debris.x[0]! - first.debris.x[1]!,

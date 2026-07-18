@@ -19,6 +19,7 @@ function enemies(entries: Array<{ id: number; role: number; hp: number; maxHp: n
   const hp = new Float32Array(capacity);
   const maxHp = new Float32Array(capacity);
   const marked = new Uint8Array(capacity);
+  const attackCharge = new Float32Array(capacity);
   entries.forEach((entry, index) => {
     id[index] = entry.id;
     role[index] = entry.role;
@@ -27,7 +28,7 @@ function enemies(entries: Array<{ id: number; role: number; hp: number; maxHp: n
   });
   return {
     category: 'enemy', count: capacity, id, x, y, radius, value, velocityX, velocityY,
-    archetype, role, source, critical, hp, maxHp, marked,
+    archetype, role, source, critical, hp, maxHp, marked, attackCharge,
   };
 }
 

@@ -1,6 +1,7 @@
 import * as pc from 'playcanvas';
 import {
   hasExplicitTraitSourcePaletteLane,
+  isPlayerAttackPaletteLane,
   paletteLaneForChimeraSource,
   paletteLaneForEffectMaterial,
   paletteLaneForTraitSource,
@@ -9,6 +10,7 @@ import {
   proceduralUnderlayOpacity,
   type AttackVfxPaletteLane,
 } from './attack-vfx-palette';
+import { envelope } from './vfx-easing';
 
 /**
  * Read-only, renderer-facing copy of a trait command.  It intentionally stays
@@ -159,13 +161,24 @@ export interface TraitCommandPresentation {
    * remain visible after the input stream is empty, until their tick lifetime
    * expires. `currentTick` comes from the rendered simulation snapshot.
    */
-  update(currentTick: number, events: readonly TraitCommandPresentationEvent[]): void;
+  update(
+    currentTick: number,
+    events: readonly TraitCommandPresentationEvent[],
+    /** Interpolated Scout position; primitives avoid a steady-state allocation. */
+    heroX?: number,
+    heroY?: number,
+  ): void;
   /** Clear all renderer-only effects, useful for an explicit run restart. */
   reset(): void;
   dispose(): void;
 }
 
 export const DEFAULT_TRAIT_COMMAND_PRESENTATION_CAPACITY = 32;
+/** A compact family-hued origin cue; never a second attack body. */
+export const HERO_CAST_CUE_LIFETIME_TICKS = 8;
+export const HERO_CAST_CUE_RADIUS = 14;
+export const HERO_CAST_CUE_UNDERLAY_OPACITY = 0.22;
+export const HERO_CAST_CUE_ACCENT_OPACITY = 0.28;
 
 const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Object.freeze({
   telegraph: {
@@ -362,6 +375,19 @@ const PROFILES: Readonly<Record<EffectMaterial, TraitCommandEffectProfile>> = Ob
   },
 });
 
+/**
+ * This one small glyph is emitted at Scout's live render position before a
+ * player world-effect starts. It intentionally reuses the prebuilt
+ * `trait-cue` mesh/material bank, so no cast allocates geometry or materials.
+ */
+const HERO_CAST_CUE_PROFILE: TraitCommandEffectProfile = Object.freeze({
+  ...PROFILES['trait-cue'],
+  lifetimeTicks: HERO_CAST_CUE_LIFETIME_TICKS,
+  fallbackRadius: HERO_CAST_CUE_RADIUS,
+  minimumRadius: HERO_CAST_CUE_RADIUS,
+  maximumRadius: HERO_CAST_CUE_RADIUS,
+});
+
 // `PROFILES` is the authoritative list of current procedural material roles.
 // The palette module maps each one into one of six weapon families (or an
 // explicitly reserved hostile lane); no role gets an ad-hoc neon RGB value.
@@ -465,8 +491,12 @@ function resolveProceduralAccentOpacity(material: EffectMaterial): number {
 const EFFECT_UNIT_RADIUS = 1;
 const GROUND_EFFECT_HEIGHT = 0.28;
 const CHAIN_LIGHTNING_LIFETIME_TICKS = 8;
-const CHAIN_LIGHTNING_THICKNESS = 1.7;
+// The direct endpoint line stays clear at camera distance, but a narrower
+// ribbon prevents rapid chain resolutions from reading as a white bar.
+const CHAIN_LIGHTNING_THICKNESS = 1.45;
 const CHAIN_LIGHTNING_HEIGHT = 1.05;
+const TRAIT_COMMAND_ENVELOPE_ATTACK = 0.08;
+const TRAIT_COMMAND_ENVELOPE_RELEASE = 0.52;
 
 /**
  * These exactly mirror the authored Bud/Adapted Mantis widths. They are not a
@@ -674,6 +704,33 @@ export function resolveTraitCommandAccentPaletteLane(
 }
 
 /**
+ * A cue belongs to player-authored world effects only. Direct defensive cues
+ * already occur at Scout and would become a redundant second pulse; hostile
+ * lanes never pass this guard.
+ */
+export function shouldEmitHeroCastCue(
+  event: Pick<TraitCommandPresentationEvent, 'sourceId'>,
+  profile: TraitCommandEffectProfile,
+): boolean {
+  if (profile.kind === 'trait-cue' || !hasExplicitTraitSourcePaletteLane(event.sourceId)) return false;
+  return isPlayerAttackPaletteLane(resolveTraitCommandPaletteLane(event, profile));
+}
+
+/**
+ * The half-tick sample shows a new command on its emitting render while still
+ * reaching exact progress 1 on the retained terminal tick. That gives every
+ * pooled primitive a real zero-opacity frame instead of a late hard reset.
+ */
+function traitCommandVisualProgress(tick: number, startTick: number, expiresAtTick: number): number {
+  const duration = Math.max(1, expiresAtTick - startTick);
+  return clamp((tick - startTick + 0.5) / (duration + 0.5), 0, 1);
+}
+
+function traitCommandFade(progress: number): number {
+  return envelope(progress, TRAIT_COMMAND_ENVELOPE_ATTACK, TRAIT_COMMAND_ENVELOPE_RELEASE);
+}
+
+/**
  * Public and focused-testable proof that the source-family resolver selects
  * the same finite material key consumed by the live renderer below. This is
  * intentionally separate from geometry/profile projection: it governs colour
@@ -706,7 +763,10 @@ export function resolveIllustratedHeroUnderlayOpacityMultiplier(
     case 'gracie-spit':
       return 0.12;
     case 'fluffy-shield':
-      return 0.18;
+      // The illustrated dissolve and BLOCK label are the primary defense
+      // read. Keep this ground-field underpaint deliberately quiet so a burst
+      // of shield absorbs cannot turn the player center into a second flash.
+      return 0.1;
     case 'armor-block':
     case 'fox-dodge':
     case 'trait-cue':
@@ -737,9 +797,9 @@ export function resolveIllustratedHeroUnderlayOpacityMultiplier(
       return 0.14;
     // The line itself communicates the resolved chain endpoints. It stays
     // legible, but it is deliberately subordinate to Thunderbug's animated
-    // primary card.
+    // primary card and is kept below the flash-audit brightness headroom.
     case 'chain-lightning':
-      return 0.36;
+      return 0.24;
     default:
       return 1;
   }
@@ -1744,6 +1804,8 @@ interface EffectSlot {
   dirX: number;
   dirY: number;
   intensity: number;
+  /** A small family-hued Scout-origin punctuation, not a second attack body. */
+  isHeroCastCue: boolean;
 }
 
 interface ChainLightningSegmentSlot {
@@ -1841,6 +1903,7 @@ interface OrbitContactSlot {
 function resetSlot(slot: EffectSlot): void {
   slot.active = false;
   slot.profile = null;
+  slot.isHeroCastCue = false;
   slot.entity.enabled = false;
   slot.accentEntity.enabled = false;
 }
@@ -1977,6 +2040,7 @@ export function createTraitCommandPresentation(
       accentPaletteLane: paletteLaneForEffectMaterial('telegraph'),
       tick: 0, expiresAtTick: 0,
       x: 0, y: 0, radius: 0, aspect: 1, yawDegrees: 0, dirX: 1, dirY: 0, intensity: 1,
+      isHeroCastCue: false,
     });
   }
 
@@ -2126,12 +2190,12 @@ export function createTraitCommandPresentation(
   function updateSlot(slot: EffectSlot, tick: number): void {
     const profile = slot.profile;
     if (!slot.active || profile === null) return;
-    if (tick >= slot.expiresAtTick) {
+    if (tick > slot.expiresAtTick) {
       resetSlot(slot);
       return;
     }
 
-    const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    const progress = traitCommandVisualProgress(tick, slot.tick, slot.expiresAtTick);
     const blueprint = resolveTraitCommandVisualBlueprint(profile);
     const stage = resolveTraitCommandVisualStage(progress, profile);
     const scale = profile.motion === 'expand'
@@ -2142,11 +2206,12 @@ export function createTraitCommandPresentation(
     // Intensity expands the authored silhouette a little, never the combat
     // area. The simulation still owns radius, damage, and contact timing.
     const radius = Math.max(1, slot.radius * scale * (1 + (slot.intensity - 1) * 0.24));
-    const fadeRate = profile.motion === 'pulse' ? 0.32 : 0.68;
-    const underlayMultiplier = resolveIllustratedHeroUnderlayOpacityMultiplier(profile);
-    const opacity = resolveProceduralUnderlayOpacity(slot.material)
-      * underlayMultiplier
-      * (1 - progress * fadeRate);
+    const underlayMultiplier = slot.isHeroCastCue ? 1 : resolveIllustratedHeroUnderlayOpacityMultiplier(profile);
+    const underlayOpacity = slot.isHeroCastCue
+      ? HERO_CAST_CUE_UNDERLAY_OPACITY
+      : resolveProceduralUnderlayOpacity(slot.material) * underlayMultiplier;
+    const fade = traitCommandFade(progress);
+    const opacity = underlayOpacity * fade;
     const radialScale = radius / EFFECT_UNIT_RADIUS;
     const groundHeight = GROUND_EFFECT_HEIGHT + Math.min(0.55, radius * 0.006);
     slot.meshInstance.mesh = effectMeshes[slot.material];
@@ -2163,7 +2228,7 @@ export function createTraitCommandPresentation(
       1,
       radialScale,
     );
-    slot.entity.enabled = true;
+    slot.entity.enabled = opacity > 0.001;
 
     // The companion layer is an authored flourish rather than a hitbox. It
     // moves from the cast point toward the direction only for directed
@@ -2174,10 +2239,12 @@ export function createTraitCommandPresentation(
       : 0;
     const accentRadius = resolveAccentScale(slot.radius, slot.intensity, blueprint, stage);
     const accentOpacity = resolveAccentOpacity(
-      resolveProceduralAccentOpacity(slot.material) * underlayMultiplier,
+      slot.isHeroCastCue
+        ? HERO_CAST_CUE_ACCENT_OPACITY
+        : resolveProceduralAccentOpacity(slot.material) * underlayMultiplier,
       blueprint,
       stage,
-    );
+    ) * fade;
     const accent = resolveStagedAccent(blueprint, stage);
     slot.accentMeshInstance.mesh = accentMeshes[accent];
     slot.accentMeshInstance.material = accentMaterialFor(slot.material, slot.accentPaletteLane);
@@ -2202,11 +2269,11 @@ export function createTraitCommandPresentation(
 
   function updateMeleeArcSlot(slot: MeleeArcSlot, tick: number): void {
     if (!slot.active) return;
-    if (tick >= slot.expiresAtTick) {
+    if (tick > slot.expiresAtTick) {
       resetMeleeArcSlot(slot);
       return;
     }
-    const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    const progress = traitCommandVisualProgress(tick, slot.tick, slot.expiresAtTick);
     const profile = PROFILES['melee-arc'];
     const blueprint = resolveTraitCommandVisualBlueprint(profile);
     const stage = resolveTraitCommandVisualStage(progress, profile);
@@ -2214,7 +2281,12 @@ export function createTraitCommandPresentation(
     // defensive aura. The authoritative damage itself remains instantaneous.
     const radius = Math.max(1, slot.radius * (0.32 + progress * 0.68) * (1 + (slot.intensity - 1) * 0.24));
     const radialScale = radius / MELEE_ARC_UNIT_RADIUS;
-    const opacity = resolveProceduralUnderlayOpacity('melee-arc') * (1 - progress * 0.68);
+    const fade = traitCommandFade(progress);
+    // Mantis's painted scythe is the attack read; this sector remains only a
+    // quiet timing/contact footprint below it, never a second opaque wedge.
+    const opacity = resolveProceduralUnderlayOpacity('melee-arc')
+      * resolveIllustratedHeroUnderlayOpacityMultiplier(profile)
+      * fade;
     slot.meshInstance.material = materialFor('melee-arc', slot.paletteLane);
     slot.meshInstance.setParameter('material_opacity', opacity);
     slot.entity.setLocalPosition(
@@ -2228,16 +2300,17 @@ export function createTraitCommandPresentation(
       1,
       radialScale,
     );
-    slot.entity.enabled = true;
+    slot.entity.enabled = opacity > 0.001;
 
     const accent = resolveStagedAccent(blueprint, stage);
     const accentTravel = slot.radius * blueprint.travelDistance * resolveAccentTravel(progress, stage);
     const accentRadius = resolveAccentScale(slot.radius, slot.intensity, blueprint, stage);
     const accentOpacity = resolveAccentOpacity(
-      resolveProceduralAccentOpacity('melee-arc'),
+      resolveProceduralAccentOpacity('melee-arc')
+        * resolveIllustratedHeroUnderlayOpacityMultiplier(profile),
       blueprint,
       stage,
-    );
+    ) * fade;
     slot.accentMeshInstance.mesh = accentMeshes[accent];
     slot.accentMeshInstance.material = accentMaterialFor('melee-arc', slot.accentPaletteLane);
     slot.accentMeshInstance.setParameter('material_opacity', accentOpacity);
@@ -2257,18 +2330,19 @@ export function createTraitCommandPresentation(
 
   function updateGenericMeleeSlashSlot(slot: GenericMeleeSlashSlot, tick: number): void {
     if (!slot.active) return;
-    if (tick >= slot.expiresAtTick) {
+    if (tick > slot.expiresAtTick) {
       resetGenericMeleeSlashSlot(slot);
       return;
     }
-    const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    const progress = traitCommandVisualProgress(tick, slot.tick, slot.expiresAtTick);
     const profile = PROFILES[slot.material];
     const blueprint = resolveTraitCommandVisualBlueprint(profile);
     const stage = resolveTraitCommandVisualStage(progress, profile);
     const underlayMultiplier = resolveIllustratedHeroUnderlayOpacityMultiplier(profile);
+    const fade = traitCommandFade(progress);
     const opacity = resolveProceduralUnderlayOpacity(slot.material)
       * underlayMultiplier
-      * (1 - progress * 0.72);
+      * fade;
     slot.meshInstance.mesh = slot.mesh;
     slot.meshInstance.material = materialFor(slot.material, slot.paletteLane);
     slot.meshInstance.setParameter('material_opacity', opacity);
@@ -2303,7 +2377,7 @@ export function createTraitCommandPresentation(
     );
     slot.entity.setLocalEulerAngles(0, slot.yawDegrees, 0);
     slot.entity.setLocalScale(scaleX, 1, scaleZ);
-    slot.entity.enabled = true;
+    slot.entity.enabled = opacity > 0.001;
 
     const accent = resolveStagedAccent(blueprint, stage);
     const accentTravel = slot.radius * blueprint.travelDistance * resolveAccentTravel(progress, stage);
@@ -2312,7 +2386,7 @@ export function createTraitCommandPresentation(
       resolveProceduralAccentOpacity(slot.material) * underlayMultiplier,
       blueprint,
       stage,
-    );
+    ) * fade;
     slot.accentMeshInstance.mesh = accentMeshes[accent];
     slot.accentMeshInstance.material = accentMaterialFor(slot.material, slot.accentPaletteLane);
     slot.accentMeshInstance.setParameter('material_opacity', accentOpacity);
@@ -2332,11 +2406,11 @@ export function createTraitCommandPresentation(
 
   function updateOrbitingDamageSlot(slot: OrbitingDamageSlot, tick: number): void {
     if (!slot.active) return;
-    if (tick >= slot.expiresAtTick) {
+    if (tick > slot.expiresAtTick) {
       resetOrbitingDamageSlot(slot);
       return;
     }
-    const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    const progress = traitCommandVisualProgress(tick, slot.tick, slot.expiresAtTick);
     const angle = slot.facing
       + (slot.speed % (Math.PI * 2)) * (tick % 1_000_000)
       + Math.PI * 2 * slot.index / slot.count;
@@ -2350,9 +2424,12 @@ export function createTraitCommandPresentation(
     const tangentYawDegrees = Math.atan2(-Math.sin(angle), -Math.cos(angle)) * 180 / Math.PI;
     slot.meshInstance.mesh = orbitingMeshes[slot.material];
     slot.meshInstance.material = materialFor(slot.material, slot.paletteLane);
+    const opacity = resolveProceduralUnderlayOpacity(slot.material)
+      * resolveIllustratedHeroUnderlayOpacityMultiplier(PROFILES[slot.material])
+      * traitCommandFade(progress);
     slot.meshInstance.setParameter(
       'material_opacity',
-      resolveProceduralUnderlayOpacity(slot.material) * (1 - progress * 0.26),
+      opacity,
     );
     slot.entity.setLocalPosition(
       x - worldHalfWidth,
@@ -2361,20 +2438,22 @@ export function createTraitCommandPresentation(
     );
     slot.entity.setLocalEulerAngles(0, tangentYawDegrees, 0);
     slot.entity.setLocalScale(scale, 1, scale);
-    slot.entity.enabled = true;
+    slot.entity.enabled = opacity > 0.001;
   }
 
   function updateOrbitContactSlot(slot: OrbitContactSlot, tick: number): void {
     if (!slot.active) return;
-    if (tick >= slot.expiresAtTick) {
+    if (tick > slot.expiresAtTick) {
       resetOrbitContactSlot(slot);
       return;
     }
-    const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    const progress = traitCommandVisualProgress(tick, slot.tick, slot.expiresAtTick);
     const dx = slot.targetX - slot.sourceX;
     const dy = slot.targetY - slot.sourceY;
     const length = Math.sqrt(dx * dx + dy * dy);
-    const opacity = resolveProceduralUnderlayOpacity('firefly-contact') * (1 - progress * 0.64);
+    const opacity = resolveProceduralUnderlayOpacity('firefly-contact')
+      * resolveIllustratedHeroUnderlayOpacityMultiplier(PROFILES['firefly-contact'])
+      * traitCommandFade(progress);
     const material = materialFor('firefly-contact', slot.paletteLane);
 
     if (length > 0.001) {
@@ -2394,7 +2473,7 @@ export function createTraitCommandPresentation(
         1,
         length,
       );
-      slot.linkEntity.enabled = true;
+      slot.linkEntity.enabled = opacity > 0.001;
     } else {
       slot.linkEntity.enabled = false;
     }
@@ -2412,12 +2491,12 @@ export function createTraitCommandPresentation(
     );
     slot.impactEntity.setLocalEulerAngles(0, progress * 80, 0);
     slot.impactEntity.setLocalScale(impactScale, 1, impactScale);
-    slot.impactEntity.enabled = true;
+    slot.impactEntity.enabled = opacity > 0.001;
   }
 
   function updateChainLightningSlot(slot: ChainLightningSegmentSlot, tick: number): void {
     if (!slot.active) return;
-    if (tick >= slot.expiresAtTick) {
+    if (tick > slot.expiresAtTick) {
       resetChainLightningSlot(slot);
       return;
     }
@@ -2428,7 +2507,7 @@ export function createTraitCommandPresentation(
       resetChainLightningSlot(slot);
       return;
     }
-    const progress = clamp((tick - slot.tick) / (slot.expiresAtTick - slot.tick), 0, 1);
+    const progress = traitCommandVisualProgress(tick, slot.tick, slot.expiresAtTick);
     const thickness = Math.max(0.7, CHAIN_LIGHTNING_THICKNESS * slot.intensity * (1 - progress * 0.38));
     const midpointX = (slot.fromX + slot.toX) * 0.5;
     const midpointY = (slot.fromY + slot.toY) * 0.5;
@@ -2437,7 +2516,9 @@ export function createTraitCommandPresentation(
     slot.meshInstance.material = materialFor('chain-lightning', slot.paletteLane);
     slot.meshInstance.setParameter(
       'material_opacity',
-      resolveProceduralUnderlayOpacity('chain-lightning') * (1 - progress * 0.6),
+      resolveProceduralUnderlayOpacity('chain-lightning')
+        * resolveIllustratedHeroUnderlayOpacityMultiplier(PROFILES['chain-lightning'])
+        * traitCommandFade(progress),
     );
     slot.entity.setLocalPosition(
       midpointX - worldHalfWidth,
@@ -2446,10 +2527,18 @@ export function createTraitCommandPresentation(
     );
     slot.entity.setLocalEulerAngles(0, yawDegrees, 0);
     slot.entity.setLocalScale(thickness, 1, length);
-    slot.entity.enabled = true;
+    slot.entity.enabled = traitCommandFade(progress) > 0.001;
   }
 
-  function start(event: TraitCommandPresentationEvent, profile: TraitCommandEffectProfile, currentTick: number): void {
+  function start(
+    event: TraitCommandPresentationEvent,
+    profile: TraitCommandEffectProfile,
+    currentTick: number,
+    originX = Number.NaN,
+    originY = Number.NaN,
+    radiusOverride = Number.NaN,
+    isHeroCastCue = false,
+  ): void {
     const emittedTick = normalizedTick(event.tick);
     const lifetimeTicks = resolveLifetime(event, profile);
     if (emittedTick + lifetimeTicks <= currentTick) return;
@@ -2483,9 +2572,9 @@ export function createTraitCommandPresentation(
     slot.accentPaletteLane = resolveTraitCommandAccentPaletteLane(event, profile);
     slot.tick = emittedTick;
     slot.expiresAtTick = emittedTick + lifetimeTicks;
-    slot.x = finiteOr(event.originX, 0);
-    slot.y = finiteOr(event.originY, 0);
-    slot.radius = resolveTraitCommandEffectRadius(event, profile);
+    slot.x = finiteOr(originX, finiteOr(event.originX, 0));
+    slot.y = finiteOr(originY, finiteOr(event.originY, 0));
+    slot.radius = positiveOr(radiusOverride, resolveTraitCommandEffectRadius(event, profile));
     slot.aspect = resolveAspect(event, profile);
     slot.yawDegrees = resolveYawDegrees(event);
     const rawDirX = finiteOr(event.dirX, 0);
@@ -2496,6 +2585,26 @@ export function createTraitCommandPresentation(
     slot.dirX = directionLength > 1e-8 ? rawDirX / directionLength : Math.sin(yawRadians);
     slot.dirY = directionLength > 1e-8 ? rawDirY / directionLength : -Math.cos(yawRadians);
     slot.intensity = resolveTraitCommandVisualIntensity(event, profile);
+    slot.isHeroCastCue = isHeroCastCue;
+  }
+
+  function startHeroCastCue(
+    event: TraitCommandPresentationEvent,
+    profile: TraitCommandEffectProfile,
+    currentTick: number,
+    heroX: number,
+    heroY: number,
+  ): void {
+    if (!shouldEmitHeroCastCue(event, profile) || !Number.isFinite(heroX) || !Number.isFinite(heroY)) return;
+    start(
+      event,
+      HERO_CAST_CUE_PROFILE,
+      currentTick,
+      heroX,
+      heroY,
+      HERO_CAST_CUE_RADIUS,
+      true,
+    );
   }
 
   /**
@@ -2737,7 +2846,7 @@ export function createTraitCommandPresentation(
     get overflowCount() {
       return overflowCount;
     },
-    update(currentTick, events) {
+    update(currentTick, events, heroX = Number.NaN, heroY = Number.NaN) {
       const tick = normalizedTick(currentTick);
       if (tick < lastTick) reset();
       for (const slot of slots) updateSlot(slot, tick);
@@ -2751,6 +2860,9 @@ export function createTraitCommandPresentation(
       for (const event of events) {
         const profile = projectTraitCommandEffect(event);
         if (profile === null) continue;
+        // Start the source cue before the world-side body so a full generic
+        // pool still preserves the player's cause→effect attribution.
+        startHeroCastCue(event, profile, tick, heroX, heroY);
         if (profile.kind === 'chain-lightning') {
           startChainLightning(event, tick);
         } else if (profile.kind === 'melee-arc') {

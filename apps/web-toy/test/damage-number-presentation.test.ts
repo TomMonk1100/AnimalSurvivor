@@ -3,6 +3,7 @@ import type { CombatPresentationEventView } from '../src/presentation/combat-pre
 import {
   DAMAGE_NUMBER_CRITICAL_MIN_INTERVAL_TICKS,
   DAMAGE_NUMBER_NORMAL_MIN_INTERVAL_TICKS,
+  DAMAGE_NUMBER_SHIELD_ABSORB_MIN_INTERVAL_TICKS,
   createDamageNumberPresentation,
   presentDamageNumberLabel,
   projectDamageNumberScreenPosition,
@@ -94,5 +95,29 @@ describe('damage number presentation', () => {
 
     presentation.update(43, 0, 0, 1);
     expect(Number(labels[0]!.style.opacity)).toBeGreaterThan(0);
+  });
+
+  it('coalesces repeated shield BLOCK labels without hiding a later defense beat', () => {
+    const surface = document.createElement('div');
+    const canvas = document.createElement('canvas');
+    surface.appendChild(canvas);
+    document.body.appendChild(surface);
+    const presentation = createDamageNumberPresentation(canvas, 190, 8);
+
+    presentation.setEvents([
+      event({ kind: 'shieldAbsorb', tick: 40, targetId: 'shield-a' }),
+      event({ kind: 'shieldAbsorb', tick: 40 + DAMAGE_NUMBER_SHIELD_ABSORB_MIN_INTERVAL_TICKS - 1, x: 20, targetId: 'shield-b' }),
+    ]);
+    presentation.update(43, 0, 0, 1);
+    const firstLeft = surface.querySelector<HTMLSpanElement>('.damage-number[style*="display: block"]')?.style.left;
+    presentation.setEvents([
+      event({ kind: 'shieldAbsorb', tick: 40 + DAMAGE_NUMBER_SHIELD_ABSORB_MIN_INTERVAL_TICKS, x: 30, targetId: 'shield-c' }),
+    ]);
+    presentation.update(40 + DAMAGE_NUMBER_SHIELD_ABSORB_MIN_INTERVAL_TICKS, 0, 0, 1);
+
+    const labels = [...surface.querySelectorAll<HTMLSpanElement>('.damage-number')]
+      .filter((label) => label.style.display === 'block');
+    expect(labels.map((label) => label.textContent)).toEqual(['BLOCK']);
+    expect(labels[0]!.style.left).not.toBe(firstLeft);
   });
 });

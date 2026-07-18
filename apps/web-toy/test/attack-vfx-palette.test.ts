@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ATTACK_VFX_FAMILY,
   ATTACK_VFX_RESERVED_LANE,
   CRITICAL_IMPACT_GOLD,
   EFFECT_MATERIAL_PALETTE_FAMILY,
@@ -13,6 +14,7 @@ import {
   paletteLaneForChimeraSource,
   paletteLaneForTraitSource,
   proceduralAccentOpacity,
+  proceduralColorForPaletteLane,
   proceduralUnderlayOpacity,
   saturationForRgb,
 } from '../src/render/attack-vfx-palette';
@@ -47,6 +49,28 @@ describe('attack VFX palette law', () => {
     expect(paletteLaneForEffectMaterial('midnight-radar-sonar')).toBe('arcane');
     expect(paletteLaneForEffectMaterial('owl-volley')).toBe('storm');
     expect(paletteLaneForEffectMaterial('meteor-impact')).toBe('fire');
+  });
+
+  it('keeps every emitted player-family color out of coral danger, hero/hit ivory, and reward mint/gold', () => {
+    const danger = proceduralColorForPaletteLane(ATTACK_VFX_RESERVED_LANE.danger);
+    const reward = proceduralColorForPaletteLane(ATTACK_VFX_RESERVED_LANE.reward);
+    // This matches the reserved hero-anchor / hit-spark value band from the
+    // readability plan. Physical is warm amber, deliberately not this ivory.
+    const heroHitIvory = { r: 0.96, g: 0.92, b: 0.84 };
+    const seenColors = new Set<string>();
+
+    for (const family of Object.values(ATTACK_VFX_FAMILY)) {
+      const color = proceduralColorForPaletteLane(family);
+      expect(isPlayerAttackPaletteLane(family)).toBe(true);
+      expect(color).not.toEqual(danger);
+      expect(color).not.toEqual(reward);
+      expect(color).not.toEqual(heroHitIvory);
+      expect(color).not.toEqual(CRITICAL_IMPACT_GOLD);
+      seenColors.add(`${color.r}:${color.g}:${color.b}`);
+    }
+
+    // One visual family must always read as one retained palette lane.
+    expect(seenColors.size).toBe(Object.keys(ATTACK_VFX_FAMILY).length);
   });
 
   it('uses a safe physical fallback for unknown future player traits', () => {

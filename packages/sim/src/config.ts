@@ -120,6 +120,10 @@ export interface SimConfig {
   pickupCap: number;
   /** Maximum simultaneous persistent player damage zones. */
   zoneCap: number;
+  /** Baseline range in which XP motes drift toward every hero. */
+  basePickupAttractionRadius: number;
+  /** Baseline XP-mote drift speed in simulation world units per second. */
+  basePickupAttractionSpeed: number;
   /** Authored opening cumulative XP thresholds; simulation continues with a deterministic tail. */
   xpThresholds: readonly number[];
   /** Ticks an enemy must wait between contact-damage applications. */
@@ -153,6 +157,8 @@ export function validateConfig(config: SimConfig): void {
   requireInteger('projectileCap', config.projectileCap, 1, 0xfffe);
   requireInteger('pickupCap', config.pickupCap, 1, 0xfffe);
   requireInteger('zoneCap', config.zoneCap, 1, 0xfffe);
+  requireFinite('basePickupAttractionRadius', config.basePickupAttractionRadius, 0);
+  requireFinite('basePickupAttractionSpeed', config.basePickupAttractionSpeed, 0);
   requireInteger('enemyContactCooldownTicks', config.enemyContactCooldownTicks, 0, 0xffff);
 
   let previousXp = -Infinity;
@@ -286,6 +292,8 @@ export function fingerprintConfig(config: SimConfig): string {
   w.u32(config.projectileCap);
   w.u32(config.pickupCap);
   w.u32(config.zoneCap);
+  w.f64(config.basePickupAttractionRadius);
+  w.f64(config.basePickupAttractionSpeed);
   w.u32(config.enemyContactCooldownTicks);
   w.u32(config.xpThresholds.length);
   for (const value of config.xpThresholds) w.f64(value);
@@ -402,9 +410,11 @@ export const DEFAULT_CONFIG: SimConfig = {
   projectileCap: 600,
   pickupCap: 300,
   zoneCap: 16,
+  basePickupAttractionRadius: 70,
+  basePickupAttractionSpeed: 90,
   // Cumulative thresholds: three choices can arrive in the first two minutes
   // without introducing a later abrupt XP wall.
-  xpThresholds: [4, 10, 18, 30, 46, 68, 96, 132, 176, 228],
+  xpThresholds: [32, 80, 144, 224, 320, 432, 560, 704, 864, 1_040],
   enemyContactCooldownTicks: 30,
   player: {
     startX: 1000,

@@ -34,6 +34,11 @@ export const UPGRADE_IMPACT_LAB_DURATION_SECONDS = 60 as const;
 const TRAINING_TARGET_HP = 1_000_000;
 const TRAINING_TARGET_COUNT = 24;
 const XP_SAMPLE_AMOUNT = 100;
+const XP_COLLECTION_SAMPLE_SECONDS = 1;
+const XP_COLLECTION_SAMPLE_DISTANCES = Object.freeze([
+  60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 260,
+  280, 300, 320, 340, 360, 380, 400, 420, 440, 460,
+] as const);
 const IDLE_INPUT: TickInput = Object.freeze({ moveX: 0, moveY: 0, paused: false });
 
 export type UpgradeImpactDamageStatus = 'measured' | 'no-direct-damage';
@@ -252,6 +257,22 @@ function spawnXpSample(sim: Simulation): void {
   data.radius[slot] = 1;
 }
 
+function measureXpCollectionRate(sim: Simulation): number {
+  for (const distance of XP_COLLECTION_SAMPLE_DISTANCES) {
+    const slot = sim.pickups.spawn();
+    if (slot < 0) throw new Error('upgrade impact lab pickup pool exhausted');
+    const data = sim.pickups.data;
+    data.posX[slot] = sim.player.x + distance;
+    data.posY[slot] = sim.player.y;
+    data.kind[slot] = 0;
+    data.xp[slot] = 0;
+    data.radius[slot] = 1;
+  }
+  const startingCount = sim.pickups.data.count;
+  for (let tick = 0; tick < DEFAULT_CONFIG.hz * XP_COLLECTION_SAMPLE_SECONDS; tick++) sim.step(IDLE_INPUT);
+  return (startingCount - sim.pickups.data.count) / XP_COLLECTION_SAMPLE_SECONDS;
+}
+
 function measureNonDamage(sim: Simulation, definition: UniversalUpgradeDefinition): Measurement {
   let label: string;
   let unit: string;
@@ -263,9 +284,9 @@ function measureNonDamage(sim: Simulation, definition: UniversalUpgradeDefinitio
       value = sim.player.speed;
       break;
     case 'xpMagnet':
-      label = 'Authoritative pickup radius';
-      unit = 'units';
-      value = sim.player.pickupRadius;
+      label = `Authoritative XP motes collected in ${XP_COLLECTION_SAMPLE_SECONDS}s`;
+      unit = 'motes/sec';
+      value = measureXpCollectionRate(sim);
       break;
     case 'maxHp':
       label = 'Authoritative maximum health';

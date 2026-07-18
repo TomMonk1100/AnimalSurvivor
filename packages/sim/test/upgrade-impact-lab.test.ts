@@ -36,8 +36,10 @@ test('upgrade impact lab measures direct damage and labels utility lanes without
   const moteDraw = row(report, 'xp-magnet', 0);
   assert.equal(moteDraw.category, 'Economy / utility');
   assert.equal(moteDraw.directDamageStatus, 'no-direct-damage');
-  assert.equal(moteDraw.metric.label, 'Authoritative pickup radius');
-  assert.equal(moteDraw.metric.delta, 10);
+  assert.equal(moteDraw.metric.label, 'Authoritative XP motes collected in 1s');
+  assert.equal(moteDraw.metric.unit, 'motes/sec');
+  assert.ok(moteDraw.metric.before > 0, 'the fixture measures the nonzero baseline drift');
+  assert.ok(moteDraw.metric.delta >= 4, 'rank 1 must retain a significant collection-rate gain over baseline');
   assert.match(moteDraw.authoredOutcome, /XP pull range/);
 
   const shield = row(report, 'hero-trait:gracie-fluffy-shield', 0);

@@ -3,6 +3,7 @@ import {
   easeInQuad,
   easeOutBack,
   easeOutCubic,
+  easeOutToZero,
   envelope,
 } from '../src/render/vfx-easing';
 
@@ -12,6 +13,8 @@ describe('VFX easing', () => {
     expect(easeOutCubic(1)).toBe(1);
     expect(easeInQuad(-10)).toBe(0);
     expect(easeInQuad(1)).toBe(1);
+    expect(easeOutToZero(0)).toBe(1);
+    expect(easeOutToZero(1)).toBe(0);
     expect(easeOutBack(0)).toBe(0);
     expect(easeOutBack(1)).toBe(1);
   });

@@ -32,6 +32,14 @@ export const PERSISTENT_LOOT_BREATH_PERIOD_TICKS = 120;
 export const PERSISTENT_LOOT_MAX_BREATH_HZ = 0.5;
 const PERSISTENT_LOOT_BREATH_RADIANS_PER_TICK = TAU / PERSISTENT_LOOT_BREATH_PERIOD_TICKS;
 
+/**
+ * Magnet collection feedback is a reward confirmation, not an attack or a
+ * danger signal. Keep its vortex visible while preserving luminance headroom
+ * for real threats at the hero's position.
+ */
+export const MAGNET_COLLECTION_FLASH_SAFE_OPACITY_MULTIPLIER = 0.62;
+export const MAGNET_COLLECTION_FLASH_SAFE_TRAIL_WIDTH = 0.54;
+
 /** Numeric styles are intentionally direct material/mesh routing keys. */
 export const LOOT_VISUAL_STYLE = Object.freeze({
   xpMote: 1,
@@ -787,11 +795,12 @@ function writeCollectionMotion(
       break;
     case LOOT_VISUAL_STYLE.magnet:
       // Magnets accelerate early and leave a wide cool field tail. The large
-      // impact ring gives the player an immediate "whole field pulled" read.
+      // field tail gives the player an immediate "whole field pulled" read,
+      // but must stay quieter than a projectile or an enemy telegraph.
       travel = easeOutCubic(safeProgress / 0.53);
       trailLag = 0.3;
       coreScale = 1.88 * (1 - safeProgress * 0.22);
-      trailWidth = 0.76;
+      trailWidth = MAGNET_COLLECTION_FLASH_SAFE_TRAIL_WIDTH;
       sourceBurstRadius = (1 - smoothstep(0, 0.72, safeProgress)) * 5.6;
       impactBurstRadius = smoothstep(0.2, 0.9, safeProgress) * 9.5;
       glow = 1.38;
@@ -819,7 +828,12 @@ function writeCollectionMotion(
   output.sourceBurstRadius[index] = sourceBurstRadius;
   output.impactBurstRadius[index] = impactBurstRadius;
   output.glow[index] = glow * recipe.glow;
-  output.opacity[index] = (1 - safeProgress * safeProgress) * (0.92 + (1 - safeProgress) * 0.08);
+  const flashSafeOpacity = style === LOOT_VISUAL_STYLE.magnet
+    ? MAGNET_COLLECTION_FLASH_SAFE_OPACITY_MULTIPLIER
+    : 1;
+  output.opacity[index] = (1 - safeProgress * safeProgress)
+    * (0.92 + (1 - safeProgress) * 0.08)
+    * flashSafeOpacity;
 }
 
 /**

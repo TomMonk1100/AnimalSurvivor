@@ -681,6 +681,10 @@ export function createSignatureVfxCompositePresentation(
     if (ageTicks < 0 || ageTicks >= coreLifetimeTicks || cores.count >= capacity) return;
     const index = cores.count++;
     const progress = ageTicks / coreLifetimeTicks;
+    // The final retained core sample is an exact zero-opacity frame. Without
+    // this envelope a four-tick flash would still be visibly hot at age 3 and
+    // disappear on the following pool reset.
+    const fade = envelope((ageTicks + 1) / coreLifetimeTicks, 0.05, 0.6);
     const parentScale = scale[slot]!;
     const parentCritical = critical[slot]!;
     const parentClip = clip[slot]!;
@@ -711,7 +715,7 @@ export function createSignatureVfxCompositePresentation(
       : parentClip === WILDGUARD_VFX_CLIP.earthWave
         ? (parentCritical === 1 ? 0.68 : 0.58)
         : (parentCritical === 1 ? 0.94 : 0.88);
-    cores.opacity[index] = clamp(coreValue * (1 - progress * progress), 0, 1);
+    cores.opacity[index] = clamp(coreValue * fade, 0, 1);
     cores.yawRadians[index] = Math.atan2(dirY[slot]!, dirX[slot]!);
     cores.progress[index] = progress;
     cores.seed[index] = seed[slot]!;

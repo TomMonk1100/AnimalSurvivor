@@ -308,7 +308,19 @@ test('a structural Chimera fusion ID round-trips through replay unchanged', () =
   }), { finalHash: sim.hash(), ticks: sim.tick });
 });
 
-test('universal cards change authoritative player stats and Mote Draw physically pulls motes', () => {
+test('baseline drift and Mote Draw use the same authoritative attraction path', () => {
+  const baseline = startUniversalRun();
+  baseline.selectUpgrade('universal:sturdy-hide');
+  const baselinePickupSlot = baseline.pickups.spawn();
+  assert.notEqual(baselinePickupSlot, -1);
+  baseline.pickups.data.posX[baselinePickupSlot] = baseline.player.x + 80;
+  baseline.pickups.data.posY[baselinePickupSlot] = baseline.player.y;
+  baseline.pickups.data.xp[baselinePickupSlot] = 1;
+  baseline.pickups.data.radius[baselinePickupSlot] = 4;
+  const baselinePickupId = baseline.pickups.idOf(baselinePickupSlot);
+  for (let tick = 0; tick < 30; tick++) baseline.step({ moveX: 0, moveY: 0, paused: false });
+  assert.equal(baseline.pickups.isLive(baselinePickupId), true, '80 units remains outside the 70-unit baseline');
+
   const magnet = startUniversalRun();
   assert.deepEqual(magnet.pendingUpgradeOffers.map((offer) => offer.id), [
     'universal:swift-paws', 'universal:xp-magnet', 'universal:sturdy-hide',
@@ -320,13 +332,13 @@ test('universal cards change authoritative player stats and Mote Draw physically
 
   const pickupSlot = magnet.pickups.spawn();
   assert.notEqual(pickupSlot, -1);
-  magnet.pickups.data.posX[pickupSlot] = magnet.player.x + 60;
+  magnet.pickups.data.posX[pickupSlot] = magnet.player.x + 140;
   magnet.pickups.data.posY[pickupSlot] = magnet.player.y;
   magnet.pickups.data.xp[pickupSlot] = 1;
   magnet.pickups.data.radius[pickupSlot] = 4;
   const pickupId = magnet.pickups.idOf(pickupSlot);
-  for (let tick = 0; tick < 3; tick++) magnet.step({ moveX: 0, moveY: 0, paused: false });
-  assert.equal(magnet.pickups.isLive(pickupId), false, 'mote moves into collection range instead of teleporting XP');
+  for (let tick = 0; tick < 30; tick++) magnet.step({ moveX: 0, moveY: 0, paused: false });
+  assert.equal(magnet.pickups.isLive(pickupId), false, 'rank 1 extends pull range from 70 to 150 units');
   assert.equal(magnet.player.xp, 1);
 
   const hide = startUniversalRun();

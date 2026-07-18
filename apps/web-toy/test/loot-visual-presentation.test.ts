@@ -5,6 +5,8 @@ import {
   createLootVisualPresentation,
   LOOT_VISUAL_STYLE,
   lootVisualRecipeForStyle,
+  MAGNET_COLLECTION_FLASH_SAFE_OPACITY_MULTIPLIER,
+  MAGNET_COLLECTION_FLASH_SAFE_TRAIL_WIDTH,
   PERSISTENT_LOOT_BREATH_PERIOD_TICKS,
   PERSISTENT_LOOT_MAX_BREATH_HZ,
   powerPickupVisualStyleForRole,
@@ -39,6 +41,7 @@ function category(categoryName: ViewCategory, entries: readonly Entry[]): Catego
     source: new Uint8Array(capacity),
     critical: new Uint8Array(capacity),
     marked: new Uint8Array(capacity),
+    attackCharge: new Float32Array(capacity),
   };
   for (let index = 0; index < entries.length; index++) {
     const entry = entries[index]!;
@@ -79,6 +82,23 @@ function renderSnapshot(
 }
 
 describe('loot visual presentation', () => {
+  it('keeps the Magnet reward vortex below combat flash intensity', () => {
+    const magnet = makeId(22, 1);
+    const previous = renderSnapshot(
+      80,
+      [],
+      [{ id: magnet, x: 32, y: 38, radius: 12, role: POWER_PICKUP_KIND.magnet }],
+    );
+    const current = renderSnapshot(81, [], [], 70, 90);
+    const frame = createLootVisualPresentation({ xpCapacity: 1, powerCapacity: 1, collectionCapacity: 1 })
+      .update(previous, current, 0);
+
+    expect(frame.collections.count).toBe(1);
+    expect(frame.collections.style[0]).toBe(LOOT_VISUAL_STYLE.magnet);
+    expect(frame.collections.opacity[0]).toBeCloseTo(MAGNET_COLLECTION_FLASH_SAFE_OPACITY_MULTIPLIER);
+    expect(frame.collections.trailWidth[0]).toBeCloseTo(MAGNET_COLLECTION_FLASH_SAFE_TRAIL_WIDTH);
+  });
+
   it('projects mint-and-gold tiered XP plus distinct special-pickup recipes from snapshots only', () => {
     const mote = makeId(1, 1);
     const gem = makeId(2, 1);

@@ -15,6 +15,15 @@ import { easeOutBack, easeOutCubic } from './vfx-easing';
 /** A zone/aura may breathe no faster than 0.5 Hz at the 60-tick sim rate. */
 export const ILLUSTRATED_VFX_BREATH_PERIOD_TICKS = 120;
 
+/**
+ * Painted cards stay uniformly scaled unless their authored silhouette is a
+ * directional ground crest. Keeping the exception enumerable makes future
+ * stretched-card additions a reviewable art-direction decision.
+ */
+export const ILLUSTRATED_VFX_NON_UNIFORM_CARD_EXCEPTIONS = Object.freeze([
+  WILDGUARD_VFX_CLIP.earthWave,
+] as const);
+
 const BREATH_AMPLITUDE = 0.04;
 const IMPACT_ATTACK_PORTION = 0.18;
 const IMPACT_SETTLE_SCALE = 0.92;
@@ -115,9 +124,11 @@ function writeProjectile(
   const travel = travelDistance(radius, progress, travelStart, travelEnd);
   out.offsetX = dirX * travel;
   out.offsetY = dirY * travel;
-  // The card's yaw already follows its velocity; local Z is the forward axis.
-  out.scaleX = radius * 0.8;
-  out.scaleZ = radius * 1.25;
+  // The card's yaw already follows its velocity. Travel, not a stretched
+  // texture, supplies the projectile read at game camera distance.
+  const scale = radius * 1.02;
+  out.scaleX = scale;
+  out.scaleZ = scale;
   out.heightOffset = heightOffset;
 }
 
@@ -145,9 +156,10 @@ function writeEarthWave(
   out.offsetX = dirX * travel;
   out.offsetY = dirY * travel;
   const attack = easeOutCubic(Math.min(1, progress / 0.18));
-  // Local X is the authored ridge's lateral crest and local Z is its short
-  // forward footprint. That asymmetric shape remains a single ground wave,
-  // but gives grayscale frames a clear advancing edge instead of a blob.
+  // This is the sole explicit non-uniform painted-card exception: local X is
+  // the authored ridge's lateral crest and local Z is its short forward
+  // footprint. That asymmetric ground-wave anatomy gives grayscale frames a
+  // clear advancing edge instead of a blob; other cards stay uniform.
   out.scaleX = radius * (1 + 0.34 * attack - 0.1 * eased);
   out.scaleZ = radius * (0.52 + 0.16 * attack - 0.1 * eased);
   out.yawOffsetDegrees = -11 * eased;
@@ -172,11 +184,12 @@ function writeSpitComet(
   const travel = radius * (0.12 + 1.2 * progress);
   out.offsetX = dirX * travel;
   out.offsetY = dirY * travel;
-  // Local Z follows the yaw-aligned projectile direction. Preserve the
-  // authored head/tail ratio rather than re-stretching it into a vertical
-  // generic beam; movement supplies the projectile energy.
-  out.scaleX = radius * 1.15;
-  out.scaleZ = radius * 1.18;
+  // The authored head/tail composition is in the art itself; a uniform card
+  // avoids re-stretching it into a generic beam while its linear movement
+  // provides the projectile energy.
+  const scale = radius * 1.16;
+  out.scaleX = scale;
+  out.scaleZ = scale;
   out.heightOffset = 0.22;
 }
 

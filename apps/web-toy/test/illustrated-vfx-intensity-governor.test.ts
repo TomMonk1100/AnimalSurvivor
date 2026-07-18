@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   ILLUSTRATED_VFX_DAMPENED_OPACITY_MULTIPLIER,
   ILLUSTRATED_VFX_DAMPENED_SCALE_MULTIPLIER,
+  ILLUSTRATED_VFX_PROMINENT_FAMILY_CAP,
   ILLUSTRATED_VFX_PRIORITY_FOUR,
   illustratedVfxIntensityForNewCast,
+  illustratedVfxOldestProminentFamilyToRelease,
+  illustratedVfxProminentFamilyCount,
   illustratedVfxPriorityFourHeatCount,
+  isIllustratedVfxFamilyProminent,
   isIllustratedVfxPriorityFourHot,
+  type IllustratedVfxFamilySlot,
   type IllustratedVfxHeatSlot,
 } from '../src/render/illustrated-vfx-intensity-governor';
 
@@ -15,6 +20,14 @@ function slot(overrides: Partial<IllustratedVfxHeatSlot> = {}): IllustratedVfxHe
     priority: ILLUSTRATED_VFX_PRIORITY_FOUR,
     tick: 100,
     expiresAtTick: 120,
+    ...overrides,
+  };
+}
+
+function familySlot(overrides: Partial<IllustratedVfxFamilySlot> = {}): IllustratedVfxFamilySlot {
+  return {
+    ...slot(),
+    family: 'physical',
     ...overrides,
   };
 }
@@ -68,5 +81,40 @@ describe('illustrated VFX intensity governor', () => {
       .toBe(true);
     expect(illustratedVfxIntensityForNewCast(ILLUSTRATED_VFX_PRIORITY_FOUR, 103, [first, second], first).dampened)
       .toBe(false);
+  });
+
+  it('counts only distinct families in travel/impact and evicts the oldest before a fourth arrives', () => {
+    const physical = familySlot({ family: 'physical', tick: 100, expiresAtTick: 120 });
+    const earth = familySlot({ family: 'earth', tick: 101, expiresAtTick: 121 });
+    const storm = familySlot({ family: 'storm', tick: 102, expiresAtTick: 122 });
+    const duplicateStorm = familySlot({ family: 'storm', tick: 103, expiresAtTick: 123 });
+    const slots = [physical, earth, storm, duplicateStorm];
+
+    expect(isIllustratedVfxFamilyProminent(physical, 106)).toBe(true);
+    expect(illustratedVfxProminentFamilyCount(slots, 106)).toBe(ILLUSTRATED_VFX_PROMINENT_FAMILY_CAP);
+    expect(illustratedVfxOldestProminentFamilyToRelease(slots, 106, 'venom')).toBe('physical');
+    // A second card from an already-prominent family does not spend a fourth slot.
+    expect(illustratedVfxOldestProminentFamilyToRelease(slots, 106, 'storm')).toBeNull();
+  });
+
+  it('does not count cast sparks, aftermath, or a family already marked for release', () => {
+    const cast = familySlot({ family: 'physical', tick: 103, expiresAtTick: 123 });
+    const aftermath = familySlot({ family: 'earth', tick: 80, expiresAtTick: 100 });
+    const releasing = familySlot({ family: 'storm', tick: 90, expiresAtTick: 120, prominenceEndsAtTick: 104 });
+
+    expect(isIllustratedVfxFamilyProminent(cast, 104)).toBe(false);
+    expect(isIllustratedVfxFamilyProminent(aftermath, 99)).toBe(false);
+    expect(isIllustratedVfxFamilyProminent(releasing, 104)).toBe(false);
+    expect(illustratedVfxProminentFamilyCount([cast, aftermath, releasing], 104)).toBe(0);
+  });
+
+  it('reserves a family at cast time so four simultaneous casts cannot all reach travel together', () => {
+    const physical = familySlot({ family: 'physical', tick: 100, expiresAtTick: 120 });
+    const earth = familySlot({ family: 'earth', tick: 100, expiresAtTick: 120 });
+    const storm = familySlot({ family: 'storm', tick: 100, expiresAtTick: 120 });
+
+    expect(isIllustratedVfxFamilyProminent(physical, 100)).toBe(false);
+    expect(illustratedVfxOldestProminentFamilyToRelease([physical, earth, storm], 100, 'venom'))
+      .toBe('earth');
   });
 });

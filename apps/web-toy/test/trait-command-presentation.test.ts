@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  HERO_CAST_CUE_ACCENT_OPACITY,
+  HERO_CAST_CUE_LIFETIME_TICKS,
+  HERO_CAST_CUE_RADIUS,
+  HERO_CAST_CUE_UNDERLAY_OPACITY,
   hasResolvedOrbitContact,
   hasResolvedMeleeArc,
   projectHeroCombatFeedbackEffect,
@@ -15,6 +19,7 @@ import {
   resolveTraitCommandVisualStage,
   resolveIllustratedHeroUnderlayOpacityMultiplier,
   resolveTraitCommandEffectRadius,
+  shouldEmitHeroCastCue,
   type TraitCommandPresentationEvent,
 } from '../src/render/trait-command-presentation';
 
@@ -162,6 +167,28 @@ describe('trait command presentation profiles', () => {
     const wildSpliceProfile = projectTraitCommandEffect(wildSplice)!;
     expect(resolveTraitCommandPaletteLane(wildSplice, wildSpliceProfile)).toBe('physical');
     expect(resolveTraitCommandAccentPaletteLane(wildSplice, wildSpliceProfile)).toBe('storm');
+  });
+
+  it('emits a compact source cue only for explicit player world-effect families', () => {
+    const trample = command({
+      kind: 'telegraph', sourceId: 'benny-trample', tag: 'benny-trample-wave', radius: 48,
+    });
+    const trampleProfile = projectTraitCommandEffect(trample)!;
+    expect(shouldEmitHeroCastCue(trample, trampleProfile)).toBe(true);
+
+    const boss = command({ kind: 'telegraph', sourceId: 'boss-charge', tag: 'boss-charge' });
+    expect(shouldEmitHeroCastCue(boss, projectTraitCommandEffect(boss)!)).toBe(false);
+
+    const unknown = command({ kind: 'spawnProjectileBurst', sourceId: 'unknown-future-source' });
+    expect(shouldEmitHeroCastCue(unknown, projectTraitCommandEffect(unknown)!)).toBe(false);
+
+    const shield = command({ kind: 'grantShield', sourceId: 'fluffy-shield' });
+    expect(shouldEmitHeroCastCue(shield, projectTraitCommandEffect(shield)!)).toBe(false);
+
+    expect(HERO_CAST_CUE_LIFETIME_TICKS).toBeLessThanOrEqual(8);
+    expect(HERO_CAST_CUE_RADIUS).toBeLessThanOrEqual(14);
+    expect(HERO_CAST_CUE_UNDERLAY_OPACITY).toBeLessThanOrEqual(0.35);
+    expect(HERO_CAST_CUE_ACCENT_OPACITY).toBeLessThanOrEqual(0.45);
   });
 
   it('selects the finite live material key from the source family, including the Razorstep compatibility route', () => {
@@ -416,14 +443,19 @@ describe('trait command presentation profiles', () => {
     const skunk = projectTraitCommandEffect(command({
       kind: 'spawnZone', sourceId: 'skunk-brush', tag: 'stink-cloud',
     }))!;
+    const chain = projectTraitCommandEffect(command({
+      kind: 'chainDamage', sourceId: 'electric-eel-coil', resolvedHitCount: 1,
+      resolvedHitX: new Float32Array([54]), resolvedHitY: new Float32Array([72]),
+    }))!;
     const enemyWarning = projectTraitCommandEffect(command({ kind: 'telegraph', tag: 'boss-charge' }))!;
 
     expect(resolveIllustratedHeroUnderlayOpacityMultiplier(fox)).toBe(0.12);
     expect(resolveIllustratedHeroUnderlayOpacityMultiplier(trample)).toBe(0.14);
     expect(resolveIllustratedHeroUnderlayOpacityMultiplier(spit)).toBe(0.12);
-    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(shield)).toBe(0.18);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(shield)).toBe(0.1);
     expect(resolveIllustratedHeroUnderlayOpacityMultiplier(puffer)).toBe(0.14);
     expect(resolveIllustratedHeroUnderlayOpacityMultiplier(skunk)).toBe(0.12);
+    expect(resolveIllustratedHeroUnderlayOpacityMultiplier(chain)).toBe(0.24);
     expect(resolveIllustratedHeroUnderlayOpacityMultiplier(enemyWarning)).toBe(1);
   });
 });

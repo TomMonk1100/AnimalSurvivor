@@ -7,9 +7,23 @@ import type { CombatPresentationEventView } from './combat-presentation-events';
  * and never derives, changes, or feeds a result back to the simulation.
  */
 export const MAX_COMBAT_DEFENSE_PRESENTATION_EVENTS = 16;
+/**
+ * A dense contact cluster can resolve several shield absorbs in a handful of
+ * fixed ticks. The first cue explains the defense; re-emitting its large
+ * player-centered field before it releases adds flash without new player
+ * information. This is presentation cadence only, never combat cooldown.
+ */
+export const COMBAT_DEFENSE_SHIELD_ABSORB_MIN_INTERVAL_TICKS = 72;
 
 const EMPTY_COMMANDS: readonly TraitPresentationEventView[] = Object.freeze([]);
 const EMPTY_HIT_COORDINATES = new Float32Array(0);
+
+export interface CombatDefensePresentation {
+  /** Projects already-resolved defense outcomes with a bounded visual cadence. */
+  project(events: readonly CombatPresentationEventView[]): readonly TraitPresentationEventView[];
+  /** Clears renderer-owned cadence history at a run or replay boundary. */
+  reset(): void;
+}
 
 function sourceFor(event: CombatPresentationEventView): string | null {
   switch (event.kind) {
@@ -74,4 +88,34 @@ export function projectCombatDefensePresentationEvents(
     if (commands.length >= MAX_COMBAT_DEFENSE_PRESENTATION_EVENTS) break;
   }
   return commands.length === 0 ? EMPTY_COMMANDS : Object.freeze(commands);
+}
+
+/**
+ * Stateful renderer-side admission for defensive cues. Shield break remains
+ * immediate because it communicates a distinct, high-signal state change;
+ * routine shield absorbs are coalesced after their first visible cue.
+ */
+export function createCombatDefensePresentation(): CombatDefensePresentation {
+  let lastShieldAbsorbCueTick = Number.NEGATIVE_INFINITY;
+
+  return {
+    project(events) {
+      if (events.length === 0) return EMPTY_COMMANDS;
+      const admitted: CombatPresentationEventView[] = [];
+      for (const event of events) {
+        if (event.kind !== 'shieldAbsorb') {
+          admitted.push(event);
+          continue;
+        }
+        const tick = Math.max(0, Math.floor(Number.isFinite(event.tick) ? event.tick : 0));
+        if (tick - lastShieldAbsorbCueTick < COMBAT_DEFENSE_SHIELD_ABSORB_MIN_INTERVAL_TICKS) continue;
+        lastShieldAbsorbCueTick = tick;
+        admitted.push(event);
+      }
+      return projectCombatDefensePresentationEvents(admitted);
+    },
+    reset() {
+      lastShieldAbsorbCueTick = Number.NEGATIVE_INFINITY;
+    },
+  };
 }

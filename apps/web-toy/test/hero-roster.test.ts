@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { HERO_CATALOG } from '@sim';
+import {
+  BENNY_CUTOUT_HALF_EXTENT,
+  GRACIE_CUTOUT_HALF_EXTENT,
+  PROCEDURAL_ANIMAL_ROOT_SCALE,
+  SCOUT_CUTOUT_HALF_EXTENT,
+} from '../src/hero/procedural-animal-presentation';
+import {
+  HERO_ANCHOR_BREATH_PERIOD_TICKS,
+  HERO_ANCHOR_DAMAGE_PULSE_DURATION_TICKS,
+  HERO_ANCHOR_INNER_RING_RADIUS_MULTIPLIER,
+  HERO_ANCHOR_IVORY_HEX,
+  HERO_ANCHOR_OUTER_RING_RADIUS_MULTIPLIER,
+  HERO_ANCHOR_PULSE_IVORY_HEX,
+  projectHeroAnchorPose,
+  writeHeroAnchorPose,
+} from '../src/hero/hero-presentation';
 import { HERO_VISUAL_PROFILES, getHeroVisualProfile } from '../src/hero/hero-roster';
 
 describe('founding hero roster', () => {
@@ -57,5 +73,63 @@ describe('founding hero roster', () => {
     expect(getHeroVisualProfile('gracie')).toMatchObject({
       displayName: 'Gracie', species: 'Alpaca', characterLine: expect.stringMatching(/Spit/i), statLine: expect.stringMatching(/Fluffy Shield/i),
     });
+  });
+
+  it('projects a reserved-ivory hero anchor and one bounded damage locator pulse', () => {
+    expect(HERO_ANCHOR_IVORY_HEX).toBe('#f3ead4');
+    expect(HERO_ANCHOR_PULSE_IVORY_HEX).toBe('#fffbe9');
+    const idle = projectHeroAnchorPose(8, 0, 0, Number.NEGATIVE_INFINITY);
+    expect(idle.innerRingRadius).toBeCloseTo(8 * HERO_ANCHOR_INNER_RING_RADIUS_MULTIPLIER);
+    expect(idle.outerRingRadius).toBeCloseTo(8 * HERO_ANCHOR_OUTER_RING_RADIUS_MULTIPLIER);
+    // The calm locator must escape the largest scaled hero card; otherwise it
+    // becomes invisible beneath the alpha-tested silhouette at play zoom.
+    expect(idle.innerRingRadius).toBeGreaterThanOrEqual(
+      SCOUT_CUTOUT_HALF_EXTENT * PROCEDURAL_ANIMAL_ROOT_SCALE,
+    );
+    expect(idle.outerRingRadius).toBeGreaterThan(
+      SCOUT_CUTOUT_HALF_EXTENT * PROCEDURAL_ANIMAL_ROOT_SCALE,
+    );
+    expect(idle.pulseActive).toBe(false);
+
+    const hit = projectHeroAnchorPose(8, 200, 0, 200);
+    const fading = projectHeroAnchorPose(8, 209, 0, 200);
+    const expired = projectHeroAnchorPose(
+      8,
+      200 + HERO_ANCHOR_DAMAGE_PULSE_DURATION_TICKS,
+      0,
+      200,
+    );
+    expect(hit.pulseActive).toBe(true);
+    expect(fading.pulseActive).toBe(true);
+    expect(fading.pulseRingRadius).toBeGreaterThan(hit.pulseRingRadius);
+    expect(fading.pulseOpacity).toBeLessThan(hit.pulseOpacity);
+    expect(expired).toMatchObject({ pulseActive: false, pulseOpacity: 0 });
+
+    const quarterBreath = projectHeroAnchorPose(8, HERO_ANCHOR_BREATH_PERIOD_TICKS / 4, 0, Number.NEGATIVE_INFINITY);
+    expect(quarterBreath.breathScale).toBeGreaterThan(1);
+  });
+
+  it('writes the anchor projection into a caller-owned reusable pose', () => {
+    const pose = {
+      breathScale: 0,
+      shadowRadius: 0,
+      innerRingRadius: 0,
+      outerRingRadius: 0,
+      pulseRingRadius: 0,
+      pulseOpacity: 0,
+      pulseActive: false,
+    };
+    const originalReference = pose;
+    writeHeroAnchorPose(pose, 8, 205, 0.5, 200);
+
+    expect(pose).toBe(originalReference);
+    expect(pose).toEqual(projectHeroAnchorPose(8, 205, 0.5, 200));
+  });
+
+  it('keeps Scout visibly largest while proportionally lifting every founding cutout', () => {
+    expect(SCOUT_CUTOUT_HALF_EXTENT).toBe(8.2);
+    expect(SCOUT_CUTOUT_HALF_EXTENT).toBeGreaterThan(BENNY_CUTOUT_HALF_EXTENT);
+    expect(BENNY_CUTOUT_HALF_EXTENT).toBeGreaterThan(GRACIE_CUTOUT_HALF_EXTENT);
+    expect(GRACIE_CUTOUT_HALF_EXTENT).toBeGreaterThanOrEqual(8);
   });
 });

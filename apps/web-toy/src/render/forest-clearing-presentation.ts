@@ -2,7 +2,11 @@ import * as pc from 'playcanvas';
 import type { BiomeId } from '@sim';
 import { createInstancedCategoryBatch } from './instanced-category-batch';
 import type { InstancedCategoryBatch, InstanceMatrices } from './instanced-category-batch';
-import { WILDGUARD_GLADE_GROUND_URL } from './wildguard-ground-texture';
+import {
+  WILDGUARD_GLADE_GROUND_DIFFUSE_TINT,
+  WILDGUARD_GLADE_GROUND_EMISSIVE_LIFT,
+  WILDGUARD_GLADE_GROUND_URL,
+} from './wildguard-ground-texture';
 
 /**
  * Static, presentation-only forest clearing below the survival arena.
@@ -64,6 +68,13 @@ export const FOREST_ROOT_COUNT = 58;
 export const FOREST_LIGHT_POOL_COUNT = 11;
 export const FOREST_BOUNDARY_FOG_BAND_COUNT = 4;
 export const SALTWIND_RUIN_COUNT = 12;
+
+/** Pull static ground props toward the floor so entities own grayscale contrast. */
+export const FOREST_GROUND_PROP_FLOOR_BLEND = 0.36;
+/** Halves the brightest static sun patches without removing the clearing's warmth. */
+export const FOREST_SUN_DAPPLE_OPACITY = 0.04;
+/** More than 40% quieter than the prior 0.42 edge-darkening layer. */
+export const FOREST_BOUNDARY_FOG_OPACITY = 0.24;
 
 const VISUAL_SEED = 0x57_49_4c_44;
 /** Saltwind uses a stable alternate arrangement so its arena is not a recolor. */
@@ -556,6 +567,23 @@ function color(values: readonly [number, number, number]): pc.Color {
   return new pc.Color(values[0], values[1], values[2]);
 }
 
+/**
+ * Keeps decorative props in the same value family as the forest floor. This
+ * is static renderer dressing only; it does not alter placements, simulation,
+ * or the Saltwind palette.
+ */
+export function blendForestGroundPropTowardFloor(
+  source: readonly [number, number, number],
+  floor: readonly [number, number, number],
+): [number, number, number] {
+  const sourceWeight = 1 - FOREST_GROUND_PROP_FLOOR_BLEND;
+  return [
+    source[0] * sourceWeight + floor[0] * FOREST_GROUND_PROP_FLOOR_BLEND,
+    source[1] * sourceWeight + floor[1] * FOREST_GROUND_PROP_FLOOR_BLEND,
+    source[2] * sourceWeight + floor[2] * FOREST_GROUND_PROP_FLOOR_BLEND,
+  ];
+}
+
 function addFloor(
   device: pc.GraphicsDevice,
   parent: pc.Entity,
@@ -578,8 +606,16 @@ function addFloor(
     image.decoding = 'async';
     image.onload = (): void => {
       texture?.setSource(image);
-      material.diffuse.set(0.72, 0.84, 0.54);
-      material.emissive.set(0.035, 0.065, 0.022);
+      material.diffuse.set(
+        WILDGUARD_GLADE_GROUND_DIFFUSE_TINT[0],
+        WILDGUARD_GLADE_GROUND_DIFFUSE_TINT[1],
+        WILDGUARD_GLADE_GROUND_DIFFUSE_TINT[2],
+      );
+      material.emissive.set(
+        WILDGUARD_GLADE_GROUND_EMISSIVE_LIFT[0],
+        WILDGUARD_GLADE_GROUND_EMISSIVE_LIFT[1],
+        WILDGUARD_GLADE_GROUND_EMISSIVE_LIFT[2],
+      );
       material.diffuseMap = texture;
       material.diffuseMapTiling = new pc.Vec2(3, 3);
       material.update();
@@ -1029,6 +1065,9 @@ export function createForestClearingPresentation(
     if (decorations.length === 0) return;
     batches.push(createStaticForestBatch(device, parent, name, mesh, tint, decorations, options));
   };
+  const groundPropTint = (values: readonly [number, number, number]): pc.Color => color(
+    biomeId === 'forest' ? blendForestGroundPropTowardFloor(values, art.floor) : values,
+  );
 
   // The generated ground plate carries the fine grass/stone/flower texture;
   // these translucent, hand-cut color washes add volume without painting a
@@ -1036,14 +1075,18 @@ export function createForestClearingPresentation(
   addBatch(`${biomeId}-meadow-base`, clearingBaseMesh, color(art.clearingOuter), layout.clearingLayers.slice(0, 2), { opacity: 0.07 });
   addBatch(`${biomeId}-meadow-inner`, clearingInnerMesh, color(art.clearingInner), layout.clearingLayers.slice(2), { opacity: 0.045 });
   addBatch(`${biomeId}-moss-patch`, mossMesh, color(art.moss), layout.mossPatches, { opacity: 0.06 });
-  addBatch(`${biomeId}-sun-dapple`, lightPoolMesh, color(art.lightPool), layout.lightPools, { opacity: 0.09 });
-  addBatch(`${biomeId}-boundary-fog`, boundaryFogMesh, color(art.canopyShadow), layout.boundaryFog, { opacity: 0.42 });
-  addBatch(`${biomeId}-leaf-litter`, leafLitterMesh, color(art.leafLitter), layout.leafLitter);
-  addBatch(`${biomeId}-grass-tuft`, grassMesh, color(art.grass), layout.grassTufts, { diorama: true });
-  addBatch(`${biomeId}-fern`, fernMesh, color(art.fern), layout.ferns, { diorama: true });
-  addBatch(`${biomeId}-flower-gold`, flowerMesh, color(art.flowerA), flowerVariants[0]!, { diorama: true });
-  addBatch(`${biomeId}-flower-rose`, flowerMesh, color(art.flowerB), flowerVariants[1]!, { diorama: true });
-  addBatch(`${biomeId}-flower-cream`, flowerMesh, color(art.flowerC), flowerVariants[2]!, { diorama: true });
+  addBatch(`${biomeId}-sun-dapple`, lightPoolMesh, color(art.lightPool), layout.lightPools, {
+    opacity: FOREST_SUN_DAPPLE_OPACITY,
+  });
+  addBatch(`${biomeId}-boundary-fog`, boundaryFogMesh, color(art.canopyShadow), layout.boundaryFog, {
+    opacity: FOREST_BOUNDARY_FOG_OPACITY,
+  });
+  addBatch(`${biomeId}-leaf-litter`, leafLitterMesh, groundPropTint(art.leafLitter), layout.leafLitter);
+  addBatch(`${biomeId}-grass-tuft`, grassMesh, groundPropTint(art.grass), layout.grassTufts, { diorama: true });
+  addBatch(`${biomeId}-fern`, fernMesh, groundPropTint(art.fern), layout.ferns, { diorama: true });
+  addBatch(`${biomeId}-flower-gold`, flowerMesh, groundPropTint(art.flowerA), flowerVariants[0]!, { diorama: true });
+  addBatch(`${biomeId}-flower-rose`, flowerMesh, groundPropTint(art.flowerB), flowerVariants[1]!, { diorama: true });
+  addBatch(`${biomeId}-flower-cream`, flowerMesh, groundPropTint(art.flowerC), flowerVariants[2]!, { diorama: true });
   // The forest build now uses the curated CC0 trees in the glade presenter.
   // Keep this broad low-poly canopy layer for Saltwind's abstract ruin
   // silhouette only; in the forest it was masking the authored texture and
@@ -1055,9 +1098,9 @@ export function createForestClearingPresentation(
     addBatch(`${biomeId}-canopy-sun`, canopyHighlightMesh, color(art.canopyHighlight), canopyHighlights, { diorama: true });
     addBatch(`${biomeId}-tree-trunk`, treeBaseMesh, color(art.treeBase), layout.treeBases, { diorama: true });
   }
-  addBatch(`${biomeId}-boulder-a`, stoneMeshA, color(art.stone), stoneVariants[0]!, { diorama: true });
-  addBatch(`${biomeId}-boulder-b`, stoneMeshB, color(art.stoneHighlight), stoneVariants[1]!, { diorama: true });
-  addBatch(`${biomeId}-root-cluster`, rootMesh, color(art.root), layout.roots, { diorama: true });
+  addBatch(`${biomeId}-boulder-a`, stoneMeshA, groundPropTint(art.stone), stoneVariants[0]!, { diorama: true });
+  addBatch(`${biomeId}-boulder-b`, stoneMeshB, groundPropTint(art.stoneHighlight), stoneVariants[1]!, { diorama: true });
+  addBatch(`${biomeId}-root-cluster`, rootMesh, groundPropTint(art.root), layout.roots, { diorama: true });
   if (ruinMesh !== null) {
     addBatch('saltwind-ruins', ruinMesh, color(art.landmark), layout.landmarks, { diorama: true });
   }

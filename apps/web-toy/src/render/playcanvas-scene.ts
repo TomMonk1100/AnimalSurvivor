@@ -93,7 +93,12 @@ import { createArenaGridPresentation } from './arena-grid-presentation';
 import { createForestClearingPresentation } from './forest-clearing-presentation';
 import { createQuaterniusGladePresentation } from './quaternius-glade-presentation';
 import { createContextLossController } from './context-loss-controller';
-import { WILDGUARD_ENEMY_SPRITE_URLS } from './wildguard-enemy-sprites';
+import {
+  WILDGUARD_ENEMY_CONTACT_SHADOW_OPACITY,
+  WILDGUARD_ENEMY_CONTACT_SHADOW_SCALE_MULTIPLIER,
+  WILDGUARD_ENEMY_SPRITE_EMISSIVE_FACTOR,
+  WILDGUARD_ENEMY_SPRITE_URLS,
+} from './wildguard-enemy-sprites';
 import { clampCameraTarget } from './camera-bounds';
 import { createDamageNumberPresentation } from './damage-number-presentation';
 import {
@@ -102,10 +107,11 @@ import {
   shouldRenderXpIllustratedHalo,
 } from './xp-visual-density-governor';
 import type { CombatPresentationEventView } from '../presentation/combat-presentation-events';
-import { projectCombatDefensePresentationEvents } from '../presentation/combat-defense-presentation';
+import { createCombatDefensePresentation } from '../presentation/combat-defense-presentation';
 import {
   createEnemyThreatPresentation,
   ENEMY_THREAT_PALETTES,
+  HOSTILE_PROJECTILE_SCENE_CORE_MULTIPLIER,
   type EnemyThreatPaletteId,
 } from './enemy-threat-presentation';
 import {
@@ -146,6 +152,7 @@ import {
 } from './projectile-visual-truth';
 import {
   createHeroSpitProjectileSignaturePresentation,
+  HERO_SPIT_BODY_OPACITY,
   heroSpitBodyForwardScaleForRadius,
   heroSpitBodyLateralScaleForRadius,
 } from './projectile-signature-vfx-presentation';
@@ -194,7 +201,9 @@ const PROJECTILE_COLOR = new pc.Color(
 const PICKUP_COLOR = new pc.Color(0.08, 0.64, 0.42); // quiet mint; accents carry the reward sparkle
 const BOMB_PICKUP_COLOR = new pc.Color(1, 0.3, 0.1); // urgent ember-orange
 const MAGNET_PICKUP_COLOR = new pc.Color(0.4, 0.62, 1); // map-wide pull blue
-const FOOD_PICKUP_COLOR = new pc.Color(0.44, 1, 0.22); // bright restorative bloom
+// Food stays a distinct restorative green, but it must not become a brighter
+// moving warning than incoming coral danger during dense late-game pickups.
+const FOOD_PICKUP_COLOR = new pc.Color(0.14, 0.45, 0.14);
 const HOSTILE_PROJECTILE_COLOR = new pc.Color(1, 0.22, 0.24); // hot coral-red
 /** Fixed role treatments: never a unique material or mesh per enemy. */
 const ELITE_ENEMY_COLOR = new pc.Color(1, 0.58, 0.12); // amber
@@ -276,11 +285,18 @@ function createCreatureMaterial(color: pc.Color): pc.StandardMaterial {
  * overlapping swarm members remain crisp, depth-correct, and cheap without
  * the fuzzy sorting artifacts that make flat billboards feel like a prototype.
  */
-function createCutoutSpriteMaterial(tint: pc.Color): pc.StandardMaterial {
+function createCutoutSpriteMaterial(
+  tint: pc.Color,
+  emissiveFactor = 0.045,
+): pc.StandardMaterial {
   const material = new pc.StandardMaterial();
   material.useLighting = false;
   material.diffuse.copy(tint);
-  material.emissive.set(tint.r * 0.045, tint.g * 0.045, tint.b * 0.045);
+  material.emissive.set(
+    tint.r * emissiveFactor,
+    tint.g * emissiveFactor,
+    tint.b * emissiveFactor,
+  );
   material.opacity = 1;
   material.alphaTest = 0.14;
   material.blendType = pc.BLEND_NONE;
@@ -473,13 +489,28 @@ function createTelegraphMaterial(color: pc.Color, opacity: number): pc.StandardM
   return material;
 }
 
+/**
+ * A normal-blend near-black contour behind the bright danger geometry. Additive
+ * black cannot create contrast, so outlines intentionally use a separate
+ * material while remaining presentation-only and batch-scoped.
+ */
+function createThreatOutlineMaterial(color: pc.Color): pc.StandardMaterial {
+  const material = createFlatMaterial(color);
+  material.opacity = 1;
+  material.blendType = pc.BLEND_NORMAL;
+  material.depthWrite = false;
+  material.cull = pc.CULLFACE_NONE;
+  material.update();
+  return material;
+}
+
 /** A short, soft creature contact shadow kept below gameplay entities. */
 function createShadowMaterial(): pc.StandardMaterial {
   const material = new pc.StandardMaterial();
   material.useLighting = false;
   material.diffuse.set(0, 0, 0);
   material.emissive.set(0, 0, 0);
-  material.opacity = 0.24;
+  material.opacity = WILDGUARD_ENEMY_CONTACT_SHADOW_OPACITY;
   material.blendType = pc.BLEND_NORMAL;
   material.depthWrite = false;
   material.update();
@@ -531,6 +562,14 @@ interface SignatureVfxRoute {
 }
 
 const ENEMY_HIT_FLASH_RENDER_CAPACITY = 48;
+// A hostile launch pop is a brief source-location cue, not a screen-wide
+// burst. Six nearest retained pops preserve the causal read while keeping a
+// dense same-tick volley inside the flash budget.
+// Match the semantic admission budget so a valid muzzle descriptor is never
+// silently discarded by the scene. Scale carries the eight-tick age; opacity
+// remains deliberately below the projectile core to preserve flash headroom.
+const HOSTILE_MUZZLE_RENDER_CAPACITY = 12;
+const HOSTILE_MUZZLE_RENDER_OPACITY = 0.58;
 const IMPACT_COMPOSITE_CAPACITY = 48;
 const IMPACT_NORMAL_DEBRIS_CAPACITY = IMPACT_COMPOSITE_CAPACITY * 3;
 const IMPACT_CRITICAL_DEBRIS_CAPACITY = IMPACT_COMPOSITE_CAPACITY * 7;
@@ -779,16 +818,46 @@ export function createRenderer(
   // Each art family keeps a small set of shared tint materials. The texture is
   // decoded only once per family, while role colors preserve the immediate
   // mechanical read that the old primitive batches provided.
-  const walkerEnemyMaterial = createCutoutSpriteMaterial(new pc.Color(1, 1, 1));
-  const runnerEnemyMaterial = createCutoutSpriteMaterial(new pc.Color(1, 1, 1));
-  const bruteEnemyMaterial = createCutoutSpriteMaterial(new pc.Color(1, 1, 1));
-  const eliteEnemyMaterial = createCutoutSpriteMaterial(ELITE_ENEMY_COLOR);
-  const bossEnemyMaterial = createCutoutSpriteMaterial(new pc.Color(1, 1, 1));
-  const rangedEnemyMaterial = createCutoutSpriteMaterial(RANGED_ENEMY_COLOR);
-  const chargerEnemyMaterial = createCutoutSpriteMaterial(CHARGER_ENEMY_COLOR);
-  const denialEnemyMaterial = createCutoutSpriteMaterial(DENIAL_ENEMY_COLOR);
-  const flankerEnemyMaterial = createCutoutSpriteMaterial(FLANKER_ENEMY_COLOR);
-  const supportEnemyMaterial = createCutoutSpriteMaterial(SUPPORT_ENEMY_COLOR);
+  const walkerEnemyMaterial = createCutoutSpriteMaterial(
+    new pc.Color(1, 1, 1),
+    WILDGUARD_ENEMY_SPRITE_EMISSIVE_FACTOR,
+  );
+  const runnerEnemyMaterial = createCutoutSpriteMaterial(
+    new pc.Color(1, 1, 1),
+    WILDGUARD_ENEMY_SPRITE_EMISSIVE_FACTOR,
+  );
+  const bruteEnemyMaterial = createCutoutSpriteMaterial(
+    new pc.Color(1, 1, 1),
+    WILDGUARD_ENEMY_SPRITE_EMISSIVE_FACTOR,
+  );
+  const eliteEnemyMaterial = createCutoutSpriteMaterial(
+    ELITE_ENEMY_COLOR,
+    WILDGUARD_ENEMY_SPRITE_EMISSIVE_FACTOR,
+  );
+  const bossEnemyMaterial = createCutoutSpriteMaterial(
+    new pc.Color(1, 1, 1),
+    WILDGUARD_ENEMY_SPRITE_EMISSIVE_FACTOR,
+  );
+  const rangedEnemyMaterial = createCutoutSpriteMaterial(
+    RANGED_ENEMY_COLOR,
+    WILDGUARD_ENEMY_SPRITE_EMISSIVE_FACTOR,
+  );
+  const chargerEnemyMaterial = createCutoutSpriteMaterial(
+    CHARGER_ENEMY_COLOR,
+    WILDGUARD_ENEMY_SPRITE_EMISSIVE_FACTOR,
+  );
+  const denialEnemyMaterial = createCutoutSpriteMaterial(
+    DENIAL_ENEMY_COLOR,
+    WILDGUARD_ENEMY_SPRITE_EMISSIVE_FACTOR,
+  );
+  const flankerEnemyMaterial = createCutoutSpriteMaterial(
+    FLANKER_ENEMY_COLOR,
+    WILDGUARD_ENEMY_SPRITE_EMISSIVE_FACTOR,
+  );
+  const supportEnemyMaterial = createCutoutSpriteMaterial(
+    SUPPORT_ENEMY_COLOR,
+    WILDGUARD_ENEMY_SPRITE_EMISSIVE_FACTOR,
+  );
   // These four materials share the same authored alpha masks as the enemy
   // families, but render a brief white emissive overlay on exact hit targets.
   const walkerEnemyHitFlashMaterial = createEnemyHitFlashMaterial();
@@ -912,6 +981,22 @@ export function createRenderer(
     elite: createTelegraphMaterial(parseHexColor(ENEMY_THREAT_PALETTES.elite.primary), 0.58),
     boss: createTelegraphMaterial(parseHexColor(ENEMY_THREAT_PALETTES.boss.accent), 0.72),
   } as const;
+  // These two routes use plain procedural geometry rather than stretching a
+  // painted attack card: a shooter wedge/ring is exact danger information,
+  // not a second illustrated player effect.
+  const shooterWindupMaterial = createTelegraphMaterial(
+    parseHexColor(ENEMY_THREAT_PALETTES.hostile.primary),
+    0.78,
+  );
+  const shooterInhaleMaterial = createTelegraphMaterial(
+    parseHexColor(ENEMY_THREAT_PALETTES.hostile.accent),
+    0.74,
+  );
+  const threatOutlineMaterials = {
+    elite: createThreatOutlineMaterial(parseHexColor(ENEMY_THREAT_PALETTES.elite.outline)),
+    boss: createThreatOutlineMaterial(parseHexColor(ENEMY_THREAT_PALETTES.boss.outline)),
+    saltwind: createThreatOutlineMaterial(parseHexColor(ENEMY_THREAT_PALETTES.saltwind.outline)),
+  } as const;
   const normalImpactMaterial = wildguardVfxMaterialBank.materialForFrame('normalImpact');
   const criticalImpactMaterial = wildguardVfxMaterialBank.materialForFrame('criticalImpact');
   const playerImpactMaterial = wildguardVfxMaterialBank.materialForFrame('playerImpact');
@@ -919,6 +1004,9 @@ export function createRenderer(
     ...Object.values(threatRingMaterials),
     eliteAuraMaterials.elite,
     eliteAuraMaterials.boss,
+    shooterWindupMaterial,
+    shooterInhaleMaterial,
+    ...Object.values(threatOutlineMaterials),
   ];
 
   const walkerTextureBinding = bindCutoutSpriteTexture(
@@ -1370,7 +1458,7 @@ export function createRenderer(
     'bomb-collection-novas', 72, vfxCardMesh, bombCollectionMaterial, 0.58, 0.96,
   );
   const magnetCollectionRoute = createRoutedVfxBatch(
-    'magnet-collection-vortices', 72, vfxCardMesh, magnetCollectionMaterial, 0.58, 0.9,
+    'magnet-collection-vortices', 72, vfxCardMesh, magnetCollectionMaterial, 0.58, 0.66,
   );
   const foodCollectionRoute = createRoutedVfxBatch(
     'food-collection-blooms', 72, vfxCardMesh, foodCollectionMaterial, 0.58, 0.9,
@@ -1392,34 +1480,67 @@ export function createRenderer(
     app.graphicsDevice, entitiesRoot, 'hostile-projectile-trails', 72,
     vfxCardMesh, hostileTrailAccentMaterial, 0.48,
   );
+  const hostileMuzzlePopBatch = createInstancedCategoryBatch(
+    app.graphicsDevice, entitiesRoot, 'hostile-muzzle-pops', HOSTILE_MUZZLE_RENDER_CAPACITY,
+    vfxCardMesh, hostileProjectileAccentMaterial, 0.48,
+  );
   const threatTelegraphRoutes: Record<EnemyThreatPaletteId, VfxRoutedBatch> = {
-    hostile: createRoutedVfxBatch('hostile-telegraphs', 24, vfxCardMesh, threatTelegraphMaterials.hostile, 0.16, 0.62),
-    charger: createRoutedVfxBatch('charger-telegraphs', 24, vfxCardMesh, threatTelegraphMaterials.charger, 0.16, 0.68),
-    elite: createRoutedVfxBatch('elite-telegraphs', 24, vfxCardMesh, threatTelegraphMaterials.elite, 0.16, 0.7),
-    boss: createRoutedVfxBatch('boss-telegraphs', 24, vfxCardMesh, threatTelegraphMaterials.boss, 0.16, 0.78),
-    saltwind: createRoutedVfxBatch('saltwind-telegraphs', 24, vfxCardMesh, threatTelegraphMaterials.saltwind, 0.16, 0.7),
-    support: createRoutedVfxBatch('support-telegraphs', 24, vfxCardMesh, threatTelegraphMaterials.support, 0.16, 0.6),
+    hostile: createRoutedVfxBatch('hostile-telegraphs', 16, vfxCardMesh, threatTelegraphMaterials.hostile, 0.16, 0.62),
+    charger: createRoutedVfxBatch('charger-telegraphs', 16, vfxCardMesh, threatTelegraphMaterials.charger, 0.16, 0.68),
+    elite: createRoutedVfxBatch('elite-telegraphs', 16, vfxCardMesh, threatTelegraphMaterials.elite, 0.16, 0.7),
+    boss: createRoutedVfxBatch('boss-telegraphs', 16, vfxCardMesh, threatTelegraphMaterials.boss, 0.16, 0.78),
+    saltwind: createRoutedVfxBatch('saltwind-telegraphs', 16, vfxCardMesh, threatTelegraphMaterials.saltwind, 0.16, 0.7),
+    support: createRoutedVfxBatch('support-telegraphs', 16, vfxCardMesh, threatTelegraphMaterials.support, 0.16, 0.6),
   };
   const threatRingRoutes: Record<EnemyThreatPaletteId, VfxRoutedBatch> = {
-    hostile: createRoutedVfxBatch('hostile-contact-rings', 16, vfxRingMesh, threatRingMaterials.hostile, 0.19, 0.72),
-    charger: createRoutedVfxBatch('charger-contact-rings', 16, vfxRingMesh, threatRingMaterials.charger, 0.19, 0.74),
-    elite: createRoutedVfxBatch('elite-contact-rings', 16, vfxRingMesh, threatRingMaterials.elite, 0.19, 0.74),
-    boss: createRoutedVfxBatch('boss-contact-rings', 16, vfxRingMesh, threatRingMaterials.boss, 0.19, 0.82),
-    saltwind: createRoutedVfxBatch('saltwind-contact-rings', 16, vfxRingMesh, threatRingMaterials.saltwind, 0.19, 0.74),
-    support: createRoutedVfxBatch('support-contact-rings', 16, vfxRingMesh, threatRingMaterials.support, 0.19, 0.58),
+    hostile: createRoutedVfxBatch('hostile-contact-rings', 8, vfxRingMesh, threatRingMaterials.hostile, 0.19, 0.42),
+    charger: createRoutedVfxBatch('charger-contact-rings', 8, vfxRingMesh, threatRingMaterials.charger, 0.19, 0.42),
+    elite: createRoutedVfxBatch('elite-contact-rings', 8, vfxRingMesh, threatRingMaterials.elite, 0.19, 0.44),
+    boss: createRoutedVfxBatch('boss-contact-rings', 8, vfxRingMesh, threatRingMaterials.boss, 0.19, 0.46),
+    saltwind: createRoutedVfxBatch('saltwind-contact-rings', 8, vfxRingMesh, threatRingMaterials.saltwind, 0.19, 0.42),
+    support: createRoutedVfxBatch('support-contact-rings', 8, vfxRingMesh, threatRingMaterials.support, 0.19, 0.4),
   };
   const eliteAuraRoutes = {
-    elite: createRoutedVfxBatch('elite-aura-glyphs', 6, vfxCardMesh, eliteAuraMaterials.elite, 0.14, 0.58),
-    boss: createRoutedVfxBatch('boss-aura-glyphs', 6, vfxCardMesh, eliteAuraMaterials.boss, 0.14, 0.72),
+    elite: createRoutedVfxBatch('elite-aura-glyphs', 4, vfxCardMesh, eliteAuraMaterials.elite, 0.14, 0.58),
+    boss: createRoutedVfxBatch('boss-aura-glyphs', 4, vfxCardMesh, eliteAuraMaterials.boss, 0.14, 0.72),
+  } as const;
+  const hostileShooterWedgeRoute = createRoutedVfxBatch(
+    'hostile-shooter-wedges', 12, vfxCardMesh, shooterWindupMaterial, 0.16, 0.82,
+  );
+  const hostileShooterInhaleRoute = createRoutedVfxBatch(
+    'hostile-shooter-inhale-rings', 12, vfxRingMesh, shooterInhaleMaterial, 0.19, 0.78,
+  );
+  const threatTelegraphOutlineLaneRoutes = {
+    boss: createRoutedVfxBatch('boss-telegraph-lane-outlines', 16, vfxCardMesh, threatOutlineMaterials.boss, 0.15, 1),
+    saltwind: createRoutedVfxBatch('saltwind-telegraph-lane-outlines', 16, vfxCardMesh, threatOutlineMaterials.saltwind, 0.15, 1),
+  } as const;
+  const threatTelegraphOutlineRingRoutes = {
+    boss: createRoutedVfxBatch('boss-telegraph-radial-outlines', 16, vfxRingMesh, threatOutlineMaterials.boss, 0.15, 1),
+    saltwind: createRoutedVfxBatch('saltwind-telegraph-radial-outlines', 16, vfxRingMesh, threatOutlineMaterials.saltwind, 0.15, 1),
+  } as const;
+  const eliteAuraOutlineRoutes = {
+    elite: createRoutedVfxBatch('elite-aura-outlines', 4, vfxRingMesh, threatOutlineMaterials.elite, 0.13, 1),
+    boss: createRoutedVfxBatch('boss-aura-outlines', 4, vfxRingMesh, threatOutlineMaterials.boss, 0.13, 1),
   } as const;
   const threatTelegraphRouteList = Object.values(threatTelegraphRoutes);
   const threatRingRouteList = Object.values(threatRingRoutes);
   const eliteAuraRouteList: readonly VfxRoutedBatch[] = [eliteAuraRoutes.elite, eliteAuraRoutes.boss];
+  const threatOutlineRouteList: readonly VfxRoutedBatch[] = [
+    threatTelegraphOutlineLaneRoutes.boss,
+    threatTelegraphOutlineLaneRoutes.saltwind,
+    threatTelegraphOutlineRingRoutes.boss,
+    threatTelegraphOutlineRingRoutes.saltwind,
+    eliteAuraOutlineRoutes.elite,
+    eliteAuraOutlineRoutes.boss,
+  ];
   const routedVfxBatches: readonly VfxRoutedBatch[] = [
     ...collectionRoutes,
     ...threatTelegraphRouteList,
     ...threatRingRouteList,
     ...eliteAuraRouteList,
+    hostileShooterWedgeRoute,
+    hostileShooterInhaleRoute,
+    ...threatOutlineRouteList,
   ];
   const routedVfxBatchViews: readonly InstancedCategoryBatch[] = routedVfxBatches.map(
     (route) => route.batch,
@@ -1635,7 +1756,7 @@ export function createRenderer(
     // This is a single normal-blend card on a real projectile, never a
     // screen wash. Its opacity gives the pale head enough forest contrast
     // while retaining the darker teal contour and all enemy readability.
-    spitProjectileAccentBatch.setOpacity(0.78);
+    spitProjectileAccentBatch.setOpacity(HERO_SPIT_BODY_OPACITY);
     quillProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('quillVolley', tick));
     quillProjectileAccentBatch.setOpacity(0.78);
     owlProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('owlPinions', tick));
@@ -1654,7 +1775,7 @@ export function createRenderer(
     xpHaloBatch.setOpacity(0.08);
     bombAccentBatch.setOpacity(0.92);
     magnetAccentBatch.setOpacity(0.94);
-    foodAccentBatch.setOpacity(0.92);
+    foodAccentBatch.setOpacity(0.42);
     // Static full-body zone cards retain their silhouette while their slow
     // transform breath carries motion. They are deliberately compact inside
     // the authoritative hit area, so greater upgrade radii still grow the
@@ -1665,6 +1786,7 @@ export function createRenderer(
     razorstepZoneBatch.setOpacity(0.84);
     hostileProjectileAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('hostileThorn', tick));
     hostileTrailAccentBatch.setMaterial(wildguardVfxMaterialBank.materialFor('hostileThorn', tick + 3));
+    hostileMuzzlePopBatch.setMaterial(wildguardVfxMaterialBank.materialFor('hostileThorn', tick + 1));
   }
   const razorstepZoneBatch = createInstancedCategoryBatch(
     app.graphicsDevice,
@@ -1763,6 +1885,7 @@ export function createRenderer(
     foodAccent: new VfxTransformStore(powerPickupCapacity),
     hostileProjectileAccent: new VfxTransformStore(72),
     hostileTrailAccent: new VfxTransformStore(72),
+    hostileMuzzlePop: new VfxTransformStore(HOSTILE_MUZZLE_RENDER_CAPACITY),
     normalImpacts: new VfxTransformStore(48),
     criticalImpacts: new VfxTransformStore(48),
     playerImpacts: new VfxTransformStore(48),
@@ -1783,6 +1906,7 @@ export function createRenderer(
     vfxTransforms.foodAccent,
     vfxTransforms.hostileProjectileAccent,
     vfxTransforms.hostileTrailAccent,
+    vfxTransforms.hostileMuzzlePop,
     vfxTransforms.normalImpacts,
     vfxTransforms.criticalImpacts,
     vfxTransforms.playerImpacts,
@@ -1810,11 +1934,17 @@ export function createRenderer(
   });
   const enemyThreatVisuals = createEnemyThreatPresentation({
     maxProjectileTrails: 72,
-    maxTelegraphs: 24,
-    maxContactRings: 16,
-    maxEliteBossAuras: 6,
+    maxMuzzlePops: 12,
+    maxShooterWindups: 12,
+    maxTelegraphs: 16,
+    maxContactRings: 8,
+    maxEliteBossAuras: 4,
+    shooterOuterRange: config.enemyBehavior.elitePreferredRange
+      + config.enemyBehavior.eliteRangeBand,
+    ticksPerSecond: config.hz,
   });
   const combatImpactVisuals = createCombatImpactPresentation({ capacity: 48 });
+  const combatDefensePresentation = createCombatDefensePresentation();
   const impactVfxComposite = createImpactVfxCompositePresentation({
     capacity: IMPACT_COMPOSITE_CAPACITY,
     debrisCapacity: IMPACT_CRITICAL_DEBRIS_CAPACITY,
@@ -2004,6 +2134,7 @@ export function createRenderer(
       lootVisuals.reset();
       enemyThreatVisuals.reset();
       combatImpactVisuals.reset();
+      combatDefensePresentation.reset();
       impactVfxComposite.reset();
       signatureVfxComposite.reset();
       heroSpitProjectileSignatureVfx.reset();
@@ -2205,8 +2336,11 @@ export function createRenderer(
     pendingDirectorEvents = emptyDirectorEvents;
     let hostileProjectileOpacityTotal = 0;
     let hostileProjectileOpacityCount = 0;
+    let hostileMuzzlePopCount = 0;
     for (const projectile of threat.hostileProjectiles) {
-      const coreScale = projectile.headRadius * 2.1 * (projectile.critical ? 1.2 : 1);
+      const coreScale = projectile.headRadius
+        * HOSTILE_PROJECTILE_SCENE_CORE_MULTIPLIER
+        * (projectile.critical ? 1.2 : 1);
       const coreWritten = vfxTransforms.hostileProjectileAccent.push(
         sceneX(projectile.headX), sceneZ(projectile.headY), coreScale, 1, coreScale, 0.28,
         Math.atan2(Math.cos(projectile.headingRadians), -Math.sin(projectile.headingRadians)),
@@ -2219,19 +2353,69 @@ export function createRenderer(
         vfxTransforms.hostileTrailAccent.pushRibbon(
           sceneX(projectile.tailX), sceneZ(projectile.tailY),
           sceneX(projectile.headX), sceneZ(projectile.headY),
-          Math.max(0.8, projectile.tailWidth * 2.5),
+          Math.max(projectile.tailMinimumSceneWidth, projectile.tailWidth * 2.5),
           0.1,
         );
       }
+      const muzzle = projectile.muzzlePop;
+      if (muzzle !== null && vfxTransforms.hostileMuzzlePop.push(
+        sceneX(muzzle.x), sceneZ(muzzle.y),
+        muzzle.scale * 2, 1, muzzle.scale * 2,
+        0.24,
+        Math.atan2(Math.cos(projectile.headingRadians), -Math.sin(projectile.headingRadians)),
+      )) hostileMuzzlePopCount++;
+    }
+    for (const windup of threat.shooterWindups) {
+      const x = sceneX(windup.x);
+      const z = sceneZ(windup.y);
+      const yaw = Math.atan2(windup.dirX, -windup.dirY);
+      const pulse = 0.92 + windup.pulse * 0.16;
+      if (hostileShooterWedgeRoute.store.push(
+        x, z,
+        Math.max(5, windup.wedgeThickness * 2.4) * pulse,
+        1,
+        windup.wedgeLength * pulse,
+        0.07,
+        yaw,
+      )) recordRoutedBatchOpacity(hostileShooterWedgeRoute, windup.wedgeOpacity);
+      if (windup.hasInhale && hostileShooterInhaleRoute.store.push(
+        x, z,
+        windup.inhaleRadius * 2,
+        1,
+        windup.inhaleRadius * 2,
+        0.14,
+        windup.pulse,
+      )) recordRoutedBatchOpacity(hostileShooterInhaleRoute, windup.inhaleOpacity);
     }
     for (const telegraph of threat.telegraphs) {
       const x = sceneX(telegraph.x);
       const z = sceneZ(telegraph.y);
       const pulse = 0.78 + telegraph.pulse * 0.38;
       const route = threatTelegraphRoutes[telegraph.palette];
+      const outlineLaneRoute = telegraph.palette === 'boss'
+        ? threatTelegraphOutlineLaneRoutes.boss
+        : telegraph.palette === 'saltwind'
+          ? threatTelegraphOutlineLaneRoutes.saltwind
+          : null;
+      const outlineRingRoute = telegraph.palette === 'boss'
+        ? threatTelegraphOutlineRingRoutes.boss
+        : telegraph.palette === 'saltwind'
+          ? threatTelegraphOutlineRingRoutes.saltwind
+          : null;
       let written = false;
       if (telegraph.style === 'lane') {
         const yaw = Math.atan2(telegraph.dirX, -telegraph.dirY);
+        if (telegraph.outlineOpacity > 0 && outlineLaneRoute !== null) {
+          const outlineScale = telegraph.outlineScale;
+          if (outlineLaneRoute.store.push(
+            x, z,
+            Math.max(8, (telegraph.thickness + telegraph.outlineThickness) * 2.4) * pulse * outlineScale,
+            1,
+            Math.max(telegraph.radius * 1.15, telegraph.length) * pulse * outlineScale,
+            0.045,
+            yaw,
+          )) recordRoutedBatchOpacity(outlineLaneRoute, telegraph.outlineOpacity);
+        }
         written = route.store.push(
           x, z,
           Math.max(7, telegraph.thickness * 2.4) * pulse,
@@ -2241,6 +2425,12 @@ export function createRenderer(
           yaw,
         );
       } else {
+        if (telegraph.style === 'radial' && telegraph.outlineOpacity > 0 && outlineRingRoute !== null) {
+          const outlineScale = Math.max(18, telegraph.radius * 2) * pulse * telegraph.outlineScale;
+          if (outlineRingRoute.store.push(
+            x, z, outlineScale, 1, outlineScale, 0.045, telegraph.pulse * Math.PI,
+          )) recordRoutedBatchOpacity(outlineRingRoute, telegraph.outlineOpacity);
+        }
         const scale = Math.max(18, telegraph.radius * 2) * pulse;
         written = route.store.push(x, z, scale, 1, scale, 0.06, telegraph.pulse * Math.PI);
       }
@@ -2256,6 +2446,13 @@ export function createRenderer(
     for (const aura of threat.eliteBossAuras) {
       const scale = aura.outerRadius * 2 * (0.9 + aura.pulse * 0.14);
       const route = eliteAuraRoutes[aura.palette];
+      if (aura.outlineOpacity > 0) {
+        const outlineScale = scale * aura.outlineScale;
+        const outlineRoute = eliteAuraOutlineRoutes[aura.palette];
+        if (outlineRoute.store.push(
+          sceneX(aura.x), sceneZ(aura.y), outlineScale, 1, outlineScale, 0.055, -aura.pulse,
+        )) recordRoutedBatchOpacity(outlineRoute, aura.outlineOpacity);
+      }
       if (route.store.push(sceneX(aura.x), sceneZ(aura.y), scale, 1, scale, 0.08, -aura.pulse)) {
         recordRoutedBatchOpacity(route, aura.opacity);
       }
@@ -2265,7 +2462,8 @@ export function createRenderer(
       ? hostileProjectileOpacityTotal / hostileProjectileOpacityCount
       : 0;
     hostileProjectileAccentBatch.setOpacity(0.98 * hostileProjectileOpacity);
-    hostileTrailAccentBatch.setOpacity(0.72 * hostileProjectileOpacity);
+    hostileTrailAccentBatch.setOpacity(0.9 * hostileProjectileOpacity);
+    hostileMuzzlePopBatch.setOpacity(hostileMuzzlePopCount > 0 ? HOSTILE_MUZZLE_RENDER_OPACITY : 0);
 
     // Exact resolved combat events provide the contact beat. The projector
     // retains them for a handful of simulation ticks, so a clean ivory spark
@@ -2505,6 +2703,8 @@ export function createRenderer(
     traitCommandPresentation.update(
       curr.tick,
       traitCommandEventsWithoutThreatTelegraphs(presentationEvents),
+      playerWorldX,
+      playerWorldY,
     );
     illustratedVfxPresentation.update(
       curr.tick,
@@ -2583,8 +2783,8 @@ export function createRenderer(
       -worldHalfWidth,
       worldHalfHeight,
       -1,
-      RUN_ENEMY_ROLE.regular,
-      1.65,
+      undefined,
+      WILDGUARD_ENEMY_CONTACT_SHADOW_SCALE_MULTIPLIER,
     );
     eliteEnemyTransforms.update(
       prev.enemies,
@@ -2836,6 +3036,7 @@ export function createRenderer(
     foodAccentBatch.sync(vfxTransforms.foodAccent);
     hostileProjectileAccentBatch.sync(vfxTransforms.hostileProjectileAccent);
     hostileTrailAccentBatch.sync(vfxTransforms.hostileTrailAccent);
+    hostileMuzzlePopBatch.sync(vfxTransforms.hostileMuzzlePop);
     for (const route of routedVfxBatches) route.batch.sync(route.store);
     normalImpactBatch.sync(vfxTransforms.normalImpacts);
     criticalImpactBatch.sync(vfxTransforms.criticalImpacts);
@@ -2906,6 +3107,7 @@ export function createRenderer(
         foodAccentBatch.liveViews +
         hostileProjectileAccentBatch.liveViews +
         hostileTrailAccentBatch.liveViews +
+        hostileMuzzlePopBatch.liveViews +
         sumBatchViews(routedVfxBatchViews, 'liveViews') +
         normalImpactBatch.liveViews +
         criticalImpactBatch.liveViews +
@@ -2951,6 +3153,7 @@ export function createRenderer(
         foodAccentBatch.highWaterViews +
         hostileProjectileAccentBatch.highWaterViews +
         hostileTrailAccentBatch.highWaterViews +
+        hostileMuzzlePopBatch.highWaterViews +
         sumBatchViews(routedVfxBatchViews, 'highWaterViews') +
         normalImpactBatch.highWaterViews +
         criticalImpactBatch.highWaterViews +
@@ -3022,6 +3225,7 @@ export function createRenderer(
     foodAccentBatch.dispose();
     hostileProjectileAccentBatch.dispose();
     hostileTrailAccentBatch.dispose();
+    hostileMuzzlePopBatch.dispose();
     for (const route of routedVfxBatches) route.batch.dispose();
     normalImpactBatch.dispose();
     criticalImpactBatch.dispose();
@@ -3112,7 +3316,7 @@ export function createRenderer(
       damageNumberPresentation.setEvents(events);
     },
     setCombatPresentationEvents(events): void {
-      pendingCombatDefenseEvents = projectCombatDefensePresentationEvents(events);
+      pendingCombatDefenseEvents = combatDefensePresentation.project(events);
       pendingCombatImpactEvents = events;
     },
     setDirectorEvents(events): void {

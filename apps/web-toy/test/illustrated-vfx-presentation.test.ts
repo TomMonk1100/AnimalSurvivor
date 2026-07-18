@@ -6,13 +6,20 @@ import type {
 import {
   FOX_SWIPE_FLASH_SAFE_MIN_INTERVAL_TICKS,
   FOX_SWIPE_FLASH_SAFE_OPACITY_MULTIPLIER,
+  FLUFFY_SHIELD_FLASH_SAFE_MIN_INTERVAL_TICKS,
+  FLUFFY_SHIELD_FLASH_SAFE_OPACITY_MULTIPLIER,
+  MAGNET_FLASH_SAFE_MIN_INTERVAL_TICKS,
+  MAGNET_FLASH_SAFE_OPACITY_MULTIPLIER,
   PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS,
   PUFFER_PULSE_FLASH_SAFE_OPACITY_MULTIPLIER,
   SIGNATURE_VFX_ENVELOPE_RELEASE,
+  THUNDERBUG_FLASH_SAFE_MIN_INTERVAL_TICKS,
+  THUNDERBUG_FLASH_SAFE_OPACITY_MULTIPLIER,
   canStartIllustratedVfxClip,
   illustratedVfxClipForCombatEvent,
   illustratedVfxClipForTraitEvent,
   illustratedVfxEnvelopeReleaseForClip,
+  illustratedVfxFamilyForTraitEvent,
   illustratedVfxFlashSafeIntervalForClip,
   illustratedVfxLifetimeForClip,
   illustratedVfxOpacityMultiplierForClip,
@@ -72,15 +79,36 @@ describe('illustrated VFX presentation routing', () => {
     expect(illustratedVfxFlashSafeIntervalForClip('foxSwipe')).toBe(FOX_SWIPE_FLASH_SAFE_MIN_INTERVAL_TICKS);
     expect(PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS).toBeGreaterThan(60);
     expect(illustratedVfxFlashSafeIntervalForClip('pufferPulse')).toBe(PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS);
+    expect(THUNDERBUG_FLASH_SAFE_MIN_INTERVAL_TICKS).toBeGreaterThan(60);
+    expect(THUNDERBUG_FLASH_SAFE_OPACITY_MULTIPLIER).toBeGreaterThan(0.3);
+    expect(THUNDERBUG_FLASH_SAFE_OPACITY_MULTIPLIER).toBeLessThan(0.5);
+    expect(illustratedVfxFlashSafeIntervalForClip('thunderbug')).toBe(THUNDERBUG_FLASH_SAFE_MIN_INTERVAL_TICKS);
+    expect(MAGNET_FLASH_SAFE_MIN_INTERVAL_TICKS).toBeGreaterThan(60);
+    expect(MAGNET_FLASH_SAFE_OPACITY_MULTIPLIER).toBeGreaterThan(0.5);
+    expect(MAGNET_FLASH_SAFE_OPACITY_MULTIPLIER).toBeLessThan(0.6);
+    expect(illustratedVfxFlashSafeIntervalForClip('magnet')).toBe(MAGNET_FLASH_SAFE_MIN_INTERVAL_TICKS);
+    expect(FLUFFY_SHIELD_FLASH_SAFE_MIN_INTERVAL_TICKS).toBeGreaterThan(60);
+    expect(FLUFFY_SHIELD_FLASH_SAFE_OPACITY_MULTIPLIER).toBeGreaterThan(0.3);
+    expect(FLUFFY_SHIELD_FLASH_SAFE_OPACITY_MULTIPLIER).toBeLessThan(0.4);
+    expect(illustratedVfxFlashSafeIntervalForClip('fluffyShield')).toBe(FLUFFY_SHIELD_FLASH_SAFE_MIN_INTERVAL_TICKS);
     expect(illustratedVfxFlashSafeIntervalForClip('earthWave')).toBe(0);
     expect(illustratedVfxOpacityMultiplierForClip('foxSwipe')).toBe(FOX_SWIPE_FLASH_SAFE_OPACITY_MULTIPLIER);
     expect(illustratedVfxOpacityMultiplierForClip('pufferPulse')).toBe(PUFFER_PULSE_FLASH_SAFE_OPACITY_MULTIPLIER);
+    expect(illustratedVfxOpacityMultiplierForClip('thunderbug')).toBe(THUNDERBUG_FLASH_SAFE_OPACITY_MULTIPLIER);
+    expect(illustratedVfxOpacityMultiplierForClip('magnet')).toBe(MAGNET_FLASH_SAFE_OPACITY_MULTIPLIER);
+    expect(illustratedVfxOpacityMultiplierForClip('fluffyShield')).toBe(FLUFFY_SHIELD_FLASH_SAFE_OPACITY_MULTIPLIER);
     expect(illustratedVfxOpacityMultiplierForClip('earthWave')).toBe(1);
     expect(canStartIllustratedVfxClip('foxSwipe', 100, undefined)).toBe(true);
     expect(canStartIllustratedVfxClip('foxSwipe', 100 + FOX_SWIPE_FLASH_SAFE_MIN_INTERVAL_TICKS - 1, 100)).toBe(false);
     expect(canStartIllustratedVfxClip('foxSwipe', 100 + FOX_SWIPE_FLASH_SAFE_MIN_INTERVAL_TICKS, 100)).toBe(true);
     expect(canStartIllustratedVfxClip('pufferPulse', 100 + PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS - 1, 100)).toBe(false);
     expect(canStartIllustratedVfxClip('pufferPulse', 100 + PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS, 100)).toBe(true);
+    expect(canStartIllustratedVfxClip('thunderbug', 100 + THUNDERBUG_FLASH_SAFE_MIN_INTERVAL_TICKS - 1, 100)).toBe(false);
+    expect(canStartIllustratedVfxClip('thunderbug', 100 + THUNDERBUG_FLASH_SAFE_MIN_INTERVAL_TICKS, 100)).toBe(true);
+    expect(canStartIllustratedVfxClip('magnet', 100 + MAGNET_FLASH_SAFE_MIN_INTERVAL_TICKS - 1, 100)).toBe(false);
+    expect(canStartIllustratedVfxClip('magnet', 100 + MAGNET_FLASH_SAFE_MIN_INTERVAL_TICKS, 100)).toBe(true);
+    expect(canStartIllustratedVfxClip('fluffyShield', 100 + FLUFFY_SHIELD_FLASH_SAFE_MIN_INTERVAL_TICKS - 1, 100)).toBe(false);
+    expect(canStartIllustratedVfxClip('fluffyShield', 100 + FLUFFY_SHIELD_FLASH_SAFE_MIN_INTERVAL_TICKS, 100)).toBe(true);
     expect(canStartIllustratedVfxClip('earthWave', 101, 100)).toBe(true);
   });
 
@@ -117,6 +145,16 @@ describe('illustrated VFX presentation routing', () => {
     }))).toBe('midnightRadar');
   });
 
+  it('assigns only player-owned cards to the three-family concurrency policy', () => {
+    expect(illustratedVfxFamilyForTraitEvent(trait({ sourceId: 'benny-trample' }))).toBe('earth');
+    // Meteor Mauler is a Perfect Chimera: its physical Crab chassis remains
+    // the primary lane while its earth donor is the accent route.
+    expect(illustratedVfxFamilyForTraitEvent(trait({ sourceId: 'meteor-mauler' }))).toBe('physical');
+    expect(illustratedVfxFamilyForTraitEvent(trait({ sourceId: 'thunderbug-dynamo' }))).toBe('storm');
+    expect(illustratedVfxFamilyForTraitEvent(trait({ sourceId: 'boss-charge' }))).toBeNull();
+    expect(illustratedVfxFamilyForTraitEvent(trait({ sourceId: 'unknown-source' }))).toBeNull();
+  });
+
   it('uses bounded gameplay-camera scales for Benny’s ridge and Gracie’s real comet body', () => {
     expect(illustratedVfxRadiusForTraitEvent({ range: 34, radius: 34, strength: 1 }, 'earthWave')).toBeCloseTo(66.3);
     // Gracie's authoritative hit radius is deliberately compact; the card is
@@ -131,8 +169,6 @@ describe('illustrated VFX presentation routing', () => {
       [{ kind: 'areaKnockback', sourceId: 'puffer-pouch' }, 'pufferPulse'],
       [{ kind: 'spawnZone', sourceId: 'gecko-pads', tag: 'gecko-pad' }, 'geckoPad'],
       [{ kind: 'spawnZone', sourceId: 'razorstep-chimera', tag: 'razorstep-scythe-pad' }, 'geckoPad'],
-      [{ kind: 'spawnZone', sourceId: 'skunk-brush', tag: 'stink-cloud' }, 'skunkCloud'],
-      [{ kind: 'spawnZone', sourceId: 'royal-stinkcloud', tag: 'royal-stink' }, 'royalStink'],
       [{ kind: 'meleeArc', sourceId: 'mantis-scythes', meleeArcResolved: true }, 'mantisSweep'],
       [{ kind: 'applyAreaDamage', sourceId: 'crab-pincers' }, 'crabCrush'],
       [{ kind: 'areaKnockback', sourceId: 'armadillo-greaves' }, 'armadilloRoll'],
@@ -160,6 +196,22 @@ describe('illustrated VFX presentation routing', () => {
     for (const [event, expectedClip] of routes) {
       expect(illustratedVfxClipForTraitEvent(trait(event))).toBe(expectedClip);
     }
+  });
+
+  it('leaves persistent Skunk and Royal Stink clouds to their scene-owned lanes', () => {
+    expect(illustratedVfxClipForTraitEvent(trait({
+      kind: 'spawnZone', sourceId: 'skunk-brush', tag: 'stink-cloud',
+    }))).toBeNull();
+    expect(illustratedVfxClipForTraitEvent(trait({
+      kind: 'spawnZone', sourceId: 'royal-stinkcloud', tag: 'royal-stink',
+    }))).toBeNull();
+    // Other zone families retain their established illustrated cards.
+    expect(illustratedVfxClipForTraitEvent(trait({
+      kind: 'spawnZone', sourceId: 'gecko-pads', tag: 'gecko-pad',
+    }))).toBe('geckoPad');
+    expect(illustratedVfxClipForTraitEvent(trait({
+      kind: 'spawnZone', sourceId: 'razorstep-chimera', tag: 'razorstep-scythe-pad',
+    }))).toBe('geckoPad');
   });
 
   it('does not show an illustrated chain card until a real endpoint exists', () => {

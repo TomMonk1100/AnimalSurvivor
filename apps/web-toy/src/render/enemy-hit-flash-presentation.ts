@@ -13,21 +13,19 @@ import type { CombatPresentationEventView } from '../presentation/combat-present
 export const ENEMY_HIT_FLASH_LIFETIME_TICKS = 3;
 export const ENEMY_HIT_FLASH_PER_ENEMY_RATE_LIMIT_TICKS = 4;
 export const DEFAULT_ENEMY_HIT_FLASH_CAPACITY = 48;
-/** At most two fresh white overlays may start on any render tick. */
-export const DEFAULT_ENEMY_HIT_FLASH_MAX_NEW_PER_TICK = 2;
-/** Three fixed flash ticks times two starts keeps the white-overlay budget at six. */
-export const DEFAULT_ENEMY_HIT_FLASH_MAX_CONCURRENT = 6;
+/** At most one fresh white overlay may start on any render tick. */
+export const DEFAULT_ENEMY_HIT_FLASH_MAX_NEW_PER_TICK = 1;
+/** Three fixed flash ticks times one start keeps the white-overlay budget at three. */
+export const DEFAULT_ENEMY_HIT_FLASH_MAX_CONCURRENT = 3;
 /**
  * Quantized contact-to-release samples. Age zero must read as an unambiguous
- * white target silhouette at normal play scale; the terminal sample stays
- * faint-but-shaped instead of disappearing into the sprite's edge feather.
- * Its energy is moved out of the peak rather than added as a new flash: the
- * peak is lower than the original contact and the three samples total 1.52.
- * The unchanged two-start/six-concurrent budgets still prevent a swarm-wide
- * white wash. The scene uses these prebuilt age batches without making one
- * material per enemy.
+ * white target silhouette at normal play scale; the terminal sample remains a
+ * quiet shaped release instead of disappearing into the sprite's edge feather.
+ * The three samples total 1.06 and pair with the one-start/three-concurrent
+ * budget to prevent a swarm-wide white wash. The scene uses these prebuilt age
+ * batches without making one material per enemy.
  */
-export const ENEMY_HIT_FLASH_AGE_OPACITY = Object.freeze([0.84, 0.44, 0.24] as const);
+export const ENEMY_HIT_FLASH_AGE_OPACITY = Object.freeze([0.58, 0.32, 0.16] as const);
 
 const ENTITY_SLOT_COUNT = 0x1_0000;
 const MAX_CAPACITY = 96;

@@ -109,6 +109,52 @@ describe('snapshot producer enemy presentation roles', () => {
     expect(snapshot.enemies.hp[bossIndex]).toBe(bruteHp * GREG_FIRST_RUN.boss.profile.hpMultiplier);
   });
 
+  it('copies ranged shot charge from the read-only behavior cadence without charging direct enemies', () => {
+    const config: SimConfig = {
+      ...QUIET_CONFIG,
+      enemyBehavior: {
+        ...DEFAULT_CONFIG.enemyBehavior,
+        spitterInitialFireDelayTicks: 3,
+        spitterFireIntervalTicks: 100,
+      },
+    };
+    const sim = createSimulation(config, 71, { runDirectorFactory: () => new RoleDirector() });
+    const snapshot = createSnapshot(config);
+
+    sim.step({ moveX: 0, moveY: 0, paused: false });
+    captureSnapshot(snapshot, sim);
+    const spitterId = snapshot.enemies.id[
+      Array.from(snapshot.enemies.role.slice(0, snapshot.enemies.count)).indexOf(RUN_ENEMY_ROLE.ranged)
+    ]!;
+    const directIndex = Array.from(snapshot.enemies.role.slice(0, snapshot.enemies.count))
+      .indexOf(RUN_ENEMY_ROLE.regular);
+    expect(snapshot.enemies.attackCharge[directIndex]).toBe(0);
+
+    const charges: number[] = [];
+    let fired = false;
+    for (let tick = 0; tick < 4; tick++) {
+      const spitterIndex = Array.from(snapshot.enemies.id.slice(0, snapshot.enemies.count)).indexOf(spitterId);
+      expect(spitterIndex).toBeGreaterThanOrEqual(0);
+      charges.push(snapshot.enemies.attackCharge[spitterIndex]!);
+      const events = sim.step({ moveX: 0, moveY: 0, paused: false });
+      captureSnapshot(snapshot, sim);
+      if (events.enemyProjectilesFired > 0) {
+        fired = true;
+        const resetIndex = Array.from(snapshot.enemies.id.slice(0, snapshot.enemies.count)).indexOf(spitterId);
+        expect(snapshot.enemies.attackCharge[resetIndex]).toBe(0);
+        break;
+      }
+    }
+
+    expect(fired).toBe(true);
+    expect(charges).toHaveLength(3);
+    expect(charges[0]).toBeCloseTo(0.97, 6);
+    expect(charges[1]).toBeCloseTo(0.98, 6);
+    expect(charges[2]).toBeCloseTo(0.99, 6);
+    expect(sim.enemyBehaviorView.kind).toBe(sim.enemyBehaviorView.kind);
+    expect(sim.enemyBehaviorView.hostileShotCooldown).toBe(sim.enemyBehaviorView.hostileShotCooldown);
+  });
+
   it('keeps health fields zero for non-enemy categories and copies projectile, XP, power-pickup, and zone roles for rendering', () => {
     const sim = createSimulation(QUIET_CONFIG, 12);
     const projectileSlot = sim.projectiles.spawn();

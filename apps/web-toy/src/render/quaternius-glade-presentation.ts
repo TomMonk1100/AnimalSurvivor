@@ -18,6 +18,22 @@ const PROP_URLS = Object.freeze({
 
 type PropKey = keyof typeof PROP_URLS;
 
+/**
+ * Static multipliers for the authored rocks and flower bushes nearest the
+ * fighting space. They deliberately pull only ground props toward the floor
+ * value range; perimeter trees retain their authored silhouette contrast.
+ */
+export const QUATERNIUS_GROUND_PROP_TINTS = Object.freeze({
+  rockA: [0.68, 0.7, 0.62] as const,
+  rockB: [0.66, 0.68, 0.6] as const,
+  flowerBush: [0.66, 0.7, 0.48] as const,
+});
+
+/** Keeps static ground props matte so their highlights do not read as entities. */
+export const QUATERNIUS_GROUND_PROP_SPECULAR_SCALE = 0.45;
+/** Caps the remaining static-prop gloss below a gameplay highlight. */
+export const QUATERNIUS_GROUND_PROP_MAX_GLOSS = 0.12;
+
 interface ContainerResource {
   instantiateRenderEntity(options?: object): pc.Entity;
 }
@@ -111,14 +127,46 @@ function placeEntity(entity: pc.Entity, placement: PropPlacement, worldWidth: nu
   entity.setLocalEulerAngles(0, placement.rotation, 0);
 }
 
-function configureStaticRender(entity: pc.Entity): void {
+function isGroundPropKey(key: PropKey): key is keyof typeof QUATERNIUS_GROUND_PROP_TINTS {
+  return key === 'rockA' || key === 'rockB' || key === 'flowerBush';
+}
+
+function configureStaticRender(entity: pc.Entity, key: PropKey): readonly pc.StandardMaterial[] {
+  const tint = isGroundPropKey(key) ? QUATERNIUS_GROUND_PROP_TINTS[key] : undefined;
+  const tunedMaterials: pc.StandardMaterial[] = [];
   entity.forEach((node) => {
     if (!(node instanceof pc.Entity) || node.render === undefined) return;
     for (const instance of node.render.meshInstances) {
       instance.castShadow = false;
       instance.receiveShadow = false;
+      if (tint === undefined || !(instance.material instanceof pc.StandardMaterial)) continue;
+
+      // Keep each authored ground prop's treatment local to its instantiated
+      // view. The container resource may be reused by several placements, and
+      // its untouched material remains the source for future renderer paths.
+      const material = instance.material.clone();
+      material.diffuse.set(
+        material.diffuse.r * tint[0],
+        material.diffuse.g * tint[1],
+        material.diffuse.b * tint[2],
+      );
+      material.emissive.set(
+        material.emissive.r * tint[0],
+        material.emissive.g * tint[1],
+        material.emissive.b * tint[2],
+      );
+      material.specular.set(
+        material.specular.r * QUATERNIUS_GROUND_PROP_SPECULAR_SCALE,
+        material.specular.g * QUATERNIUS_GROUND_PROP_SPECULAR_SCALE,
+        material.specular.b * QUATERNIUS_GROUND_PROP_SPECULAR_SCALE,
+      );
+      material.gloss = Math.min(material.gloss, QUATERNIUS_GROUND_PROP_MAX_GLOSS);
+      material.update();
+      instance.material = material;
+      tunedMaterials.push(material);
     }
   });
+  return tunedMaterials;
 }
 
 /**
@@ -136,6 +184,7 @@ export function createQuaterniusGladePresentation(
   parent.addChild(root);
   const loaded: LoadedContainer[] = [];
   const created: pc.Entity[] = [];
+  const tunedMaterials: pc.StandardMaterial[] = [];
   let disposed = false;
   let ready = false;
 
@@ -153,7 +202,7 @@ export function createQuaterniusGladePresentation(
       const entity = container.resource.instantiateRenderEntity({ castShadows: false, receiveShadows: false });
       entity.name = `glade-${placement.key}`;
       placeEntity(entity, placement, worldWidth, worldHeight);
-      configureStaticRender(entity);
+      tunedMaterials.push(...configureStaticRender(entity, placement.key));
       root.addChild(entity);
       created.push(entity);
     }
@@ -172,12 +221,14 @@ export function createQuaterniusGladePresentation(
       disposed = true;
       for (const entity of created) entity.destroy();
       root.destroy();
+      for (const material of tunedMaterials) material.destroy();
       for (const container of loaded) {
         container.asset.unload();
         app.assets.remove(container.asset);
       }
       loaded.length = 0;
       created.length = 0;
+      tunedMaterials.length = 0;
     },
   };
 }

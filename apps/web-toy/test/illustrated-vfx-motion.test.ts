@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ILLUSTRATED_VFX_BREATH_PERIOD_TICKS,
+  ILLUSTRATED_VFX_NON_UNIFORM_CARD_EXCEPTIONS,
   createIllustratedVfxMotionSample,
   writeIllustratedVfxMotion,
 } from '../src/render/illustrated-vfx-motion';
@@ -52,6 +53,14 @@ describe('illustrated VFX motion', () => {
     expect(late.offsetX - early.offsetX).toBeGreaterThan(3);
     expect(late.yawOffsetDegrees).toBeGreaterThan(early.yawOffsetDegrees);
     expect(early.scaleX).toBeCloseTo(early.scaleZ);
+  });
+
+  it('keeps projectile cards uniformly scaled and confines the ridge exception to its authored crest', () => {
+    expect(ILLUSTRATED_VFX_NON_UNIFORM_CARD_EXCEPTIONS).toEqual(['earthWave']);
+    for (const clip of ['quillVolley', 'owlPinions', 'spitComet'] as const) {
+      const card = sample(clip, 0.55);
+      expect(card.scaleX).toBeCloseTo(card.scaleZ);
+    }
   });
 
   it('breathes zones on a deterministic period without encoding opacity', () => {

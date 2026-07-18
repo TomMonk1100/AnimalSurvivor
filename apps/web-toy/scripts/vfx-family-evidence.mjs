@@ -215,6 +215,118 @@ const TARGETS = Object.freeze([
     timeoutSeconds: 540,
   }),
   freezeTarget({
+    id: 'meteor-mauler',
+    label: 'Meteor Mauler impact/release',
+    family: 'area-impact',
+    hero: 'greg',
+    upgrade: {
+      traits: ['crab-pincers', 'armadillo-greaves'],
+      evolutionId: 'meteor-mauler',
+      evolutionTitle: 'Meteor Mauler',
+      avoidTraits: ['owl-pinions', 'bat-ears', 'porcupine-quills', 'puffer-pouch'],
+    },
+    primary: { type: 'event', stream: 'trait', kind: 'applyAreaDamage', sourceId: 'meteor-mauler' },
+    phases: [{ label: 'impact', tickDelta: 1 }, { label: 'body', tickDelta: 6 }, { label: 'release', tickDelta: 18 }],
+    timeoutSeconds: 540,
+  }),
+  freezeTarget({
+    id: 'razorstep-chimera',
+    label: 'Razorstep Chimera persistent scythe pad',
+    family: 'zones-fields',
+    hero: 'greg',
+    upgrade: {
+      traits: ['mantis-scythes', 'gecko-pads'],
+      evolutionId: 'razorstep-chimera',
+      evolutionTitle: 'Razorstep Chimera',
+      avoidTraits: ['owl-pinions', 'bat-ears', 'crab-pincers', 'armadillo-greaves'],
+    },
+    primary: {
+      type: 'event', stream: 'trait', kind: 'spawnZone',
+      sourceId: 'razorstep-chimera', tag: 'razorstep-scythe-pad',
+    },
+    phases: [{ label: 'birth', tickDelta: 1 }, { label: 'mature', tickDelta: 14 }, { label: 'settle', tickDelta: 54 }],
+    phaseSnapshot: { category: 'zones', source: 4, role: 2, nearPrimary: true, labels: ['birth', 'mature'] },
+    secondary: { type: 'snapshot', category: 'zones', source: 4, role: 2, nearPrimary: true, minimumTickDelta: 1 },
+    timeoutSeconds: 540,
+  }),
+  // These are source-attributed proofs for the remaining unique illustrated
+  // player treatments.  They deliberately do not accept a generic damage
+  // event: a content/source rename must leave an honest BLOCKED record.
+  freezeTarget({
+    id: 'greg-rush-rake',
+    label: 'Greg Rush Rake source-attributed Fox Swipe treatment',
+    family: 'melee-arc',
+    hero: 'greg',
+    primary: { type: 'event', stream: 'trait', kind: 'meleeArc', sourceId: 'greg-rush-rake' },
+    phases: [{ label: 'cast', tickDelta: 1 }, { label: 'body', tickDelta: 4 }, { label: 'release', tickDelta: 9 }],
+    timeoutSeconds: 240,
+  }),
+  freezeTarget({
+    id: 'benny-brace',
+    label: 'Benny Brace Bloom source-attributed Earth Wave treatment',
+    family: 'knockback',
+    hero: 'benny',
+    primary: { type: 'event', stream: 'trait', kind: 'areaKnockback', sourceId: 'benny-brace', tag: 'benny-brace' },
+    phases: [{ label: 'cast', tickDelta: 1 }, { label: 'body', tickDelta: 6 }, { label: 'release', tickDelta: 14 }],
+    timeoutSeconds: 240,
+  }),
+  freezeTarget({
+    id: 'mantis-scythes',
+    label: 'Mantis Scythes sweep',
+    family: 'melee-arc',
+    hero: 'greg',
+    upgrade: { traits: ['mantis-scythes'] },
+    // A source-tagged command without an acquired victim renders only the
+    // generic compatibility fallback. Require the authoritative resolved
+    // arc so the evidence actually exercises Mantis's distinct scythe mesh.
+    primary: {
+      type: 'event', stream: 'trait', kind: 'meleeArc', sourceId: 'mantis-scythes', meleeArcResolved: true,
+    },
+    phases: [{ label: 'cast', tickDelta: 1 }, { label: 'body', tickDelta: 4 }, { label: 'release', tickDelta: 10 }],
+  }),
+  freezeTarget({
+    id: 'crab-pincers',
+    label: 'Crab Pincers crush',
+    family: 'area-impact',
+    hero: 'greg',
+    upgrade: { traits: ['crab-pincers'] },
+    primary: { type: 'event', stream: 'trait', kind: 'applyAreaDamage', sourceId: 'crab-pincers' },
+    phases: [{ label: 'cast', tickDelta: 1 }, { label: 'body', tickDelta: 6 }, { label: 'release', tickDelta: 14 }],
+  }),
+  freezeTarget({
+    id: 'armadillo-greaves',
+    label: 'Armadillo Greaves roll',
+    family: 'knockback',
+    hero: 'greg',
+    upgrade: { traits: ['armadillo-greaves'] },
+    primary: { type: 'event', stream: 'trait', kind: 'areaKnockback', sourceId: 'armadillo-greaves' },
+    phases: [{ label: 'cast', tickDelta: 1 }, { label: 'body', tickDelta: 6 }, { label: 'release', tickDelta: 14 }],
+  }),
+  freezeTarget({
+    id: 'electric-eel-coil',
+    label: 'Electric Eel Coil thunderbug treatment',
+    family: 'chain-damage',
+    hero: 'greg',
+    upgrade: { traits: ['electric-eel-coil'] },
+    primary: { type: 'event', stream: 'trait', kind: 'chainDamage', sourceId: 'electric-eel-coil' },
+    phases: [{ label: 'cast', tickDelta: 1 }, { label: 'body', tickDelta: 6 }, { label: 'release', tickDelta: 16 }],
+  }),
+  freezeTarget({
+    id: 'thunderbug-dynamo',
+    label: 'Thunderbug Dynamo chain treatment',
+    family: 'chain-damage',
+    hero: 'greg',
+    upgrade: {
+      traits: ['electric-eel-coil', 'firefly-colony'],
+      evolutionId: 'thunderbug-dynamo',
+      evolutionTitle: 'Thunderbug Dynamo',
+      avoidTraits: ['owl-pinions', 'bat-ears', 'crab-pincers', 'armadillo-greaves'],
+    },
+    primary: { type: 'event', stream: 'trait', kind: 'chainDamage', sourceId: 'thunderbug-dynamo' },
+    phases: [{ label: 'cast', tickDelta: 1 }, { label: 'body', tickDelta: 6 }, { label: 'release', tickDelta: 18 }],
+    timeoutSeconds: 540,
+  }),
+  freezeTarget({
     id: 'impact-normal',
     label: 'Normal enemy impact',
     family: 'combat-impacts',
@@ -280,12 +392,54 @@ const TARGETS = Object.freeze([
     timeoutSeconds: 300,
   }),
   freezeTarget({
+    id: 'enemy-shooter-windup',
+    label: 'Ranged pre-fire cue followed by its hostile shot',
+    family: 'enemy-threats',
+    hero: 'greg',
+    primary: {
+      type: 'snapshot', category: 'enemies', roles: [3, 5],
+      // Match the live renderer's visible inhale threshold and in-band
+      // guard. A merely charging shooter outside this range has no cue, so
+      // it cannot stand in for human-visible wind-up proof.
+      minimumAttackCharge: 0.85, maximumPlayerDistance: 345,
+    },
+    phases: [
+      { label: 'pre-fire-cue', tickDelta: 0 },
+      // At the inhale threshold the live 180-tick spitter cadence reaches a
+      // shot in 27 ticks. Pair this compositor frame with the same current
+      // source-tagged projectile snapshot instead of asking reviewers to
+      // infer follow-through from JSON alone.
+      { label: 'hostile-shot', tickDelta: 27, maximumTickDelta: 31 },
+    ],
+    phaseSnapshot: {
+      category: 'projectiles', role: 1, source: 3,
+      nearPrimary: true, nearPrimaryDistance: 180, labels: ['hostile-shot'],
+    },
+    secondary: {
+      type: 'snapshot', category: 'projectiles', role: 1, source: 3,
+      nearPrimary: true, nearPrimaryDistance: 180, minimumTickDelta: 1, maximumTickDelta: 60,
+    },
+    timeoutSeconds: 240,
+  }),
+  freezeTarget({
     id: 'enemy-hostile-projectile',
     label: 'Hostile projectile threat ribbon',
     family: 'enemy-threats',
     hero: 'greg',
     primary: { type: 'snapshot', category: 'projectiles', role: 1, source: 3 },
     phases: [{ label: 'telegraph-head', tickDelta: 0 }, { label: 'travel', tickDelta: 4 }, { label: 'threat-read', tickDelta: 8 }],
+    timeoutSeconds: 240,
+  }),
+  freezeTarget({
+    id: 'enemy-contact-hierarchy',
+    label: 'Contact ring remains quiet beside a live hostile projectile',
+    family: 'enemy-threats',
+    hero: 'greg',
+    primary: {
+      type: 'snapshot', category: 'projectiles', role: 1, source: 3,
+      requiresClosingContact: true,
+    },
+    phases: [{ label: 'contact-versus-projectile', tickDelta: 0 }],
     timeoutSeconds: 240,
   }),
   freezeTarget({
@@ -296,7 +450,13 @@ const TARGETS = Object.freeze([
     // Role 4 is the simulation-owned charger role. The extra predicate uses
     // the same documented renderer-only wind-up cadence (24 / 180 ticks), so
     // a merely alive charger cannot stand in for an actual visible telegraph.
-    primary: { type: 'snapshot', category: 'enemies', role: 4, chargerWindup: true },
+    // The camera is player-following, so constrain the proof to a genuinely
+    // near threat. An authoritative wind-up outside the readable frame is not
+    // evidence for the player-facing telegraph.
+    primary: {
+      type: 'snapshot', category: 'enemies', role: 4, chargerWindup: true,
+      maximumPlayerDistance: 180,
+    },
     phases: [{ label: 'windup-start', tickDelta: 0 }, { label: 'windup-read', tickDelta: 7 }, { label: 'windup-release', tickDelta: 16 }],
     timeoutSeconds: 240,
   }),
@@ -581,7 +741,13 @@ async function ensureRunStarted(page) {
  */
 async function startUpgradeChooser(page, target) {
   await page.evaluate((requested) => {
-    const state = { active: true, clicks: [], fusionClicks: 0, stoppedBecauseTargetMatched: false };
+    const state = {
+      active: true,
+      clicks: [],
+      fusionClicks: 0,
+      continuedAfterTargetMatched: false,
+      stoppedBecauseProbeTerminal: false,
+    };
     const traitIds = requested.upgrade?.traits ?? [];
     const universalIds = requested.upgrade?.universals ?? [];
     const avoidTraits = requested.upgrade?.avoidTraits ?? [];
@@ -602,12 +768,20 @@ async function startUpgradeChooser(page, target) {
         requestAnimationFrame(choose);
         return;
       }
-      const primary = window.__familyVfxProbe?.state?.primary;
-      if (primary !== null && primary !== undefined) {
+      const probeStatus = window.__familyVfxProbe?.state?.status;
+      if (probeStatus === 'complete' || probeStatus === 'error') {
         state.active = false;
-        state.stoppedBecauseTargetMatched = true;
+        state.stoppedBecauseProbeTerminal = true;
         return;
       }
+      const targetMatched = window.__familyVfxProbe?.state?.primary !== null
+        && window.__familyVfxProbe?.state?.primary !== undefined;
+      // A real upgrade modal pauses the authoritative run.  Keep resolving
+      // visible modal cards after the target has matched so a phase hold or
+      // secondary proof cannot freeze at the matching tick.  This is still
+      // normal player-facing DOM interaction; target ingredients are simply
+      // no longer preferred once their effect has already occurred.
+      if (targetMatched) state.continuedAfterTargetMatched = true;
       const root = document.getElementById('upgrade-choices');
       const offers = handle.driver.pendingUpgradeOffers ?? [];
 
@@ -626,8 +800,12 @@ async function startUpgradeChooser(page, target) {
 
       if (root?.hidden === false && offers.length > 0) {
         const buttons = Array.from(root.querySelectorAll('button')).slice(0, offers.length);
-        const traitIndex = offers.findIndex((offer) => offer.kind === 'trait' && traitIds.includes(offer.traitId));
-        const universalIndex = offers.findIndex((offer) => offer.kind === 'universal' && universalIds.includes(offer.upgradeId));
+        const traitIndex = targetMatched
+          ? -1
+          : offers.findIndex((offer) => offer.kind === 'trait' && traitIds.includes(offer.traitId));
+        const universalIndex = targetMatched
+          ? -1
+          : offers.findIndex((offer) => offer.kind === 'universal' && universalIds.includes(offer.upgradeId));
         const neutralIndex = offers.findIndex((offer) => offer.kind === 'universal');
         const safeTraitIndex = offers.findIndex((offer) => offer.kind === 'trait' && !avoidTraits.includes(offer.traitId));
         const index = traitIndex >= 0
@@ -745,6 +923,7 @@ async function installFamilyProbe(page, target) {
         && equals(event.tag, predicate.tags ?? predicate.tag)
         && equals(event.pickupKind, predicate.pickupKinds ?? predicate.pickupKind)
         && (predicate.critical === undefined || event.critical === predicate.critical)
+        && (predicate.meleeArcResolved === undefined || event.meleeArcResolved === predicate.meleeArcResolved)
         && (predicate.minimumResolvedHitCount === undefined || event.resolvedHitCount >= predicate.minimumResolvedHitCount);
     }
 
@@ -772,15 +951,22 @@ async function installFamilyProbe(page, target) {
         const role = snapshot.role[index];
         const source = snapshot.source[index];
         const critical = snapshot.critical[index] === 1;
+        const attackCharge = Number(snapshot.attackCharge?.[index] ?? 0);
+        const dxToPlayer = Number(snapshot.x[index] ?? 0) - Number(handle.driver.curr?.playerX ?? 0);
+        const dyToPlayer = Number(snapshot.y[index] ?? 0) - Number(handle.driver.curr?.playerY ?? 0);
+        const distanceToPlayer = Math.hypot(dxToPlayer, dyToPlayer);
         if (!equals(role, predicate.roles ?? predicate.role)) continue;
         if (!equals(source, predicate.sources ?? predicate.source)) continue;
         if (predicate.critical !== undefined && critical !== predicate.critical) continue;
+        if (predicate.minimumAttackCharge !== undefined && attackCharge < predicate.minimumAttackCharge) continue;
+        if (predicate.maximumPlayerDistance !== undefined && distanceToPlayer > predicate.maximumPlayerDistance) continue;
         if (predicate.chargerWindup === true) {
           // Mirror the published renderer policy: charger role 4, a 24-tick
           // stationary wind-up in its 180-tick cycle, id-seeded phase.
           const phase = ((handle.driver.tick + (id & 31)) % 180 + 180) % 180;
           if (role !== 4 || phase >= 24) continue;
         }
+        if (predicate.requiresClosingContact === true && !hasClosingContact(handle)) continue;
         return {
           stream: 'snapshot',
           category: predicate.category,
@@ -795,9 +981,38 @@ async function installFamilyProbe(page, target) {
           role,
           source,
           critical,
+          attackCharge,
+          distanceToPlayer,
         };
       }
       return null;
+    }
+
+    function hasClosingContact(handle) {
+      const current = handle.driver.curr;
+      const previous = handle.driver.prev;
+      if (current === undefined || previous === undefined) return false;
+      const currentEnemies = current.enemies;
+      const previousEnemies = previous.enemies;
+      if (currentEnemies === undefined || previousEnemies === undefined) return false;
+      const previousById = new Map();
+      for (let index = 0; index < previousEnemies.count; index++) {
+        previousById.set(previousEnemies.id[index], index);
+      }
+      for (let index = 0; index < currentEnemies.count; index++) {
+        const previousIndex = previousById.get(currentEnemies.id[index]);
+        if (previousIndex === undefined) continue;
+        const currentX = Number(currentEnemies.x[index] ?? current.playerX);
+        const currentY = Number(currentEnemies.y[index] ?? current.playerY);
+        const previousX = Number(previousEnemies.x[previousIndex] ?? previous.playerX);
+        const previousY = Number(previousEnemies.y[previousIndex] ?? previous.playerY);
+        const currentDistance = Math.hypot(currentX - current.playerX, currentY - current.playerY);
+        const previousDistance = Math.hypot(previousX - previous.playerX, previousY - previous.playerY);
+        const radius = Math.max(0, Number(currentEnemies.radius[index] ?? 0));
+        const contactRange = (Math.max(0, Number(current.playerRadius ?? 0)) + radius) * 1.2;
+        if (currentDistance < previousDistance && currentDistance <= contactRange) return true;
+      }
+      return false;
     }
 
     function findPrimary(handle) {
@@ -956,6 +1171,14 @@ async function installFamilyProbe(page, target) {
           armNextPhase();
         }
       } else if (state.status === 'waiting-secondary') {
+        const maximumTick = state.primary === null || requested.secondary?.maximumTickDelta === undefined
+          ? null
+          : state.primary.tick + requested.secondary.maximumTickDelta;
+        if (maximumTick !== null && handle.driver.tick > maximumTick) {
+          state.status = 'error';
+          state.error = `secondary evidence did not arrive within ${String(requested.secondary.maximumTickDelta)} ticks`;
+          return;
+        }
         const secondary = findSecondary(handle);
         if (secondary !== null) {
           state.secondary = secondary;
@@ -1160,7 +1383,7 @@ function reportMarkdown(report) {
     '',
     `- Generated: ${report.generatedAt}`,
     `- Run mode: ${report.captureContract.runMode}`,
-    `- Browser: ${report.browser.mode}`,
+    `- Browser: ${report.browser?.mode ?? 'not launched'}`,
     `- Seed: \`${report.seed}\``,
     `- Result: **${report.pass ? 'PASS' : 'BLOCKED'}** (${report.targets.filter((target) => target.status === 'PASS').length}/${report.targets.length} complete)`,
     '',

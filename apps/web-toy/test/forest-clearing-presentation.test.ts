@@ -1,20 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import {
+  FOREST_BOUNDARY_FOG_OPACITY,
   FOREST_CANOPY_COUNT,
   FOREST_BOUNDARY_FOG_BAND_COUNT,
   FOREST_CLEARING_RADIUS,
   FOREST_CLEARING_LAYER_COUNT,
   FOREST_FERN_COUNT,
   FOREST_FLOWER_PATCH_COUNT,
+  FOREST_GROUND_PROP_FLOOR_BLEND,
   FOREST_GRASS_TUFT_COUNT,
   FOREST_LEAF_LITTER_COUNT,
   FOREST_LIGHT_POOL_COUNT,
   FOREST_MOSS_PATCH_COUNT,
   FOREST_ROOT_COUNT,
+  FOREST_SUN_DAPPLE_OPACITY,
   FOREST_STONE_COUNT,
   FOREST_TREE_BASE_COUNT,
   SALTWIND_CLEARING_VISUAL_SEED,
   SALTWIND_RUIN_COUNT,
+  blendForestGroundPropTowardFloor,
   createForestClearingLayout,
   createForestInstanceMatrices,
   type ForestDecoration,
@@ -103,6 +107,20 @@ describe('forest clearing presentation layout', () => {
     expect(saltwind.mossPatches).toHaveLength(FOREST_MOSS_PATCH_COUNT);
     expect(saltwind.canopies).toHaveLength(FOREST_CANOPY_COUNT);
     expect(saltwind.landmarks).toHaveLength(SALTWIND_RUIN_COUNT);
+  });
+
+  it('keeps static ground competition within the readability value budget', () => {
+    // The prior edge-fog opacity was 0.42; this must remain at least 40%
+    // quieter so the spawn/approach band does not hide dark silhouettes.
+    expect(FOREST_BOUNDARY_FOG_OPACITY).toBeLessThanOrEqual(0.42 * 0.6);
+    expect(FOREST_SUN_DAPPLE_OPACITY).toBeLessThan(0.09);
+    expect(FOREST_GROUND_PROP_FLOOR_BLEND).toBeGreaterThan(0.25);
+    expect(FOREST_GROUND_PROP_FLOOR_BLEND).toBeLessThan(0.5);
+
+    const quieted = blendForestGroundPropTowardFloor([0.67, 0.33, 0.1], [0.075, 0.18, 0.09]);
+    expect(quieted[0]).toBeCloseTo(0.4558);
+    expect(quieted[1]).toBeCloseTo(0.276);
+    expect(quieted[2]).toBeCloseTo(0.0964);
   });
 
   it('packs stable column-major transforms for one static draw upload', () => {

@@ -35,6 +35,7 @@ function enemies(entries: readonly EnemyEntry[]): CategorySnapshot {
   const source = new Uint8Array(capacity);
   const critical = new Uint8Array(capacity);
   const marked = new Uint8Array(capacity);
+  const attackCharge = new Float32Array(capacity);
   entries.forEach((entry, index) => {
     id[index] = entry.id;
     x[index] = entry.x ?? 100;
@@ -45,7 +46,7 @@ function enemies(entries: readonly EnemyEntry[]): CategorySnapshot {
   });
   return {
     category: 'enemy', count: capacity, id, x, y, radius, value, velocityX, velocityY,
-    hp, maxHp, archetype, role, source, critical, marked,
+    hp, maxHp, archetype, role, source, critical, marked, attackCharge,
   };
 }
 
@@ -58,12 +59,13 @@ function hit(targetId: number, tick: number, overrides: Partial<CombatPresentati
 }
 
 describe('enemy hit flash presentation', () => {
-  it('keeps a shaped third beat while lowering the peak instead of adding a strobe', () => {
-    expect(ENEMY_HIT_FLASH_AGE_OPACITY).toEqual([0.84, 0.44, 0.24]);
-    expect(ENEMY_HIT_FLASH_AGE_OPACITY[0]).toBeLessThan(0.9);
-    expect(ENEMY_HIT_FLASH_AGE_OPACITY[2]).toBeGreaterThanOrEqual(0.22);
+  it('uses the forensic three-tick low-energy opacity profile', () => {
+    expect(ENEMY_HIT_FLASH_AGE_OPACITY).toEqual([0.58, 0.32, 0.16]);
+    expect(ENEMY_HIT_FLASH_AGE_OPACITY[0]).toBe(0.58);
+    expect(ENEMY_HIT_FLASH_AGE_OPACITY[1]).toBe(0.32);
+    expect(ENEMY_HIT_FLASH_AGE_OPACITY[2]).toBe(0.16);
     expect(ENEMY_HIT_FLASH_AGE_OPACITY.reduce((total, opacity) => total + opacity, 0))
-      .toBeLessThanOrEqual(1.52);
+      .toBeCloseTo(1.06);
   });
 
   it('renders one exact-target white flash for three fixed ticks and reuses the packed frame', () => {
@@ -107,7 +109,7 @@ describe('enemy hit flash presentation', () => {
     expect(allowed.flashes.ageTicks[0]).toBe(0);
   });
 
-  it('admits a deterministic global subset from a same-tick swarm hit without shortening admitted flashes', () => {
+  it('admits one deterministic critical-first winner from a same-tick swarm hit', () => {
     const ids = Array.from({ length: 8 }, (_, index) => makeId(50 + index, 1));
     const snapshot = enemies(ids.map((id, index) => ({ id, x: 40 + index * 8 })));
     const hits = ids.map((id, index) => hit(id, 80, {
@@ -123,22 +125,42 @@ describe('enemy hit flash presentation', () => {
     const winners = Array.from(started.flashes.entityId.slice(0, started.flashes.count));
     const reverseWinners = Array.from(reverseStarted.flashes.entityId.slice(0, reverseStarted.flashes.count));
 
-    expect(DEFAULT_ENEMY_HIT_FLASH_MAX_NEW_PER_TICK).toBe(2);
-    expect(DEFAULT_ENEMY_HIT_FLASH_MAX_CONCURRENT).toBe(6);
-    expect(first.maxNewPerTick).toBe(2);
-    expect(first.maxConcurrent).toBe(6);
-    expect(started.flashes.count).toBe(2);
+    expect(DEFAULT_ENEMY_HIT_FLASH_MAX_NEW_PER_TICK).toBe(1);
+    expect(DEFAULT_ENEMY_HIT_FLASH_MAX_CONCURRENT).toBe(3);
+    expect(first.maxNewPerTick).toBe(1);
+    expect(first.maxConcurrent).toBe(3);
+    expect(started.flashes.count).toBe(1);
     expect(winners).toEqual(reverseWinners);
-    // The critical contact receives one of the two deterministic slots.
-    expect(winners).toContain(ids[7]);
+    // The sole critical contact receives the one deterministic slot.
+    expect(winners).toEqual([ids[7]]);
 
     const ageOne = first.update([], snapshot, 81);
-    expect(ageOne.flashes.count).toBe(2);
-    expect(Array.from(ageOne.flashes.ageTicks.slice(0, 2))).toEqual([1, 1]);
+    expect(ageOne.flashes.count).toBe(1);
+    expect(Array.from(ageOne.flashes.ageTicks.slice(0, 1))).toEqual([1]);
     const ageTwo = first.update([], snapshot, 82);
-    expect(ageTwo.flashes.count).toBe(2);
-    expect(Array.from(ageTwo.flashes.ageTicks.slice(0, 2))).toEqual([2, 2]);
+    expect(ageTwo.flashes.count).toBe(1);
+    expect(Array.from(ageTwo.flashes.ageTicks.slice(0, 1))).toEqual([2]);
     expect(first.update([], snapshot, 80 + ENEMY_HIT_FLASH_LIFETIME_TICKS).flashes.count).toBe(0);
+  });
+
+  it('never exceeds the three-overlay concurrent budget across successive hit ticks', () => {
+    const ids = [
+      makeId(81, 1),
+      makeId(82, 1),
+      makeId(83, 1),
+      makeId(84, 1),
+    ];
+    const snapshot = enemies(ids.map((id) => ({ id })));
+    const presentation = createEnemyHitFlashPresentation({ capacity: 48 });
+    const counts = [
+      presentation.update([hit(ids[0]!, 100)], snapshot, 100).flashes.count,
+      presentation.update([hit(ids[1]!, 101)], snapshot, 101).flashes.count,
+      presentation.update([hit(ids[2]!, 102)], snapshot, 102).flashes.count,
+      presentation.update([hit(ids[3]!, 103)], snapshot, 103).flashes.count,
+    ];
+
+    expect(counts).toEqual([1, 2, 3, 3]);
+    expect(Math.max(...counts)).toBeLessThanOrEqual(DEFAULT_ENEMY_HIT_FLASH_MAX_CONCURRENT);
   });
 
   it('never flashes a generation-reused slot from a stale combat target id', () => {

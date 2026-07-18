@@ -69,6 +69,9 @@ describe('hash parity: driver (renderer-off) vs headless control', () => {
       withCapture.step(input);
       // Renderer-on read path: must be a pure read, never affecting gameplay state.
       captureSnapshot(scratch, withCapture);
+      for (let index = 0; index < scratch.enemies.count; index++) {
+        expect(Number.isFinite(scratch.enemies.attackCharge[index]!)).toBe(true);
+      }
     }
 
     expect(withCapture.hash()).toBe(control.hash());

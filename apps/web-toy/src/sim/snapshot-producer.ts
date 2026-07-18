@@ -4,7 +4,7 @@
  * copies: nothing here ever writes to the simulation's live typed arrays.
  */
 import type { CategorySnapshot, RenderSnapshot, ViewCategory } from '../contracts';
-import { powerPickupCapacityForXpCap } from '@sim';
+import { ENEMY_BEHAVIOR_KIND, powerPickupCapacityForXpCap } from '@sim';
 import type {
   PickupPool,
   Pool,
@@ -17,6 +17,21 @@ import type {
 
 /** Projectiles have no radius field in the sim pool; used only for the view. */
 const PROJECTILE_VIEW_RADIUS = 3;
+
+/** Config-derived, immutable setup data retained outside renderer contracts. */
+interface AttackChargeIntervals {
+  readonly elite: number;
+  readonly spitter: number;
+  readonly support: number;
+}
+
+/**
+ * Render snapshots are app-owned public contracts. Keep the configuration
+ * needed to project attack charge in a private setup map so no renderer gets a
+ * writable simulation config and the steady-state capture path stays
+ * allocation-free.
+ */
+const attackChargeIntervalsBySnapshot = new WeakMap<RenderSnapshot, AttackChargeIntervals>();
 
 function createCategorySnapshot(category: ViewCategory, capacity: number): CategorySnapshot {
   return {
@@ -36,6 +51,7 @@ function createCategorySnapshot(category: ViewCategory, capacity: number): Categ
     source: new Uint8Array(capacity),
     critical: new Uint8Array(capacity),
     marked: new Uint8Array(capacity),
+    attackCharge: new Float32Array(capacity),
   };
 }
 
@@ -45,7 +61,7 @@ function createCategorySnapshot(category: ViewCategory, capacity: number): Categ
  * never resized in the steady-state loop.
  */
 export function createSnapshot(config: SimConfig): RenderSnapshot {
-  return {
+  const snapshot: RenderSnapshot = {
     tick: 0,
     playerX: 0,
     playerY: 0,
@@ -62,11 +78,31 @@ export function createSnapshot(config: SimConfig): RenderSnapshot {
     powerPickups: createCategorySnapshot('powerPickup', powerPickupCapacityForXpCap(config.pickupCap)),
     zones: createCategorySnapshot('zone', config.zoneCap),
   };
+  attackChargeIntervalsBySnapshot.set(snapshot, {
+    elite: config.enemyBehavior.eliteFireIntervalTicks,
+    spitter: config.enemyBehavior.spitterFireIntervalTicks,
+    support: config.enemyBehavior.supportHealIntervalTicks,
+  });
+  return snapshot;
 }
 
-function captureEnemies(out: CategorySnapshot, sim: Simulation): void {
+function attackChargeInterval(kind: number, intervals: AttackChargeIntervals): number {
+  switch (kind) {
+    case ENEMY_BEHAVIOR_KIND.eliteSkirmish:
+      return intervals.elite;
+    case ENEMY_BEHAVIOR_KIND.spitterSkirmish:
+      return intervals.spitter;
+    case ENEMY_BEHAVIOR_KIND.supportPulse:
+      return intervals.support;
+    default:
+      return 0;
+  }
+}
+
+function captureEnemies(out: CategorySnapshot, sim: Simulation, intervals: AttackChargeIntervals): void {
   const pool = sim.enemies;
   const data = pool.data;
+  const behavior = sim.enemyBehaviorView;
   let n = 0;
   for (let slot = 0; slot < data.capacity; slot++) {
     if (data.alive[slot] !== 1) continue;
@@ -84,6 +120,11 @@ function captureEnemies(out: CategorySnapshot, sim: Simulation): void {
     out.source[n] = 0;
     out.critical[n] = 0;
     out.marked[n] = data.marked[slot]!;
+    const interval = attackChargeInterval(behavior.kind[slot]!, intervals);
+    const cooldown = behavior.hostileShotCooldown[slot]!;
+    out.attackCharge[n] = interval === 0
+      ? 0
+      : Math.min(1, Math.max(0, 1 - cooldown / interval));
     n++;
   }
   out.count = n;
@@ -108,6 +149,7 @@ function captureProjectiles(out: CategorySnapshot, pool: Pool<ProjectilePool>): 
     out.source[n] = data.source[slot]!;
     out.critical[n] = data.critical[slot]!;
     out.marked[n] = 0;
+    out.attackCharge[n] = 0;
     n++;
   }
   out.count = n;
@@ -132,6 +174,7 @@ function capturePickups(out: CategorySnapshot, pool: Pool<PickupPool>): void {
     out.source[n] = 0;
     out.critical[n] = 0;
     out.marked[n] = 0;
+    out.attackCharge[n] = 0;
     n++;
   }
   out.count = n;
@@ -161,6 +204,7 @@ function capturePowerPickups(out: CategorySnapshot, pool: Pool<PowerPickupPool>)
     out.source[n] = 0;
     out.critical[n] = 0;
     out.marked[n] = 0;
+    out.attackCharge[n] = 0;
     n++;
   }
   out.count = n;
@@ -186,6 +230,7 @@ function captureZones(out: CategorySnapshot, pool: Pool<ZonePool>): void {
     out.source[n] = data.source[slot]!;
     out.critical[n] = data.critical[slot]!;
     out.marked[n] = 0;
+    out.attackCharge[n] = 0;
     n++;
   }
   out.count = n;
@@ -197,6 +242,10 @@ function captureZones(out: CategorySnapshot, pool: Pool<ZonePool>): void {
  * `out`'s existing typed-array buffers.
  */
 export function captureSnapshot(out: RenderSnapshot, sim: Simulation): void {
+  const attackChargeIntervals = attackChargeIntervalsBySnapshot.get(out);
+  if (attackChargeIntervals === undefined) {
+    throw new Error('captureSnapshot requires a snapshot created by createSnapshot');
+  }
   out.tick = sim.tick;
   out.playerX = sim.player.x;
   out.playerY = sim.player.y;
@@ -208,7 +257,7 @@ export function captureSnapshot(out: RenderSnapshot, sim: Simulation): void {
   out.playerLevel = sim.player.level;
   out.playerAlive = sim.player.alive;
 
-  captureEnemies(out.enemies, sim);
+  captureEnemies(out.enemies, sim, attackChargeIntervals);
   captureProjectiles(out.projectiles, sim.projectiles);
   capturePickups(out.pickups, sim.pickups);
   capturePowerPickups(out.powerPickups, sim.powerPickups);

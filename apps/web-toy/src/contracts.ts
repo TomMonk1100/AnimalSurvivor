@@ -104,6 +104,12 @@ export interface CategorySnapshot {
   readonly critical: Uint8Array;
   /** Simulation-owned priority mark copied for renderer-only weak-point feedback. */
   readonly marked: Uint8Array;
+  /**
+   * 0 for non-shooters; for ranged, elite, denial, and support enemies this
+   * is normalized progress toward the next authoritative behavior action
+   * (1 = imminent). Presentation-only; copied at the tick boundary.
+   */
+  readonly attackCharge: Float32Array;
 }
 
 /** One full render snapshot: player transform + per-category entity snapshots. */

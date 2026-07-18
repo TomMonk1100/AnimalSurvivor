@@ -10,6 +10,43 @@ The external blind Claude swarm package has been reconciled in
 Its standalone prototypes remain reference-only; no speculative content was
 merged from them.
 
+## Visual readability overhaul — technical closeout (2026-07-16)
+
+The renderer-facing Visual Readability Overhaul packet is technically complete.
+It keeps the deterministic simulation authoritative: the only cross-boundary
+addition is a read-only enemy `attackCharge` snapshot used to present an
+imminent ranged shot, with no combat, replay, reward, or targeting write path.
+
+- Ground value compression, enemy contact separation, the ivory hero anchor,
+  camera-plane gait, player cast/cohesion rules, hostile core/tail shots, and
+  danger/telegraph hierarchy are renderer-facing presentation changes.
+- The complete S1–S12 technical scoring record is
+  [`RUBRIC.md`](../vfx/captures/readability-final-2026-07/RUBRIC.md). It links
+  actual headed compositor stills, grayscale comparisons, flash evidence, and
+  regression gates instead of treating source inspection alone as visual proof.
+- Every current damaging player source/treatment has a source-attributed
+  normal-run lifecycle in
+  [`ATTACK-FAMILY-CLOSURE.md`](../vfx/captures/readability-final-2026-07/ATTACK-FAMILY-CLOSURE.md).
+  Historical blocked attempts remain retained; a target-level pass is never
+  represented as a passing aggregate matrix.
+- Three independently tasked technical reviewers approved the composition,
+  combat/danger, and provenance lanes after requesting corrective recaptures;
+  their bounded verdicts are recorded in
+  [`TECHNICAL-REVIEW-PANEL.md`](../vfx/captures/readability-final-2026-07/TECHNICAL-REVIEW-PANEL.md).
+- The final local technical evidence includes: web suite **99 files / 564
+  tests**, replay/hash/stress subset **3 files / 8 tests**, root
+  `npm run verify:release` (including served artifact and VFX flash), and
+  `npm --prefix apps/web-toy run verify:agent-smoke` (WebGL2 visible
+  Start/Pause/Resume plus a clearly labeled non-player-visible terminal lane).
+  The current capture-harness change also passes web lint and `node --check`.
+
+This is engineering and technical-capture evidence—not a declaration that a
+person can always read, react to, enjoy, or safely use the result. The required
+three independent human checklist responses in
+[`visual-readability-owner-checklist.md`](../playtests/visual-readability-owner-checklist.md)
+remain unfilled. Do not claim a human visual-standard approval until those
+responses exist.
+
 ## V1.2 playtest-response — implemented 2026-07-15
 
 The first external playtest reported that runs were too easy and long, the

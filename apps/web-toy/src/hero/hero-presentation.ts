@@ -4,15 +4,31 @@ import type { RenderSnapshot } from '../contracts';
 import { getHeroVisualProfile, type HeroId } from './hero-roster';
 import { createProceduralAnimalPresentation } from './procedural-animal-presentation';
 
-const HERO_SIGIL_COLORS: Readonly<Record<HeroId, pc.Color>> = Object.freeze({
-  greg: new pc.Color(0.95, 0.66, 0.16),
-  benny: new pc.Color(0.86, 0.58, 0.3),
-  gracie: new pc.Color(0.45, 0.84, 0.68),
-});
-const HERO_SIGIL_SCALE = 12;
-const HERO_SIGIL_HEIGHT = 0.16;
-const HERO_SHADOW_RADIUS = 15;
-const HERO_SHADOW_HEIGHT = -0.48;
+/** The shared 0.5 Hz ceiling used by the enemy-threat breath loops. */
+export const HERO_ANCHOR_BREATH_PERIOD_TICKS = 120;
+export const HERO_ANCHOR_BREATH_SCALE = 0.022;
+// Player collision radius is deliberately much smaller than the authored
+// cutout footprint. These values keep the ivory locator visibly *outside*
+// the largest scaled companion instead of hiding beneath its card.
+export const HERO_ANCHOR_SHADOW_RADIUS_MULTIPLIER = 2.42;
+export const HERO_ANCHOR_SHADOW_ASPECT = 0.72;
+export const HERO_ANCHOR_INNER_RING_RADIUS_MULTIPLIER = 2.58;
+export const HERO_ANCHOR_OUTER_RING_RADIUS_MULTIPLIER = 3.12;
+export const HERO_ANCHOR_DAMAGE_PULSE_RADIUS_MULTIPLIER = 3.75;
+export const HERO_ANCHOR_DAMAGE_PULSE_DURATION_TICKS = 10;
+export const HERO_ANCHOR_SHADOW_OPACITY = 0.3;
+export const HERO_ANCHOR_INNER_RING_OPACITY = 0.48;
+export const HERO_ANCHOR_OUTER_RING_OPACITY = 0.6;
+export const HERO_ANCHOR_DAMAGE_PULSE_OPACITY = 0.58;
+export const HERO_ANCHOR_RING_SEGMENTS = 48;
+export const HERO_ANCHOR_IVORY_HEX = '#f3ead4';
+export const HERO_ANCHOR_PULSE_IVORY_HEX = '#fffbe9';
+
+const HERO_ANCHOR_IVORY = new pc.Color(0.953, 0.918, 0.831);
+const HERO_ANCHOR_PULSE_IVORY = new pc.Color(1, 0.984, 0.914);
+const HERO_ANCHOR_RING_HEIGHT = 0.16;
+const HERO_ANCHOR_PULSE_HEIGHT = 0.17;
+const HERO_ANCHOR_SHADOW_HEIGHT = -0.48;
 
 type GroundPoint = readonly [number, number];
 
@@ -41,28 +57,13 @@ function appendQuad(
   builder.indices.push(aIndex, bIndex, cIndex, aIndex, cIndex, dIndex);
 }
 
-/** A small pointed leaf blade with deliberate negative space between its neighbours. */
-function appendLeafBlade(
+function appendTriangle(
   builder: GroundMeshBuilder,
-  root: GroundPoint,
-  tip: GroundPoint,
-  halfWidth: number,
+  a: GroundPoint,
+  b: GroundPoint,
+  c: GroundPoint,
 ): void {
-  const deltaX = tip[0] - root[0];
-  const deltaZ = tip[1] - root[1];
-  const length = Math.hypot(deltaX, deltaZ);
-  if (!(length > 1e-6)) return;
-  const normalX = -deltaZ / length * halfWidth;
-  const normalZ = deltaX / length * halfWidth;
-  const middleX = root[0] + deltaX * 0.48;
-  const middleZ = root[1] + deltaZ * 0.48;
-  appendQuad(
-    builder,
-    root,
-    [middleX + normalX, middleZ + normalZ],
-    tip,
-    [middleX - normalX, middleZ - normalZ],
-  );
+  builder.indices.push(appendVertex(builder, a), appendVertex(builder, b), appendVertex(builder, c));
 }
 
 function createGroundMesh(device: pc.GraphicsDevice, build: (builder: GroundMeshBuilder) => void): pc.Mesh {
@@ -75,37 +76,47 @@ function createGroundMesh(device: pc.GraphicsDevice, build: (builder: GroundMesh
   return pc.Mesh.fromGeometry(device, geometry);
 }
 
-/**
- * A three-leaf wayfinder crest replaces the old targeting-ring language.
- *
- * It deliberately leaves open ground between the blades so the player reads a
- * quiet heraldic mark beneath the hero, not a selection outline or damage
- * radius. The crest is fixed to the camera-facing frame because player facing
- * is not part of the authoritative render snapshot.
- */
-function createWildguardWayfinderMesh(device: pc.GraphicsDevice): pc.Mesh {
+function createHeroAnchorShadowMesh(device: pc.GraphicsDevice): pc.Mesh {
   return createGroundMesh(device, (builder) => {
-    appendLeafBlade(builder, [0, 0.16], [0, -0.72], 0.09);
-    appendLeafBlade(builder, [-0.62, 0.28], [-0.14, -0.16], 0.075);
-    appendLeafBlade(builder, [0.62, 0.28], [0.14, -0.16], 0.075);
+    const center: GroundPoint = [0, 0];
+    for (let index = 0; index < HERO_ANCHOR_RING_SEGMENTS; index++) {
+      const start = index / HERO_ANCHOR_RING_SEGMENTS * Math.PI * 2;
+      const end = (index + 1) / HERO_ANCHOR_RING_SEGMENTS * Math.PI * 2;
+      appendTriangle(
+        builder,
+        center,
+        [Math.cos(start), Math.sin(start)],
+        [Math.cos(end), Math.sin(end)],
+      );
+    }
   });
 }
 
-/** A hand-cut leaf-litter shadow avoids a generic circular decal under the hero. */
-function createHeroShadowMesh(device: pc.GraphicsDevice): pc.Mesh {
+/** A thin annulus stays legible at camera distance without becoming an AoE decal. */
+function createHeroAnchorRingMesh(device: pc.GraphicsDevice): pc.Mesh {
   return createGroundMesh(device, (builder) => {
-    appendQuad(builder, [-0.54, -0.08], [-0.18, -0.34], [0.48, -0.16], [0.56, 0.12]);
-    appendQuad(builder, [-0.56, 0.12], [-0.18, -0.34], [0.34, 0.36], [-0.3, 0.42]);
+    const innerRadius = 0.87;
+    for (let index = 0; index < HERO_ANCHOR_RING_SEGMENTS; index++) {
+      const start = index / HERO_ANCHOR_RING_SEGMENTS * Math.PI * 2;
+      const end = (index + 1) / HERO_ANCHOR_RING_SEGMENTS * Math.PI * 2;
+      appendQuad(
+        builder,
+        [Math.cos(start) * innerRadius, Math.sin(start) * innerRadius],
+        [Math.cos(start), Math.sin(start)],
+        [Math.cos(end), Math.sin(end)],
+        [Math.cos(end) * innerRadius, Math.sin(end) * innerRadius],
+      );
+    }
   });
 }
 
-function createHeroSigilMaterial(color: pc.Color): pc.StandardMaterial {
+function createHeroAnchorRingMaterial(color: pc.Color, opacity: number): pc.StandardMaterial {
   const material = new pc.StandardMaterial();
   material.useLighting = false;
   material.diffuse.set(0, 0, 0);
   material.emissive.copy(color);
-  material.opacity = 0.38;
-  material.blendType = pc.BLEND_ADDITIVEALPHA;
+  material.opacity = opacity;
+  material.blendType = pc.BLEND_NORMAL;
   material.depthWrite = false;
   material.cull = pc.CULLFACE_NONE;
   material.update();
@@ -118,12 +129,109 @@ function createHeroShadowMaterial(): pc.StandardMaterial {
   material.useLighting = false;
   material.diffuse.set(0, 0, 0);
   material.emissive.set(0, 0, 0);
-  material.opacity = 0.28;
+  material.opacity = HERO_ANCHOR_SHADOW_OPACITY;
   material.blendType = pc.BLEND_NORMAL;
   material.depthWrite = false;
   material.cull = pc.CULLFACE_NONE;
   material.update();
   return material;
+}
+
+function finite(value: number, fallback = 0): number {
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function clampedAlpha(alpha: number): number {
+  return Math.min(1, Math.max(0, finite(alpha)));
+}
+
+function easeOutCubic(progress: number): number {
+  const inverse = 1 - progress;
+  return 1 - inverse * inverse * inverse;
+}
+
+export interface HeroAnchorPose {
+  readonly breathScale: number;
+  readonly shadowRadius: number;
+  readonly innerRingRadius: number;
+  readonly outerRingRadius: number;
+  readonly pulseRingRadius: number;
+  readonly pulseOpacity: number;
+  readonly pulseActive: boolean;
+}
+
+export interface MutableHeroAnchorPose {
+  breathScale: number;
+  shadowRadius: number;
+  innerRingRadius: number;
+  outerRingRadius: number;
+  pulseRingRadius: number;
+  pulseOpacity: number;
+  pulseActive: boolean;
+}
+
+function createMutableHeroAnchorPose(): MutableHeroAnchorPose {
+  return {
+    breathScale: 1,
+    shadowRadius: 0,
+    innerRingRadius: 0,
+    outerRingRadius: 0,
+    pulseRingRadius: 0,
+    pulseOpacity: 0,
+    pulseActive: false,
+  };
+}
+
+/**
+ * Pure, fixed-tick anchor projection. The pulse is intentionally a single
+ * outward locator rather than a repeated flash, preserving the flash budget.
+ */
+export function writeHeroAnchorPose(
+  out: MutableHeroAnchorPose,
+  playerRadius: number,
+  tick: number,
+  alpha: number,
+  lastDamageTick: number,
+): void {
+  const radius = Math.max(0, finite(playerRadius));
+  const renderTick = finite(tick) + clampedAlpha(alpha);
+  const breath = 1 + Math.sin(renderTick / HERO_ANCHOR_BREATH_PERIOD_TICKS * Math.PI * 2)
+    * HERO_ANCHOR_BREATH_SCALE;
+  const shadowRadius = radius * HERO_ANCHOR_SHADOW_RADIUS_MULTIPLIER * breath;
+  const innerRingRadius = radius * HERO_ANCHOR_INNER_RING_RADIUS_MULTIPLIER * breath;
+  const outerRingRadius = radius * HERO_ANCHOR_OUTER_RING_RADIUS_MULTIPLIER * breath;
+  const pulseAge = renderTick - lastDamageTick;
+  const pulseActive = Number.isFinite(lastDamageTick)
+    && pulseAge >= 0
+    && pulseAge < HERO_ANCHOR_DAMAGE_PULSE_DURATION_TICKS;
+  const pulseProgress = pulseActive
+    ? Math.min(1, Math.max(0, pulseAge / HERO_ANCHOR_DAMAGE_PULSE_DURATION_TICKS))
+    : 1;
+  const pulseRadius = radius * (
+    HERO_ANCHOR_OUTER_RING_RADIUS_MULTIPLIER
+      + (HERO_ANCHOR_DAMAGE_PULSE_RADIUS_MULTIPLIER - HERO_ANCHOR_OUTER_RING_RADIUS_MULTIPLIER)
+        * easeOutCubic(pulseProgress)
+  ) * breath;
+  const pulseFade = 1 - pulseProgress;
+  out.breathScale = breath;
+  out.shadowRadius = shadowRadius;
+  out.innerRingRadius = innerRingRadius;
+  out.outerRingRadius = outerRingRadius;
+  out.pulseRingRadius = pulseRadius;
+  out.pulseOpacity = HERO_ANCHOR_DAMAGE_PULSE_OPACITY * pulseFade * pulseFade;
+  out.pulseActive = pulseActive;
+}
+
+/** Pure convenience wrapper for tests and one-off inspection. */
+export function projectHeroAnchorPose(
+  playerRadius: number,
+  tick: number,
+  alpha: number,
+  lastDamageTick: number,
+): HeroAnchorPose {
+  const pose = createMutableHeroAnchorPose();
+  writeHeroAnchorPose(pose, playerRadius, tick, alpha, lastDamageTick);
+  return pose;
 }
 
 export interface HeroPresentation {
@@ -159,32 +267,62 @@ export function createHeroPresentation(
   const scout = createProceduralAnimalPresentation('greg', parent, worldHalfWidth, worldHalfHeight);
   const benny = createProceduralAnimalPresentation('benny', parent, worldHalfWidth, worldHalfHeight);
   const gracie = createProceduralAnimalPresentation('gracie', parent, worldHalfWidth, worldHalfHeight);
-  const sigilMesh = createWildguardWayfinderMesh(app.graphicsDevice);
-  const sigilMaterial = createHeroSigilMaterial(HERO_SIGIL_COLORS[initialHeroId]!);
-  const shadowMesh = createHeroShadowMesh(app.graphicsDevice);
+  const shadowMesh = createHeroAnchorShadowMesh(app.graphicsDevice);
+  const ringMesh = createHeroAnchorRingMesh(app.graphicsDevice);
   const shadowMaterial = createHeroShadowMaterial();
+  const innerRingMaterial = createHeroAnchorRingMaterial(
+    HERO_ANCHOR_IVORY,
+    HERO_ANCHOR_INNER_RING_OPACITY,
+  );
+  const outerRingMaterial = createHeroAnchorRingMaterial(
+    HERO_ANCHOR_IVORY,
+    HERO_ANCHOR_OUTER_RING_OPACITY,
+  );
+  const pulseRingMaterial = createHeroAnchorRingMaterial(
+    HERO_ANCHOR_PULSE_IVORY,
+    HERO_ANCHOR_DAMAGE_PULSE_OPACITY,
+  );
   const heroShadow = new pc.Entity('hero-blob-shadow');
   heroShadow.addComponent('render', {
     meshInstances: [new pc.MeshInstance(shadowMesh, shadowMaterial)],
     castShadows: false,
     receiveShadows: false,
   });
-  heroShadow.setLocalPosition(0, HERO_SHADOW_HEIGHT, 0);
-  heroShadow.setLocalScale(HERO_SHADOW_RADIUS, 1, HERO_SHADOW_RADIUS * 0.76);
+  heroShadow.setLocalPosition(0, HERO_ANCHOR_SHADOW_HEIGHT, 0);
   heroShadow.enabled = false;
   parent.addChild(heroShadow);
-  const wayfinderSigil = new pc.Entity('hero-wayfinder-sigil');
-  wayfinderSigil.addComponent('render', {
-    meshInstances: [new pc.MeshInstance(sigilMesh, sigilMaterial)],
+  const heroInnerRing = new pc.Entity('hero-anchor-inner-ring');
+  heroInnerRing.addComponent('render', {
+    meshInstances: [new pc.MeshInstance(ringMesh, innerRingMaterial)],
     castShadows: false,
     receiveShadows: false,
   });
-  wayfinderSigil.setLocalPosition(0, HERO_SIGIL_HEIGHT, 0);
-  wayfinderSigil.setLocalScale(HERO_SIGIL_SCALE, 1, HERO_SIGIL_SCALE);
-  wayfinderSigil.enabled = false;
-  parent.addChild(wayfinderSigil);
+  heroInnerRing.setLocalPosition(0, HERO_ANCHOR_RING_HEIGHT, 0);
+  heroInnerRing.enabled = false;
+  parent.addChild(heroInnerRing);
+  const heroOuterRing = new pc.Entity('hero-anchor-outer-ring');
+  heroOuterRing.addComponent('render', {
+    meshInstances: [new pc.MeshInstance(ringMesh, outerRingMaterial)],
+    castShadows: false,
+    receiveShadows: false,
+  });
+  heroOuterRing.setLocalPosition(0, HERO_ANCHOR_RING_HEIGHT, 0);
+  heroOuterRing.enabled = false;
+  parent.addChild(heroOuterRing);
+  const pulseMeshInstance = new pc.MeshInstance(ringMesh, pulseRingMaterial);
+  const heroDamagePulse = new pc.Entity('hero-anchor-damage-pulse');
+  heroDamagePulse.addComponent('render', {
+    meshInstances: [pulseMeshInstance],
+    castShadows: false,
+    receiveShadows: false,
+  });
+  heroDamagePulse.setLocalPosition(0, HERO_ANCHOR_PULSE_HEIGHT, 0);
+  heroDamagePulse.enabled = false;
+  parent.addChild(heroDamagePulse);
   let activeHeroId = initialHeroId;
   let disposed = false;
+  let lastDamageTick = Number.NEGATIVE_INFINITY;
+  const anchorPose = createMutableHeroAnchorPose();
 
   function syncVisibility(): void {
     scout.setVisible(activeHeroId === 'greg');
@@ -204,8 +342,6 @@ export function createHeroPresentation(
       if (disposed) return;
       getHeroVisualProfile(heroId);
       activeHeroId = heroId;
-      sigilMaterial.emissive.copy(HERO_SIGIL_COLORS[heroId]!);
-      sigilMaterial.update();
       syncVisibility();
     },
     update(previous, current, alpha, traitVisualState, traitPresentationEvents = []) {
@@ -219,16 +355,34 @@ export function createHeroPresentation(
       }
       const x = previous.playerX + (current.playerX - previous.playerX) * alpha;
       const y = previous.playerY + (current.playerY - previous.playerY) * alpha;
-      const shadowPulse = 1 + Math.sin(current.tick * 0.09) * 0.025;
-      heroShadow.setLocalPosition(x - worldHalfWidth, HERO_SHADOW_HEIGHT, worldHalfHeight - y);
-      heroShadow.setLocalScale(
-        HERO_SHADOW_RADIUS * shadowPulse,
-        1,
-        HERO_SHADOW_RADIUS * 0.76 * shadowPulse,
+      if (current.tick < lastDamageTick) lastDamageTick = Number.NEGATIVE_INFINITY;
+      if (current.playerHp < previous.playerHp) lastDamageTick = current.tick;
+      writeHeroAnchorPose(
+        anchorPose,
+        current.playerRadius,
+        current.tick,
+        alpha,
+        lastDamageTick,
       );
+      const sceneX = x - worldHalfWidth;
+      const sceneZ = worldHalfHeight - y;
+      heroShadow.setLocalPosition(sceneX, HERO_ANCHOR_SHADOW_HEIGHT, sceneZ);
+      heroShadow.setLocalScale(
+        anchorPose.shadowRadius,
+        1,
+        anchorPose.shadowRadius * HERO_ANCHOR_SHADOW_ASPECT,
+      );
+      heroInnerRing.setLocalPosition(sceneX, HERO_ANCHOR_RING_HEIGHT, sceneZ);
+      heroInnerRing.setLocalScale(anchorPose.innerRingRadius, 1, anchorPose.innerRingRadius);
+      heroOuterRing.setLocalPosition(sceneX, HERO_ANCHOR_RING_HEIGHT, sceneZ);
+      heroOuterRing.setLocalScale(anchorPose.outerRingRadius, 1, anchorPose.outerRingRadius);
+      heroDamagePulse.setLocalPosition(sceneX, HERO_ANCHOR_PULSE_HEIGHT, sceneZ);
+      heroDamagePulse.setLocalScale(anchorPose.pulseRingRadius, 1, anchorPose.pulseRingRadius);
+      pulseMeshInstance.setParameter('material_opacity', anchorPose.pulseOpacity);
       heroShadow.enabled = current.playerAlive;
-      wayfinderSigil.setLocalPosition(x - worldHalfWidth, HERO_SIGIL_HEIGHT, worldHalfHeight - y);
-      wayfinderSigil.enabled = current.playerAlive;
+      heroInnerRing.enabled = current.playerAlive;
+      heroOuterRing.enabled = current.playerAlive;
+      heroDamagePulse.enabled = current.playerAlive && anchorPose.pulseActive;
     },
     dispose() {
       if (disposed) return;
@@ -237,11 +391,15 @@ export function createHeroPresentation(
       benny.dispose();
       gracie.dispose();
       heroShadow.destroy();
-      wayfinderSigil.destroy();
+      heroInnerRing.destroy();
+      heroOuterRing.destroy();
+      heroDamagePulse.destroy();
       shadowMesh.destroy();
       shadowMaterial.destroy();
-      sigilMesh.destroy();
-      sigilMaterial.destroy();
+      ringMesh.destroy();
+      innerRingMaterial.destroy();
+      outerRingMaterial.destroy();
+      pulseRingMaterial.destroy();
     },
   };
 }

@@ -106,6 +106,7 @@ export {
 export {
   createSimulation,
   runReplay,
+  type EnemyBehaviorPresentationView,
   type Simulation,
   type SimulationOptions,
   type TraitPresentationEventView,

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { CombatPresentationEventView } from '../src/presentation/combat-presentation-events';
 import {
+  COMBAT_DEFENSE_SHIELD_ABSORB_MIN_INTERVAL_TICKS,
+  createCombatDefensePresentation,
   MAX_COMBAT_DEFENSE_PRESENTATION_EVENTS,
   projectCombatDefensePresentationEvents,
 } from '../src/presentation/combat-defense-presentation';
@@ -40,5 +42,22 @@ describe('combat defense presentation bridge', () => {
       Array.from({ length: MAX_COMBAT_DEFENSE_PRESENTATION_EVENTS + 5 }, () => event('armorBlock')),
     );
     expect(cues).toHaveLength(MAX_COMBAT_DEFENSE_PRESENTATION_EVENTS);
+  });
+
+  it('coalesces routine shield-absorb art while preserving a later fresh defense cue', () => {
+    const presentation = createCombatDefensePresentation();
+    const first = presentation.project([event('shieldAbsorb')]);
+    const repeated = presentation.project([{
+      ...event('shieldAbsorb'), tick: 42 + COMBAT_DEFENSE_SHIELD_ABSORB_MIN_INTERVAL_TICKS - 1,
+    }]);
+    const fresh = presentation.project([{
+      ...event('shieldAbsorb'), tick: 42 + COMBAT_DEFENSE_SHIELD_ABSORB_MIN_INTERVAL_TICKS,
+    }]);
+
+    expect(first).toHaveLength(1);
+    expect(repeated).toHaveLength(0);
+    expect(fresh).toHaveLength(1);
+    presentation.reset();
+    expect(presentation.project([event('shieldAbsorb')])).toHaveLength(1);
   });
 });

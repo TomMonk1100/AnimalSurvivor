@@ -194,7 +194,7 @@ describe('signature VFX composite presentation', () => {
     expect(first.groundContacts.opacity[0]).toBeCloseTo(expectedFirstContactOpacity, 6);
     const atLastCoreTick = composite.update(63, []);
     expect(atLastCoreTick.cores.count).toBe(1);
-    expect(atLastCoreTick.cores.opacity[0]).toBeGreaterThan(0);
+    expect(atLastCoreTick.cores.opacity[0]).toBe(0);
     expect(atLastCoreTick.cores.scale[0]).toBeGreaterThan(32 * 0.21);
     expect(atLastCoreTick.cores.scale[0]).toBeLessThanOrEqual(32 * 0.25 + 0.001);
     const afterCore = composite.update(64, []);

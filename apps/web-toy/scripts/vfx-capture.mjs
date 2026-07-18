@@ -1,11 +1,13 @@
-/* global console, process, Buffer, URL, window, document, getComputedStyle, requestAnimationFrame, HTMLButtonElement */
+/* global console, process, Buffer, URL, window, document, getComputedStyle, requestAnimationFrame, HTMLButtonElement, MutationObserver */
 /**
  * Deterministic, renderer-facing VFX capture harness.
  *
- * The default route is a normal-speed fixed-seed run. It keeps selecting the
- * first visible upgrade with the real DOM button so a visual test cannot stall
- * at the same menu a human player sees. `--stress` exists for a fast smoke
- * capture only; use normal speed for phase scoring because it preserves the
+ * The default route is a normal-speed fixed-seed autoplay run. It keeps
+ * selecting the first visible upgrade with the real DOM button so a visual
+ * test cannot stall at the same menu a human player sees. `--idle` uses that
+ * same real run and chooser while deliberately withholding movement input for
+ * stationary-motion evidence. `--stress` exists for a fast smoke capture
+ * only; use normal speed for phase scoring because it preserves the
  * player-visible lifetime of short VFX.
  */
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -62,6 +64,7 @@ function parseArgs(argv) {
     failOnFlash: false,
     flashOnly: false,
     hero: 'greg',
+    idle: false,
     iteration: isoIteration(),
     keepFrames: false,
     port: 5199,
@@ -99,6 +102,8 @@ function parseArgs(argv) {
     } else if (argument === '--hero' && value) {
       args.hero = value;
       index++;
+    } else if (argument === '--idle') {
+      args.idle = true;
     } else if (argument === '--iteration' && value) {
       args.iteration = normalizeIteration(value);
       index++;
@@ -127,6 +132,7 @@ Runs normal-speed deterministic capture by default (fixed seed + DOM upgrade sel
   --iteration <name>       Output folder under docs/vfx/captures/.
   --hero <id>              Hero query value (default: greg).
   --seed <seed>            Fixed run seed (default: 3).
+  --idle                   Run unpaused with no movement input (idle-motion evidence).
   --capture-times 5,30,... Simulation seconds for stills.
   --clip-times 30,180      Simulation seconds where 10 s video clips begin.
   --clip-duration <sec>    Real video duration (default: 10).
@@ -147,13 +153,14 @@ Runs normal-speed deterministic capture by default (fixed seed + DOM upgrade sel
   }
   if (!Number.isInteger(args.port) || args.port < 1 || args.port > 65535) fail(`invalid port: ${args.port}`);
   if (!Number.isFinite(args.clipDuration) || args.clipDuration <= 0) fail(`invalid --clip-duration: ${args.clipDuration}`);
+  if (args.idle && args.stress) fail('--idle cannot be combined with --stress');
   args.iteration = normalizeIteration(args.iteration);
   return args;
 }
 
 function runningUrl(baseUrl, args) {
   const url = new URL(baseUrl);
-  url.searchParams.set('autopilot', '1');
+  if (!args.idle) url.searchParams.set('autopilot', '1');
   url.searchParams.set('hero', args.hero);
   url.searchParams.set('seed', args.seed);
   if (args.stress) url.searchParams.set('stress', '1');
@@ -224,6 +231,7 @@ async function pageRunState(page) {
       simTick: handle?.driver.tick ?? -1,
       playerLevel: handle?.driver.curr.playerLevel ?? -1,
       enemiesLive: handle?.driver.enemiesLive ?? -1,
+      runOutcome: handle?.driver.runOutcome ?? null,
       webgl2: canvas?.getContext('webgl2') !== null,
     };
   });
@@ -251,29 +259,39 @@ async function ensureRunStarted(page) {
 }
 
 /**
- * Keep real upgrade buttons moving at browser-frame cadence. Polling through
- * Playwright every 100ms let the bright modal survive one or more rendered
- * frames, which contaminated the photosensitivity capture despite combat
- * itself being stable. This remains an actual DOM button click, just timed
- * before the next frame paints.
+ * Keep real upgrade buttons moving before a new menu can become a recorded
+ * gameplay frame. A DOM mutation observer handles the modal's `hidden` flip
+ * in the same browser task; the rAF loop is only a fallback for an already
+ * visible choice. This remains an actual player-visible DOM button click and
+ * avoids treating one-frame automation menus as combat flash evidence.
  */
 async function startUpgradeChooser(page) {
   await page.evaluate(() => {
     let active = true;
     let clicks = 0;
-    const choose = () => {
+    const root = document.getElementById('upgrade-choices');
+    const chooseNow = () => {
       if (!active) return;
       const button = document.querySelector('#upgrade-choices:not([hidden]) button');
       if (button instanceof HTMLButtonElement && !button.disabled) {
         button.click();
         clicks++;
       }
+    };
+    const observer = root === null
+      ? null
+      : new MutationObserver(() => chooseNow());
+    observer?.observe(root, { attributes: true, attributeFilter: ['hidden'], childList: true, subtree: true });
+    const choose = () => {
+      if (!active) return;
+      chooseNow();
       requestAnimationFrame(choose);
     };
     requestAnimationFrame(choose);
     window.__vfxCaptureUpgradeChooser = {
       stop() {
         active = false;
+        observer?.disconnect();
         return clicks;
       },
     };
@@ -298,9 +316,23 @@ function timeoutForTick(seconds, stress) {
 }
 
 async function waitForTick(page, seconds, stress) {
-  await page.waitForFunction((targetTick) => window.__webToy?.driver.tick >= targetTick, Math.round(seconds * TICKS_PER_SECOND), {
+  const targetTick = Math.round(seconds * TICKS_PER_SECOND);
+  await page.waitForFunction((target) => {
+    const driver = window.__webToy?.driver;
+    return driver !== undefined && (
+      driver.tick >= target
+      || driver.runOutcome === 'victory'
+      || driver.runOutcome === 'defeat'
+    );
+  }, targetTick, {
     timeout: timeoutForTick(seconds, stress),
   });
+  const state = await pageRunState(page);
+  return {
+    reached: state.simTick >= targetTick,
+    state,
+    targetTick,
+  };
 }
 
 function runFfmpeg(ffmpeg, args) {
@@ -454,9 +486,21 @@ async function captureRun({ args, baseUrl, outputDir, serverMode }) {
     const milestones = [...new Set([...args.captureTimes, ...args.clipTimes])].sort((a, b) => a - b);
     const stills = [];
     const clipAnchors = [];
+    let terminalBeforeMilestone = null;
 
     for (const seconds of milestones) {
-      await waitForTick(page, seconds, args.stress);
+      const wait = await waitForTick(page, seconds, args.stress);
+      if (!wait.reached) {
+        terminalBeforeMilestone = {
+          targetSeconds: seconds,
+          targetTick: wait.targetTick,
+          reachedTick: wait.state.simTick,
+          runOutcome: wait.state.runOutcome,
+          playerLevel: wait.state.playerLevel,
+          enemiesLive: wait.state.enemiesLive,
+        };
+        break;
+      }
       await waitForUpgradeChoicesHidden(page);
       const state = await pageRunState(page);
       const recordedAt = performance.now();
@@ -505,10 +549,12 @@ async function captureRun({ args, baseUrl, outputDir, serverMode }) {
       await createContactSheet(framesDir, colorSheet, false);
       await createContactSheet(framesDir, graySheet, true);
       const audit = await auditFrames({ framesDir, fps: frameCapture.fps });
-      // Default captures retain the compact clip + contact sheets, not hundreds
-      // of redundant PNGs. The audit remains reproducible by rerunning capture
-      // with --keep-frames; this provenance avoids a dangling absolute path.
-      audit.source = `decoded from ${artifactPath(outputDir, clipPath)}`;
+      // Audit frames are decoded from the original Playwright recording rather
+      // than the convenience clip: stream-copy trimming can begin at a keyframe
+      // before the requested compositor timestamp. Keep the wording precise so
+      // reviewers never mistake the retained canonical audit frames for a
+      // separate decode of the derived WebM.
+      audit.source = 'decoded from the original Playwright recording before clip trimming';
       audit.framesDirectory = artifactPath(outputDir, framesDir);
       audit.framesRetained = args.keepFrames;
       const auditPath = join(outputDir, `flash-audit-${anchor.seconds}s.json`);
@@ -538,9 +584,14 @@ async function captureRun({ args, baseUrl, outputDir, serverMode }) {
       captureTimesAreSimulationSeconds: true,
       clipDurationRealSeconds: args.clipDuration,
       finalState,
+      terminalBeforeMilestone,
       flashAudits,
       flashPass,
-      mode: args.stress ? 'stress-smoke' : 'normal-autopilot-with-dom-upgrade-selection',
+      mode: args.stress
+        ? 'stress-smoke'
+        : args.idle
+          ? 'normal-idle-with-dom-upgrade-selection'
+          : 'normal-autopilot-with-dom-upgrade-selection',
       serverMode,
       scriptedStartFallback: boot.scriptedStartFallback,
       stills,

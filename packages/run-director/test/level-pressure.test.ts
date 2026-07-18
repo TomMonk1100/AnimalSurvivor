@@ -111,12 +111,11 @@ test('authored phase cadence accelerates ordinary waves independently of level p
   assert.equal(decision[0]?.count, 4);
 });
 
-function runBelowCapStream(playerLevel: number): {
+function runBelowCapStream(playerLevel: number, def = getDefaultDefinition()): {
   readonly ordinaryWaves: number;
   readonly maxDecisionsPerTick: number;
   readonly stateHash: string;
 } {
-  const def = getDefaultDefinition();
   const phase = openingPhase();
   const state = createInitialState(def, 0x4567);
   let ordinaryWaves = 0;
@@ -155,8 +154,43 @@ test('level-pressure content is validated and fingerprinted', () => {
   const def = getDefaultDefinition();
   const rule = def.levelPressure;
   assert.ok(rule);
-  const invalid = { ...def, levelPressure: { ...rule, maxSteps: 4 } };
+  const invalid = { ...def, levelPressure: { ...rule, maxSteps: 7 } };
   assert.throws(() => validateDefinition(invalid), /levelPressure\.maxSteps/);
+
+  const ceilingRule = {
+    startLevel: 4,
+    levelsPerStep: 2,
+    maxSteps: 6,
+    softCapPerStep: 3,
+    hardCapPerStep: 5,
+    intervalTicksReductionPerStep: 2,
+  } as const;
+  const ceilingDefinition = { ...def, levelPressure: ceilingRule };
+  assert.doesNotThrow(() => validateDefinition(ceilingDefinition));
+  assert.deepEqual(resolveLiveEnemyCaps(openingPhase(), ceilingRule, 99), {
+    softCap: 30,
+    hardCap: 50,
+    levelSteps: 6,
+  });
+  assert.equal(resolveDiscretionaryWaveInterval(60, ceilingRule, 99), 48);
+
+  const ceilingStream = runBelowCapStream(99, ceilingDefinition);
+  const ceilingReplay = runBelowCapStream(99, ceilingDefinition);
+  assert.equal(ceilingStream.maxDecisionsPerTick, 1, 'expanded ceiling must not permit same-tick bursts');
+  assert.equal(ceilingStream.stateHash, ceilingReplay.stateHash);
+
+  assert.throws(
+    () => validateDefinition({ ...def, levelPressure: { ...ceilingRule, softCapPerStep: 4 } }),
+    /levelPressure\.softCapPerStep/,
+  );
+  assert.throws(
+    () => validateDefinition({ ...def, levelPressure: { ...ceilingRule, hardCapPerStep: 6 } }),
+    /levelPressure\.hardCapPerStep/,
+  );
+  assert.throws(
+    () => validateDefinition({ ...def, levelPressure: { ...ceilingRule, hardCapPerStep: 2 } }),
+    /hardCapPerStep must be >= softCapPerStep/,
+  );
 
   const invalidInterval = {
     ...def,

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DEFAULT_CONFIG, type SimConfig } from '../src/config.js';
+import { ENEMY_BEHAVIOR_KIND } from '../src/enemy-behavior.js';
 import { createSimulation, runReplay } from '../src/simulation.js';
 import { RUN_ENEMY_ROLE } from '../src/run-spawn-adapter.js';
 import { UNIVERSAL_UPGRADE_CATALOG } from '../src/universal-upgrades.js';
@@ -352,4 +353,35 @@ test('normal-plus spitter spawns with its own XP, presentation role, and replaya
     runReplay(config, sim.getReplay(), { runDirectorFactory: spitterFactory() }).finalHash,
     sim.hash(),
   );
+});
+
+test('enemy behavior presentation view aliases live state without changing deterministic output', () => {
+  const config: SimConfig = {
+    ...quietConfig(),
+    enemyBehavior: {
+      ...DEFAULT_CONFIG.enemyBehavior,
+      spitterInitialFireDelayTicks: 3,
+      spitterFireIntervalTicks: 100,
+    },
+  };
+  const presentationRead = createSimulation(config, 4321, { runDirectorFactory: spitterFactory() });
+  const control = createSimulation(config, 4321, { runDirectorFactory: spitterFactory() });
+  const view = presentationRead.enemyBehaviorView;
+  const observedCooldowns: number[] = [];
+
+  for (let tick = 0; tick < 5; tick++) {
+    presentationRead.step({ moveX: 0, moveY: 0, paused: false });
+    control.step({ moveX: 0, moveY: 0, paused: false });
+    const spitterSlot = presentationRead.enemies.data.alive.findIndex((alive, slot) =>
+      alive === 1 && presentationRead.enemyPresentationRole(presentationRead.enemies.idOf(slot)) === RUN_ENEMY_ROLE.ranged,
+    );
+    if (spitterSlot >= 0) {
+      assert.equal(view.kind[spitterSlot], ENEMY_BEHAVIOR_KIND.spitterSkirmish);
+      observedCooldowns.push(view.hostileShotCooldown[spitterSlot]!);
+    }
+    assert.equal(presentationRead.hash(), control.hash());
+  }
+
+  assert.equal(presentationRead.enemyBehaviorView, view, 'the presentation accessor remains a stable live view');
+  assert.deepEqual(observedCooldowns, [3, 2, 1, 100, 99], 'the stable view follows live cooldown state');
 });

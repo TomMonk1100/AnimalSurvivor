@@ -36,6 +36,8 @@ export const DAMAGE_NUMBER_LIFETIME_TICKS = 28;
 export const DAMAGE_NUMBER_NORMAL_MIN_INTERVAL_TICKS = 4;
 /** Criticals remain special, but may not stack a second white/gold burst instantly. */
 export const DAMAGE_NUMBER_CRITICAL_MIN_INTERVAL_TICKS = 6;
+/** One cyan BLOCK label is enough to establish an active shield in a swarm. */
+export const DAMAGE_NUMBER_SHIELD_ABSORB_MIN_INTERVAL_TICKS = 72;
 const DAMAGE_NUMBER_ENTER_TICKS = 3;
 const DAMAGE_NUMBER_RELEASE_START = 0.42;
 
@@ -153,6 +155,7 @@ export function createDamageNumberPresentation(
   let nextReplacement = 0;
   let lastNormalAdmissionTick = Number.NEGATIVE_INFINITY;
   let lastCriticalAdmissionTick = Number.NEGATIVE_INFINITY;
+  let lastShieldAbsorbAdmissionTick = Number.NEGATIVE_INFINITY;
 
   if (overlay !== null && parent !== null) {
     overlay.className = 'damage-number-overlay';
@@ -185,6 +188,7 @@ export function createDamageNumberPresentation(
     nextReplacement = 0;
     lastNormalAdmissionTick = Number.NEGATIVE_INFINITY;
     lastCriticalAdmissionTick = Number.NEGATIVE_INFINITY;
+    lastShieldAbsorbAdmissionTick = Number.NEGATIVE_INFINITY;
   }
 
   /**
@@ -193,8 +197,13 @@ export function createDamageNumberPresentation(
    * a dense multi-hit look like alternating white pixels in the flash audit.
    */
   function admitsDamageNumber(event: CombatPresentationEventView): boolean {
-    if (event.kind !== 'enemyHit') return true;
     const eventTick = Math.max(0, Math.floor(finite(event.tick, 0)));
+    if (event.kind === 'shieldAbsorb') {
+      if (eventTick - lastShieldAbsorbAdmissionTick < DAMAGE_NUMBER_SHIELD_ABSORB_MIN_INTERVAL_TICKS) return false;
+      lastShieldAbsorbAdmissionTick = eventTick;
+      return true;
+    }
+    if (event.kind !== 'enemyHit') return true;
     if (event.critical) {
       if (eventTick - lastCriticalAdmissionTick < DAMAGE_NUMBER_CRITICAL_MIN_INTERVAL_TICKS) return false;
       lastCriticalAdmissionTick = eventTick;

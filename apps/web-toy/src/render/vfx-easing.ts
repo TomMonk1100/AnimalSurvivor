@@ -24,6 +24,15 @@ export function easeInQuad(value: number): number {
 }
 
 /**
+ * A release multiplier with an exact terminal zero. Keeping this beside the
+ * scalar easing primitives prevents renderer pools from falling back to a
+ * linear partial fade and then hiding a still-visible card on the next tick.
+ */
+export function easeOutToZero(value: number): number {
+  return 1 - easeInQuad(value);
+}
+
+/**
  * A compact launch overshoot for impact cards. `overshoot` stays explicit so
  * a caller can tune an archetype without changing the shared curve.
  */
@@ -60,7 +69,7 @@ export function envelope(progress: number, attack: number, release: number): num
     return easeOutCubic(p / normalizedAttack);
   }
   if (normalizedRelease > 0 && p > releaseStart) {
-    return 1 - easeInQuad((p - releaseStart) / normalizedRelease);
+    return easeOutToZero((p - releaseStart) / normalizedRelease);
   }
   return 1;
 }

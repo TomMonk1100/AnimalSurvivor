@@ -25,11 +25,19 @@ import {
   type IllustratedVfxMotionSample,
 } from './illustrated-vfx-motion';
 import {
+  hasExplicitTraitSourcePaletteLane,
+  isPlayerAttackPaletteLane,
+  paletteLaneForTraitSource,
+  type AttackVfxFamily,
+} from './attack-vfx-palette';
+import {
+  ILLUSTRATED_VFX_FAMILY_EVICTION_RELEASE_TICKS,
   ILLUSTRATED_VFX_FULL_INTENSITY_PROFILE,
   illustratedVfxIntensityForNewCast,
+  illustratedVfxOldestProminentFamilyToRelease,
   type IllustratedVfxIntensityProfile,
 } from './illustrated-vfx-intensity-governor';
-import { envelope } from './vfx-easing';
+import { easeOutToZero, envelope } from './vfx-easing';
 import {
   WILDGUARD_VFX_CLIP,
   wildguardVfxClipDefinition,
@@ -49,6 +57,57 @@ export type IllustratedTraitVfxEvent = Pick<
   'kind' | 'sourceId' | 'tag' | 'meleeArcResolved'
   | 'resolvedHitCount' | 'resolvedHitX' | 'resolvedHitY'
 >;
+
+/**
+ * Only known player-owned trait sources may spend the three-family budget.
+ * Hostile danger sources and unknown future input cannot masquerade as a
+ * player palette family merely because physical is the safe fallback lane.
+ */
+export function illustratedVfxFamilyForTraitEvent(
+  event: IllustratedTraitVfxEvent,
+  clip: WildguardVfxClip | null = illustratedVfxClipForTraitEvent(event),
+): AttackVfxFamily | null {
+  // Defense/reveal cards remain readable but are not attack-family bodies;
+  // they cannot evict a live weapon from the three-family travel budget.
+  if (
+    event.kind === 'grantShield'
+    || event.kind === 'playTraitCue'
+    || event.kind === 'markTargets'
+    || event.sourceId === 'gracie-scout'
+  ) return null;
+  if (hasExplicitTraitSourcePaletteLane(event.sourceId)) {
+    const lane = paletteLaneForTraitSource(event.sourceId);
+    return isPlayerAttackPaletteLane(lane) ? lane : null;
+  }
+  // A few current rendered cards (notably Meteor Mauler) inherit their
+  // authored material lane rather than a direct source-table row. Their
+  // source-specific clip is still enough to identify a player family.
+  switch (clip) {
+    case WILDGUARD_VFX_CLIP.meteorImpact: return 'fire';
+    case WILDGUARD_VFX_CLIP.crabCrush:
+    case WILDGUARD_VFX_CLIP.mantisSweep:
+    case WILDGUARD_VFX_CLIP.quillVolley:
+    case WILDGUARD_VFX_CLIP.monarchOrbit:
+      return 'physical';
+    case WILDGUARD_VFX_CLIP.armadilloRoll:
+    case WILDGUARD_VFX_CLIP.earthWave:
+      return 'earth';
+    case WILDGUARD_VFX_CLIP.pufferPulse:
+    case WILDGUARD_VFX_CLIP.geckoPad:
+    case WILDGUARD_VFX_CLIP.skunkCloud:
+    case WILDGUARD_VFX_CLIP.royalStink:
+      return 'venom';
+    case WILDGUARD_VFX_CLIP.thornstorm:
+    case WILDGUARD_VFX_CLIP.batSonar:
+    case WILDGUARD_VFX_CLIP.midnightRadar:
+      return 'arcane';
+    case WILDGUARD_VFX_CLIP.owlPinions:
+    case WILDGUARD_VFX_CLIP.thunderbug:
+    case WILDGUARD_VFX_CLIP.fireflyOrbit:
+      return 'storm';
+    default: return null;
+  }
+}
 
 /** A similarly narrow, read-only outcome view for the impact routing policy. */
 export type IllustratedCombatVfxEvent = Pick<
@@ -126,11 +185,14 @@ export function illustratedVfxClipForTraitEvent(event: IllustratedTraitVfxEvent)
       if (event.meleeArcResolved !== true) return null;
       return event.sourceId === 'mantis-scythes' ? WILDGUARD_VFX_CLIP.mantisSweep : null;
     case 'spawnZone':
+      // Persistent world lanes already own these two clouds. A second
+      // illustrated card duplicates their opacity and raises flash load, so
+      // this event route deliberately leaves the scene-owned treatment alone.
       if (event.sourceId === 'royal-stinkcloud' && event.tag === 'royal-stink') {
-        return WILDGUARD_VFX_CLIP.royalStink;
+        return null;
       }
       if (event.sourceId === 'skunk-brush' && event.tag === 'stink-cloud') {
-        return WILDGUARD_VFX_CLIP.skunkCloud;
+        return null;
       }
       if (
         event.sourceId === 'gecko-pads'
@@ -244,6 +306,13 @@ interface IllustratedVfxSlot {
   rankProfile: IllustratedVfxRankProfile;
   /** Start-of-life heat budget; lower priorities always retain full intensity. */
   intensityProfile: IllustratedVfxIntensityProfile;
+  /** Player family only; combat outcomes intentionally do not consume this budget. */
+  family: AttackVfxFamily | null;
+  /** Marks a card as no longer prominent while its forced aftermath eases out. */
+  prominenceEndsAtTick: number;
+  /** Negative values mean the card is using its natural envelope. */
+  forcedReleaseStartTick: number;
+  forcedReleaseEndTick: number;
 }
 
 const MIN_CAPACITY = 1;
@@ -288,6 +357,33 @@ export const FOX_SWIPE_FLASH_SAFE_OPACITY_MULTIPLIER = 0.22;
  * to combine with a nearby signature card into a four-swing second.
  */
 export const PUFFER_PULSE_FLASH_SAFE_OPACITY_MULTIPLIER = 0.32;
+/**
+ * Chain damage can resolve repeatedly in a single dense encounter. The
+ * Thunderbug card already has the retained endpoint ribbon beneath it, so a
+ * slightly more than one-second illustrated cadence preserves the causal
+ * lightning read without allowing several large white atlas bodies to land
+ * in the same photosensitivity-audit window.
+ */
+export const THUNDERBUG_FLASH_SAFE_MIN_INTERVAL_TICKS = 72;
+/** The storm card remains visibly brighter than its muted endpoint ribbon. */
+export const THUNDERBUG_FLASH_SAFE_OPACITY_MULTIPLIER = 0.38;
+/**
+ * A collected Magnet can pull a dense field across the hero in one burst.
+ * Its player-facing card stays clear, but a shorter cadence and muted card
+ * keep the reward vortex from sharing the combat center as a white strobe.
+ */
+export const MAGNET_FLASH_SAFE_MIN_INTERVAL_TICKS = 72;
+export const MAGNET_FLASH_SAFE_OPACITY_MULTIPLIER = 0.52;
+/**
+ * A shield can absorb several contact events inside one dense-enemy beat.
+ * Its large dissolve card is still the clearest way to explain a BLOCK, but
+ * restarting the whole field for every absorb made the player-centered read
+ * oscillate above the flash-audit budget. Keep one restrained shield read per
+ * little-more-than-one-second window; the BLOCK label and all authoritative
+ * defense events remain available independently of this renderer-only card.
+ */
+export const FLUFFY_SHIELD_FLASH_SAFE_MIN_INTERVAL_TICKS = 72;
+export const FLUFFY_SHIELD_FLASH_SAFE_OPACITY_MULTIPLIER = 0.34;
 
 function finite(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
@@ -364,6 +460,12 @@ export function illustratedVfxFlashSafeIntervalForClip(clip: WildguardVfxClip): 
       return FOX_SWIPE_FLASH_SAFE_MIN_INTERVAL_TICKS;
     case WILDGUARD_VFX_CLIP.pufferPulse:
       return PUFFER_PULSE_FLASH_SAFE_MIN_INTERVAL_TICKS;
+    case WILDGUARD_VFX_CLIP.thunderbug:
+      return THUNDERBUG_FLASH_SAFE_MIN_INTERVAL_TICKS;
+    case WILDGUARD_VFX_CLIP.magnet:
+      return MAGNET_FLASH_SAFE_MIN_INTERVAL_TICKS;
+    case WILDGUARD_VFX_CLIP.fluffyShield:
+      return FLUFFY_SHIELD_FLASH_SAFE_MIN_INTERVAL_TICKS;
     default:
       return 0;
   }
@@ -376,6 +478,12 @@ export function illustratedVfxOpacityMultiplierForClip(clip: WildguardVfxClip): 
       return FOX_SWIPE_FLASH_SAFE_OPACITY_MULTIPLIER;
     case WILDGUARD_VFX_CLIP.pufferPulse:
       return PUFFER_PULSE_FLASH_SAFE_OPACITY_MULTIPLIER;
+    case WILDGUARD_VFX_CLIP.thunderbug:
+      return THUNDERBUG_FLASH_SAFE_OPACITY_MULTIPLIER;
+    case WILDGUARD_VFX_CLIP.magnet:
+      return MAGNET_FLASH_SAFE_OPACITY_MULTIPLIER;
+    case WILDGUARD_VFX_CLIP.fluffyShield:
+      return FLUFFY_SHIELD_FLASH_SAFE_OPACITY_MULTIPLIER;
     default:
       return 1;
   }
@@ -538,6 +646,10 @@ export function illustratedVfxEnvelopeReleaseForClip(clip: WildguardVfxClip): nu
 
 function resetSlot(slot: IllustratedVfxSlot): void {
   slot.active = false;
+  slot.family = null;
+  slot.prominenceEndsAtTick = 0;
+  slot.forcedReleaseStartTick = -1;
+  slot.forcedReleaseEndTick = -1;
   slot.nextFrameMeshInstance.visible = false;
   slot.entity.enabled = false;
 }
@@ -623,6 +735,10 @@ export function createIllustratedVfxPresentation(
       seed: index,
       rankProfile: DEFAULT_ILLUSTRATED_VFX_RANK_PROFILE,
       intensityProfile: ILLUSTRATED_VFX_FULL_INTENSITY_PROFILE,
+      family: null,
+      prominenceEndsAtTick: 0,
+      forcedReleaseStartTick: -1,
+      forcedReleaseEndTick: -1,
     });
   }
 
@@ -633,7 +749,10 @@ export function createIllustratedVfxPresentation(
   const lastMasterAccentTickBySource = new Map<string, number>();
   // The clip union is finite, so this renderer-owned cadence cache remains
   // bounded and cannot feed any state back into the simulation.
-  const lastFlashSafeSignatureTickByClip = new Map<WildguardVfxClip, number>();
+  // A clip can originate in either a trait command or a resolved combat
+  // outcome (for example Magnet). Keep one renderer-owned cadence history so
+  // both routes honor the same flash-safety contract.
+  const lastFlashSafeStartTickByClip = new Map<WildguardVfxClip, number>();
 
   function selectSlot(priority: number): IllustratedVfxSlot | null {
     for (const slot of slots) {
@@ -651,6 +770,39 @@ export function createIllustratedVfxPresentation(
     return replacement;
   }
 
+  /**
+   * A forced family release preserves the existing card and its deterministic
+   * motion, but makes its remaining visual state an eased aftermath. This is
+   * quieter than deleting the card mid-frame and keeps the family budget from
+   * producing a fourth simultaneous travel/impact read.
+   */
+  function beginFamilyAftermathRelease(family: AttackVfxFamily, currentTick: number): void {
+    for (const slot of slots) {
+      if (!slot.active || slot.family !== family) continue;
+      const existingEnd = slot.forcedReleaseEndTick >= currentTick
+        ? slot.forcedReleaseEndTick
+        : slot.expiresAtTick;
+      slot.prominenceEndsAtTick = currentTick;
+      slot.forcedReleaseStartTick = currentTick;
+      slot.forcedReleaseEndTick = Math.min(
+        slot.expiresAtTick,
+        existingEnd,
+        currentTick + ILLUSTRATED_VFX_FAMILY_EVICTION_RELEASE_TICKS,
+      );
+    }
+  }
+
+  function forcedReleaseMultiplier(slot: IllustratedVfxSlot, currentTick: number): number {
+    if (slot.forcedReleaseStartTick < 0 || slot.forcedReleaseEndTick < slot.forcedReleaseStartTick) return 1;
+    const duration = slot.forcedReleaseEndTick - slot.forcedReleaseStartTick;
+    if (duration <= 0) return currentTick >= slot.forcedReleaseStartTick ? 0 : 1;
+    return easeOutToZero(clamp(
+      (currentTick - slot.forcedReleaseStartTick) / duration,
+      0,
+      1,
+    ));
+  }
+
   function start(
     clip: WildguardVfxClip,
     eventTick: number,
@@ -663,6 +815,7 @@ export function createIllustratedVfxPresentation(
     currentTick: number,
     fallbackFacing = 0,
     rankProfile: IllustratedVfxRankProfile = DEFAULT_ILLUSTRATED_VFX_RANK_PROFILE,
+    family: AttackVfxFamily | null = null,
   ): void {
     const tick = normalizedTick(eventTick);
     const lifetime = Math.max(
@@ -679,6 +832,13 @@ export function createIllustratedVfxPresentation(
     // old card, excluding that exact slot prevents its soon-to-be-evicted heat
     // from incorrectly dimming the incoming one.
     const intensityProfile = illustratedVfxIntensityForNewCast(priority, currentTick, slots, slot);
+    const familyToRelease = illustratedVfxOldestProminentFamilyToRelease(
+      slots,
+      currentTick,
+      family,
+      slot,
+    );
+    if (familyToRelease !== null) beginFamilyAftermathRelease(familyToRelease, currentTick);
     slot.active = true;
     slot.clip = clip;
     slot.priority = priority;
@@ -696,6 +856,10 @@ export function createIllustratedVfxPresentation(
     slot.seed = Math.floor(finite(seed, tick));
     slot.rankProfile = rankProfile;
     slot.intensityProfile = intensityProfile;
+    slot.family = family;
+    slot.prominenceEndsAtTick = slot.expiresAtTick;
+    slot.forcedReleaseStartTick = -1;
+    slot.forcedReleaseEndTick = -1;
   }
 
   function startTraitEvents(
@@ -711,9 +875,10 @@ export function createIllustratedVfxPresentation(
       if (!canStartIllustratedVfxClip(
         clip,
         eventTick,
-        lastFlashSafeSignatureTickByClip.get(clip),
+        lastFlashSafeStartTickByClip.get(clip),
       )) continue;
       const rankProfile = illustratedVfxRankProfileForSource(traitVisualState, event.sourceId);
+      const family = illustratedVfxFamilyForTraitEvent(event, clip);
       const radius = illustratedVfxRadiusForTraitEvent(event, clip);
       // A chain card is a resolved contact marker, not a decorative bolt
       // travelling from the command's origin. The routing guard above proves
@@ -733,9 +898,10 @@ export function createIllustratedVfxPresentation(
         currentTick,
         event.facing,
         rankProfile,
+        family,
       );
       if (illustratedVfxFlashSafeIntervalForClip(clip) > 0) {
-        lastFlashSafeSignatureTickByClip.set(clip, eventTick);
+        lastFlashSafeStartTickByClip.set(clip, eventTick);
       }
 
       const lastAccentTick = lastMasterAccentTickBySource.get(event.sourceId);
@@ -757,6 +923,8 @@ export function createIllustratedVfxPresentation(
           event.tick * 71 + index * 19,
           currentTick,
           event.facing,
+          DEFAULT_ILLUSTRATED_VFX_RANK_PROFILE,
+          family,
         );
         lastMasterAccentTickBySource.set(event.sourceId, event.tick);
       }
@@ -768,6 +936,12 @@ export function createIllustratedVfxPresentation(
       const event = events[index]!;
       const clip = illustratedVfxClipForCombatEvent(event);
       if (clip === null) continue;
+      const eventTick = normalizedTick(event.tick);
+      if (!canStartIllustratedVfxClip(
+        clip,
+        eventTick,
+        lastFlashSafeStartTickByClip.get(clip),
+      )) continue;
       const targetSeed = typeof event.targetId === 'number'
         ? event.targetId
         : event.targetId.length * 37;
@@ -782,12 +956,18 @@ export function createIllustratedVfxPresentation(
         event.tick * 53 + targetSeed + index * 11,
         currentTick,
       );
+      if (illustratedVfxFlashSafeIntervalForClip(clip) > 0) {
+        lastFlashSafeStartTickByClip.set(clip, eventTick);
+      }
     }
   }
 
   function updateSlot(slot: IllustratedVfxSlot, currentTick: number): boolean {
     if (!slot.active) return false;
-    if (currentTick > slot.expiresAtTick) {
+    const terminalTick = slot.forcedReleaseEndTick >= 0
+      ? Math.min(slot.expiresAtTick, slot.forcedReleaseEndTick)
+      : slot.expiresAtTick;
+    if (currentTick > terminalTick) {
       resetSlot(slot);
       return false;
     }
@@ -825,6 +1005,7 @@ export function createIllustratedVfxPresentation(
     scaleX *= slot.intensityProfile.scaleMultiplier;
     scaleZ *= slot.intensityProfile.scaleMultiplier;
     opacity *= slot.intensityProfile.opacityMultiplier;
+    opacity *= forcedReleaseMultiplier(slot, currentTick);
     const atlasSample = slot.atlasSample;
     const definition = wildguardVfxClipDefinition(slot.clip);
     if (!writeAnimatedVfxAtlasSample(definition.sequence, ageTicks, atlasSample)) {
@@ -871,7 +1052,7 @@ export function createIllustratedVfxPresentation(
       if (lastTick >= 0 && tick < lastTick) {
         for (const slot of slots) resetSlot(slot);
         lastMasterAccentTickBySource.clear();
-        lastFlashSafeSignatureTickByClip.clear();
+        lastFlashSafeStartTickByClip.clear();
       }
       startTraitEvents(traitEvents, tick, traitVisualState);
       startCombatEvents(combatEvents, tick);
@@ -890,7 +1071,7 @@ export function createIllustratedVfxPresentation(
       highWaterSlots = 0;
       lastTick = -1;
       lastMasterAccentTickBySource.clear();
-      lastFlashSafeSignatureTickByClip.clear();
+      lastFlashSafeStartTickByClip.clear();
     },
     dispose(): void {
       if (disposed) return;
