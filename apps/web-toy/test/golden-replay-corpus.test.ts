@@ -37,12 +37,15 @@ const GOLDEN_HASHES: Readonly<Record<string, string>> = Object.freeze({
   // placement, the compact Scout opening swipe, and the measured Bat/Skunk
   // Chimera cadence correction. Every lane carries fingerprinted content;
   // Greg lanes also exercise the revised baseline swipe during the run.
-  'greg/forest': '9b5317d809e766d4',
-  'benny/forest': '9a6ed9a0c3e10156',
-  'gracie/forest': 'd00d865addfa09d5',
-  'greg/saltwind': '48aef897105b72c1',
-  'benny/saltwind': '84da3e01287cd1a2',
-  'gracie/saltwind': '101c5fe8b19a05f6',
+  // Rebaselined for the fingerprinted V1.3 reward cadence: every hero now has
+  // bounded 70/90 XP-mote drift and uses the measured 32-based XP threshold
+  // curve. Two consecutive official golden proposals produced these values.
+  'greg/forest': 'b3afa1f281604e36',
+  'benny/forest': 'a0e0f1e23e52ff4a',
+  'gracie/forest': '98a75a1db20ad2dd',
+  'greg/saltwind': '845b6328196751c8',
+  'benny/saltwind': 'cee1fa27642d73d0',
+  'gracie/saltwind': 'ca4b67cd7df23061',
 });
 
 const traitRuntimeFactory: TraitRuntimeFactory = ({ seed, initialTick }) =>

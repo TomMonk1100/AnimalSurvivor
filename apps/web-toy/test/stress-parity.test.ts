@@ -31,7 +31,9 @@ const FIVE_MINUTE_PARITY_TIMEOUT_MS = 45_000;
 // the compact Scout baseline swipe, and the measured Bat/Skunk Chimera cadence
 // correction. The headless control, fixed-tick driver, and repeated seeded run
 // agree on this intentional authoritative behavior change.
-const EXPECTED_FIVE_MINUTE_HASH = '328b17810b43bce5';
+// Rebaselined for the fingerprinted V1.3 base mote drift and XP cadence after
+// two consecutive official proposals agreed on the same five-minute result.
+const EXPECTED_FIVE_MINUTE_HASH = '7cbe44a98faa9f59';
 
 /** Headless control: step a bare simulation with autopilot inputs keyed on pre-step tick. */
 function headlessControl(seed: number, ticks: number): string {
